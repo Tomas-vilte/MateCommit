@@ -26,5 +26,7 @@ func main() {
 		log.Fatal("Error generando commit:", err)
 	}
 
+	fmt.Println("Hola como estas?")
+
 	fmt.Printf("Commit Generado: %s\n", message)
 }
