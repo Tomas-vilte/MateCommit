@@ -41,15 +41,52 @@ func (s *GitService) GetChangedFiles() ([]models.GitChange, error) {
 }
 
 func (s *GitService) GetDiff() (string, error) {
-	cmd := exec.Command("git", "diff", "--cached", "--no-color")
-	output, err := cmd.Output()
+	stagedCmd := exec.Command("git", "diff", "--cached")
+	stagedOutput, err := stagedCmd.Output()
 	if err != nil {
 		return "", err
 	}
-	return string(output), nil
+
+	unstagedCmd := exec.Command("git", "diff")
+	unstageOutput, err := unstagedCmd.Output()
+	if err != nil {
+		return "", err
+	}
+
+	combinedDiff := string(stagedOutput) + string(unstageOutput)
+
+	if combinedDiff == "" {
+		untrackedCmd := exec.Command("git", "ls-files", "--others", "--exclude-standard")
+		untrackedFiles, err := untrackedCmd.Output()
+		if err == nil && len(untrackedFiles) > 0 {
+			for _, file := range strings.Split(string(untrackedFiles), "\n") {
+				if file != "" {
+					fileContentCmd := exec.Command("git", "show", ":"+file)
+					content, err := fileContentCmd.Output()
+					if err == nil {
+						combinedDiff += "\n=== Nuevo archivo" + file + "===\n"
+						combinedDiff += string(content)
+					}
+				}
+			}
+		}
+	}
+	return combinedDiff, nil
+}
+
+func (s *GitService) StageAllChanges() error {
+	cmd := exec.Command("git", "add", ".")
+	return cmd.Run()
 }
 
 func (s *GitService) CreateCommit(message string) error {
+	// Primero aseguramos que todos los cambios estén en staging
+	err := s.StageAllChanges()
+	if err != nil {
+		return err
+	}
+
+	// Luego creamos el commit
 	cmd := exec.Command("git", "commit", "-m", message)
 	return cmd.Run()
 }

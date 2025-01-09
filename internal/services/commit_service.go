@@ -7,20 +7,12 @@ import (
 	"strings"
 )
 
-type (
-	GitService interface {
-		GetChangedFiles() ([]models.GitChange, error)
-		GetDiff() (string, error)
-		CreateCommit(message string) error
-	}
-)
-
 type CommitService struct {
-	git GitService
+	git ports.GitService
 	ai  ports.AIProvider
 }
 
-func NewCommitService(git GitService, ai ports.AIProvider) *CommitService {
+func NewCommitService(git ports.GitService, ai ports.AIProvider) *CommitService {
 	return &CommitService{
 		git: git,
 		ai:  ai,
