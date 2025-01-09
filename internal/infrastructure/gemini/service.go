@@ -6,6 +6,7 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/google/generative-ai-go/genai"
 	"google.golang.org/api/option"
+	"strings"
 )
 
 type GeminiService struct {
@@ -46,8 +47,8 @@ func (s *GeminiService) GenerateCommitMessage(ctx context.Context, info models.C
 	if err != nil {
 		return "", err
 	}
-	fmt.Println(resp)
-	return "", nil
+
+	return formatResponse(resp), nil
 }
 
 func formatChanges(files []string) string {
@@ -56,4 +57,19 @@ func formatChanges(files []string) string {
 		result += fmt.Sprintf("- %s\n", file)
 	}
 	return result
+}
+
+func formatResponse(resp *genai.GenerateContentResponse) string {
+	var formattedContent strings.Builder
+	if resp != nil && resp.Candidates != nil {
+		for _, cand := range resp.Candidates {
+			if cand.Content != nil {
+				for _, part := range cand.Content.Parts {
+					formattedContent.WriteString(fmt.Sprintf("%v", part))
+				}
+			}
+		}
+	}
+
+	return formattedContent.String()
 }
