@@ -6,5 +6,5 @@ import (
 )
 
 type AIProvider interface {
-	GenerateCommitMessage(ctx context.Context, info models.CommitInfo) (string, error)
+	GenerateSuggestions(ctx context.Context, info models.CommitInfo, count int) ([]string, error)
 }
