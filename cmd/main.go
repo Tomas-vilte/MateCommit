@@ -42,7 +42,7 @@ func main() {
 						Name:    "format",
 						Aliases: []string{"f"},
 						Value:   "conventional",
-						Usage:   "Formato del commit (conventional, gitmoji)",
+						Usage:   "Formato del commit (conventional)",
 					},
 				},
 				Action: func(ctx context.Context, command *cli.Command) error {
