@@ -2,9 +2,10 @@ package services
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
-	"strings"
 )
 
 type CommitService struct {
@@ -19,15 +20,23 @@ func NewCommitService(git ports.GitService, ai ports.AIProvider) *CommitService 
 	}
 }
 
-func (s *CommitService) GenerateAndCommit(ctx context.Context) (string, error) {
+func (s *CommitService) GenerateSuggestions(ctx context.Context, count int, format string) ([]string, error) {
 	changes, err := s.git.GetChangedFiles()
 	if err != nil {
-		return "", err
+		return nil, err
+	}
+
+	if len(changes) == 0 {
+		return nil, fmt.Errorf("no hay cambios detectados")
 	}
 
 	diff, err := s.git.GetDiff()
 	if err != nil {
-		return "", err
+		return nil, err
+	}
+
+	if diff == "" {
+		return nil, errors.New("no se detectaron diferencias en los archivos")
 	}
 
 	files := make([]string, 0)
@@ -36,20 +45,10 @@ func (s *CommitService) GenerateAndCommit(ctx context.Context) (string, error) {
 	}
 
 	info := models.CommitInfo{
-		Files: files,
-		Diff:  diff,
+		Files:  files,
+		Diff:   diff,
+		Format: format,
 	}
 
-	message, err := s.ai.GenerateCommitMessage(ctx, info)
-	if err != nil {
-		return "", err
-	}
-
-	message = strings.TrimSpace(message)
-
-	err = s.git.CreateCommit(message)
-	if err != nil {
-		return "", err
-	}
-	return message, nil
+	return s.ai.GenerateSuggestions(ctx, info, count)
 }
