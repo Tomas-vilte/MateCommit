@@ -40,6 +40,7 @@ func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.Com
         - 👷 (construction worker) para CI
         - 📦 (package) para cambios en el build
         - ⏪️ (rewind) para reverts
+		Cuando modifiques el archivo .gitignore usa el tipo "chore" o "docs".
         `
 
 	prompt := fmt.Sprintf(`Genera %d sugerencias diferentes de mensajes de commit, incluyendo una explicación concisa del motivo del commit y los archivos que están incluidos en el commit. Considera que los cambios en estos archivos deben ir en el mismo commit, a menos que se detecte que no están relacionados. No incluyas encabezados como "Sugerencia 1:", "Sugerencia 2:", etc.
@@ -58,7 +59,8 @@ func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.Com
                Archivos: [lista de archivos separados por comas]
                Explicación: [explicación concisa de por qué se eligió ese mensaje de commit]
             7. No incluyas ninguna lista numerada ni texto introductorio. No incluyas encabezados de "Sugerencia n:",  ni "**Mensaje de commit n:**"
-			8. Si detectas que algunos archivos no están lógicamente relacionados, separa sus cambios en commits adicionales, siguiendo el mismo formato.`,
+			8. Si detectas que algunos archivos no están lógicamente relacionados, separa sus cambios en commits adicionales, siguiendo el mismo formato.
+			9. Cuando modifiques el archivo .gitignore usa el tipo "chore" o "docs".`,
 		count,
 		formatChanges(info.Files),
 		info.Diff,
