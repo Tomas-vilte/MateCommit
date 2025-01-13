@@ -28,11 +28,7 @@ func NewGeminiService(ctx context.Context, apiKey string) *GeminiService {
 }
 
 func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.CommitInfo, count int) ([]string, error) {
-	var formatInstructions string
-	if info.Format == "conventional" {
-		formatInstructions = "Usa el formato de Conventional Commits (feat/fix/docs/etc)"
-	} else if info.Format == "gitmoji" {
-		formatInstructions = `Usa el formato Gitmoji con estos emojis específicos:
+	formatInstructions := `Usa el formato de Conventional Commits (feat/fix/docs/etc) y agrega un emoji al inicio de cada tipo de commit:
         - ✨ (sparkles) para nuevas características (feat)
         - 🐛 (bug) para correcciones (fix)
         - 📚 (books) para documentación (docs)
@@ -44,24 +40,27 @@ func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.Com
         - 👷 (construction worker) para CI
         - 📦 (package) para cambios en el build
         - ⏪️ (rewind) para reverts
-        
-        El formato debe ser: [emoji] tipo: descripción`
-	}
+		Cuando modifiques el archivo .gitignore usa el tipo "chore" o "docs".
+        `
 
-	prompt := fmt.Sprintf(`Genera %d sugerencias diferentes de mensajes de commit basados en estos cambios:
-			Archivos modificados:
-			%s
-			Diff:
-			%s
-			Instrucciones:
-			1. %s
-			2. Cada mensaje no debe exceder 72 caracteres
-			3. Los mensajes deben ser claros y descriptivos
-			4. No incluyas puntos finales
-			5. Genera exactamente %d sugerencias diferentes
-			6. Cada sugerencia debe estar en una línea nueva
-			7. No números las sugerencias
-			8. Si es formato gitmoji, asegurate de incluir el emoji al inicio`,
+	prompt := fmt.Sprintf(`Genera %d sugerencias diferentes de mensajes de commit, incluyendo una explicación concisa del motivo del commit y los archivos que están incluidos en el commit. Considera que los cambios en estos archivos deben ir en el mismo commit, a menos que se detecte que no están relacionados. No incluyas encabezados como "Sugerencia 1:", "Sugerencia 2:", etc.
+            Archivos modificados:
+            %s
+            Diff:
+            %s
+            Instrucciones:
+            1. %s
+            2. Cada mensaje de commit no debe exceder 72 caracteres
+            3. Los mensajes de commit deben ser claros y descriptivos
+            4. No incluyas puntos finales.
+            5. Genera exactamente %d sugerencias diferentes.
+            6. Cada sugerencia debe estar en una línea nueva, con el siguiente formato:
+               [tipo]: [mensaje de commit]
+               Archivos: [lista de archivos separados por comas]
+               Explicación: [explicación concisa de por qué se eligió ese mensaje de commit]
+            7. No incluyas ninguna lista numerada ni texto introductorio. No incluyas encabezados de "Sugerencia n:",  ni "**Mensaje de commit n:**"
+			8. Si detectas que algunos archivos no están lógicamente relacionados, separa sus cambios en commits adicionales, siguiendo el mismo formato.
+			9. Cuando modifiques el archivo .gitignore usa el tipo "chore" o "docs".`,
 		count,
 		formatChanges(info.Files),
 		info.Diff,
@@ -74,11 +73,10 @@ func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.Com
 	}
 
 	responseText := formatResponse(resp)
+	//log.Printf("Respuesta del modelo:\n%s", responseText) // Log response from the model
 	suggestions := processResponse(responseText)
 
-	if info.Format == "gitmoji" {
-		suggestions = ensureGitmojiFormat(suggestions)
-	}
+	suggestions = ensureConventionalFormat(suggestions)
 
 	if len(suggestions) > count {
 		suggestions = suggestions[:count]
@@ -102,7 +100,7 @@ func formatResponse(resp *genai.GenerateContentResponse) string {
 		for _, cand := range resp.Candidates {
 			if cand.Content != nil {
 				for _, part := range cand.Content.Parts {
-					formattedContent.WriteString(fmt.Sprintf("%v", part)) // Convertir part a string
+					formattedContent.WriteString(fmt.Sprintf("%v", part))
 				}
 			}
 		}
@@ -110,83 +108,118 @@ func formatResponse(resp *genai.GenerateContentResponse) string {
 	return formattedContent.String()
 }
 
-// processResponse toma la respuesta generada y la divide en sugerencias y explicaciones.
+// processResponse toma la respuesta generada y la divide en sugerencias
 func processResponse(response string) []string {
-	// Dividir la respuesta en líneas
 	lines := strings.Split(response, "\n")
 	var suggestions []string
-	var currentCommitTitle string
-	var currentCommitExplanation strings.Builder
+	var currentCommitSuggestion string
+	var currentFiles string
+	var currentExplanation string
+	var mode string // "", commit", "files", "explanation"
 
 	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
-
-		// Detectar el inicio de una nueva sugerencia (es decir, el título del commit)
-		if strings.HasPrefix(trimmedLine, "**Sugerencia") {
-			// Si ya había un commit anterior, agregamos la sugerencia acumulada
-			if currentCommitTitle != "" {
-				suggestions = append(suggestions, fmt.Sprintf("Commit: %s\nExplicación: %s", currentCommitTitle, currentCommitExplanation.String()))
-				currentCommitTitle = ""
-				currentCommitExplanation.Reset()
-			}
-		}
-
-		// Agregar el título del commit (por ejemplo, "feat(cli): ...")
-		if strings.HasPrefix(trimmedLine, "feat") || strings.HasPrefix(trimmedLine, "fix") || strings.HasPrefix(trimmedLine, "chore") || strings.HasPrefix(trimmedLine, "refactor") {
-			currentCommitTitle = trimmedLine
-		} else if currentCommitTitle != "" {
-			// Agregar líneas adicionales a la explicación del commit
-			currentCommitExplanation.WriteString(" " + trimmedLine)
-		}
-	}
-
-	// Agregar la última sugerencia si quedó pendiente
-	if currentCommitTitle != "" {
-		suggestions = append(suggestions, fmt.Sprintf("Commit: %s\nExplicación: %s", currentCommitTitle, currentCommitExplanation.String()))
-	}
-
-	return suggestions
-}
-
-func ensureGitmojiFormat(suggestions []string) []string {
-	var formatted []string
-	for _, suggestion := range suggestions {
-		parts := strings.SplitN(suggestion, ":", 2)
-		if len(parts) < 2 {
+		if trimmedLine == "" {
 			continue
 		}
 
-		commitType := strings.TrimSpace(parts[0])
-		description := strings.TrimSpace(parts[1])
-
-		// Extraer el tipo de commit sin el emoji si ya existe uno
-		typeWithoutEmoji := commitType
-		for _, emoji := range gitmojiMap {
-			typeWithoutEmoji = strings.TrimSpace(strings.ReplaceAll(typeWithoutEmoji, emoji, ""))
-		}
-
-		// Buscar el emoji correspondiente
-		emoji, exists := gitmojiMap[typeWithoutEmoji]
-		if exists {
-			formatted = append(formatted, fmt.Sprintf("%s %s: %s", emoji, typeWithoutEmoji, description))
-		} else {
-			// Si no encontramos un emoji específico, usamos ✨ como default
-			formatted = append(formatted, fmt.Sprintf("✨ %s: %s", typeWithoutEmoji, description))
+		if strings.Contains(trimmedLine, ":") && mode == "" && !strings.HasPrefix(trimmedLine, "**Mensaje de commit") {
+			if currentCommitSuggestion != "" {
+				suggestions = append(suggestions, fmt.Sprintf("Commit: %s\nArchivos: %s\nExplicación: %s", currentCommitSuggestion, currentFiles, currentExplanation))
+			}
+			currentCommitSuggestion = trimmedLine
+			mode = "files"
+			currentFiles = ""
+			currentExplanation = ""
+		} else if strings.HasPrefix(trimmedLine, "Archivos:") {
+			currentFiles = strings.TrimSpace(strings.TrimPrefix(trimmedLine, "Archivos:"))
+			mode = "explanation"
+		} else if strings.HasPrefix(trimmedLine, "Explicación:") {
+			currentExplanation = strings.TrimSpace(strings.TrimPrefix(trimmedLine, "Explicación:"))
+			if currentCommitSuggestion != "" {
+				suggestions = append(suggestions, fmt.Sprintf("Commit: %s\nArchivos: %s\nExplicación: %s", currentCommitSuggestion, currentFiles, currentExplanation))
+				currentCommitSuggestion = ""
+				currentFiles = ""
+				currentExplanation = ""
+				mode = ""
+			}
+		} else if mode == "files" {
+			currentFiles += trimmedLine
+		} else if mode == "explanation" {
+			currentExplanation += trimmedLine
 		}
 	}
+
+	if currentCommitSuggestion != "" {
+		suggestions = append(suggestions, fmt.Sprintf("Commit: %s\nArchivos: %s\nExplicación: %s", currentCommitSuggestion, currentFiles, currentExplanation))
+	}
+	//log.Printf("Sugerencias después de processResponse: %+v", suggestions)
+	return suggestions
+}
+
+func ensureConventionalFormat(suggestions []string) []string {
+	var formatted []string
+	for _, suggestion := range suggestions {
+		parts := strings.SplitN(suggestion, "\n", 3)
+		if len(parts) < 3 {
+			continue
+		}
+
+		// Extraer las líneas relevantes
+		commitLine := parts[0]
+		filesLine := parts[1]
+		explanationLine := parts[2]
+
+		// Remover el "Commit: " prefix si existe
+		commitContent := strings.TrimPrefix(commitLine, "Commit: ")
+
+		// Separar el tipo y mensaje
+		commitParts := strings.SplitN(commitContent, ":", 2)
+		if len(commitParts) < 2 {
+			continue
+		}
+
+		// Limpiar el tipo de commit de cualquier "Commit: " residual
+		commitType := strings.TrimSpace(strings.TrimPrefix(commitParts[0], "Commit:"))
+		commitMessage := strings.TrimSpace(commitParts[1])
+
+		// Encontrar el emoji correcto para el tipo de commit
+		typeWithoutEmoji := ""
+		emoji := ""
+		for commitTypeMap, commitEmoji := range gitmojiMap {
+			if strings.Contains(strings.ToLower(commitType), commitTypeMap) {
+				typeWithoutEmoji = commitTypeMap
+				emoji = commitEmoji
+				break
+			}
+		}
+
+		// Si se encontró un tipo válido, usar ese, si no, usar el tipo original
+		if typeWithoutEmoji != "" {
+			formatted = append(formatted, fmt.Sprintf("Commit: %s %s: %s\n%s\n%s",
+				emoji, typeWithoutEmoji, strings.TrimSpace(commitMessage),
+				filesLine, explanationLine))
+		} else {
+			// Si no se encontró un tipo válido, usar feat como default
+			formatted = append(formatted, fmt.Sprintf("Commit: ✨ feat: %s\n%s\n%s",
+				strings.TrimSpace(commitMessage),
+				filesLine, explanationLine))
+		}
+	}
+	//log.Printf("Sugerencias después de ensureConventionalFormat: %+v", formatted)
 	return formatted
 }
 
 var gitmojiMap = map[string]string{
-	"feat":     "✨",  // Sparkles para nuevas características
-	"fix":      "🐛",  // Bug para correcciones
-	"docs":     "📚",  // Libros para documentación
-	"style":    "💄",  // Lápiz labial para cambios de estilo/CSS
-	"refactor": "♻️", // Reciclar para refactorizaciones
-	"test":     "✅",  // Check mark para tests
-	"chore":    "🔧",  // Llave inglesa para tareas de mantenimiento
-	"perf":     "⚡️", // Rayo para mejoras de rendimiento
-	"ci":       "👷",  // Trabajador de construcción para CI
-	"build":    "📦",  // Paquete para cambios en el sistema de build
-	"revert":   "⏪️", // Rebobinar para reverts
+	"feat":     "✨",
+	"fix":      "🐛",
+	"docs":     "📚",
+	"style":    "💄",
+	"refactor": "♻️",
+	"test":     "✅",
+	"chore":    "🔧",
+	"perf":     "⚡️",
+	"ci":       "👷",
+	"build":    "📦",
+	"revert":   "⏪️",
 }
