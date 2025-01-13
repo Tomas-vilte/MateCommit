@@ -9,4 +9,7 @@ type GitService interface {
 
 	// GetDiff Obtiene el diff completo
 	GetDiff() (string, error)
+
+	// HasStagedChanges Verifica si hay cambios en staging
+	HasStagedChanges() bool
 }
