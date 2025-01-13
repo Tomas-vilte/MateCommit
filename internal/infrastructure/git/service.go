@@ -1,6 +1,7 @@
 package git
 
 import (
+	"fmt"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"os/exec"
 	"strings"
@@ -11,6 +12,15 @@ type GitService struct {
 
 func NewGitService() *GitService {
 	return &GitService{}
+}
+
+// HasStagedChanges verifica si hay cambios en el área de staging
+func (s *GitService) HasStagedChanges() bool {
+	cmd := exec.Command("git", "diff", "--cached", "--quiet")
+	err := cmd.Run()
+
+	// Si el comando retorna error (exit status 1), significa que hay cambios staged
+	return err != nil
 }
 
 func (s *GitService) GetChangedFiles() ([]models.GitChange, error) {
@@ -80,13 +90,12 @@ func (s *GitService) StageAllChanges() error {
 }
 
 func (s *GitService) CreateCommit(message string) error {
-	// Primero aseguramos que todos los cambios estén en staging
-	err := s.StageAllChanges()
-	if err != nil {
-		return err
+	// Primero verificamos si hay cambios staged
+	if !s.HasStagedChanges() {
+		return fmt.Errorf("no hay cambios en el área de staging")
 	}
 
-	// Luego creamos el commit
+	// Creamos el commit
 	cmd := exec.Command("git", "commit", "-m", message)
 	return cmd.Run()
 }
