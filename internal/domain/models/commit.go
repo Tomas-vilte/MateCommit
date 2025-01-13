@@ -13,10 +13,8 @@ type (
 	}
 
 	CommitSuggestion struct {
-		Message     string
-		Type        string
-		Scope       string
-		Description string
-		Score       float64
+		Title       string   `json:"Title"`
+		Explanation string   `json:"Explanation"`
+		Files       []string `json:"Files"`
 	}
 )
