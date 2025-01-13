@@ -31,10 +31,6 @@ jobs:
         run: |
           go test -v ./...
 
-      - name: Build
-        run: |
-          go build -o myapp
-
       - name: Run coverage
         run: go test -race -coverprofile=coverage.txt -covermode=atomic ./...
       - name: Upload coverage to Codecov
