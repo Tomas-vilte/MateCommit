@@ -12,4 +12,6 @@ type GitService interface {
 
 	// HasStagedChanges Verifica si hay cambios en staging
 	HasStagedChanges() bool
+
+	CreateCommit(message string) error
 }

@@ -101,7 +101,7 @@ func createSuggestCommand(cfg *config.Config, gitService *git.GitService) *cli.C
 				return fmt.Errorf("❌ Error al generar sugerencias: %w", err)
 			}
 
-			displaySuggestions(suggestions, commitConfig.Locale)
+			displaySuggestions(suggestions, commitConfig.Locale, gitService)
 			return nil
 		},
 	}
@@ -205,16 +205,47 @@ func createConfigCommand() *cli.Command {
 	}
 }
 
-func displaySuggestions(suggestions []string, locale config.CommitLocale) {
+func displaySuggestions(suggestions []string, locale config.CommitLocale, gitService *git.GitService) {
 	fmt.Printf("\n📝 %s\n", locale.HeaderMsg)
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━")
 	for i, suggestion := range suggestions {
 		fmt.Printf("\n%d. %s\n", i+1, suggestion)
 	}
 	fmt.Printf("\n💡 %s\n", locale.UsageMsg)
-	fmt.Printf("  git commit -m \"[número de sugerencia]\"\n")
-}
+	fmt.Println("\nSeleccione una opción:")
+	fmt.Println("1-N: Usar la sugerencia correspondiente")
+	fmt.Println("0: Salir sin commitear")
 
+	if err := handleCommitSelection(suggestions, gitService); err != nil {
+		fmt.Printf("❌ Error al crear el commit: %v\n", err)
+	}
+}
 func displayError(err error) {
 	log.Fatalf("❌ Error: %v", err)
+}
+
+func handleCommitSelection(suggestions []string, gitService *git.GitService) error {
+	var selection int
+	fmt.Print("\n👉 Ingrese su selección: ")
+	_, err := fmt.Scan(&selection)
+	if err != nil {
+		return fmt.Errorf("error al leer la selección: %w", err)
+	}
+
+	if selection == 0 {
+		fmt.Println("✨ Operación cancelada")
+		return nil
+	}
+
+	if selection < 1 || selection > len(suggestions) {
+		return fmt.Errorf("selección inválida: debe estar entre 1 y %d", len(suggestions))
+	}
+
+	selectedMessage := suggestions[selection-1]
+	if err := gitService.CreateCommit(selectedMessage); err != nil {
+		return err
+	}
+
+	fmt.Printf("✅ Commit creado exitosamente con el mensaje:\n%s\n", selectedMessage)
+	return nil
 }
