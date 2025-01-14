@@ -44,9 +44,9 @@ func (m *MockGitService) CreateCommit(message string) error {
 	return args.Error(0)
 }
 
-func (m *MockAIProvider) GenerateSuggestions(ctx context.Context, info models.CommitInfo, count int) ([]string, error) {
+func (m *MockAIProvider) GenerateSuggestions(ctx context.Context, info models.CommitInfo, count int) ([]models.CommitSuggestion, error) {
 	args := m.Called(ctx, info, count)
-	return args.Get(0).([]string), args.Error(1)
+	return args.Get(0).([]models.CommitSuggestion), args.Error(1)
 }
 
 func TestCommitService_GenerateSuggestions(t *testing.T) {
@@ -62,13 +62,23 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		mockGit.On("GetChangedFiles").Return(changes, nil)
 		mockGit.On("GetDiff").Return("some diff", nil)
 
+		expectedResponse := []models.CommitSuggestion{{
+			CommitTitle: "feat: add new feature",
+			Files:       []string{"file1.go", "file2.py"},
+			Explanation: "some explanation",
+		}}
+
 		expectedInfo := models.CommitInfo{
 			Files:  []string{"file1.go"},
 			Diff:   "some diff",
 			Format: "conventional",
 		}
 		mockAI.On("GenerateSuggestions", mock.Anything, expectedInfo, 3).
-			Return([]string{"feat: add new feature"}, nil)
+			Return([]models.CommitSuggestion{{
+				CommitTitle: "feat: add new feature",
+				Files:       []string{"file1.go", "file2.py"},
+				Explanation: "some explanation",
+			}}, nil)
 
 		service := services.NewCommitService(mockGit, mockAI)
 
@@ -77,7 +87,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 
 		// assert
 		assert.NoError(t, err)
-		assert.Equal(t, []string{"feat: add new feature"}, suggestions)
+		assert.Equal(t, expectedResponse, suggestions)
 
 		mockGit.AssertExpectations(t)
 		mockAI.AssertExpectations(t)
