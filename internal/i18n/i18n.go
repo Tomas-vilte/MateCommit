@@ -14,15 +14,17 @@ type Translations struct {
 }
 
 func NewTranslations(defaultLang string) (*Translations, error) {
-	bundle := i18n.NewBundle(language.English)
-	bundle.RegisterUnmarshalFunc("toml", toml.Unmarshal)
-
-	bundle.MustParseMessageFileBytes([]byte(defaultMessages), "default.en.toml")
-
 	files, err := filepath.Glob("locales/active.*.toml")
 	if err != nil {
 		return nil, fmt.Errorf("error reading locales: %w", err)
 	}
+
+	if len(files) == 0 {
+		return nil, fmt.Errorf("no translation files found in %s")
+	}
+
+	bundle := i18n.NewBundle(language.English)
+	bundle.RegisterUnmarshalFunc("toml", toml.Unmarshal)
 
 	for _, file := range files {
 		if _, err := bundle.LoadMessageFile(file); err != nil {
