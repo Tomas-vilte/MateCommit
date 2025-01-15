@@ -22,6 +22,8 @@ func main() {
 		log.Fatal("Error al cargar configuraciones:", err)
 	}
 
+	fmt.Println("Probando release")
+
 	t, err := i18n.NewTranslations(cfg.DefaultLang)
 	if err != nil {
 		log.Fatal("Error al inicializar traducciones:", err)
