@@ -22,7 +22,11 @@ func TestGeminiService(t *testing.T) {
 		ctx := context.Background()
 		cfg := &config.CommitConfig{}
 		originalDir, _ := os.Getwd()
-		defer os.Chdir(originalDir)
+		defer func() {
+			if err := os.Chdir(originalDir); err != nil {
+				return
+			}
+		}()
 
 		if err := os.Chdir("../../.."); err != nil {
 			t.Fatalf("Error al cambiar de directorio: %v", err)
@@ -48,12 +52,19 @@ func TestGeminiService(t *testing.T) {
 		ctx := context.Background()
 		cfg := &config.CommitConfig{}
 		originalDir, _ := os.Getwd()
-		defer os.Chdir(originalDir)
+		defer func() {
+			if err := os.Chdir(originalDir); err != nil {
+				return
+			}
+		}()
 
 		if err := os.Chdir("../../.."); err != nil {
 			t.Fatalf("Error al cambiar de directorio: %v", err)
 		}
 		trans, err := i18n.NewTranslations("es")
+		if err != nil {
+			t.Fatalf("Error al crear el traductor: %v", err)
+		}
 		service, err := NewGeminiService(ctx, "test-api-key", cfg, trans)
 		if err != nil {
 			t.Fatalf("Error creando servicio: %v", err)
@@ -82,7 +93,11 @@ func TestGeminiService(t *testing.T) {
 		ctx := context.Background()
 		cfg := &config.CommitConfig{}
 		originalDir, _ := os.Getwd()
-		defer os.Chdir(originalDir)
+		defer func() {
+			if err := os.Chdir(originalDir); err != nil {
+				return
+			}
+		}()
 
 		if err := os.Chdir("../../.."); err != nil {
 			t.Fatalf("Error al cambiar de directorio: %v", err)
@@ -118,7 +133,11 @@ func TestGeminiService(t *testing.T) {
 		ctx := context.Background()
 		cfg := &config.CommitConfig{}
 		originalDir, _ := os.Getwd()
-		defer os.Chdir(originalDir)
+		defer func() {
+			if err := os.Chdir(originalDir); err != nil {
+				return
+			}
+		}()
 
 		if err := os.Chdir("../../.."); err != nil {
 			t.Fatalf("Error al cambiar de directorio: %v", err)
@@ -212,7 +231,11 @@ func TestGeminiService(t *testing.T) {
 			UseEmoji: true,
 		}
 		originalDir, _ := os.Getwd()
-		defer os.Chdir(originalDir)
+		defer func() {
+			if err := os.Chdir(originalDir); err != nil {
+				return
+			}
+		}()
 
 		if err := os.Chdir("../../.."); err != nil {
 			t.Fatalf("Error al cambiar de directorio: %v", err)
@@ -255,7 +278,11 @@ func TestGeminiService(t *testing.T) {
 			UseEmoji: true,
 		}
 		originalDir, _ := os.Getwd()
-		defer os.Chdir(originalDir)
+		defer func() {
+			if err := os.Chdir(originalDir); err != nil {
+				return
+			}
+		}()
 
 		if err := os.Chdir("../../.."); err != nil {
 			t.Fatalf("Error al cambiar de directorio: %v", err)
