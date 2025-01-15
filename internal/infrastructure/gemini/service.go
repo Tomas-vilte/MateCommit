@@ -20,7 +20,8 @@ type GeminiService struct {
 
 func NewGeminiService(ctx context.Context, apiKey string, config *config.CommitConfig, trans *i18n.Translations) (*GeminiService, error) {
 	if apiKey == "" {
-		return nil, fmt.Errorf(trans.GetMessage("error_missing_api_key", 0, nil))
+		msg := trans.GetMessage("error_missing_api_key", 0, nil)
+		return nil, fmt.Errorf("%s", msg)
 	}
 	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
 	if err != nil {
@@ -38,23 +39,27 @@ func NewGeminiService(ctx context.Context, apiKey string, config *config.CommitC
 
 func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.CommitInfo, count int) ([]models.CommitSuggestion, error) {
 	if count <= 0 {
-		return nil, fmt.Errorf(s.trans.GetMessage("error_invalid_suggestion_count", 0, nil))
+		msg := s.trans.GetMessage("error_invalid_suggestion_count", 0, nil)
+		return nil, fmt.Errorf("%s", msg)
 	}
 
 	if len(info.Files) == 0 {
-		return nil, fmt.Errorf(s.trans.GetMessage("error_no_files", 0, nil))
+		msg := s.trans.GetMessage("error_no_files", 0, nil)
+		return nil, fmt.Errorf("%s", msg)
 	}
 
 	prompt := s.generatePrompt(s.config.Locale, info, count)
 	resp, err := s.model.GenerateContent(ctx, genai.Text(prompt))
 	if err != nil {
-		return nil, fmt.Errorf(s.trans.GetMessage("error_generating_content", 0, map[string]interface{}{
+		msg := s.trans.GetMessage("error_generating_content", 0, map[string]interface{}{
 			"Error": err.Error(),
-		}))
+		})
+		return nil, fmt.Errorf("%s", msg)
 	}
 	suggestions := s.parseSuggestions(resp)
 	if len(suggestions) == 0 {
-		return nil, fmt.Errorf(s.trans.GetMessage("error_no_suggestions", 0, nil))
+		msg := s.trans.GetMessage("error_no_suggestions", 0, nil)
+		return nil, fmt.Errorf("%s", msg)
 	}
 
 	return suggestions, nil
