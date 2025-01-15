@@ -280,10 +280,11 @@ func handleCommitSelection(suggestions []models.CommitSuggestion, gitService *gi
 		})
 		return fmt.Errorf("%s", msg)
 	}
-	suggestions[0].CommitTitle = strings.TrimPrefix(suggestions[0].CommitTitle, "Commit: ")
 	selectedSuggestion := suggestions[selection-1]
 
-	if err := gitService.CreateCommit(selectedSuggestion.CommitTitle); err != nil {
+	commitTitle := strings.TrimPrefix(selectedSuggestion.CommitTitle, "Commit: ")
+
+	if err := gitService.CreateCommit(commitTitle); err != nil {
 		return err
 	}
 
