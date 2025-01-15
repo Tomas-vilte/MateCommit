@@ -20,7 +20,7 @@ func NewTranslations(defaultLang string) (*Translations, error) {
 	}
 
 	if len(files) == 0 {
-		return nil, fmt.Errorf("no translation files found in %s")
+		return nil, fmt.Errorf("no translation files found")
 	}
 
 	bundle := i18n.NewBundle(language.English)
@@ -63,37 +63,3 @@ func (t *Translations) GetMessage(messageID string, count int, templateData map[
 	}
 	return localized
 }
-
-var defaultMessages = `
-	[suggest_command_description]
-	description = "Description for the suggest command"
-	other = "Analyze your changes and suggest appropriate commit messages"
-	
-	[no_staged_changes]
-	other = "No staged changes to commit.\nUse 'git add' to stage your changes first"
-	
-	[analyzing_changes]
-	other = "Analyzing changes..."
-	
-	[invalid_suggestions_count]
-	other = "Number of suggestions must be between {{.Min}} and {{.Max}}"
-	
-	[current_config]
-	other = "Current configuration"
-	
-	[select_option]
-	other = "Select an option:"
-	
-	[enter_selection]
-	other = "Enter your selection:"
-	
-	[operation_cancelled]
-	other = "Operation cancelled"
-	
-	[commit_created]
-	other = "Commit created successfully with message:"
-	
-	[modified_files_count]
-	one = "{{.Count}} file modified"
-	other = "{{.Count}} files modified"
-	`
