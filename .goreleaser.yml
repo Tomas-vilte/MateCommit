@@ -24,6 +24,8 @@ builds:
 
 archives:
   - format: tar.gz
+    files:
+      - locales/**
     name_template: >-
       {{ .ProjectName }}_{{ .Version }}_
       {{- title .Os }}_
