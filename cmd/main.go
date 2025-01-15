@@ -4,12 +4,15 @@ import (
 	"context"
 	"fmt"
 	"github.com/Tomas-vilte/MateCommit/internal/config"
+	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
+	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/gemini"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/git"
 	"github.com/Tomas-vilte/MateCommit/internal/services"
 	"github.com/urfave/cli/v3"
 	"log"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -19,20 +22,21 @@ func main() {
 		log.Fatal("Error al cargar configuraciones:", err)
 	}
 
+	t, err := i18n.NewTranslations(cfg.DefaultLang)
+	if err != nil {
+		log.Fatal("Error al inicializar traducciones:", err)
+	}
+
 	gitService := git.NewGitService()
 
 	app := &cli.Command{
-		Name:    "mate-commit",
-		Usage:   "🧉 Asistente inteligente para generar mensajes de commit",
-		Version: "1.0.0",
-		Description: `MateCommit te ayuda a generar mensajes de commit significativos usando IA.
-		Ejemplos:
-		   mate-commit suggest                    # Genera 3 sugerencias en el idioma predeterminado
-		   mate-commit s -n 5 -l es              # Genera 5 sugerencias en español
-		   mate-commit config show               # Muestra la configuración actual`,
+		Name:        "mate-commit",
+		Usage:       t.GetMessage("app_usage", 0, nil),
+		Version:     "1.0.0",
+		Description: t.GetMessage("app_description", 0, nil),
 		Commands: []*cli.Command{
-			createSuggestCommand(cfg, gitService),
-			createConfigCommand(),
+			createSuggestCommand(cfg, gitService, t),
+			createConfigCommand(t),
 		},
 	}
 
@@ -41,46 +45,51 @@ func main() {
 	}
 }
 
-func createSuggestCommand(cfg *config.Config, gitService *git.GitService) *cli.Command {
+func createSuggestCommand(cfg *config.Config, gitService *git.GitService, t *i18n.Translations) *cli.Command {
 	return &cli.Command{
 		Name:        "suggest",
 		Aliases:     []string{"s"},
-		Usage:       "💡 Genera sugerencias de mensajes de commit",
-		Description: "Analiza tus cambios y sugiere mensajes de commit apropiados",
+		Usage:       t.GetMessage("suggest_command_usage", 0, nil),
+		Description: t.GetMessage("suggest_command_description", 0, nil),
 		Flags: []cli.Flag{
 			&cli.IntFlag{
 				Name:    "count",
 				Aliases: []string{"n"},
 				Value:   3,
-				Usage:   "Número de sugerencias (1-10)",
+				Usage:   t.GetMessage("suggest_count_flag_usage", 0, nil),
 			},
 			&cli.StringFlag{
 				Name:    "lang",
 				Aliases: []string{"l"},
 				Value:   cfg.DefaultLang,
-				Usage:   "Idioma (en, es)",
+				Usage:   t.GetMessage("suggest_lang_flag_usage", 0, nil),
 			},
 			&cli.BoolFlag{
 				Name:    "no-emoji",
 				Aliases: []string{"ne"},
-				Usage:   "Deshabilitar emojis",
+				Usage:   t.GetMessage("suggest_no_emoji_flag_usage", 0, nil),
 			},
 			&cli.IntFlag{
 				Name:    "max-length",
 				Aliases: []string{"ml"},
 				Value:   72,
-				Usage:   "Longitud máxima del mensaje",
+				Usage:   t.GetMessage("suggest_max_length_flag_usage", 0, nil),
 			},
 		},
 		Action: func(ctx context.Context, command *cli.Command) error {
 			// Validar que haya cambios para commitear
 			if !gitService.HasStagedChanges() {
-				return fmt.Errorf("❌ No hay cambios staged para commitear.\n💡 Usa 'git add' para agregar tus cambios primero")
+				msg := t.GetMessage("no_staged_changes", 0, nil)
+				return fmt.Errorf("%s", msg)
 			}
 
 			count := command.Int("count")
 			if count < 1 || count > 10 {
-				return fmt.Errorf("❌ El número de sugerencias debe estar entre 1 y 10")
+				msg := t.GetMessage("invalid_suggestions_count", 0, map[string]interface{}{
+					"Min": 1,
+					"Max": 10,
+				})
+				return fmt.Errorf("%s", msg)
 			}
 
 			commitConfig := &config.CommitConfig{
@@ -89,45 +98,52 @@ func createSuggestCommand(cfg *config.Config, gitService *git.GitService) *cli.C
 				UseEmoji:  !command.Bool("no-emoji"),
 			}
 
-			geminiService, err := gemini.NewGeminiService(ctx, cfg.GeminiAPIKey, commitConfig)
+			geminiService, err := gemini.NewGeminiService(ctx, cfg.GeminiAPIKey, commitConfig, t)
 			if err != nil {
-				return fmt.Errorf("❌ Error al inicializar Gemini: %w", err)
+				msg := t.GetMessage("gemini_init_error", 0, map[string]interface{}{
+					"Error": err,
+				})
+				return fmt.Errorf("%s", msg)
 			}
 
-			fmt.Println("🔍 Analizando cambios...")
+			fmt.Println(t.GetMessage("analyzing_changes", 0, nil))
 			commitService := services.NewCommitService(gitService, geminiService)
 			suggestions, err := commitService.GenerateSuggestions(ctx, int(count), cfg.Format)
 			if err != nil {
-				return fmt.Errorf("❌ Error al generar sugerencias: %w", err)
+				msg := t.GetMessage("suggestion_generation_error", 0, map[string]interface{}{
+					"Error": err,
+				})
+				return fmt.Errorf("%s", msg)
 			}
 
-			displaySuggestions(suggestions, commitConfig.Locale)
+			displaySuggestions(suggestions, gitService, t)
 			return nil
 		},
 	}
 }
 
-func createConfigCommand() *cli.Command {
+func createConfigCommand(t *i18n.Translations) *cli.Command {
 	return &cli.Command{
 		Name:    "config",
 		Aliases: []string{"c"},
-		Usage:   "⚙️  Gestiona la configuración",
+		Usage:   t.GetMessage("config_command_usage", 0, nil),
 		Commands: []*cli.Command{
 			{
 				Name:  "set-lang",
-				Usage: "🌍 Configura el idioma predeterminado",
+				Usage: t.GetMessage("config_set_lang_usage", 0, nil),
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:     "lang",
 						Aliases:  []string{"l"},
-						Usage:    "Idioma (en, es)",
+						Usage:    t.GetMessage("config_set_lang_flag_usage", 0, nil),
 						Required: true,
 					},
 				},
 				Action: func(ctx context.Context, command *cli.Command) error {
 					lang := command.String("lang")
 					if lang != "en" && lang != "es" {
-						return fmt.Errorf("❌ Idioma no soportado. Usa 'en' o 'es'")
+						msg := t.GetMessage("unsupported_language", 0, nil)
+						return fmt.Errorf("%s", msg)
 					}
 
 					cfg, err := config.LoadConfig()
@@ -140,50 +156,59 @@ func createConfigCommand() *cli.Command {
 						return err
 					}
 
-					fmt.Printf("✅ Idioma configurado a: %s\n", lang)
+					fmt.Printf("%s\n", t.GetMessage("language_configured", 0, map[string]interface{}{
+						"Lang": lang,
+					}))
 					return nil
 				},
 			},
 			{
 				Name:  "show",
-				Usage: "📋 Muestra la configuración actual",
+				Usage: t.GetMessage("config_show_usage", 0, nil),
 				Action: func(ctx context.Context, command *cli.Command) error {
 					cfg, err := config.LoadConfig()
 					if err != nil {
 						return err
 					}
 
-					fmt.Println("\n📋 Configuración actual:")
+					fmt.Println(t.GetMessage("current_config", 0, nil))
 					fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━\n")
-					fmt.Printf("🌍 Idioma: %s\n", cfg.DefaultLang)
-					fmt.Printf("😊 Emojis: %v\n", cfg.UseEmoji)
-					fmt.Printf("📏 Longitud máxima: %d\n", cfg.MaxLength)
+					fmt.Printf("%s\n", t.GetMessage("language_label", 0, map[string]interface{}{
+						"Lang": cfg.DefaultLang,
+					}))
+					fmt.Printf("%s\n", t.GetMessage("emojis_label", 0, map[string]interface{}{
+						"Emoji": cfg.UseEmoji,
+					}))
+					fmt.Printf("%s\n", t.GetMessage("max_length_label", 0, map[string]interface{}{
+						"MaxLength": cfg.MaxLength,
+					}))
 
 					if cfg.GeminiAPIKey == "" {
-						fmt.Println("🔑 API Key: ❌ No configurada")
-						fmt.Println("\n💡 Tip: Configura tu API key con:")
-						fmt.Println("   mate-commit config set-api-key --key <tu_api_key>")
+						fmt.Println(t.GetMessage("api.key_not_set", 0, nil))
+						fmt.Println(t.GetMessage("api.key_tip", 0, nil))
+						fmt.Println(t.GetMessage("api.key_config_command", 0, nil))
 					} else {
-						fmt.Println("🔑 API Key: ✅ Configurada")
+						fmt.Println(t.GetMessage("api.key_set", 0, nil))
 					}
 					return nil
 				},
 			},
 			{
 				Name:  "set-api-key",
-				Usage: "🔑 Configura la API Key de Gemini",
+				Usage: t.GetMessage("commands.set_api_key_usage", 0, nil),
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:     "key",
 						Aliases:  []string{"k"},
-						Usage:    "Tu API Key de Gemini",
+						Usage:    t.GetMessage("flags.gemini_api_key", 0, nil),
 						Required: true,
 					},
 				},
 				Action: func(ctx context.Context, command *cli.Command) error {
 					apiKey := command.String("key")
 					if len(apiKey) < 10 {
-						return fmt.Errorf("❌ API Key inválida")
+						msg := t.GetMessage("api.invalid_key", 0, nil)
+						return fmt.Errorf("%s", msg)
 					}
 
 					cfg, err := config.LoadConfig()
@@ -196,8 +221,8 @@ func createConfigCommand() *cli.Command {
 						return err
 					}
 
-					fmt.Println("✅ API Key configurada correctamente")
-					fmt.Println("💡 Ahora puedes usar 'mate-commit suggest' para generar sugerencias")
+					fmt.Println(t.GetMessage("api.key_configured", 0, nil))
+					fmt.Println(t.GetMessage("api.key_configuration_help", 0, nil))
 					return nil
 				},
 			},
@@ -205,16 +230,65 @@ func createConfigCommand() *cli.Command {
 	}
 }
 
-func displaySuggestions(suggestions []string, locale config.CommitLocale) {
-	fmt.Printf("\n📝 %s\n", locale.HeaderMsg)
+func displaySuggestions(suggestions []models.CommitSuggestion, gitService *git.GitService, t *i18n.Translations) {
+	fmt.Printf("%s\n", t.GetMessage("commit.header_message", 0, nil))
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━")
-	for i, suggestion := range suggestions {
-		fmt.Printf("\n%d. %s\n", i+1, suggestion)
+
+	for _, suggestion := range suggestions {
+		fmt.Printf("%s\n", suggestion.CommitTitle)
+		fmt.Println(t.GetMessage("commit.file_list_header", 0, nil))
+		for _, file := range suggestion.Files {
+			fmt.Printf("   - %s\n", file)
+		}
+		fmt.Printf("%s\n", suggestion.Explanation)
+		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━")
 	}
-	fmt.Printf("\n💡 %s\n", locale.UsageMsg)
-	fmt.Printf("  git commit -m \"[número de sugerencia]\"\n")
+
+	fmt.Println(t.GetMessage("commit.select_option_prompt", 0, nil))
+	fmt.Println(t.GetMessage("commit.option_commit", 0, nil))
+	fmt.Println(t.GetMessage("commit.option_exit", 0, nil))
+
+	if err := handleCommitSelection(suggestions, gitService, t); err != nil {
+		msg := t.GetMessage("commit.error_creating_commit", 0, nil)
+		fmt.Printf("%s", msg)
+	}
 }
 
 func displayError(err error) {
-	log.Fatalf("❌ Error: %v", err)
+	log.Fatal(err)
+}
+
+func handleCommitSelection(suggestions []models.CommitSuggestion, gitService *git.GitService, t *i18n.Translations) error {
+	var selection int
+	fmt.Print(t.GetMessage("commit.prompt_selection", 0, nil))
+	_, err := fmt.Scan(&selection)
+	if err != nil {
+		msg := t.GetMessage("commit.error_reading_selection", 0, map[string]interface{}{
+			"Error": err,
+		})
+		return fmt.Errorf("%s", msg)
+	}
+
+	if selection == 0 {
+		fmt.Println(t.GetMessage("commit.operation_canceled", 0, nil))
+		return nil
+	}
+
+	if selection < 1 || selection > len(suggestions) {
+		msg := t.GetMessage("commit.invalid_selection", 0, map[string]interface{}{
+			"Number": len(suggestions),
+		})
+		return fmt.Errorf("%s", msg)
+	}
+	suggestions[0].CommitTitle = strings.TrimPrefix(suggestions[0].CommitTitle, "Commit: ")
+	selectedSuggestion := suggestions[selection-1]
+
+	if err := gitService.CreateCommit(selectedSuggestion.CommitTitle); err != nil {
+		return err
+	}
+
+	fmt.Printf("%s\n", t.GetMessage("commit.commit_successful", 0, map[string]interface{}{
+		"CommitTitle": selectedSuggestion.CommitTitle,
+	}))
+	return nil
 }
