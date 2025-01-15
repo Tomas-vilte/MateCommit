@@ -173,7 +173,7 @@ func TestGeminiService(t *testing.T) {
 
 		if len(suggestions) > 0 {
 			suggestion := suggestions[0]
-			if suggestion.CommitTitle != "refactor: mejorar el manejo de errores de GitService" {
+			if suggestion.CommitTitle != "Commit: refactor: mejorar el manejo de errores de GitService" {
 				t.Errorf("Titulo incorrecto: %s", suggestion.CommitTitle)
 			}
 			if len(suggestion.Files) != 2 {
