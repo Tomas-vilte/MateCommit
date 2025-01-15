@@ -78,15 +78,17 @@ func createSuggestCommand(cfg *config.Config, gitService *git.GitService, t *i18
 		Action: func(ctx context.Context, command *cli.Command) error {
 			// Validar que haya cambios para commitear
 			if !gitService.HasStagedChanges() {
-				return fmt.Errorf(t.GetMessage("no_staged_changes", 0, nil))
+				msg := t.GetMessage("no_staged_changes", 0, nil)
+				return fmt.Errorf("%s", msg)
 			}
 
 			count := command.Int("count")
 			if count < 1 || count > 10 {
-				return fmt.Errorf(t.GetMessage("invalid_suggestions_count", 0, map[string]interface{}{
+				msg := t.GetMessage("invalid_suggestions_count", 0, map[string]interface{}{
 					"Min": 1,
 					"Max": 10,
-				}))
+				})
+				return fmt.Errorf("%s", msg)
 			}
 
 			commitConfig := &config.CommitConfig{
@@ -97,18 +99,20 @@ func createSuggestCommand(cfg *config.Config, gitService *git.GitService, t *i18
 
 			geminiService, err := gemini.NewGeminiService(ctx, cfg.GeminiAPIKey, commitConfig, t)
 			if err != nil {
-				return fmt.Errorf(t.GetMessage("gemini_init_error", 0, map[string]interface{}{
+				msg := t.GetMessage("gemini_init_error", 0, map[string]interface{}{
 					"Error": err,
-				}))
+				})
+				return fmt.Errorf("%s", msg)
 			}
 
 			fmt.Println(t.GetMessage("analyzing_changes", 0, nil))
 			commitService := services.NewCommitService(gitService, geminiService)
 			suggestions, err := commitService.GenerateSuggestions(ctx, int(count), cfg.Format)
 			if err != nil {
-				return fmt.Errorf(t.GetMessage("suggestion_generation_error", 0, map[string]interface{}{
+				msg := t.GetMessage("suggestion_generation_error", 0, map[string]interface{}{
 					"Error": err,
-				}))
+				})
+				return fmt.Errorf("%s", msg)
 			}
 
 			displaySuggestions(suggestions, gitService, t)
@@ -137,7 +141,8 @@ func createConfigCommand(t *i18n.Translations) *cli.Command {
 				Action: func(ctx context.Context, command *cli.Command) error {
 					lang := command.String("lang")
 					if lang != "en" && lang != "es" {
-						return fmt.Errorf(t.GetMessage("unsupported_language", 0, nil))
+						msg := t.GetMessage("unsupported_language", 0, nil)
+						return fmt.Errorf("%s", msg)
 					}
 
 					cfg, err := config.LoadConfig()
@@ -201,7 +206,8 @@ func createConfigCommand(t *i18n.Translations) *cli.Command {
 				Action: func(ctx context.Context, command *cli.Command) error {
 					apiKey := command.String("key")
 					if len(apiKey) < 10 {
-						return fmt.Errorf(t.GetMessage("api.invalid_key", 0, nil))
+						msg := t.GetMessage("api.invalid_key", 0, nil)
+						return fmt.Errorf("%s", msg)
 					}
 
 					cfg, err := config.LoadConfig()
@@ -242,7 +248,8 @@ func displaySuggestions(suggestions []models.CommitSuggestion, gitService *git.G
 	fmt.Println(t.GetMessage("commit.option_exit", 0, nil))
 
 	if err := handleCommitSelection(suggestions, gitService, t); err != nil {
-		fmt.Printf(t.GetMessage("commit.error_creating_commit", 0, nil))
+		msg := t.GetMessage("commit.error_creating_commit", 0, nil)
+		fmt.Printf("%s", msg)
 	}
 }
 
@@ -255,9 +262,10 @@ func handleCommitSelection(suggestions []models.CommitSuggestion, gitService *gi
 	fmt.Print(t.GetMessage("commit.prompt_selection", 0, nil))
 	_, err := fmt.Scan(&selection)
 	if err != nil {
-		return fmt.Errorf(t.GetMessage("commit.error_reading_selection", 0, map[string]interface{}{
+		msg := t.GetMessage("commit.error_reading_selection", 0, map[string]interface{}{
 			"Error": err,
-		}))
+		})
+		return fmt.Errorf("%s", msg)
 	}
 
 	if selection == 0 {
@@ -266,9 +274,10 @@ func handleCommitSelection(suggestions []models.CommitSuggestion, gitService *gi
 	}
 
 	if selection < 1 || selection > len(suggestions) {
-		return fmt.Errorf(t.GetMessage("commit.invalid_selection", 0, map[string]interface{}{
+		msg := t.GetMessage("commit.invalid_selection", 0, map[string]interface{}{
 			"Number": len(suggestions),
-		}))
+		})
+		return fmt.Errorf("%s", msg)
 	}
 
 	selectedSuggestion := suggestions[selection-1]
