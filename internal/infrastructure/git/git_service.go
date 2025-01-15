@@ -20,7 +20,7 @@ func (s *GitService) HasStagedChanges() bool {
 	err := cmd.Run()
 
 	// Si el comando retorna error (exit status 1), significa que hay cambios staged
-	return err != nil
+	return err != nil && cmd.ProcessState.ExitCode() == 1
 }
 
 func (s *GitService) GetChangedFiles() ([]models.GitChange, error) {
@@ -73,8 +73,8 @@ func (s *GitService) GetDiff() (string, error) {
 				if file != "" {
 					fileContentCmd := exec.Command("git", "show", ":"+file)
 					content, err := fileContentCmd.Output()
-					if err == nil {
-						combinedDiff += "\n=== Nuevo archivo" + file + "===\n"
+					if err != nil {
+						combinedDiff += "\n=== Nuevo archivo" + " " + file + "===\n"
 						combinedDiff += string(content)
 					}
 				}

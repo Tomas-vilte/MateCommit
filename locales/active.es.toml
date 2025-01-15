@@ -1,0 +1,133 @@
+[app_usage]
+other = "🧉 Asistente inteligente para generar mensajes de commit"
+
+[app_description]
+other = """
+MateCommit te ayuda a generar mensajes de commit claros y significativos usando IA.
+Ejemplos:
+   mate-commit suggest                   # Genera 3 sugerencias en el idioma por defecto
+   mate-commit s -n 5 -l es              # Genera 5 sugerencias en español
+   mate-commit config show               # Muestra la configuración actual
+"""
+
+[suggest_command_usage]
+other = "💡 Generar sugerencias de mensajes de commit"
+
+[suggest_command_description]
+other = "Analiza tus cambios y sugiere mensajes de commit adecuados"
+
+[suggest_count_flag_usage]
+other = "Cantidad de sugerencias (1-10)"
+
+[suggest_lang_flag_usage]
+other = "Idioma (en, es)"
+
+[suggest_no_emoji_flag_usage]
+other = "Desactivar emojis"
+
+[suggest_max_length_flag_usage]
+other = "Longitud máxima del mensaje"
+
+[no_staged_changes]
+other = "❌ No hay cambios preparados para commitear.\nUsá 'git add' para preparar tus cambios primero"
+
+[invalid_suggestions_count]
+other = "La cantidad de sugerencias tiene que estar entre {{.Min}} y {{.Max}}"
+
+[gemini_init_error]
+other = "❌ Error al iniciar Gemini: {{.Error}}"
+
+[analyzing_changes]
+other = "🔍 Analizando cambios..."
+
+[error_missing_api_key]
+other = "La variable de entorno, GEMINI_API_KEY no esta configurada"
+
+[error_generating_content]
+other = "Error generando el contenido: {{.Error}}"
+
+[error_invalid_suggestion_count]
+other = "Número de sugerencias solicitado no válido"
+
+[error_no_files]
+other = "No se proporcionaron archivos para analizar"
+
+[error_no_suggestions]
+other = "No se pudieron generar sugerencias de commit"
+
+[suggestion_delimiter]
+other = "=========[ Sugerencia ]========="
+
+[files_prefix]
+other = "Archivos: "
+
+[suggestion_generation_error]
+other = "❌ Error al generar sugerencias: {{.Error}}"
+
+[config_command_usage]
+other = "⚙️  Administrar configuración"
+
+[config_set_lang_usage]
+other = "🌍 Configurar idioma por defecto"
+
+[config_set_lang_flag_usage]
+other = "Idioma (en, es)"
+
+[unsupported_language]
+other = "❌ Idioma no soportado. Usá 'en' o 'es'"
+
+[language_configured]
+other = "✅ Lenguaje configurado: {{.Lang}}"
+
+[language_set_success]
+other = "✅ Idioma configurado a: {{.Lang}}"
+
+[config_show_usage]
+other = "📋 Mostrar configuración actual"
+
+[current_config]
+other = "📋 Configuración actual"
+
+[language_label]
+other = "🌍 Idioma: {{.Lang}}"
+
+[emojis_label]
+other = "😊 Emojis: {{.Emoji}}"
+
+[max_length_label]
+other = "📏 Longitud máxima: {{.MaxLength}}"
+
+[suggestions_header]
+other = "Sugerencias de Commit"
+
+[invalid_selection]
+other = "Selección inválida: tiene que estar entre 1 y {{.Max}}"
+
+[api]
+invalid_key = "❌ Clave API inválida. Revisá el formato."
+key_configured = "✅ Clave API configurada con éxito."
+key_configuration_help = "💡 Ahora podés usar 'mate-commit suggest' para generar sugerencias."
+key_not_set = "🔑 Clave API: ❌ No configurada"
+key_tip = "\n💡 Consejo: Configurá tu clave API con:"
+key_config_command = "mate-commit config set-api-key --key <tu_clave_api>"
+key_set = "🔑 Clave API: ✅ Configurada"
+
+[commands]
+set_api_key_usage = "🔑 Configurar la clave API de Gemini"
+
+[flags]
+gemini_api_key = "Tu clave API de Gemini"
+
+[commit]
+prompt_selection = "👉 Ingresá tu selección: "
+operation_canceled = "✨ Operación cancelada"
+invalid_selection = "❌ Selección inválida: tiene que estar entre 1 y {{.Number}}"
+commit_successful = "✅ Commit creado con éxito con el mensaje: {{.CommitTitle}}"
+error_reading_selection = "❌ Error al leer la selección: {{.Error}}"
+header_message = "📝 Sugerencias:"
+file_list_header = "📄 Archivos modificados:"
+explanation_prefix = "💡"
+select_option_prompt = "\nSeleccioná una opción:"
+option_commit = "1-N: Usar la sugerencia correspondiente"
+option_exit = "0: Salir sin commitear"
+error_creating_commit = "❌ Error al crear el commit: {0}"

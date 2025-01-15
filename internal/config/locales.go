@@ -9,7 +9,9 @@ const (
 
 var (
 	EnglishConfig = CommitLocale{
-		Lang: "en",
+		HeaderMsg: "Commit suggestions:",
+		UsageMsg:  "To use a suggestion:",
+		Lang:      LangEN,
 		Types: map[string]CommitType{
 			"feat": {
 				Emoji:       "✨",
@@ -80,8 +82,10 @@ var (
 		},
 	}
 
-	SpanishArgConfig = CommitLocale{
-		Lang: "es_AR",
+	SpanishConfig = CommitLocale{
+		Lang:      LangES,
+		HeaderMsg: "Sugerencias de commit:",
+		UsageMsg:  "Para usar una sugerencia",
 		Types: map[string]CommitType{
 			"feat": {
 				Emoji:       "✨",
@@ -156,17 +160,9 @@ var (
 func GetLocaleConfig(lang string) CommitLocale {
 	switch lang {
 	case LangEN:
-		return CommitLocale{
-			HeaderMsg: "Commit suggestions:",
-			UsageMsg:  "To use a suggestion:",
-			Lang:      LangEN,
-		}
+		return EnglishConfig
 	case LangES:
-		return CommitLocale{
-			HeaderMsg: "Sugerencias de commit:",
-			UsageMsg:  "Para usar una sugerencia",
-			Lang:      LangES,
-		}
+		return SpanishConfig
 	default:
 		log.Printf("Idioma '%s' no soportado. Usando configuración por defecto (Inglés).", lang)
 		return EnglishConfig
