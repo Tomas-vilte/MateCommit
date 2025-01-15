@@ -135,7 +135,8 @@ func (s *GeminiService) parseSuggestionPart(part string) *models.CommitSuggestio
 	}
 
 	suggestion := &models.CommitSuggestion{}
-	suggestion.CommitTitle = strings.TrimPrefix(lines[1], "Commit: ")
+	//suggestion.CommitTitle = strings.TrimPrefix(lines[1], "Commit: ")
+	suggestion.CommitTitle = strings.TrimSpace(lines[1])
 
 	prefixFiles := s.getFilesPrefix()
 	if filesPart := strings.TrimPrefix(lines[2], prefixFiles); filesPart != "" {
