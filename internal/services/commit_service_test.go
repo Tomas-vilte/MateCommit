@@ -1,10 +1,9 @@
-package git_test
+package services
 
 import (
 	"context"
 	"errors"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
-	"github.com/Tomas-vilte/MateCommit/internal/services"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"testing"
@@ -80,7 +79,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 				Explanation: "some explanation",
 			}}, nil)
 
-		service := services.NewCommitService(mockGit, mockAI)
+		service := NewCommitService(mockGit, mockAI)
 
 		// act
 		suggestions, err := service.GenerateSuggestions(context.Background(), 3, "conventional")
@@ -100,7 +99,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 
 		mockGit.On("GetChangedFiles").Return([]models.GitChange{}, nil)
 
-		service := services.NewCommitService(mockGit, mockAI)
+		service := NewCommitService(mockGit, mockAI)
 
 		// act
 		suggestions, err := service.GenerateSuggestions(context.Background(), 3, "conventional")
@@ -126,7 +125,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		mockGit.On("GetChangedFiles").Return(changes, nil)
 		mockGit.On("GetDiff").Return("", errors.New("git error"))
 
-		service := services.NewCommitService(mockGit, mockAI)
+		service := NewCommitService(mockGit, mockAI)
 
 		// act
 		suggestions, err := service.GenerateSuggestions(context.Background(), 3, "conventional")
