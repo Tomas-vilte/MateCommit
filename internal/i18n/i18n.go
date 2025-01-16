@@ -13,10 +13,14 @@ type Translations struct {
 	localize *i18n.Localizer
 }
 
-func NewTranslations(defaultLang string) (*Translations, error) {
-	files, err := filepath.Glob("locales/active.*.toml")
+func NewTranslations(defaultLang string, localesPath string) (*Translations, error) {
+	if defaultLang == "" {
+		return nil, fmt.Errorf("default language cannot be empty")
+	}
+
+	files, err := filepath.Glob(filepath.Join(localesPath, "active.*.toml"))
 	if err != nil {
-		return nil, fmt.Errorf("error reading locales: %w", err)
+		return nil, fmt.Errorf("no translation files found in directory: locales/")
 	}
 
 	if len(files) == 0 {
