@@ -282,14 +282,14 @@ func handleCommitSelection(suggestions []models.CommitSuggestion, gitService *gi
 	}
 	selectedSuggestion := suggestions[selection-1]
 
-	commitTitle := strings.TrimPrefix(selectedSuggestion.CommitTitle, "Commit: ")
+	commitTitle := strings.TrimSpace(strings.TrimPrefix(selectedSuggestion.CommitTitle, "Commit: "))
 
 	if err := gitService.CreateCommit(commitTitle); err != nil {
 		return err
 	}
 
 	fmt.Printf("%s\n", t.GetMessage("commit.commit_successful", 0, map[string]interface{}{
-		"CommitTitle": selectedSuggestion.CommitTitle,
+		"CommitTitle": commitTitle,
 	}))
 	return nil
 }
