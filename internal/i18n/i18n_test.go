@@ -83,6 +83,9 @@ func TestSetLanguage(t *testing.T) {
 		other = "Prueba"`)
 
 		trans, err := NewTranslations("es", tmpDir)
+		if err != nil {
+			t.Fatal("Error en la configuración de la prueba:", err)
+		}
 
 		// act
 		err = trans.SetLanguage("fr")
