@@ -8,21 +8,32 @@ import (
 )
 
 func TestLoadConfig(t *testing.T) {
-	t.Run("debería manejar JSON malformado", func(t *testing.T) {
+	t.Run("debería manejar error al obtener home directory", func(t *testing.T) {
+		t.Setenv("HOME", "")
+
+		_, err := LoadConfig()
+		if err == nil {
+			t.Error("se esperaba un error al no poder obtener el home directory")
+		}
+	})
+
+	t.Run("debería manejar error al verificar existencia del archivo", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("HOME", tmpDir)
 
 		configDir := filepath.Join(tmpDir, ".mate-commit")
-		_ = os.MkdirAll(configDir, 0755)
-
-		err := os.WriteFile(filepath.Join(configDir, "config.json"), []byte("{malformed json"), 0644)
-		if err != nil {
+		if err := os.MkdirAll(configDir, 0000); err != nil {
 			t.Fatal(err)
 		}
 
-		_, err = LoadConfig()
+		_, err := LoadConfig()
 		if err == nil {
-			t.Error("se esperaba un error al cargar JSON malformado, pero no ocurrió")
+			t.Error("se esperaba un error al verificar existencia del archivo")
+		}
+
+		err = os.Chmod(configDir, 0755)
+		if err != nil {
+			t.Fatal("No se pudo cambiar los permisos del directorio")
 		}
 	})
 
@@ -50,7 +61,7 @@ func TestLoadConfig(t *testing.T) {
 
 		_, err = LoadConfig()
 		if err == nil {
-			t.Error("se esperaba un error debido a configuración inválida, pero no ocurrió")
+			t.Error("se esperaba un error debido a configuración inválida")
 		}
 	})
 
@@ -65,9 +76,74 @@ func TestLoadConfig(t *testing.T) {
 			t.Error("se esperaba un error al guardar configuración inválida, pero no ocurrió")
 		}
 	})
+
+	t.Run("debería manejar JSON malformado", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("HOME", tmpDir)
+
+		configDir := filepath.Join(tmpDir, ".mate-commit")
+		_ = os.MkdirAll(configDir, 0755)
+
+		err := os.WriteFile(filepath.Join(configDir, "config.json"), []byte("{malformed json"), 0644)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		_, err = LoadConfig()
+		if err == nil {
+			t.Error("se esperaba un error al cargar JSON malformado")
+		}
+	})
+
 }
 
 func TestSaveConfig(t *testing.T) {
+	t.Run("debería manejar error al obtener home directory", func(t *testing.T) {
+		t.Setenv("HOME", "")
+
+		config := &Config{
+			DefaultLang: "en",
+			MaxLength:   72,
+		}
+
+		err := SaveConfig(config)
+		if err == nil {
+			t.Error("se esperaba un error al no poder obtener el home directory")
+		}
+	})
+
+	t.Run("debería manejar error al escribir archivo", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		t.Setenv("HOME", tmpDir)
+
+		configDir := filepath.Join(tmpDir, ".mate-commit")
+		if err := os.MkdirAll(configDir, 0000); err != nil {
+			t.Fatal(err)
+		}
+
+		config := &Config{
+			DefaultLang: "en",
+			MaxLength:   72,
+		}
+
+		err := SaveConfig(config)
+		if err == nil {
+			t.Error("se esperaba un error al no poder escribir el archivo")
+		}
+	})
+
+	t.Run("debería validar la configuración antes de guardar", func(t *testing.T) {
+		config := &Config{
+			DefaultLang: "",
+			MaxLength:   0,
+		}
+
+		err := SaveConfig(config)
+		if err == nil {
+			t.Error("se esperaba un error al guardar configuración inválida")
+		}
+	})
+
 	t.Run("debería guardar la configuración correctamente", func(t *testing.T) {
 		// Arrange
 		tmpDir := t.TempDir()
@@ -147,4 +223,72 @@ func TestCreateDefaultConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("debería manejar error al escribir archivo", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		if err := os.Chmod(tmpDir, 0000); err != nil {
+			t.Fatal(err)
+		}
+		defer func() {
+			if err := os.Chmod(tmpDir, 0755); err != nil {
+				t.Fatal("No se pudo cambiar los permisos del directorio")
+			}
+		}()
+
+		configPath := filepath.Join(tmpDir, "config.json")
+
+		_, err := createDefaultConfig(configPath)
+		if err == nil {
+			t.Error("se esperaba un error al escribir el archivo")
+		}
+	})
+}
+
+func TestValidateConfig(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  *Config
+		wantErr bool
+	}{
+		{
+			name: "configuración válida",
+			config: &Config{
+				DefaultLang: "en",
+				MaxLength:   72,
+			},
+			wantErr: false,
+		},
+		{
+			name: "MaxLength inválido",
+			config: &Config{
+				DefaultLang: "en",
+				MaxLength:   0,
+			},
+			wantErr: true,
+		},
+		{
+			name: "DefaultLang vacío",
+			config: &Config{
+				DefaultLang: "",
+				MaxLength:   72,
+			},
+			wantErr: true,
+		},
+		{
+			name: "múltiples campos inválidos",
+			config: &Config{
+				DefaultLang: "",
+				MaxLength:   -1,
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateConfig(tt.config)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateConfig() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
 }
