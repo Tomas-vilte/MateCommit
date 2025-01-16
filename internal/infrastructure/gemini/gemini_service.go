@@ -48,7 +48,7 @@ func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.Com
 		return nil, fmt.Errorf("%s", msg)
 	}
 
-	prompt := s.generatePrompt(s.config.Locale, info, count)
+	prompt := s.generatePrompt(s.config.Language, info, count)
 	resp, err := s.model.GenerateContent(ctx, genai.Text(prompt))
 	if err != nil {
 		msg := s.trans.GetMessage("error_generating_content", 0, map[string]interface{}{
@@ -135,7 +135,6 @@ func (s *GeminiService) parseSuggestionPart(part string) *models.CommitSuggestio
 	}
 
 	suggestion := &models.CommitSuggestion{}
-	//suggestion.CommitTitle = strings.TrimPrefix(lines[1], "Commit: ")
 	suggestion.CommitTitle = strings.TrimSpace(lines[1])
 
 	prefixFiles := s.getFilesPrefix()
@@ -159,9 +158,9 @@ func (s *GeminiService) parseSuggestionPart(part string) *models.CommitSuggestio
 	return suggestion
 }
 
-func (s *GeminiService) generatePrompt(locale config.CommitLocale, info models.CommitInfo, count int) string {
+func (s *GeminiService) generatePrompt(locale string, info models.CommitInfo, count int) string {
 	var promptTemplate string
-	switch locale.Lang {
+	switch locale {
 	case "es":
 		promptTemplate = promptTemplateES
 		if s.config.UseEmoji {

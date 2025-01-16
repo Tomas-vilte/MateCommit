@@ -22,7 +22,7 @@ func main() {
 		log.Fatal("Error al cargar configuraciones:", err)
 	}
 
-	t, err := i18n.NewTranslations(cfg.DefaultLang)
+	t, err := i18n.NewTranslations(cfg.DefaultLang, "./locales")
 	if err != nil {
 		log.Fatal("Error al inicializar traducciones:", err)
 	}
@@ -93,7 +93,7 @@ func createSuggestCommand(cfg *config.Config, gitService *git.GitService, t *i18
 			}
 
 			commitConfig := &config.CommitConfig{
-				Locale:    config.GetLocaleConfig(command.String("lang")),
+				Language:  config.GetLocaleConfig(command.String("lang")),
 				MaxLength: int(command.Int("max-length")),
 				UseEmoji:  !command.Bool("no-emoji"),
 			}
@@ -282,14 +282,14 @@ func handleCommitSelection(suggestions []models.CommitSuggestion, gitService *gi
 	}
 	selectedSuggestion := suggestions[selection-1]
 
-	commitTitle := strings.TrimPrefix(selectedSuggestion.CommitTitle, "Commit: ")
+	commitTitle := strings.TrimSpace(strings.TrimPrefix(selectedSuggestion.CommitTitle, "Commit: "))
 
 	if err := gitService.CreateCommit(commitTitle); err != nil {
 		return err
 	}
 
 	fmt.Printf("%s\n", t.GetMessage("commit.commit_successful", 0, map[string]interface{}{
-		"CommitTitle": selectedSuggestion.CommitTitle,
+		"CommitTitle": commitTitle,
 	}))
 	return nil
 }

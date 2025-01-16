@@ -7,7 +7,6 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/google/generative-ai-go/genai"
 	"github.com/stretchr/testify/assert"
-	"os"
 	"strings"
 	"testing"
 )
@@ -21,17 +20,8 @@ func TestGeminiService(t *testing.T) {
 		// arrange
 		ctx := context.Background()
 		cfg := &config.CommitConfig{}
-		originalDir, _ := os.Getwd()
-		defer func() {
-			if err := os.Chdir(originalDir); err != nil {
-				return
-			}
-		}()
 
-		if err := os.Chdir("../../.."); err != nil {
-			t.Fatalf("Error al cambiar de directorio: %v", err)
-		}
-		trans, err := i18n.NewTranslations("es")
+		trans, err := i18n.NewTranslations("es", "../../../locales")
 		assert.NoError(t, err)
 
 		// act
@@ -51,17 +41,8 @@ func TestGeminiService(t *testing.T) {
 		// arrange
 		ctx := context.Background()
 		cfg := &config.CommitConfig{}
-		originalDir, _ := os.Getwd()
-		defer func() {
-			if err := os.Chdir(originalDir); err != nil {
-				return
-			}
-		}()
 
-		if err := os.Chdir("../../.."); err != nil {
-			t.Fatalf("Error al cambiar de directorio: %v", err)
-		}
-		trans, err := i18n.NewTranslations("es")
+		trans, err := i18n.NewTranslations("es", "../../../locales")
 		if err != nil {
 			t.Fatalf("Error al crear el traductor: %v", err)
 		}
@@ -92,17 +73,8 @@ func TestGeminiService(t *testing.T) {
 		// arrange
 		ctx := context.Background()
 		cfg := &config.CommitConfig{}
-		originalDir, _ := os.Getwd()
-		defer func() {
-			if err := os.Chdir(originalDir); err != nil {
-				return
-			}
-		}()
 
-		if err := os.Chdir("../../.."); err != nil {
-			t.Fatalf("Error al cambiar de directorio: %v", err)
-		}
-		trans, err := i18n.NewTranslations("es")
+		trans, err := i18n.NewTranslations("es", "../../../locales")
 		if err != nil {
 			t.Fatalf("Error creando traductor: %v", err)
 		}
@@ -132,17 +104,8 @@ func TestGeminiService(t *testing.T) {
 		// arrange
 		ctx := context.Background()
 		cfg := &config.CommitConfig{}
-		originalDir, _ := os.Getwd()
-		defer func() {
-			if err := os.Chdir(originalDir); err != nil {
-				return
-			}
-		}()
 
-		if err := os.Chdir("../../.."); err != nil {
-			t.Fatalf("Error al cambiar de directorio: %v", err)
-		}
-		trans, err := i18n.NewTranslations("es")
+		trans, err := i18n.NewTranslations("es", "../../../locales")
 		if err != nil {
 			t.Fatalf("Error al crear el traductor: %v", err)
 		}
@@ -227,20 +190,11 @@ func TestGeminiService(t *testing.T) {
 		// arrange
 		ctx := context.Background()
 		cfg := &config.CommitConfig{
-			Locale:   config.CommitLocale{Lang: "es"},
+			Language: "es",
 			UseEmoji: true,
 		}
-		originalDir, _ := os.Getwd()
-		defer func() {
-			if err := os.Chdir(originalDir); err != nil {
-				return
-			}
-		}()
 
-		if err := os.Chdir("../../.."); err != nil {
-			t.Fatalf("Error al cambiar de directorio: %v", err)
-		}
-		trans, err := i18n.NewTranslations("es")
+		trans, err := i18n.NewTranslations("es", "../../../locales")
 		if err != nil {
 			t.Fatalf("Error creando traductor: %v", err)
 		}
@@ -255,7 +209,7 @@ func TestGeminiService(t *testing.T) {
 		}
 
 		// act
-		prompt := service.generatePrompt(cfg.Locale, info, 3)
+		prompt := service.generatePrompt(cfg.Language, info, 3)
 
 		// assert
 		if !strings.Contains(prompt, "commit") || !strings.Contains(prompt, "Archivos") || !strings.Contains(prompt, "Explicación") {
@@ -274,20 +228,11 @@ func TestGeminiService(t *testing.T) {
 		// arrange
 		ctx := context.Background()
 		cfg := &config.CommitConfig{
-			Locale:   config.CommitLocale{Lang: "en"},
+			Language: "en",
 			UseEmoji: true,
 		}
-		originalDir, _ := os.Getwd()
-		defer func() {
-			if err := os.Chdir(originalDir); err != nil {
-				return
-			}
-		}()
 
-		if err := os.Chdir("../../.."); err != nil {
-			t.Fatalf("Error al cambiar de directorio: %v", err)
-		}
-		trans, err := i18n.NewTranslations("en")
+		trans, err := i18n.NewTranslations("en", "../../../locales")
 		if err != nil {
 			t.Fatalf("Error al crear el traductor: %v", err)
 		}
@@ -302,7 +247,7 @@ func TestGeminiService(t *testing.T) {
 		}
 
 		// act
-		prompt := service.generatePrompt(cfg.Locale, info, 3)
+		prompt := service.generatePrompt(cfg.Language, info, 3)
 
 		if !strings.Contains(prompt, "commit") || !strings.Contains(prompt, "Files") || !strings.Contains(prompt, "Explanation") {
 			t.Errorf("generatePrompt incorrecto. Prompt no contiene elementos esenciales en inglés.")
