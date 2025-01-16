@@ -7,7 +7,6 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/google/generative-ai-go/genai"
 	"github.com/stretchr/testify/assert"
-	"os"
 	"strings"
 	"testing"
 )
@@ -21,17 +20,8 @@ func TestGeminiService(t *testing.T) {
 		// arrange
 		ctx := context.Background()
 		cfg := &config.CommitConfig{}
-		originalDir, _ := os.Getwd()
-		defer func() {
-			if err := os.Chdir(originalDir); err != nil {
-				return
-			}
-		}()
 
-		if err := os.Chdir("../../.."); err != nil {
-			t.Fatalf("Error al cambiar de directorio: %v", err)
-		}
-		trans, err := i18n.NewTranslations("es")
+		trans, err := i18n.NewTranslations("es", "../../../locales")
 		assert.NoError(t, err)
 
 		// act
@@ -51,17 +41,8 @@ func TestGeminiService(t *testing.T) {
 		// arrange
 		ctx := context.Background()
 		cfg := &config.CommitConfig{}
-		originalDir, _ := os.Getwd()
-		defer func() {
-			if err := os.Chdir(originalDir); err != nil {
-				return
-			}
-		}()
 
-		if err := os.Chdir("../../.."); err != nil {
-			t.Fatalf("Error al cambiar de directorio: %v", err)
-		}
-		trans, err := i18n.NewTranslations("es")
+		trans, err := i18n.NewTranslations("es", "../../../locales")
 		if err != nil {
 			t.Fatalf("Error al crear el traductor: %v", err)
 		}
@@ -92,17 +73,8 @@ func TestGeminiService(t *testing.T) {
 		// arrange
 		ctx := context.Background()
 		cfg := &config.CommitConfig{}
-		originalDir, _ := os.Getwd()
-		defer func() {
-			if err := os.Chdir(originalDir); err != nil {
-				return
-			}
-		}()
 
-		if err := os.Chdir("../../.."); err != nil {
-			t.Fatalf("Error al cambiar de directorio: %v", err)
-		}
-		trans, err := i18n.NewTranslations("es")
+		trans, err := i18n.NewTranslations("es", "../../../locales")
 		if err != nil {
 			t.Fatalf("Error creando traductor: %v", err)
 		}
@@ -132,17 +104,8 @@ func TestGeminiService(t *testing.T) {
 		// arrange
 		ctx := context.Background()
 		cfg := &config.CommitConfig{}
-		originalDir, _ := os.Getwd()
-		defer func() {
-			if err := os.Chdir(originalDir); err != nil {
-				return
-			}
-		}()
 
-		if err := os.Chdir("../../.."); err != nil {
-			t.Fatalf("Error al cambiar de directorio: %v", err)
-		}
-		trans, err := i18n.NewTranslations("es")
+		trans, err := i18n.NewTranslations("es", "../../../locales")
 		if err != nil {
 			t.Fatalf("Error al crear el traductor: %v", err)
 		}
@@ -230,17 +193,8 @@ func TestGeminiService(t *testing.T) {
 			Locale:   config.CommitLocale{Lang: "es"},
 			UseEmoji: true,
 		}
-		originalDir, _ := os.Getwd()
-		defer func() {
-			if err := os.Chdir(originalDir); err != nil {
-				return
-			}
-		}()
 
-		if err := os.Chdir("../../.."); err != nil {
-			t.Fatalf("Error al cambiar de directorio: %v", err)
-		}
-		trans, err := i18n.NewTranslations("es")
+		trans, err := i18n.NewTranslations("es", "../../../locales")
 		if err != nil {
 			t.Fatalf("Error creando traductor: %v", err)
 		}
@@ -277,17 +231,8 @@ func TestGeminiService(t *testing.T) {
 			Locale:   config.CommitLocale{Lang: "en"},
 			UseEmoji: true,
 		}
-		originalDir, _ := os.Getwd()
-		defer func() {
-			if err := os.Chdir(originalDir); err != nil {
-				return
-			}
-		}()
 
-		if err := os.Chdir("../../.."); err != nil {
-			t.Fatalf("Error al cambiar de directorio: %v", err)
-		}
-		trans, err := i18n.NewTranslations("en")
+		trans, err := i18n.NewTranslations("en", "../../../locales")
 		if err != nil {
 			t.Fatalf("Error al crear el traductor: %v", err)
 		}
