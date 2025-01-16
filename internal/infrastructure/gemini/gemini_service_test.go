@@ -190,7 +190,7 @@ func TestGeminiService(t *testing.T) {
 		// arrange
 		ctx := context.Background()
 		cfg := &config.CommitConfig{
-			Locale:   config.CommitLocale{Lang: "es"},
+			Language: "es",
 			UseEmoji: true,
 		}
 
@@ -209,7 +209,7 @@ func TestGeminiService(t *testing.T) {
 		}
 
 		// act
-		prompt := service.generatePrompt(cfg.Locale, info, 3)
+		prompt := service.generatePrompt(cfg.Language, info, 3)
 
 		// assert
 		if !strings.Contains(prompt, "commit") || !strings.Contains(prompt, "Archivos") || !strings.Contains(prompt, "Explicación") {
@@ -228,7 +228,7 @@ func TestGeminiService(t *testing.T) {
 		// arrange
 		ctx := context.Background()
 		cfg := &config.CommitConfig{
-			Locale:   config.CommitLocale{Lang: "en"},
+			Language: "en",
 			UseEmoji: true,
 		}
 
@@ -247,7 +247,7 @@ func TestGeminiService(t *testing.T) {
 		}
 
 		// act
-		prompt := service.generatePrompt(cfg.Locale, info, 3)
+		prompt := service.generatePrompt(cfg.Language, info, 3)
 
 		if !strings.Contains(prompt, "commit") || !strings.Contains(prompt, "Files") || !strings.Contains(prompt, "Explanation") {
 			t.Errorf("generatePrompt incorrecto. Prompt no contiene elementos esenciales en inglés.")
