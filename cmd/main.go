@@ -78,10 +78,10 @@ func createSuggestCommand(cfg *config.Config, gitService *git.GitService, t *i18
 		},
 		Action: func(ctx context.Context, command *cli.Command) error {
 			// Validar que haya cambios para commitear
-			if !gitService.HasStagedChanges() {
-				msg := t.GetMessage("no_staged_changes", 0, nil)
-				return fmt.Errorf("%s", msg)
-			}
+			//if !gitService.HasStagedChanges() {
+			//	msg := t.GetMessage("no_staged_changes", 0, nil)
+			//	return fmt.Errorf("%s", msg)
+			//}
 
 			count := command.Int("count")
 			if count < 1 || count > 10 {
@@ -281,8 +281,14 @@ func handleCommitSelection(suggestions []models.CommitSuggestion, gitService *gi
 		return fmt.Errorf("%s", msg)
 	}
 	selectedSuggestion := suggestions[selection-1]
-
 	commitTitle := strings.TrimSpace(strings.TrimPrefix(selectedSuggestion.CommitTitle, "Commit: "))
+
+	for _, file := range selectedSuggestion.Files {
+		fmt.Printf("Agregando %s a staging...\n", file)
+		if err := gitService.AddFileToStaging(file); err != nil {
+			return fmt.Errorf("error al agregar el archivo %s a staging: %v", file, err)
+		}
+	}
 
 	if err := gitService.CreateCommit(commitTitle); err != nil {
 		return err
