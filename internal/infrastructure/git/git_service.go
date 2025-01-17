@@ -84,11 +84,6 @@ func (s *GitService) GetDiff() (string, error) {
 	return combinedDiff, nil
 }
 
-func (s *GitService) StageAllChanges() error {
-	cmd := exec.Command("git", "add", ".")
-	return cmd.Run()
-}
-
 func (s *GitService) CreateCommit(message string) error {
 	// Primero verificamos si hay cambios staged
 	if !s.HasStagedChanges() {
@@ -97,5 +92,10 @@ func (s *GitService) CreateCommit(message string) error {
 
 	// Creamos el commit
 	cmd := exec.Command("git", "commit", "-m", message)
+	return cmd.Run()
+}
+
+func (s *GitService) AddFileToStaging(file string) error {
+	cmd := exec.Command("git", "add", file)
 	return cmd.Run()
 }
