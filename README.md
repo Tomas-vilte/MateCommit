@@ -22,7 +22,7 @@
    - [Actual](#actual)
    - [Próximamente](#próximamente)
 5. [Licencia](#licencia)
-6. [¿Cómo contribuir?](#como-contribuir)
+6. [Contribuciones](#contribuciones)
 
 ## ¿Qué es esto?
 
@@ -185,7 +185,7 @@ Si preferís compilar el código:
 
 MateCommit está bajo licencia MIT. Podés ver los detalles en el archivo [LICENSE](./LICENSE).
 
-## ¿Cómo contribuir?
+## Contribuciones
 
 ¡Nos encanta recibir ayuda! Si querés contribuir:
 
