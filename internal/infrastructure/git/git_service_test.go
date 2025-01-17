@@ -139,7 +139,7 @@ func TestGitService(t *testing.T) {
 			t.Fatalf("Error creando archivo de prueba: %v", err)
 		}
 
-		if err := service.StageAllChanges(); err != nil {
+		if err := exec.Command("git", "add", ".").Run(); err != nil {
 			t.Fatalf("Error haciendo stage de los cambios: %v", err)
 		}
 
