@@ -15,6 +15,7 @@ type (
 		UseEmoji     bool   `json:"use_emoji"`
 		MaxLength    int    `json:"max_length"`
 		Format       string `json:"format"`
+		PathFile     string `json:"path_file"`
 	}
 )
 
@@ -24,13 +25,21 @@ const (
 	defaultMaxLength = 72
 )
 
-func LoadConfig() (*Config, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("no se pudo obtener el directorio del usuario: %w", err)
-	}
+func LoadConfig(path string) (*Config, error) {
+	var configPath string
 
-	configPath := filepath.Join(homeDir, ".mate-commit", "config.json")
+	if filepath.Ext(path) == ".json" {
+		configPath = path
+	} else {
+		configDir := filepath.Join(path, ".mate-commit")
+		configPath = filepath.Join(configDir, "config.json")
+
+		if _, err := os.Stat(configDir); os.IsNotExist(err) {
+			if err := os.MkdirAll(configDir, 0755); err != nil {
+				return nil, fmt.Errorf("error al crear el directorio de configuración: %w", err)
+			}
+		}
+	}
 
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		return createDefaultConfig(configPath)
@@ -58,6 +67,7 @@ func createDefaultConfig(path string) (*Config, error) {
 		DefaultLang: defaultLang,
 		UseEmoji:    defaultUseEmoji,
 		MaxLength:   defaultMaxLength,
+		PathFile:    path,
 	}
 
 	dir := filepath.Dir(path)
@@ -82,18 +92,16 @@ func SaveConfig(config *Config) error {
 		return fmt.Errorf("la configuración a guardar no es válida: %w", err)
 	}
 
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("no se pudo obtener el directorio del usuario: %w", err)
+	if config.PathFile == "" {
+		return errors.New("la ruta del archivo de configuración no está definida")
 	}
 
-	configPath := filepath.Join(homeDir, ".mate-commit", "config.json")
 	data, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
 		return fmt.Errorf("error al codificar la configuración: %w", err)
 	}
 
-	if err := os.WriteFile(configPath, data, 0644); err != nil {
+	if err := os.WriteFile(config.PathFile, data, 0644); err != nil {
 		return fmt.Errorf("error al guardar la configuración: %w", err)
 	}
 

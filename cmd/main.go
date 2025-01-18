@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/registry"
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
@@ -22,7 +23,17 @@ func main() {
 }
 
 func initializeApp() (*cli.Command, error) {
-	cfg, err := config.LoadConfig()
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("no se pudo obtener el directorio del usuario: %w", err)
+	}
+
+	cfg, err := config.LoadConfig(homeDir)
+	if err != nil {
+		return nil, err
+	}
+
+	err = config.SaveConfig(cfg)
 	if err != nil {
 		return nil, err
 	}
