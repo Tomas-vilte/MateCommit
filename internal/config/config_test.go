@@ -8,15 +8,6 @@ import (
 )
 
 func TestLoadConfig(t *testing.T) {
-	t.Run("debería manejar error al obtener home directory", func(t *testing.T) {
-		t.Setenv("HOME", "")
-
-		_, err := LoadConfig()
-		if err == nil {
-			t.Error("se esperaba un error al no poder obtener el home directory")
-		}
-	})
-
 	t.Run("debería manejar error al verificar existencia del archivo", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("HOME", tmpDir)
@@ -26,7 +17,13 @@ func TestLoadConfig(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		_, err := LoadConfig()
+		defer func() {
+			if err := os.RemoveAll(tmpDir); err != nil {
+				t.Errorf("Error al eliminar el archivo: %v", err)
+			}
+		}()
+
+		_, err := LoadConfig(tmpDir)
 		if err == nil {
 			t.Error("se esperaba un error al verificar existencia del archivo")
 		}
@@ -35,18 +32,25 @@ func TestLoadConfig(t *testing.T) {
 		if err != nil {
 			t.Fatal("No se pudo cambiar los permisos del directorio")
 		}
+
+		_, err = LoadConfig(tmpDir)
+		if err != nil {
+			t.Errorf("No se esperaba un error, pero ocurrió: %v", err)
+		}
 	})
 
 	t.Run("debería manejar configuración inválida", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("HOME", tmpDir)
 
+		// Crear directorio de configuración
 		configDir := filepath.Join(tmpDir, ".mate-commit")
 		err := os.MkdirAll(configDir, 0755)
 		if err != nil {
 			t.Fatal(err)
 		}
 
+		// Crear configuración inválida
 		config := &Config{
 			GeminiAPIKey: "key",
 			DefaultLang:  "",
@@ -59,7 +63,13 @@ func TestLoadConfig(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		_, err = LoadConfig()
+		defer func() {
+			if err := os.RemoveAll(tmpDir); err != nil {
+				t.Errorf("Error al eliminar el archivo: %v", err)
+			}
+		}()
+
+		_, err = LoadConfig(tmpDir) // Cargar desde el directorio base
 		if err == nil {
 			t.Error("se esperaba un error debido a configuración inválida")
 		}
@@ -81,15 +91,23 @@ func TestLoadConfig(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("HOME", tmpDir)
 
+		// Crear directorio de configuración
 		configDir := filepath.Join(tmpDir, ".mate-commit")
 		_ = os.MkdirAll(configDir, 0755)
 
+		// Crear archivo con JSON malformado
 		err := os.WriteFile(filepath.Join(configDir, "config.json"), []byte("{malformed json"), 0644)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		_, err = LoadConfig()
+		defer func() {
+			if err := os.RemoveAll(tmpDir); err != nil {
+				t.Errorf("Error al eliminar el archivo: %v", err)
+			}
+		}()
+
+		_, err = LoadConfig(tmpDir) // Cargar desde el directorio base
 		if err == nil {
 			t.Error("se esperaba un error al cargar JSON malformado")
 		}
@@ -98,6 +116,91 @@ func TestLoadConfig(t *testing.T) {
 }
 
 func TestSaveConfig(t *testing.T) {
+	t.Run("debería crear config.json en directorio .mate-commit si no existe", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		expectedConfigDir := filepath.Join(tmpDir, ".mate-commit")
+		expectedConfigPath := filepath.Join(expectedConfigDir, "config.json")
+
+		defer func() {
+			if err := os.RemoveAll(tmpDir); err != nil {
+				t.Errorf("Error al eliminar el archivo: %v", err)
+			}
+		}()
+
+		// Act
+		loadedConfig, err := LoadConfig(tmpDir)
+
+		// Assert
+		if err != nil {
+			t.Errorf("LoadConfig() error = %v", err)
+		}
+
+		if _, err := os.Stat(expectedConfigDir); os.IsNotExist(err) {
+			t.Error("El directorio .mate-commit no fue creado")
+		}
+
+		if _, err := os.Stat(expectedConfigPath); os.IsNotExist(err) {
+			t.Error("El archivo config.json no fue creado")
+		}
+
+		if loadedConfig.DefaultLang != defaultLang {
+			t.Errorf("DefaultLang = %v, want %v", loadedConfig.DefaultLang, defaultLang)
+		}
+
+		if loadedConfig.MaxLength != defaultMaxLength {
+			t.Errorf("MaxLength = %v, want %v", loadedConfig.MaxLength, defaultMaxLength)
+		}
+
+		if loadedConfig.UseEmoji != defaultUseEmoji {
+			t.Errorf("UseEmoji = %v, want %v", loadedConfig.UseEmoji, defaultUseEmoji)
+		}
+	})
+
+	t.Run("debería manejar path directo a archivo json", func(t *testing.T) {
+		// Arrange
+		tmpDir := t.TempDir()
+		configPath := filepath.Join(tmpDir, "direct-config.json")
+
+		initialConfig := &Config{
+			GeminiAPIKey: "test-key",
+			DefaultLang:  "es",
+			UseEmoji:     true,
+			MaxLength:    50,
+			Format:       "conventional",
+			PathFile:     configPath,
+		}
+
+		defer func() {
+			if err := os.RemoveAll(tmpDir); err != nil {
+				t.Errorf("Error al eliminar el archivo: %v", err)
+			}
+		}()
+
+		data, err := json.MarshalIndent(initialConfig, "", "  ")
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := os.WriteFile(configPath, data, 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		// Act
+		loadedConfig, err := LoadConfig(configPath)
+
+		// Assert
+		if err != nil {
+			t.Errorf("LoadConfig() con path directo error = %v", err)
+		}
+
+		if loadedConfig.GeminiAPIKey != initialConfig.GeminiAPIKey {
+			t.Errorf("GeminiAPIKey = %v, want %v", loadedConfig.GeminiAPIKey, initialConfig.GeminiAPIKey)
+		}
+
+		if loadedConfig.PathFile != configPath {
+			t.Errorf("PathFile = %v, want %v", loadedConfig.PathFile, configPath)
+		}
+	})
 	t.Run("debería manejar error al obtener home directory", func(t *testing.T) {
 		t.Setenv("HOME", "")
 
@@ -120,6 +223,12 @@ func TestSaveConfig(t *testing.T) {
 		if err := os.MkdirAll(configDir, 0000); err != nil {
 			t.Fatal(err)
 		}
+
+		defer func() {
+			if err := os.RemoveAll(tmpDir); err != nil {
+				t.Errorf("Error al eliminar el archivo: %v", err)
+			}
+		}()
 
 		config := &Config{
 			DefaultLang: "en",
@@ -155,12 +264,20 @@ func TestSaveConfig(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		defer func() {
+			if err := os.RemoveAll(tmpDir); err != nil {
+				t.Errorf("Error al eliminar el archivo: %v", err)
+			}
+		}()
+
+		configPath := filepath.Join(configDir, "config.json")
 		config := &Config{
 			GeminiAPIKey: "new-key",
 			DefaultLang:  "fr",
 			UseEmoji:     false,
 			MaxLength:    50,
 			Format:       "conventional",
+			PathFile:     configPath,
 		}
 
 		// Act
@@ -171,8 +288,7 @@ func TestSaveConfig(t *testing.T) {
 			t.Errorf("SaveConfig() error = %v", err)
 		}
 
-		// Verificar que el archivo se guardó correctamente
-		data, err := os.ReadFile(filepath.Join(tmpDir, ".mate-commit", "config.json"))
+		data, err := os.ReadFile(configPath)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -188,6 +304,15 @@ func TestSaveConfig(t *testing.T) {
 		if savedConfig.DefaultLang != config.DefaultLang {
 			t.Errorf("Saved DefaultLang = %v, want %v", savedConfig.DefaultLang, config.DefaultLang)
 		}
+		if savedConfig.MaxLength != config.MaxLength {
+			t.Errorf("Saved MaxLength = %v, want %v", savedConfig.MaxLength, config.MaxLength)
+		}
+		if savedConfig.UseEmoji != config.UseEmoji {
+			t.Errorf("Saved UseEmoji = %v, want %v", savedConfig.UseEmoji, config.UseEmoji)
+		}
+		if savedConfig.Format != config.Format {
+			t.Errorf("Saved Format = %v, want %v", savedConfig.Format, config.Format)
+		}
 	})
 }
 
@@ -197,6 +322,12 @@ func TestCreateDefaultConfig(t *testing.T) {
 		configPath := filepath.Join(tmpDir, "config.json")
 
 		config, err := createDefaultConfig(configPath)
+
+		defer func() {
+			if err := os.RemoveAll(tmpDir); err != nil {
+				t.Errorf("Error al eliminar el archivo: %v", err)
+			}
+		}()
 
 		if err != nil {
 			t.Errorf("createDefaultConfig() error = %v, want nil", err)
@@ -239,6 +370,45 @@ func TestCreateDefaultConfig(t *testing.T) {
 		_, err := createDefaultConfig(configPath)
 		if err == nil {
 			t.Error("se esperaba un error al escribir el archivo")
+		}
+	})
+
+	t.Run("debería manejar error al escribir archivo", func(t *testing.T) {
+		tmpDir := t.TempDir()
+
+		configDir := filepath.Join(tmpDir, "readonly")
+		if err := os.MkdirAll(configDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := os.Chmod(configDir, 0444); err != nil {
+			t.Fatal(err)
+		}
+
+		defer func() {
+			if err := os.RemoveAll(tmpDir); err != nil {
+				t.Errorf("Error al eliminar el archivo: %v", err)
+			}
+		}()
+
+		configPath := filepath.Join(configDir, "config.json")
+		config := &Config{
+			GeminiAPIKey: "test-key",
+			DefaultLang:  "es",
+			MaxLength:    50,
+			PathFile:     configPath,
+		}
+
+		// Act
+		err := SaveConfig(config)
+
+		// Assert
+		if err == nil {
+			t.Error("se esperaba un error al escribir en directorio sin permisos")
+		}
+
+		if err := os.Chmod(configDir, 0755); err != nil {
+			t.Fatal("No se pudo restaurar los permisos del directorio")
 		}
 	})
 }
