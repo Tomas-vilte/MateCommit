@@ -13,7 +13,7 @@
 
 3. **Cómo manejar los PRs**:
    - Los PRs tienen que estar bien hechos.
-   - No seas vago, pone una descripción clara de qué hiciste y por qué lo hiciste. Nada de "cambié el código", explicá qué cambiaron,para que el que vea sepa que hiciste y tenga mas contexto.
+   - No seas vago, poné una descripción clara de qué hiciste y por qué lo hiciste. Nada de "cambié el código", explicá qué cosas cambiaron, para que el que vea sepa qué hiciste y tenga más contexto.
 
 ## Cómo hacer un Pull Request (PR)
 
@@ -21,9 +21,9 @@ Si querés sumar tu cambio, hacé lo siguiente:
 
 1. **Forkea el repo**.
 2. **Clonalo a tu máquina**.
-3. **Crea una rama** con un nombre que se entienda qué vas a hacer (tipo `feature/agregar-nueva-funcionalidad` o `bugfix/corregir-error`).
+3. **Creá una rama** con un nombre que se entienda qué vas a hacer (tipo `feature/agregar-nueva-funcionalidad` o `bugfix/corregir-error`).
 4. **Hacés los cambios** y asegurate de que no estés rompiendo todo. ¡Testea bien, no seas pajero!
-5. **Hace un commit** con un mensaje claro. Usá este formato:
+5. **Hacé un commit** con un mensaje claro. Usá este formato:
    - `tipo: descripción corta` (Ejemplo: `feat: agregar nueva funcionalidad` o `fix: corregir bug en validación`).
    - Si hace falta, explicá un toque más en el cuerpo del mensaje.
 6. **Mandá el PR** desde tu rama hacia `master`.
@@ -34,7 +34,7 @@ Si querés sumar tu cambio, hacé lo siguiente:
 
 - **Mantené tu fork actualizado**: Antes de ponerte a cambiar cosas, asegurate de que tu fork esté sincronizado con el repo principal.
 - **Escribí pruebas**: Si estás agregando algo nuevo, escribí pruebas para eso. Si corregís un bug, agregá una prueba para que no vuelva a pasar.
-- **Documentá tus cambios**: Si haces un cambio importante, ponélo en la documentación para que no dejemos a nadie perdido.
+- **Documentá tus cambios**: Si hacés un cambio importante, ponélo en la documentación para que no dejemos a nadie perdido.
 
 ## Resumen
 
@@ -45,5 +45,5 @@ Si querés sumar tu cambio, hacé lo siguiente:
 ¡Gracias por querer sumar!
 
 ---
-PD: perdon que sea tan rompe bolas con esto, pero aprendemos a usar buenas practicas y aprender obviamente.
+PD: perdón que sea tan rompe bolas con esto, pero aprendemos a usar buenas prácticas y aprender obviamente.
 **MateCommit - Por ahora, soy yo. Si algún día alguien más se suma, les cuento las reglas también.**
