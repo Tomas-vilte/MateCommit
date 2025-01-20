@@ -133,3 +133,5 @@ select_option_prompt = "\nSeleccioná una opción:"
 option_commit = "1-N: Usar la sugerencia correspondiente"
 option_exit = "0: Salir sin commitear"
 error_creating_commit = "❌ Error al crear el commit: {0}"
+
+factory_already_registered = "❌ La fabrica con el nombre '{{.FactoryName}}' ya está registrada"
