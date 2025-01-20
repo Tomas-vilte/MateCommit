@@ -19,13 +19,15 @@ func TestGeminiService(t *testing.T) {
 	t.Run("NewGeminiService with empty API key", func(t *testing.T) {
 		// arrange
 		ctx := context.Background()
-		cfg := &config.CommitConfig{}
+		cfg := &config.Config{
+			GeminiAPIKey: "",
+		}
 
 		trans, err := i18n.NewTranslations("es", "../../../locales")
 		assert.NoError(t, err)
 
 		// act
-		service, err := NewGeminiService(ctx, "", cfg, trans)
+		service, err := NewGeminiService(ctx, cfg, trans)
 
 		// assert
 		if service != nil {
@@ -40,13 +42,15 @@ func TestGeminiService(t *testing.T) {
 	t.Run("GenerateSuggestions with invalid count", func(t *testing.T) {
 		// arrange
 		ctx := context.Background()
-		cfg := &config.CommitConfig{}
+		cfg := &config.Config{
+			GeminiAPIKey: "test-api-key",
+		}
 
 		trans, err := i18n.NewTranslations("es", "../../../locales")
 		if err != nil {
 			t.Fatalf("Error al crear el traductor: %v", err)
 		}
-		service, err := NewGeminiService(ctx, "test-api-key", cfg, trans)
+		service, err := NewGeminiService(ctx, cfg, trans)
 		if err != nil {
 			t.Fatalf("Error creando servicio: %v", err)
 		}
@@ -72,13 +76,15 @@ func TestGeminiService(t *testing.T) {
 	t.Run("GenerateSuggestions no files", func(t *testing.T) {
 		// arrange
 		ctx := context.Background()
-		cfg := &config.CommitConfig{}
+		cfg := &config.Config{
+			GeminiAPIKey: "test-api-key",
+		}
 
 		trans, err := i18n.NewTranslations("es", "../../../locales")
 		if err != nil {
 			t.Fatalf("Error creando traductor: %v", err)
 		}
-		service, err := NewGeminiService(ctx, "test-api-key", cfg, trans)
+		service, err := NewGeminiService(ctx, cfg, trans)
 		if err != nil {
 			t.Fatalf("Error creando servicio: %v", err)
 		}
@@ -103,13 +109,15 @@ func TestGeminiService(t *testing.T) {
 	t.Run("ParseSuggestions correct format", func(t *testing.T) {
 		// arrange
 		ctx := context.Background()
-		cfg := &config.CommitConfig{}
+		cfg := &config.Config{
+			GeminiAPIKey: "test-api-key",
+		}
 
 		trans, err := i18n.NewTranslations("es", "../../../locales")
 		if err != nil {
 			t.Fatalf("Error al crear el traductor: %v", err)
 		}
-		service, err := NewGeminiService(ctx, "test-api-key", cfg, trans)
+		service, err := NewGeminiService(ctx, cfg, trans)
 		if err != nil {
 			t.Fatalf("Error al crear el servicio: %v", err)
 		}
@@ -189,16 +197,17 @@ func TestGeminiService(t *testing.T) {
 	t.Run("generatePrompt with valid parameters", func(t *testing.T) {
 		// arrange
 		ctx := context.Background()
-		cfg := &config.CommitConfig{
-			Language: "es",
-			UseEmoji: true,
+		cfg := &config.Config{
+			Language:     "es",
+			UseEmoji:     true,
+			GeminiAPIKey: "test-api-key",
 		}
 
 		trans, err := i18n.NewTranslations("es", "../../../locales")
 		if err != nil {
 			t.Fatalf("Error creando traductor: %v", err)
 		}
-		service, err := NewGeminiService(ctx, "test-api-key", cfg, trans)
+		service, err := NewGeminiService(ctx, cfg, trans)
 		if err != nil {
 			t.Fatalf("Error creando servicio: %v", err)
 		}
@@ -217,7 +226,7 @@ func TestGeminiService(t *testing.T) {
 		}
 
 		// Verificar que se utiliza el emoji en el mensaje del commit
-		if strings.Contains(prompt, "[emoji]") {
+		if strings.Contains(prompt, "Commit: 🐛") {
 			t.Log("Emojis utilizados correctamente")
 		} else {
 			t.Error("Se esperaba que se usaran emojis en el prompt")
@@ -227,16 +236,17 @@ func TestGeminiService(t *testing.T) {
 	t.Run("generatePrompt with en locale", func(t *testing.T) {
 		// arrange
 		ctx := context.Background()
-		cfg := &config.CommitConfig{
-			Language: "en",
-			UseEmoji: true,
+		cfg := &config.Config{
+			Language:     "en",
+			UseEmoji:     true,
+			GeminiAPIKey: "test-api-key",
 		}
 
 		trans, err := i18n.NewTranslations("en", "../../../locales")
 		if err != nil {
 			t.Fatalf("Error al crear el traductor: %v", err)
 		}
-		service, err := NewGeminiService(ctx, "test-api-key", cfg, trans)
+		service, err := NewGeminiService(ctx, cfg, trans)
 		if err != nil {
 			t.Fatalf("Error creating service: %v", err)
 		}
@@ -253,7 +263,7 @@ func TestGeminiService(t *testing.T) {
 			t.Errorf("generatePrompt incorrecto. Prompt no contiene elementos esenciales en inglés.")
 		}
 
-		if strings.Contains(prompt, "[emoji]") {
+		if strings.Contains(prompt, "Commit: 🐛") {
 			t.Log("Emojis usados correctamente en el mensaje en inglés")
 		} else {
 			t.Error("Se espera que los emojis se utilicen en el mensaje en inglés")
