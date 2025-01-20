@@ -23,6 +23,12 @@ func (m *MockGitService) HasStagedChanges() bool {
 	return args.Bool(0)
 }
 
+func (m *MockGitService) AddFileToStaging(file string) error {
+	args := m.Called(file)
+	return args.Error(0)
+
+}
+
 func (m *MockGitService) GetChangedFiles() ([]models.GitChange, error) {
 	args := m.Called()
 	return args.Get(0).([]models.GitChange), args.Error(1)
@@ -68,9 +74,8 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		}}
 
 		expectedInfo := models.CommitInfo{
-			Files:  []string{"file1.go"},
-			Diff:   "some diff",
-			Format: "conventional",
+			Files: []string{"file1.go"},
+			Diff:  "some diff",
 		}
 		mockAI.On("GenerateSuggestions", mock.Anything, expectedInfo, 3).
 			Return([]models.CommitSuggestion{{
@@ -82,7 +87,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		service := NewCommitService(mockGit, mockAI)
 
 		// act
-		suggestions, err := service.GenerateSuggestions(context.Background(), 3, "conventional")
+		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
 
 		// assert
 		assert.NoError(t, err)
@@ -102,7 +107,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		service := NewCommitService(mockGit, mockAI)
 
 		// act
-		suggestions, err := service.GenerateSuggestions(context.Background(), 3, "conventional")
+		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
 
 		// assert
 		assert.Error(t, err)
@@ -128,7 +133,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		service := NewCommitService(mockGit, mockAI)
 
 		// act
-		suggestions, err := service.GenerateSuggestions(context.Background(), 3, "conventional")
+		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
 
 		// assert
 		assert.Error(t, err)

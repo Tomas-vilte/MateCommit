@@ -8,7 +8,7 @@ const (
 	Files: [list of modified files, separated by comma]
 	Explanation: [commit explanation]
 	
-	Example:
+	Example (with emojis):
 	=========[ Suggestion ]=========
 	1. First suggestion:
 	Commit: ✨ feat: add config option for commit suggestion generation
@@ -24,6 +24,25 @@ const (
 	=========[ Suggestion ]=========
 	3. Third suggestion:
 	Commit: 📚 docs: update documentation for API endpoints
+	Files: api.md
+	Explanation: Updated the documentation for all available API endpoints.
+
+	Example (without emojis):
+	=========[ Suggestion ]=========
+	1. First suggestion:
+	Commit: feat: add config option for commit suggestion generation
+	Files: main.go, config.go
+	Explanation: Added a new configuration option to enable commit suggestion generation.
+
+	=========[ Suggestion ]=========
+	2. Second suggestion:
+	Commit: fix: resolve login issues
+	Files: auth.go, login.go
+	Explanation: Fixed an issue where users were unable to log in due to a validation error.
+
+	=========[ Suggestion ]=========
+	3. Third suggestion:
+	Commit: docs: update documentation for API endpoints
 	Files: api.md
 	Explanation: Updated the documentation for all available API endpoints.
 	
@@ -50,7 +69,7 @@ const (
 	Archivos: [lista de archivos modificados, separados por coma]
 	Explicación: [explicación del commit]
 	
-	Ejemplo:
+	Ejemplo (con emojis):
 	=========[ Sugerencia ]=========
 	1. Primera sugerencia:
     Commit: ✨ feat: Agregar opción de configuración para generación de sugerencias de commit
@@ -66,6 +85,25 @@ const (
 	=========[ Sugerencia ]=========
 	3. Tercera sugerencia:
 	Commit: 📚 docs: Actualizar documentación para endpoints de la API
+	Archivos: api.md
+	Explicación: Se actualizó la documentación para todos los endpoints de la API disponibles.
+	
+	Ejemplo (sin emojis):
+	=========[ Sugerencia ]=========
+	1. Primera sugerencia:
+    Commit: feat: Agregar opción de configuración para generación de sugerencias de commit
+	Archivos: main.go, config.go
+	Explicación: Se agregó una nueva opción de configuración para habilitar la generación de sugerencias de commit.
+
+	=========[ Sugerencia ]=========
+	2. Segunda sugerencia:
+	Commit: fix: Corregir problemas de inicio de sesión
+	Archivos: auth.go, login.go
+	Explicación: Se corrigió un problema por el cual los usuarios no podían iniciar sesión debido a un error de validación.
+
+	=========[ Sugerencia ]=========
+	3. Tercera sugerencia:
+	Commit: docs: Actualizar documentación para endpoints de la API
 	Archivos: api.md
 	Explicación: Se actualizó la documentación para todos los endpoints de la API disponibles.
 	
