@@ -8,7 +8,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-func newSetAPIKeyCommand(t *i18n.Translations, cfg *config.Config) *cli.Command {
+func (f *ConfigCommandFactory) newSetAPIKeyCommand(t *i18n.Translations, cfg *config.Config) *cli.Command {
 	return &cli.Command{
 		Name:  "set-api-key",
 		Usage: t.GetMessage("commands.set_api_key_usage", 0, nil),

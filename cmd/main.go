@@ -3,9 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/Tomas-vilte/MateCommit/internal/cli/command/config"
+	"github.com/Tomas-vilte/MateCommit/internal/cli/command/handler"
+	"github.com/Tomas-vilte/MateCommit/internal/cli/command/suggest"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/registry"
-	"github.com/Tomas-vilte/MateCommit/internal/config"
+	cfg "github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
+	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/gemini"
+	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/git"
+	"github.com/Tomas-vilte/MateCommit/internal/services"
 	"github.com/urfave/cli/v3"
 	"log"
 	"os"
@@ -28,28 +34,46 @@ func initializeApp() (*cli.Command, error) {
 		return nil, fmt.Errorf("no se pudo obtener el directorio del usuario: %w", err)
 	}
 
-	cfg, err := config.LoadConfig(homeDir)
+	cfgApp, err := cfg.LoadConfig(homeDir)
 	if err != nil {
 		return nil, err
 	}
 
-	err = config.SaveConfig(cfg)
+	translations, err := i18n.NewTranslations(cfgApp.Language, "locales")
+	if err != nil {
+		log.Fatalf("Error loading translations: %v", err)
+	}
+
+	err = cfg.SaveConfig(cfgApp)
 	if err != nil {
 		return nil, err
 	}
 
-	t, err := i18n.NewTranslations(cfg.DefaultLang, "./locales")
+	gitService := git.NewGitService()
+	aiProvider, err := gemini.NewGeminiService(context.Background(), cfgApp, translations)
 	if err != nil {
-		return nil, err
+		log.Fatalf("Error initializing AI service: %v", err)
 	}
 
-	cmdRegistry := registry.NewCommandRegistry(cfg, t)
+	commitService := services.NewCommitService(gitService, aiProvider)
+
+	commitHandler := handler.NewSuggestionHandler(gitService, translations)
+
+	registerCommand := registry.NewRegistry(cfgApp, translations)
+
+	if err := registerCommand.Register("suggest", suggest.NewSuggestCommandFactory(commitService, commitHandler)); err != nil {
+		log.Fatalf("Error al registrar el comando 'suggest': %v", err)
+	}
+
+	if err := registerCommand.Register("config", config.NewConfigCommandFactory()); err != nil {
+		log.Fatalf("Error al registrar el comando 'config': %v", err)
+	}
 
 	return &cli.Command{
 		Name:        "mate-commit",
-		Usage:       t.GetMessage("app_usage", 0, nil),
+		Usage:       translations.GetMessage("app_usage", 0, nil),
 		Version:     "1.0.0",
-		Description: t.GetMessage("app_description", 0, nil),
-		Commands:    cmdRegistry.RegisterCommands(),
+		Description: translations.GetMessage("app_description", 0, nil),
+		Commands:    registerCommand.CreateCommands(),
 	}, nil
 }

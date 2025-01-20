@@ -20,7 +20,7 @@ func NewCommitService(git ports.GitService, ai ports.AIProvider) *CommitService 
 	}
 }
 
-func (s *CommitService) GenerateSuggestions(ctx context.Context, count int, format string) ([]models.CommitSuggestion, error) {
+func (s *CommitService) GenerateSuggestions(ctx context.Context, count int) ([]models.CommitSuggestion, error) {
 	changes, err := s.git.GetChangedFiles()
 	if err != nil {
 		return nil, err
@@ -45,9 +45,8 @@ func (s *CommitService) GenerateSuggestions(ctx context.Context, count int, form
 	}
 
 	info := models.CommitInfo{
-		Files:  files,
-		Diff:   diff,
-		Format: format,
+		Files: files,
+		Diff:  diff,
 	}
 
 	return s.ai.GenerateSuggestions(ctx, info, count)

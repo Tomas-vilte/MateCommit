@@ -6,15 +6,22 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-func NewCommand(t *i18n.Translations, cfg *config.Config) *cli.Command {
+type ConfigCommandFactory struct {
+}
+
+func NewConfigCommandFactory() *ConfigCommandFactory {
+	return &ConfigCommandFactory{}
+}
+
+func (f *ConfigCommandFactory) CreateCommand(t *i18n.Translations, cfg *config.Config) *cli.Command {
 	return &cli.Command{
 		Name:    "config",
 		Aliases: []string{"c"},
 		Usage:   t.GetMessage("config_command_usage", 0, nil),
 		Commands: []*cli.Command{
-			newSetLangCommand(t, cfg),
-			newShowCommand(t, cfg),
-			newSetAPIKeyCommand(t, cfg),
+			f.newSetLangCommand(t, cfg),
+			f.newShowCommand(t, cfg),
+			f.newSetAPIKeyCommand(t, cfg),
 		},
 	}
 }

@@ -8,7 +8,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-func newSetLangCommand(t *i18n.Translations, cfg *config.Config) *cli.Command {
+func (f *ConfigCommandFactory) newSetLangCommand(t *i18n.Translations, cfg *config.Config) *cli.Command {
 	return &cli.Command{
 		Name:  "set-lang",
 		Usage: t.GetMessage("config_set_lang_usage", 0, nil),
@@ -27,12 +27,11 @@ func newSetLangCommand(t *i18n.Translations, cfg *config.Config) *cli.Command {
 				return fmt.Errorf("%s", msg)
 			}
 
-			cfg.DefaultLang = lang
+			cfg.Language = lang
 			if err := config.SaveConfig(cfg); err != nil {
 				return err
 			}
 
-			// Confirmar al usuario que el idioma fue configurado
 			fmt.Printf("%s\n", t.GetMessage("language_configured", 0, map[string]interface{}{"Lang": lang}))
 			return nil
 		},

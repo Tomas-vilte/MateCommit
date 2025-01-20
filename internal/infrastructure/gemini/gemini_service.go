@@ -14,16 +14,16 @@ import (
 type GeminiService struct {
 	client *genai.Client
 	model  *genai.GenerativeModel
-	config *config.CommitConfig
+	config *config.Config
 	trans  *i18n.Translations
 }
 
-func NewGeminiService(ctx context.Context, apiKey string, config *config.CommitConfig, trans *i18n.Translations) (*GeminiService, error) {
-	if apiKey == "" {
+func NewGeminiService(ctx context.Context, cfg *config.Config, trans *i18n.Translations) (*GeminiService, error) {
+	if cfg.GeminiAPIKey == "" {
 		msg := trans.GetMessage("error_missing_api_key", 0, nil)
 		return nil, fmt.Errorf("%s", msg)
 	}
-	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
+	client, err := genai.NewClient(ctx, option.WithAPIKey(cfg.GeminiAPIKey))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
 	}
@@ -32,7 +32,7 @@ func NewGeminiService(ctx context.Context, apiKey string, config *config.CommitC
 	return &GeminiService{
 		client: client,
 		model:  model,
-		config: config,
+		config: cfg,
 		trans:  trans,
 	}, nil
 }
@@ -163,19 +163,17 @@ func (s *GeminiService) generatePrompt(locale string, info models.CommitInfo, co
 	switch locale {
 	case "es":
 		promptTemplate = promptTemplateES
-		if s.config.UseEmoji {
-			promptTemplate = strings.Replace(promptTemplate, "Commit: [tipo]: [mensaje]", "Commit: [emoji] [tipo]: [mensaje]", 1)
-		}
 	case "en":
 		promptTemplate = promptTemplateEN
-		if s.config.UseEmoji {
-			promptTemplate = strings.Replace(promptTemplate, "Commit: [type]: [message]", "Commit: [emoji] [type]: [message]", 1)
-		}
 	default:
 		promptTemplate = promptTemplateEN
-		if s.config.UseEmoji {
-			promptTemplate = strings.Replace(promptTemplate, "Commit: [type]: [message]", "Commit: [emoji] [type]: [message]", 1)
-		}
+	}
+
+	if s.config.UseEmoji {
+		promptTemplate = strings.Replace(promptTemplate, "Commit: [type]: [message]\n", "Commit: ✨ [type]: [message]\n", 1)
+		promptTemplate = strings.Replace(promptTemplate, "Commit: fix:", "Commit: 🐛 fix:", 1)
+		promptTemplate = strings.Replace(promptTemplate, "Commit: docs:", "Commit: 📚 docs:", 1)
+
 	}
 
 	return fmt.Sprintf(promptTemplate,

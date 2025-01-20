@@ -3,57 +3,72 @@ package suggest
 import (
 	"context"
 	"fmt"
-	"github.com/Tomas-vilte/MateCommit/internal/cli/command/handler"
 	"github.com/Tomas-vilte/MateCommit/internal/config"
+	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
-	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/gemini"
-	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/git"
-	"github.com/Tomas-vilte/MateCommit/internal/services"
 	"github.com/urfave/cli/v3"
 )
 
-func NewCommand(cfg *config.Config, t *i18n.Translations) *cli.Command {
+type SuggestCommandFactory struct {
+	commitService ports.CommitService
+	commitHandler ports.CommitHandler
+}
+
+func NewSuggestCommandFactory(commitService ports.CommitService, commitHandler ports.CommitHandler) *SuggestCommandFactory {
+	return &SuggestCommandFactory{
+		commitService: commitService,
+		commitHandler: commitHandler,
+	}
+}
+
+func (f *SuggestCommandFactory) CreateCommand(t *i18n.Translations, cfg *config.Config) *cli.Command {
 	return &cli.Command{
 		Name:        "suggest",
 		Aliases:     []string{"s"},
 		Usage:       t.GetMessage("suggest_command_usage", 0, nil),
 		Description: t.GetMessage("suggest_command_description", 0, nil),
-		Flags:       suggestFlags(cfg, t),
-		Action:      suggestAction(cfg, t),
+		Flags:       f.createFlags(cfg, t),
+		Action:      f.createAction(cfg, t),
 	}
 }
 
-func suggestFlags(cfg *config.Config, t *i18n.Translations) []cli.Flag {
+func (f *SuggestCommandFactory) createFlags(cfg *config.Config, t *i18n.Translations) []cli.Flag {
 	return []cli.Flag{
 		&cli.IntFlag{
 			Name:    "count",
 			Aliases: []string{"n"},
-			Value:   3,
+			Value:   int64(cfg.SuggestionsCount),
 			Usage:   t.GetMessage("suggest_count_flag_usage", 0, nil),
 		},
 		&cli.StringFlag{
 			Name:    "lang",
 			Aliases: []string{"l"},
-			Value:   cfg.DefaultLang,
 			Usage:   t.GetMessage("suggest_lang_flag_usage", 0, nil),
+			Value:   cfg.Language,
 		},
 		&cli.BoolFlag{
 			Name:    "no-emoji",
 			Aliases: []string{"ne"},
+			Value:   cfg.UseEmoji,
 			Usage:   t.GetMessage("suggest_no_emoji_flag_usage", 0, nil),
 		},
 		&cli.IntFlag{
 			Name:    "max-length",
 			Aliases: []string{"ml"},
-			Value:   72,
+			Value:   int64(cfg.MaxLength),
 			Usage:   t.GetMessage("suggest_max_length_flag_usage", 0, nil),
 		},
 	}
 }
 
-func suggestAction(cfg *config.Config, t *i18n.Translations) cli.ActionFunc {
+func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Translations) cli.ActionFunc {
 	return func(ctx context.Context, command *cli.Command) error {
-		gitService := git.NewGitService()
+		emojiFlag := command.Bool("no-emoji")
+		if emojiFlag {
+			cfg.UseEmoji = false // Deshabilitar emojis si --no-emoji está presente
+		} else {
+			cfg.UseEmoji = true // Habilitar emojis si --no-emoji no está presente
+		}
 		count := command.Int("count")
 		if count < 1 || count > 10 {
 			msg := t.GetMessage("invalid_suggestions_count", 0, map[string]interface{}{
@@ -63,26 +78,20 @@ func suggestAction(cfg *config.Config, t *i18n.Translations) cli.ActionFunc {
 			return fmt.Errorf("%s", msg)
 		}
 
-		commitConfig := &config.CommitConfig{
-			Language:  config.GetLocaleConfig(command.String("lang")),
-			MaxLength: int(command.Int("max-length")),
-			UseEmoji:  !command.Bool("no-emoji"),
-		}
+		cfg.Language = command.String("lang")
+		cfg.MaxLength = int(command.Int("max-length"))
 
-		geminiService, err := gemini.NewGeminiService(ctx, cfg.GeminiAPIKey, commitConfig, t)
-		if err != nil {
-			msg := t.GetMessage("gemini_init_error", 0, map[string]interface{}{"Error": err})
-			return fmt.Errorf("%s", msg)
+		if err := config.SaveConfig(cfg); err != nil {
+			return fmt.Errorf("error al guardar la configuración: %w", err)
 		}
 
 		fmt.Println(t.GetMessage("analyzing_changes", 0, nil))
-		commitService := services.NewCommitService(gitService, geminiService)
-		suggestions, err := commitService.GenerateSuggestions(ctx, int(count), cfg.Format)
+		suggestions, err := f.commitService.GenerateSuggestions(ctx, int(count))
 		if err != nil {
 			msg := t.GetMessage("suggestion_generation_error", 0, map[string]interface{}{"Error": err})
 			return fmt.Errorf("%s", msg)
 		}
 
-		return handler.HandleSuggestions(suggestions, gitService, t)
+		return f.commitHandler.HandleSuggestions(suggestions)
 	}
 }
