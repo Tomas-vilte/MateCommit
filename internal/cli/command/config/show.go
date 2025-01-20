@@ -8,7 +8,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-func newShowCommand(t *i18n.Translations, cfg *config.Config) *cli.Command {
+func (f *ConfigCommandFactory) newShowCommand(t *i18n.Translations, cfg *config.Config) *cli.Command {
 	return &cli.Command{
 		Name:  "show",
 		Usage: t.GetMessage("config_show_usage", 0, nil),
@@ -16,7 +16,7 @@ func newShowCommand(t *i18n.Translations, cfg *config.Config) *cli.Command {
 
 			fmt.Println(t.GetMessage("current_config", 0, nil))
 			fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━\n")
-			fmt.Printf("%s\n", t.GetMessage("language_label", 0, map[string]interface{}{"Lang": cfg.DefaultLang}))
+			fmt.Printf("%s\n", t.GetMessage("language_label", 0, map[string]interface{}{"Lang": cfg.Language}))
 			fmt.Printf("%s\n", t.GetMessage("emojis_label", 0, map[string]interface{}{"Emoji": cfg.UseEmoji}))
 			fmt.Printf("%s\n", t.GetMessage("max_length_label", 0, map[string]interface{}{"MaxLength": cfg.MaxLength}))
 

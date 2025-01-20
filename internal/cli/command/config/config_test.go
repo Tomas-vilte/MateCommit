@@ -21,18 +21,13 @@ func setupTestApp(t *i18n.Translations, cfg *config.Config) (*cli.Command, func(
 		os.RemoveAll(tmpDir)
 	}
 
-	app := &cli.Command{
-		Commands: []*cli.Command{
-			newSetLangCommand(t, cfg),
-			newShowCommand(t, cfg),
-			newSetAPIKeyCommand(t, cfg),
-		},
-	}
+	factory := NewConfigCommandFactory()
+	app := factory.CreateCommand(t, cfg)
 
 	return app, cleanup
 }
 
-func TestNewSetLangCommand(t *testing.T) {
+func TestSetLangCommand(t *testing.T) {
 	t.Run("should successfully set valid language to English", func(t *testing.T) {
 		// Arrange
 		translations, err := i18n.NewTranslations("es", "../../../../locales")
@@ -44,9 +39,9 @@ func TestNewSetLangCommand(t *testing.T) {
 
 		tmpConfigPath := filepath.Join(tmpDir, "config.json")
 		cfg := &config.Config{
-			PathFile:    tmpConfigPath,
-			MaxLength:   72,
-			DefaultLang: "es",
+			PathFile:  tmpConfigPath,
+			MaxLength: 72,
+			Language:  "es",
 		}
 		assert.NoError(t, config.SaveConfig(cfg))
 
@@ -54,16 +49,15 @@ func TestNewSetLangCommand(t *testing.T) {
 		defer cleanup()
 
 		ctx := context.Background()
-		args := []string{"app", "set-lang", "--lang", "en"}
 
 		// Act
-		err = app.Run(ctx, args)
+		err = app.Run(ctx, []string{"config", "set-lang", "--lang", "en"})
 
 		// Assert
 		assert.NoError(t, err)
 		loadedCfg, err := config.LoadConfig(tmpConfigPath)
 		assert.NoError(t, err)
-		assert.Equal(t, "en", loadedCfg.DefaultLang)
+		assert.Equal(t, "en", loadedCfg.Language)
 	})
 
 	t.Run("should fail with unsupported language", func(t *testing.T) {
@@ -77,9 +71,9 @@ func TestNewSetLangCommand(t *testing.T) {
 
 		tmpConfigPath := filepath.Join(tmpDir, "config.json")
 		cfg := &config.Config{
-			PathFile:    tmpConfigPath,
-			MaxLength:   72,
-			DefaultLang: "es",
+			PathFile:  tmpConfigPath,
+			MaxLength: 72,
+			Language:  "es",
 		}
 		assert.NoError(t, config.SaveConfig(cfg))
 
@@ -87,20 +81,19 @@ func TestNewSetLangCommand(t *testing.T) {
 		defer cleanup()
 
 		ctx := context.Background()
-		args := []string{"app", "set-lang", "--lang", "fr"}
 
 		// Act
-		err = app.Run(ctx, args)
+		err = app.Run(ctx, []string{"config", "set-lang", "--lang", "fr"})
 
 		// Assert
 		assert.Error(t, err)
 		loadedCfg, err := config.LoadConfig(tmpConfigPath)
 		assert.NoError(t, err)
-		assert.Equal(t, "es", loadedCfg.DefaultLang)
+		assert.Equal(t, "es", loadedCfg.Language)
 	})
 }
 
-func TestNewShowCommand(t *testing.T) {
+func TestShowCommand(t *testing.T) {
 	t.Run("should display configuration with API key set", func(t *testing.T) {
 		// Arrange
 		translations, err := i18n.NewTranslations("es", "../../../../locales")
@@ -114,7 +107,7 @@ func TestNewShowCommand(t *testing.T) {
 		cfg := &config.Config{
 			PathFile:     tmpConfigPath,
 			MaxLength:    72,
-			DefaultLang:  "es",
+			Language:     "es",
 			UseEmoji:     true,
 			GeminiAPIKey: "test-api-key",
 		}
@@ -124,10 +117,9 @@ func TestNewShowCommand(t *testing.T) {
 		defer cleanup()
 
 		ctx := context.Background()
-		args := []string{"app", "show"}
 
 		// Act
-		err = app.Run(ctx, args)
+		err = app.Run(ctx, []string{"config", "show"})
 
 		// Assert
 		assert.NoError(t, err)
@@ -144,10 +136,10 @@ func TestNewShowCommand(t *testing.T) {
 
 		tmpConfigPath := filepath.Join(tmpDir, "config.json")
 		cfg := &config.Config{
-			PathFile:    tmpConfigPath,
-			MaxLength:   72,
-			DefaultLang: "es",
-			UseEmoji:    true,
+			PathFile:  tmpConfigPath,
+			MaxLength: 72,
+			Language:  "es",
+			UseEmoji:  true,
 		}
 		assert.NoError(t, config.SaveConfig(cfg))
 
@@ -155,17 +147,16 @@ func TestNewShowCommand(t *testing.T) {
 		defer cleanup()
 
 		ctx := context.Background()
-		args := []string{"app", "show"}
 
 		// Act
-		err = app.Run(ctx, args)
+		err = app.Run(ctx, []string{"config", "show"})
 
 		// Assert
 		assert.NoError(t, err)
 	})
 }
 
-func TestNewSetAPIKeyCommand(t *testing.T) {
+func TestSetAPIKeyCommand(t *testing.T) {
 	t.Run("should fail with invalid API key length", func(t *testing.T) {
 		// Arrange
 		translations, err := i18n.NewTranslations("es", "../../../../locales")
@@ -177,9 +168,9 @@ func TestNewSetAPIKeyCommand(t *testing.T) {
 
 		tmpConfigPath := filepath.Join(tmpDir, "config.json")
 		cfg := &config.Config{
-			PathFile:    tmpConfigPath,
-			MaxLength:   72,
-			DefaultLang: "es",
+			PathFile:  tmpConfigPath,
+			MaxLength: 72,
+			Language:  "es",
 		}
 		assert.NoError(t, config.SaveConfig(cfg))
 
@@ -187,10 +178,9 @@ func TestNewSetAPIKeyCommand(t *testing.T) {
 		defer cleanup()
 
 		ctx := context.Background()
-		args := []string{"app", "set-api-key", "--key", "short"}
 
 		// Act
-		err = app.Run(ctx, args)
+		err = app.Run(ctx, []string{"config", "set-api-key", "--key", "short"})
 
 		// Assert
 		assert.Error(t, err)
@@ -212,7 +202,7 @@ func TestNewSetAPIKeyCommand(t *testing.T) {
 		cfg := &config.Config{
 			PathFile:     tmpConfigPath,
 			MaxLength:    72,
-			DefaultLang:  "es",
+			Language:     "es",
 			GeminiAPIKey: "old-api-key-12345",
 		}
 		assert.NoError(t, config.SaveConfig(cfg))
@@ -222,10 +212,9 @@ func TestNewSetAPIKeyCommand(t *testing.T) {
 
 		ctx := context.Background()
 		newKey := "new-api-key-67890"
-		args := []string{"app", "set-api-key", "--key", newKey}
 
 		// Act
-		err = app.Run(ctx, args)
+		err = app.Run(ctx, []string{"config", "set-api-key", "--key", newKey})
 
 		// Assert
 		assert.NoError(t, err)

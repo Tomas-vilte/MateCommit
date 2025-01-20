@@ -53,7 +53,7 @@ func TestLoadConfig(t *testing.T) {
 		// Crear configuración inválida
 		config := &Config{
 			GeminiAPIKey: "key",
-			DefaultLang:  "",
+			Language:     "",
 			MaxLength:    -1,
 		}
 
@@ -143,8 +143,8 @@ func TestSaveConfig(t *testing.T) {
 			t.Error("El archivo config.json no fue creado")
 		}
 
-		if loadedConfig.DefaultLang != defaultLang {
-			t.Errorf("DefaultLang = %v, want %v", loadedConfig.DefaultLang, defaultLang)
+		if loadedConfig.Language != defaultLang {
+			t.Errorf("DefaultLang = %v, want %v", loadedConfig.Language, defaultLang)
 		}
 
 		if loadedConfig.MaxLength != defaultMaxLength {
@@ -163,10 +163,9 @@ func TestSaveConfig(t *testing.T) {
 
 		initialConfig := &Config{
 			GeminiAPIKey: "test-key",
-			DefaultLang:  "es",
+			Language:     "es",
 			UseEmoji:     true,
 			MaxLength:    50,
-			Format:       "conventional",
 			PathFile:     configPath,
 		}
 
@@ -205,8 +204,8 @@ func TestSaveConfig(t *testing.T) {
 		t.Setenv("HOME", "")
 
 		config := &Config{
-			DefaultLang: "en",
-			MaxLength:   72,
+			Language:  "en",
+			MaxLength: 72,
 		}
 
 		err := SaveConfig(config)
@@ -231,8 +230,8 @@ func TestSaveConfig(t *testing.T) {
 		}()
 
 		config := &Config{
-			DefaultLang: "en",
-			MaxLength:   72,
+			Language:  "en",
+			MaxLength: 72,
 		}
 
 		err := SaveConfig(config)
@@ -243,8 +242,8 @@ func TestSaveConfig(t *testing.T) {
 
 	t.Run("debería validar la configuración antes de guardar", func(t *testing.T) {
 		config := &Config{
-			DefaultLang: "",
-			MaxLength:   0,
+			Language:  "",
+			MaxLength: 0,
 		}
 
 		err := SaveConfig(config)
@@ -273,10 +272,9 @@ func TestSaveConfig(t *testing.T) {
 		configPath := filepath.Join(configDir, "config.json")
 		config := &Config{
 			GeminiAPIKey: "new-key",
-			DefaultLang:  "fr",
+			Language:     "fr",
 			UseEmoji:     false,
 			MaxLength:    50,
-			Format:       "conventional",
 			PathFile:     configPath,
 		}
 
@@ -301,17 +299,14 @@ func TestSaveConfig(t *testing.T) {
 		if savedConfig.GeminiAPIKey != config.GeminiAPIKey {
 			t.Errorf("Saved GeminiAPIKey = %v, want %v", savedConfig.GeminiAPIKey, config.GeminiAPIKey)
 		}
-		if savedConfig.DefaultLang != config.DefaultLang {
-			t.Errorf("Saved DefaultLang = %v, want %v", savedConfig.DefaultLang, config.DefaultLang)
+		if savedConfig.Language != config.Language {
+			t.Errorf("Saved DefaultLang = %v, want %v", savedConfig.Language, config.Language)
 		}
 		if savedConfig.MaxLength != config.MaxLength {
 			t.Errorf("Saved MaxLength = %v, want %v", savedConfig.MaxLength, config.MaxLength)
 		}
 		if savedConfig.UseEmoji != config.UseEmoji {
 			t.Errorf("Saved UseEmoji = %v, want %v", savedConfig.UseEmoji, config.UseEmoji)
-		}
-		if savedConfig.Format != config.Format {
-			t.Errorf("Saved Format = %v, want %v", savedConfig.Format, config.Format)
 		}
 	})
 }
@@ -333,8 +328,8 @@ func TestCreateDefaultConfig(t *testing.T) {
 			t.Errorf("createDefaultConfig() error = %v, want nil", err)
 		}
 
-		if config.DefaultLang != defaultLang {
-			t.Errorf("DefaultLang = %v, want %v", config.DefaultLang, defaultLang)
+		if config.Language != defaultLang {
+			t.Errorf("DefaultLang = %v, want %v", config.Language, defaultLang)
 		}
 		if config.UseEmoji != defaultUseEmoji {
 			t.Errorf("UseEmoji = %v, want %v", config.UseEmoji, defaultUseEmoji)
@@ -394,7 +389,7 @@ func TestCreateDefaultConfig(t *testing.T) {
 		configPath := filepath.Join(configDir, "config.json")
 		config := &Config{
 			GeminiAPIKey: "test-key",
-			DefaultLang:  "es",
+			Language:     "es",
 			MaxLength:    50,
 			PathFile:     configPath,
 		}
@@ -422,32 +417,32 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "configuración válida",
 			config: &Config{
-				DefaultLang: "en",
-				MaxLength:   72,
+				Language:  "en",
+				MaxLength: 72,
 			},
 			wantErr: false,
 		},
 		{
 			name: "MaxLength inválido",
 			config: &Config{
-				DefaultLang: "en",
-				MaxLength:   0,
+				Language:  "en",
+				MaxLength: 0,
 			},
 			wantErr: true,
 		},
 		{
 			name: "DefaultLang vacío",
 			config: &Config{
-				DefaultLang: "",
-				MaxLength:   72,
+				Language:  "",
+				MaxLength: 72,
 			},
 			wantErr: true,
 		},
 		{
 			name: "múltiples campos inválidos",
 			config: &Config{
-				DefaultLang: "",
-				MaxLength:   -1,
+				Language:  "",
+				MaxLength: -1,
 			},
 			wantErr: true,
 		},

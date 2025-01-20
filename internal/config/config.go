@@ -10,19 +10,20 @@ import (
 
 type (
 	Config struct {
-		GeminiAPIKey string `json:"gemini_api_key"`
-		DefaultLang  string `json:"default_lang"`
-		UseEmoji     bool   `json:"use_emoji"`
-		MaxLength    int    `json:"max_length"`
-		Format       string `json:"format"`
-		PathFile     string `json:"path_file"`
+		GeminiAPIKey     string `json:"gemini_api_key"`
+		Language         string `json:"language"`
+		UseEmoji         bool   `json:"use_emoji"`
+		MaxLength        int    `json:"max_length"`
+		SuggestionsCount int    `json:"suggestions_count"`
+		PathFile         string `json:"path_file"`
 	}
 )
 
 const (
-	defaultLang      = "en"
-	defaultUseEmoji  = true
-	defaultMaxLength = 72
+	defaultLang             = "en"
+	defaultUseEmoji         = true
+	defaultMaxLength        = 72
+	defaultSuggestionsCount = 3
 )
 
 func LoadConfig(path string) (*Config, error) {
@@ -64,10 +65,11 @@ func LoadConfig(path string) (*Config, error) {
 
 func createDefaultConfig(path string) (*Config, error) {
 	config := &Config{
-		DefaultLang: defaultLang,
-		UseEmoji:    defaultUseEmoji,
-		MaxLength:   defaultMaxLength,
-		PathFile:    path,
+		Language:         defaultLang,
+		UseEmoji:         defaultUseEmoji,
+		MaxLength:        defaultMaxLength,
+		SuggestionsCount: defaultSuggestionsCount,
+		PathFile:         path,
 	}
 
 	dir := filepath.Dir(path)
@@ -112,7 +114,7 @@ func validateConfig(config *Config) error {
 	if config.MaxLength <= 0 {
 		return errors.New("MaxLength debe ser mayor que 0")
 	}
-	if config.DefaultLang == "" {
+	if config.Language == "" {
 		return errors.New("DefaultLang no puede estar vacío")
 	}
 	return nil
