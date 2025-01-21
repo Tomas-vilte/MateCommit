@@ -48,11 +48,15 @@ func captureOutput(f func()) string {
 
 	f()
 
-	w.Close()
+	if err := w.Close(); err != nil {
+		panic("could not close pipe")
+	}
 	os.Stdout = old
 
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	if _, err := io.Copy(&buf, r); err != nil {
+		panic("could not capture output")
+	}
 	return buf.String()
 }
 
@@ -62,8 +66,12 @@ func simulateInput(input string, f func()) {
 	os.Stdin = r
 
 	go func() {
-		w.Write([]byte(input))
-		w.Close()
+		if _, err := w.Write([]byte(input)); err != nil {
+			panic("could not write to pipe")
+		}
+		if err := w.Close(); err != nil {
+			panic("could not close pipe")
+		}
 	}()
 
 	f()
