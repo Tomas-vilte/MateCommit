@@ -27,9 +27,10 @@ func NewRegistry(cfg *cfg.Config, t *i18n.Translations) *Registry {
 
 func (r *Registry) Register(name string, factory CommandFactory) error {
 	if _, exists := r.factories[name]; exists {
-		return fmt.Errorf(r.t.GetMessage("factory_already_registered", 0, map[string]interface{}{
+		msg := r.t.GetMessage("factory_already_registered", 0, map[string]interface{}{
 			"FactoryName": name,
-		}))
+		})
+		return fmt.Errorf("%s", msg)
 	}
 	r.factories[name] = factory
 	return nil
