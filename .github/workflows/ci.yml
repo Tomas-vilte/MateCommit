@@ -39,6 +39,10 @@ jobs:
           version: latest
 
       - name: Run tests
+        env:
+          JIRA_API_KEY: ${{ secrets.JIRA_API_KEY }}
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
         run: |
           go test -v -race -timeout 10m ./...
 
