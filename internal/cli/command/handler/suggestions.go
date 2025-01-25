@@ -36,6 +36,33 @@ func (h *SuggestionHandler) displaySuggestions(suggestions []models.CommitSugges
 			fmt.Printf("   - %s\n", file)
 		}
 		fmt.Printf("%s\n", suggestion.Explanation)
+
+		// Formatear CriteriaStatus
+		switch suggestion.CriteriaStatus {
+		case models.CriteriaFullyMet:
+			fmt.Println(h.t.GetMessage("commit.criteria_fully_met", 0, nil))
+		case models.CriteriaPartiallyMet:
+			fmt.Println(h.t.GetMessage("commit.criteria_partially_met", 0, nil))
+		case models.CriteriaNotMet:
+			fmt.Println(h.t.GetMessage("commit.criteria_not_met", 0, nil))
+		default:
+			fmt.Println(h.t.GetMessage("commit.criteria_unknown", 0, nil))
+		}
+
+		// Formatear MissingCriteria
+		if len(suggestion.MissingCriteria) > 0 {
+			fmt.Printf("%s: %s\n", h.t.GetMessage("commit.missing_criteria_header", 0, nil), strings.Join(suggestion.MissingCriteria, ", "))
+		} else {
+			fmt.Println(h.t.GetMessage("commit.missing_criteria_none", 0, nil))
+		}
+
+		// Formatear ImprovementSuggestions
+		if len(suggestion.ImprovementSuggestions) > 0 {
+			fmt.Printf("%s: %s\n", h.t.GetMessage("commit.improvement_suggestions_header", 0, nil), strings.Join(suggestion.ImprovementSuggestions, ", "))
+		} else {
+			fmt.Println(h.t.GetMessage("commit.improvement_suggestions_none", 0, nil))
+		}
+
 		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━")
 	}
 

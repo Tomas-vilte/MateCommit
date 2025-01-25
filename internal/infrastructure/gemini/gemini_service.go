@@ -56,6 +56,7 @@ func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.Com
 		})
 		return nil, fmt.Errorf("%s", msg)
 	}
+
 	suggestions := s.parseSuggestions(resp)
 	if len(suggestions) == 0 {
 		msg := s.trans.GetMessage("error_no_suggestions", 0, nil)
@@ -63,6 +64,39 @@ func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.Com
 	}
 
 	return suggestions, nil
+}
+
+func (s *GeminiService) generatePrompt(locale string, info models.CommitInfo, count int) string {
+	var promptTemplate string
+	switch locale {
+	case "es":
+		promptTemplate = promptTemplateES
+	case "en":
+		promptTemplate = promptTemplateEN
+	default:
+		promptTemplate = promptTemplateEN
+	}
+
+	if s.config.UseEmoji {
+		promptTemplate = strings.Replace(promptTemplate, "Commit: [type]: [message]\n", "Commit: ✨ [type]: [message]\n", 1)
+		promptTemplate = strings.Replace(promptTemplate, "Commit: fix:", "Commit: 🐛 fix:", 1)
+		promptTemplate = strings.Replace(promptTemplate, "Commit: docs:", "Commit: 📚 docs:", 1)
+	}
+
+	// Si hay información del ticket, la agregamos al prompt
+	ticketInfo := ""
+	if info.TicketTitle != "" {
+		ticketInfo = fmt.Sprintf("\nTicket Title: %s\nTicket Description: %s\nAcceptance Criteria: %s",
+			info.TicketTitle, info.TicketDesc, strings.Join(info.Criteria, ", "))
+	}
+
+	return fmt.Sprintf(promptTemplate,
+		count,
+		count,
+		formatChanges(info.Files),
+		info.Diff,
+		ticketInfo, // Agregamos la información del ticket al final del prompt
+	)
 }
 
 func formatChanges(files []string) string {
@@ -135,8 +169,11 @@ func (s *GeminiService) parseSuggestionPart(part string) *models.CommitSuggestio
 	}
 
 	suggestion := &models.CommitSuggestion{}
+
+	// Extraer el título del commit
 	suggestion.CommitTitle = strings.TrimSpace(lines[1])
 
+	// Extraer los archivos modificados
 	prefixFiles := s.getFilesPrefix()
 	if filesPart := strings.TrimPrefix(lines[2], prefixFiles); filesPart != "" {
 		files := strings.Split(filesPart, ",")
@@ -148,38 +185,58 @@ func (s *GeminiService) parseSuggestionPart(part string) *models.CommitSuggestio
 		}
 	}
 
+	// Extraer la explicación
 	var explanation strings.Builder
-	for _, line := range lines[3:] {
-		explanation.WriteString(line)
+	for i := 3; i < len(lines); i++ {
+		if strings.HasPrefix(lines[i], s.trans.GetMessage("commit.criteria_status_prefix", 0, nil)) ||
+			strings.HasPrefix(lines[i], s.trans.GetMessage("commit.missing_criteria_prefix", 0, nil)) ||
+			strings.HasPrefix(lines[i], s.trans.GetMessage("commit.improvement_suggestions_prefix", 0, nil)) {
+			break // Detener si encontramos los campos adicionales
+		}
+		explanation.WriteString(lines[i])
 		explanation.WriteString("\n")
 	}
 	suggestion.Explanation = strings.TrimSpace(explanation.String())
 
+	// Extraer el estado de los criterios
+	criteriaStatusPrefix := s.trans.GetMessage("commit.criteria_status_prefix", 0, nil)
+	for _, line := range lines {
+		if strings.HasPrefix(line, criteriaStatusPrefix) {
+			criteriaStatus := strings.TrimSpace(strings.TrimPrefix(line, criteriaStatusPrefix))
+			switch criteriaStatus {
+			case s.trans.GetMessage("commit.criteria_fully_met_prefix", 0, nil):
+				suggestion.CriteriaStatus = models.CriteriaFullyMet
+			case s.trans.GetMessage("commit.criteria_partially_met_prefix", 0, nil):
+				suggestion.CriteriaStatus = models.CriteriaPartiallyMet
+			case s.trans.GetMessage("commit.criteria_not_met_prefix", 0, nil):
+				suggestion.CriteriaStatus = models.CriteriaNotMet
+			default:
+				suggestion.CriteriaStatus = models.CriteriaNotMet
+			}
+		}
+	}
+
+	// Extraer los criterios faltantes
+	missingCriteriaPrefix := s.trans.GetMessage("commit.missing_criteria_prefix", 0, nil)
+	for _, line := range lines {
+		if strings.HasPrefix(line, missingCriteriaPrefix) {
+			missingCriteria := strings.TrimSpace(strings.TrimPrefix(line, missingCriteriaPrefix))
+			if missingCriteria != s.trans.GetMessage("commit.missing_criteria_none", 0, nil) {
+				suggestion.MissingCriteria = strings.Split(missingCriteria, ",")
+			}
+		}
+	}
+
+	// Extraer las sugerencias de mejora
+	improvementSuggestionsPrefix := s.trans.GetMessage("commit.improvement_suggestions_prefix", 0, nil)
+	for _, line := range lines {
+		if strings.HasPrefix(line, improvementSuggestionsPrefix) {
+			improvementSuggestions := strings.TrimSpace(strings.TrimPrefix(line, improvementSuggestionsPrefix))
+			if improvementSuggestions != s.trans.GetMessage("commit.improvement_suggestions_none", 0, nil) {
+				suggestion.ImprovementSuggestions = strings.Split(improvementSuggestions, ",")
+			}
+		}
+	}
+
 	return suggestion
-}
-
-func (s *GeminiService) generatePrompt(locale string, info models.CommitInfo, count int) string {
-	var promptTemplate string
-	switch locale {
-	case "es":
-		promptTemplate = promptTemplateES
-	case "en":
-		promptTemplate = promptTemplateEN
-	default:
-		promptTemplate = promptTemplateEN
-	}
-
-	if s.config.UseEmoji {
-		promptTemplate = strings.Replace(promptTemplate, "Commit: [type]: [message]\n", "Commit: ✨ [type]: [message]\n", 1)
-		promptTemplate = strings.Replace(promptTemplate, "Commit: fix:", "Commit: 🐛 fix:", 1)
-		promptTemplate = strings.Replace(promptTemplate, "Commit: docs:", "Commit: 📚 docs:", 1)
-
-	}
-
-	return fmt.Sprintf(promptTemplate,
-		count,
-		count,
-		formatChanges(info.Files),
-		info.Diff,
-	)
 }

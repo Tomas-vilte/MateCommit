@@ -7,6 +7,7 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/httpclient"
 	"net/http"
+	"regexp"
 	"strings"
 )
 
@@ -37,9 +38,9 @@ func NewJiraService(baseURL, username, token string, client httpclient.HTTPClien
 // JiraFields representa los campos de un ticket de Jira.
 type (
 	JiraFields struct {
-		Summary     string            `json:"summary"`
-		Description AtlassianDoc      `json:"description"`
-		CustomField map[string]string `json:"customfield"`
+		Summary     string                 `json:"summary"`
+		Description AtlassianDoc           `json:"description"`
+		CustomField map[string]CustomField `json:"customfield"`
 	}
 
 	AtlassianDoc struct {
@@ -51,6 +52,12 @@ type (
 	DocContent struct {
 		Type    string       `json:"type"`
 		Text    string       `json:"text,omitempty"`
+		Content []DocContent `json:"content,omitempty"`
+	}
+
+	CustomField struct {
+		Type    string       `json:"type"`
+		Text    string       `json:"text"`
 		Content []DocContent `json:"content,omitempty"`
 	}
 )
@@ -106,9 +113,10 @@ func (s *JiraService) fetchTicketFields(ticketID string) (*JiraFields, error) {
 	}
 
 	jiraFields := &JiraFields{
-		CustomField: make(map[string]string),
+		CustomField: make(map[string]CustomField),
 	}
 
+	// Procesar el campo "summary"
 	if rawSummary, ok := result.Fields["summary"]; ok {
 		var summary string
 		if err := json.Unmarshal(rawSummary, &summary); err != nil {
@@ -117,6 +125,7 @@ func (s *JiraService) fetchTicketFields(ticketID string) (*JiraFields, error) {
 		jiraFields.Summary = summary
 	}
 
+	// Procesar el campo "description"
 	if rawDescription, ok := result.Fields["description"]; ok {
 		var description AtlassianDoc
 		if err := json.Unmarshal(rawDescription, &description); err != nil {
@@ -125,13 +134,15 @@ func (s *JiraService) fetchTicketFields(ticketID string) (*JiraFields, error) {
 		jiraFields.Description = description
 	}
 
+	// Procesar campos personalizados
 	for key, value := range result.Fields {
 		if strings.HasPrefix(key, "customfield_") {
-			var strVal string
-			if err := json.Unmarshal(value, &strVal); err != nil {
-				continue // Ignorar campos no string
+			var customField CustomField
+			if err := json.Unmarshal(value, &customField); err != nil {
+				//fmt.Printf("Error al deserializar el campo %s: %v\n", key, err)
+				continue
 			}
-			jiraFields.CustomField[key] = strVal
+			jiraFields.CustomField[key] = customField
 		}
 	}
 
@@ -141,14 +152,18 @@ func (s *JiraService) fetchTicketFields(ticketID string) (*JiraFields, error) {
 // extractCriteria extrae los criterios de aceptación de los campos del ticket.
 func (s *JiraService) extractCriteria(fields *JiraFields, criteriaFieldID, description string) ([]string, string) {
 	var criteria []string
+
+	// Extraer criterios del campo personalizado si existe
 	if criteriaFieldID != "" {
 		criteria, _ = extractCriteriaFromCustomField(fields.CustomField, criteriaFieldID)
 	}
 
-	if criteria != nil {
-		description = removeCriteriaFromDescription(description)
-	} else {
+	// Si no se encontraron criterios en el campo personalizado, intentar extraerlos de la descripción
+	if len(criteria) == 0 {
 		criteria, description = extractAndRemoveCriteria(description)
+	} else {
+		// Si se encontraron criterios en el campo personalizado, limpiar la descripción
+		description = removeCriteriaFromDescription(description)
 	}
 
 	return criteria, description
@@ -194,17 +209,51 @@ func findCriteriaFieldID(customFields map[string]string) string {
 }
 
 // extractCriteriaFromCustomField extrae los criterios de un campo personalizado.
-func extractCriteriaFromCustomField(fields map[string]string, fieldID string) ([]string, string) {
+func extractCriteriaFromCustomField(fields map[string]CustomField, fieldID string) ([]string, string) {
 	if fieldID == "" {
 		return nil, ""
 	}
 
-	criteriaText, ok := fields[fieldID]
-	if !ok || criteriaText == "" {
-		return nil, ""
+	fieldValue, ok := fields[fieldID]
+	if !ok {
+		return nil, "" // Campo no existe en el mapa
 	}
 
-	return extractAndRemoveCriteria(criteriaText)
+	var criteriaText string
+
+	// Si el campo es un objeto AtlassianDoc, extraer el texto
+	if fieldValue.Type == "doc" {
+		criteriaText = parseAtlassianDoc(fieldValue.Content)
+	} else if fieldValue.Text != "" {
+		// Si el campo es un string, usar el texto directamente
+		criteriaText = fieldValue.Text
+	} else {
+		return nil, "" // No hay contenido válido
+	}
+
+	// Eliminar "Acceptance Criteria:" del texto
+	criteriaText = strings.ReplaceAll(criteriaText, "Acceptance Criteria:", "")
+	criteriaText = strings.ReplaceAll(criteriaText, "Criterio de aceptacion:", "")
+
+	// Dividir el texto en líneas y formatear cada línea como un criterio
+	criteriaList := strings.Split(criteriaText, "\n")
+	var filteredCriteria []string
+	for _, criterion := range criteriaList {
+		criterion = strings.TrimSpace(criterion)
+		if criterion != "" {
+			// Eliminar viñetas o números al inicio de la línea
+			if strings.HasPrefix(criterion, "- ") || strings.HasPrefix(criterion, "* ") {
+				criterion = strings.TrimPrefix(criterion, "- ")
+				criterion = strings.TrimPrefix(criterion, "* ")
+			} else if matches := regexp.MustCompile(`^\d+\.\s*`).FindStringSubmatch(criterion); len(matches) > 0 {
+				// Eliminar números al inicio de la línea (por ejemplo, "1. ", "2. ")
+				criterion = strings.TrimPrefix(criterion, matches[0])
+			}
+			filteredCriteria = append(filteredCriteria, criterion)
+		}
+	}
+
+	return filteredCriteria, criteriaText
 }
 
 // GetCustomFields obtiene los campos personalizados de Jira.
@@ -245,60 +294,87 @@ func (s *JiraService) GetCustomFields() (map[string]string, error) {
 // parseAtlassianDoc convierte el contenido de un documento de Atlassian en una cadena de texto.
 func parseAtlassianDoc(content []DocContent) string {
 	var result strings.Builder
+	parseAtlassianDocRecursive(content, &result)
+	return strings.TrimSpace(result.String()) // Eliminar espacios y saltos de línea al final
+}
+
+func parseAtlassianDocRecursive(content []DocContent, result *strings.Builder) {
 	for _, item := range content {
 		switch item.Type {
 		case "text":
 			result.WriteString(item.Text)
-			result.WriteString("\n")
-		case "paragraph", "listItem", "bulletList":
+		case "paragraph":
 			if item.Content != nil {
-				result.WriteString(parseAtlassianDoc(item.Content))
+				parseAtlassianDocRecursive(item.Content, result)
+				if len(item.Content) > 0 {
+					result.WriteString("\n") // Añade un salto de línea solo si hay contenido
+				}
 			}
+		case "listItem":
+			if item.Content != nil {
+				parseAtlassianDocRecursive(item.Content, result)
+			}
+			result.WriteString("\n") // Añade un salto de línea al final del elemento de lista
+		case "bulletList", "orderedList":
+			if item.Content != nil {
+				parseAtlassianDocRecursive(item.Content, result)
+			}
+		default:
+			// Ignora otros tipos o agrega manejo según sea necesario
 		}
 	}
-	return result.String()
 }
 
 // extractAndRemoveCriteria extrae y elimina los criterios de aceptación de un texto.
 func extractAndRemoveCriteria(text string) ([]string, string) {
-	for _, pattern := range criteriaPatterns {
-		if strings.Contains(text, pattern) {
-			criteriaText := strings.SplitN(text, pattern, 2)[1]
-			criteriaText = strings.TrimSpace(criteriaText)
+	// Dividir el texto en líneas
+	lines := strings.Split(text, "\n")
+	var criteria []string
+	var descriptionLines []string
 
-			criteriaList := strings.Split(criteriaText, "\n")
-			var filteredCriteria []string
-			for _, criterion := range criteriaList {
-				criterion = strings.TrimSpace(criterion)
-				if criterion != "" {
-					filteredCriteria = append(filteredCriteria, criterion)
-				}
-			}
+	// Bandera para indicar si estamos en la sección de criterios
+	inCriteriaSection := false
 
-			description := strings.SplitN(text, pattern, 2)[0]
-			description = strings.TrimSpace(description)
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
 
-			return filteredCriteria, description
+		// Si encontramos "Acceptance Criteria:", activamos la bandera
+		if strings.Contains(trimmedLine, "Acceptance Criteria:") || strings.Contains(trimmedLine, "Criterio de aceptacion:") {
+			inCriteriaSection = true
+			continue // Saltamos la línea que contiene "Acceptance Criteria:"
+		}
+
+		// Si estamos en la sección de criterios y la línea comienza con "- " o "* ", la agregamos a los criterios
+		if inCriteriaSection && (strings.HasPrefix(trimmedLine, "- ") || strings.HasPrefix(trimmedLine, "* ")) {
+			criterion := strings.TrimPrefix(trimmedLine, "- ")
+			criterion = strings.TrimPrefix(criterion, "* ")
+			criteria = append(criteria, criterion)
+		} else {
+			// Si no es un criterio, agregamos la línea a la descripción
+			descriptionLines = append(descriptionLines, line)
 		}
 	}
 
-	return nil, text
-}
+	// Unimos las líneas de la descripción en un solo string
+	description := strings.Join(descriptionLines, "\n")
 
-// criteriaPatterns contiene los patrones para identificar los criterios de aceptación.
-var criteriaPatterns = []string{
-	"Acceptance criteria:",
-	"Criterio de aceptacion:",
+	return criteria, description
 }
 
 // removeCriteriaFromDescription elimina los criterios de aceptación de la descripción.
 func removeCriteriaFromDescription(description string) string {
-	for _, pattern := range criteriaPatterns {
-		if strings.Contains(description, pattern) {
-			description = strings.SplitN(description, pattern, 2)[0]
-			description = strings.TrimSpace(description)
-			break
-		}
+	// Patrones para identificar los criterios de aceptación en inglés y español
+	patterns := []string{
+		"Acceptance criteria:.*(\n.*)*",    // Elimina todo lo que sigue después de "Acceptance criteria:"
+		"Criterio de aceptacion:.*(\n.*)*", // Elimina todo lo que sigue después de "Criterio de aceptacion:"
 	}
-	return description
+
+	// Recorremos los patrones y eliminamos las coincidencias
+	for _, pattern := range patterns {
+		re := regexp.MustCompile(pattern)
+		description = re.ReplaceAllString(description, "")
+	}
+
+	// Eliminamos espacios y saltos de línea adicionales al final
+	return strings.TrimSpace(description)
 }
