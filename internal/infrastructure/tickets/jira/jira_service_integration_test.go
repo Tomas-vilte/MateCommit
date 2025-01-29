@@ -11,10 +11,10 @@ func TestJiraService_GetTicketInfo_Integration(t *testing.T) {
 	// Arrange
 	client := &http.Client{}
 	service := &JiraService{
-		BaseURL:  os.Getenv("JIRA_BASE_URL"),
-		Username: os.Getenv("JIRA_EMAIL"),
-		Token:    os.Getenv("JIRA_API_KEY"),
-		Client:   client,
+		baseURL:   os.Getenv("JIRA_BASE_URL"),
+		jiraEmail: os.Getenv("JIRA_EMAIL"),
+		apiKey:    os.Getenv("JIRA_API_KEY"),
+		client:    client,
 	}
 
 	// Act

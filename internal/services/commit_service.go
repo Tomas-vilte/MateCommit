@@ -13,28 +13,20 @@ type CommitService struct {
 	git         ports.GitService
 	ai          ports.AIProvider
 	jiraService ports.TickerManager
+	useTicket   bool
 }
 
-func NewCommitService(git ports.GitService, ai ports.AIProvider, jiraService ports.TickerManager) *CommitService {
+func NewCommitService(git ports.GitService, ai ports.AIProvider, jiraService ports.TickerManager, useTicket bool) *CommitService {
 	return &CommitService{
 		git:         git,
 		ai:          ai,
 		jiraService: jiraService,
+		useTicket:   useTicket,
 	}
 }
 
 func (s *CommitService) GenerateSuggestions(ctx context.Context, count int) ([]models.CommitSuggestion, error) {
-	// Obtener el ID del ticket desde el nombre de la branch
-	ticketID, err := s.getTicketIDFromBranch()
-	if err != nil {
-		return nil, fmt.Errorf("error al obtener el ID del ticket: %v", err)
-	}
-
-	// Obtener la información del ticket de Jira
-	ticketInfo, err := s.jiraService.GetTicketInfo(ticketID)
-	if err != nil {
-		return nil, fmt.Errorf("error al obtener la información del ticket: %v", err)
-	}
+	var commitInfo models.CommitInfo
 
 	// Obtener los cambios en el código
 	changes, err := s.git.GetChangedFiles()
@@ -60,13 +52,25 @@ func (s *CommitService) GenerateSuggestions(ctx context.Context, count int) ([]m
 		files = append(files, change.Path)
 	}
 
-	// Combinar la información del ticket con los cambios en el código
-	commitInfo := models.CommitInfo{
-		Files:       files,
-		Diff:        diff,
-		TicketTitle: ticketInfo.Title,
-		TicketDesc:  ticketInfo.Description,
-		Criteria:    ticketInfo.Criteria,
+	commitInfo = models.CommitInfo{
+		Files: files,
+		Diff:  diff,
+	}
+
+	if s.useTicket {
+		ticketID, err := s.getTicketIDFromBranch()
+		if err != nil {
+			return nil, fmt.Errorf("error al obtener el ID del ticket: %v", err)
+		}
+
+		ticketInfo, err := s.jiraService.GetTicketInfo(ticketID)
+		if err != nil {
+			return nil, fmt.Errorf("error al obtener la información del ticket: %v", err)
+		}
+
+		commitInfo.TicketTitle = ticketInfo.Title
+		commitInfo.TicketDesc = ticketInfo.Description
+		commitInfo.Criteria = ticketInfo.Criteria
 	}
 
 	// Generar sugerencias de commit usando la IA
