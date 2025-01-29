@@ -93,6 +93,42 @@ func TestGitService(t *testing.T) {
 		}
 	})
 
+	t.Run("GetCurrentBranch", func(t *testing.T) {
+		// Arrange
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		service := NewGitService()
+
+		// Act - Obtener la branch actual (debería ser 'main' por defecto)
+		branchName, err := service.GetCurrentBranch()
+
+		// Assert
+		if err != nil {
+			t.Errorf("Error obteniendo la branch actual: %v", err)
+		}
+		if branchName != "master" {
+			t.Errorf("Se esperaba la branch 'main', se obtuvo: %s", branchName)
+		}
+
+		// Act - Crear una nueva branch y cambiarse a ella
+		newBranch := "feature/test-branch"
+		cmd := exec.Command("git", "checkout", "-b", newBranch)
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("Error creando y cambiando a la nueva branch: %v", err)
+		}
+
+		branchName, err = service.GetCurrentBranch()
+
+		// Assert
+		if err != nil {
+			t.Errorf("Error obteniendo la branch actual: %v", err)
+		}
+		if branchName != newBranch {
+			t.Errorf("Se esperaba la branch '%s', se obtuvo: %s", newBranch, branchName)
+		}
+	})
+
 	t.Run("GetChangedFiles", func(t *testing.T) {
 		// arrange
 		tempDir := setupTestRepo(t)

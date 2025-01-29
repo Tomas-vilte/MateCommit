@@ -93,12 +93,11 @@ func (s *GeminiService) generatePrompt(locale string, info models.CommitInfo, co
 	return fmt.Sprintf(promptTemplate,
 		count,
 		count,
+		ticketInfo,
 		formatChanges(info.Files),
 		info.Diff,
-		ticketInfo, // Agregamos la información del ticket al final del prompt
 	)
 }
-
 func formatChanges(files []string) string {
 	if len(files) == 0 {
 		return ""

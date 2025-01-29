@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/httpclient"
 	"net/http"
@@ -19,19 +20,19 @@ const (
 
 // JiraService representa el servicio para interactuar con la API de Jira.
 type JiraService struct {
-	BaseURL  string
-	Token    string
-	Username string
-	Client   httpclient.HTTPClient
+	baseURL   string
+	apiKey    string
+	jiraEmail string
+	client    httpclient.HTTPClient
 }
 
 // NewJiraService crea una nueva instancia de JiraService.
-func NewJiraService(baseURL, username, token string, client httpclient.HTTPClient) *JiraService {
+func NewJiraService(cfg *config.Config, client httpclient.HTTPClient) *JiraService {
 	return &JiraService{
-		BaseURL:  baseURL,
-		Token:    token,
-		Username: username,
-		Client:   client,
+		baseURL:   cfg.JiraConfig.BaseURL,
+		apiKey:    cfg.JiraConfig.APIKey,
+		jiraEmail: cfg.JiraConfig.Email,
+		client:    client,
 	}
 }
 
@@ -90,10 +91,10 @@ func (s *JiraService) GetTicketInfo(ticketID string) (*models.TicketInfo, error)
 
 // fetchTicketFields obtiene los campos de un ticket de Jira.
 func (s *JiraService) fetchTicketFields(ticketID string) (*JiraFields, error) {
-	url := fmt.Sprintf("%s/rest/api/3/issue/%s", s.BaseURL, ticketID)
+	url := fmt.Sprintf("%s/rest/api/3/issue/%s", s.baseURL, ticketID)
 	resp, err := s.makeRequest("GET", url)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error making request to jira API: %w", err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -101,8 +102,17 @@ func (s *JiraService) fetchTicketFields(ticketID string) (*JiraFields, error) {
 		}
 	}()
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("error fetching ticket: %s", resp.Status)
+	switch resp.StatusCode {
+	case http.StatusOK:
+		// Todo está bien, continuamos con el procesamiento
+	case http.StatusNotFound:
+		return nil, fmt.Errorf("ticket con ID %s no existe en Jira", ticketID)
+	case http.StatusUnauthorized:
+		return nil, fmt.Errorf("no autorizado: verifica tus credenciales de Jira")
+	case http.StatusInternalServerError:
+		return nil, fmt.Errorf("error interno del servidor de Jira")
+	default:
+		return nil, fmt.Errorf("error inesperado al obtener el ticket: %s", resp.Status)
 	}
 
 	var result struct {
@@ -176,10 +186,10 @@ func (s *JiraService) makeRequest(method, url string) (*http.Response, error) {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
 
-	req.Header.Set("Authorization", getBasicAuth(s.Username, s.Token))
+	req.Header.Set("Authorization", getBasicAuth(s.jiraEmail, s.apiKey))
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := s.Client.Do(req)
+	resp, err := s.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("error making request: %w", err)
 	}
@@ -258,7 +268,7 @@ func extractCriteriaFromCustomField(fields map[string]CustomField, fieldID strin
 
 // GetCustomFields obtiene los campos personalizados de Jira.
 func (s *JiraService) GetCustomFields() (map[string]string, error) {
-	url := fmt.Sprintf("%s/rest/api/3/field", s.BaseURL)
+	url := fmt.Sprintf("%s/rest/api/3/field", s.baseURL)
 	resp, err := s.makeRequest("GET", url)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching custom fields: %w", err)

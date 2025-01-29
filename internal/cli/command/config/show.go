@@ -8,7 +8,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-func (f *ConfigCommandFactory) newShowCommand(t *i18n.Translations, cfg *config.Config) *cli.Command {
+func (c *ConfigCommandFactory) newShowCommand(t *i18n.Translations, cfg *config.Config) *cli.Command {
 	return &cli.Command{
 		Name:  "show",
 		Usage: t.GetMessage("config_show_usage", 0, nil),

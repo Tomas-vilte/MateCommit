@@ -11,9 +11,11 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/gemini"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/git"
+	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/tickets/jira"
 	"github.com/Tomas-vilte/MateCommit/internal/services"
 	"github.com/urfave/cli/v3"
 	"log"
+	"net/http"
 	"os"
 )
 
@@ -55,7 +57,9 @@ func initializeApp() (*cli.Command, error) {
 		log.Fatalf("Error initializing AI service: %v", err)
 	}
 
-	commitService := services.NewCommitService(gitService, aiProvider)
+	ticketService := jira.NewJiraService(cfgApp, &http.Client{})
+
+	commitService := services.NewCommitService(gitService, aiProvider, ticketService, cfgApp.UseTicket)
 
 	commitHandler := handler.NewSuggestionHandler(gitService, translations)
 

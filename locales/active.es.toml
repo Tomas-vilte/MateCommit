@@ -150,5 +150,21 @@ criteria_status = "Estado de los Criterios:"
 
 criteria_unknown = "❓ Estado de los Criterios: Desconocido"
 criteria_fully_met = "✅ Estado de los Criterios: Completamente cumplidos"
-criteria_partially_met = "⚠️ Estado de los Criterios: Parcialmente cumplidos"
+criteria_partially_met = "⚠️  Estado de los Criterios: Parcialmente cumplidos"
 criteria_not_met = "❌ Estado de los Criterios: No cumplidos"
+
+[jira_config_command_usage]
+jira_config_usage = "Configura las credenciales de Jira"
+jira_config_base_url_usage = "URL base de Jira"
+jira_config_api_key_usage = "API Key de Jira"
+jira_config_email_usage = "Email asociado a Jira"
+jira_config_missing_fields = "Todos los campos son requeridos: base-url, api-key, email"
+jira_config_save_error = "Error al guardar la configuración de Jira: {{.Error}}"
+jira_config_success = "Configuración de Jira guardada exitosamente"
+ticket_command_usage = "Gestionar la configuración de integración de tickets"
+disable_ticket_command_usage = "Desactivar la integración de tickets"
+enable_ticket_command_usage = "Activar la integración de tickets"
+ticket_disabled_success = "La integración de tickets ha sido desactivada exitosamente"
+ticket_enabled_success = "La integración de tickets ha sido activada exitosamente"
+
+error_saving_config = "Error al guardar la configuración: {{.Error}}"

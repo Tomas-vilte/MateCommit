@@ -41,6 +41,12 @@ func (m *mockGitService) AddFileToStaging(file string) error {
 	return args.Error(0)
 }
 
+func (m *mockGitService) GetCurrentBranch() (string, error) {
+	args := m.Called()
+	return args.String(0), args.Error(1)
+
+}
+
 func captureOutput(f func()) string {
 	old := os.Stdout
 	r, w, _ := os.Pipe()
