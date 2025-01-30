@@ -19,4 +19,7 @@ type GitService interface {
 
 	// AddFileToStaging agrega un archivo al área de staging
 	AddFileToStaging(file string) error
+
+	// GetCurrentBranch obtiene el nombre de la branch actual
+	GetCurrentBranch() (string, error)
 }

@@ -16,6 +16,16 @@ type (
 		MaxLength        int    `json:"max_length"`
 		SuggestionsCount int    `json:"suggestions_count"`
 		PathFile         string `json:"path_file"`
+
+		ActiveTicketService string     `json:"active_ticket_service,omitempty"` // "jira", "trello", "github", etc.
+		JiraConfig          JiraConfig `json:"jira_config"`
+		UseTicket           bool       `json:"use_ticket,omitempty"`
+	}
+
+	JiraConfig struct {
+		APIKey  string `json:"api_key,omitempty"`
+		BaseURL string `json:"base_url,omitempty"`
+		Email   string `json:"email,omitempty"`
 	}
 )
 
@@ -70,6 +80,14 @@ func createDefaultConfig(path string) (*Config, error) {
 		MaxLength:        defaultMaxLength,
 		SuggestionsCount: defaultSuggestionsCount,
 		PathFile:         path,
+
+		JiraConfig: JiraConfig{
+			APIKey:  "",
+			BaseURL: "",
+			Email:   "",
+		},
+		ActiveTicketService: "",
+		UseTicket:           false,
 	}
 
 	dir := filepath.Dir(path)
@@ -116,6 +134,23 @@ func validateConfig(config *Config) error {
 	}
 	if config.Language == "" {
 		return errors.New("DefaultLang no puede estar vacío")
+	}
+
+	if config.ActiveTicketService != "" {
+		switch config.ActiveTicketService {
+		case "jira":
+			if config.JiraConfig.BaseURL == "" {
+				return errors.New("jira base URL no está configurada")
+			}
+			if config.JiraConfig.Email == "" {
+				return errors.New("jira username no está configurado")
+			}
+			if config.JiraConfig.APIKey == "" {
+				return errors.New("jira API key no está configurada")
+			}
+		default:
+			return fmt.Errorf("servicio de tickets no soportado: %s", config.ActiveTicketService)
+		}
 	}
 	return nil
 }
