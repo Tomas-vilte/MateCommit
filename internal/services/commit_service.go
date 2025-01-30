@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"regexp"
@@ -13,15 +14,15 @@ type CommitService struct {
 	git         ports.GitService
 	ai          ports.AIProvider
 	jiraService ports.TickerManager
-	useTicket   bool
+	config      *config.Config
 }
 
-func NewCommitService(git ports.GitService, ai ports.AIProvider, jiraService ports.TickerManager, useTicket bool) *CommitService {
+func NewCommitService(git ports.GitService, ai ports.AIProvider, jiraService ports.TickerManager, cfg *config.Config) *CommitService {
 	return &CommitService{
 		git:         git,
 		ai:          ai,
 		jiraService: jiraService,
-		useTicket:   useTicket,
+		config:      cfg,
 	}
 }
 
@@ -40,7 +41,7 @@ func (s *CommitService) GenerateSuggestions(ctx context.Context, count int) ([]m
 
 	diff, err := s.git.GetDiff()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error al obtener el diff: %v", err)
 	}
 
 	if diff == "" {
@@ -57,7 +58,7 @@ func (s *CommitService) GenerateSuggestions(ctx context.Context, count int) ([]m
 		Diff:  diff,
 	}
 
-	if s.useTicket {
+	if s.config.UseTicket {
 		ticketID, err := s.getTicketIDFromBranch()
 		if err != nil {
 			return nil, fmt.Errorf("error al obtener el ID del ticket: %v", err)
@@ -68,9 +69,7 @@ func (s *CommitService) GenerateSuggestions(ctx context.Context, count int) ([]m
 			return nil, fmt.Errorf("error al obtener la información del ticket: %v", err)
 		}
 
-		commitInfo.TicketTitle = ticketInfo.Title
-		commitInfo.TicketDesc = ticketInfo.Description
-		commitInfo.Criteria = ticketInfo.Criteria
+		commitInfo.TicketInfo = ticketInfo
 	}
 
 	// Generar sugerencias de commit usando la IA

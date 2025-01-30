@@ -137,24 +137,6 @@ func TestSuggestionHandler_DisplaySuggestions(t *testing.T) {
 		assert.Contains(t, output, "file3.go")
 		assert.Contains(t, output, "Second explanation")
 	})
-
-	t.Run("should display empty suggestions list", func(t *testing.T) {
-		// Arrange
-		mockGit := new(mockGitService)
-		translations, err := i18n.NewTranslations("en", "../../../../locales")
-		assert.NoError(t, err)
-		handler := NewSuggestionHandler(mockGit, translations)
-
-		var suggestions []models.CommitSuggestion
-
-		// Act
-		output := captureOutput(func() {
-			handler.displaySuggestions(suggestions)
-		})
-
-		// Assert
-		assert.Contains(t, output, "━━━━━━━━━━━━━━━━━━━━━━━")
-	})
 }
 
 func TestSuggestionHandler_HandleCommitSelection(t *testing.T) {

@@ -49,7 +49,10 @@ func TestGetTicketInfo_Success(t *testing.T) {
 	}
 	customFieldsJSON, _ := json.Marshal(customFieldsResponse)
 	customFieldsResp := httptest.NewRecorder()
-	customFieldsResp.Write(customFieldsJSON)
+	_, err := customFieldsResp.Write(customFieldsJSON)
+	if err != nil {
+		return
+	}
 	customFieldsResp.Code = http.StatusOK
 
 	// Respuesta simulada para la solicitud de información del ticket
@@ -89,7 +92,10 @@ func TestGetTicketInfo_Success(t *testing.T) {
 	}
 	ticketJSON, _ := json.Marshal(ticketResponse)
 	ticketResp := httptest.NewRecorder()
-	ticketResp.Write(ticketJSON)
+	_, err = ticketResp.Write(ticketJSON)
+	if err != nil {
+		return
+	}
 	ticketResp.Code = http.StatusOK
 
 	// Configura las expectativas del mock
@@ -104,9 +110,9 @@ func TestGetTicketInfo_Success(t *testing.T) {
 
 	// Verifica que la información del ticket sea la esperada
 	expectedTicketInfo := &models.TicketInfo{
-		ID:          "TEST-123",
-		Title:       "Test Ticket Summary",
-		Description: "This is a test description.",
+		TicketID:    "TEST-123",
+		TicketTitle: "Test Ticket Summary",
+		TitleDesc:   "This is a test description.",
 		Criteria:    []string{"Criterion 1", "Criterion 2"},
 	}
 	assert.Equal(t, expectedTicketInfo, ticketInfo)
@@ -215,9 +221,9 @@ func TestGetTicketInfo_ExtractCriteriaFromCustomField(t *testing.T) {
 
 	// Assert
 	assert.NoError(t, err)
-	assert.Equal(t, "TEST-123", ticketInfo.ID)
-	assert.Equal(t, "Test Ticket", ticketInfo.Title)
-	assert.Equal(t, "This is a test description.", strings.TrimSpace(ticketInfo.Description))
+	assert.Equal(t, "TEST-123", ticketInfo.TicketID)
+	assert.Equal(t, "Test Ticket", ticketInfo.TicketTitle)
+	assert.Equal(t, "This is a test description.", strings.TrimSpace(ticketInfo.TitleDesc))
 	assert.Equal(t, []string{"Criterion 1", "Criterion 2"}, ticketInfo.Criteria)
 	mockClient.AssertExpectations(t)
 }

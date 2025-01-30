@@ -1,127 +1,155 @@
 package gemini
 
 const (
-	promptTemplateEN = `Generate %d commit message suggestions. Respond with the following structure for EACH suggestion:
-	=========[ Suggestion ]=========
-	[number]. [Ordinal] suggestion:
-	Commit: [type]: [message]
-	Files: [list of modified files, separated by comma]
-	Explanation: [commit explanation]
-	Criteria Status: [Indicate if the acceptance criteria are fully met, partially met, or not met.]
-	Missing Criteria: [List the specific criteria that are missing, if any.]
-	Improvement Suggestions: [Provide suggestions for improvement, if any.]
-	
-	Example (with emojis):
-	=========[ Suggestion ]=========
-	1. First suggestion:
-	Commit: ✨ feat: add config option for commit suggestion generation
-	Files: main.go, config.go
-	Explanation: Added a new configuration option to enable commit suggestion generation.
-	Criteria Status: fully_met
-	Missing Criteria: None
-	Improvement Suggestions: None
-	
-	=========[ Suggestion ]=========
-	2. Second suggestion:
-	Commit: 🐛 fix: resolve login issues
-	Files: auth.go, login.go
-	Explanation: Fixed an issue where users were unable to log in due to a validation error.
-	Criteria Status: partially_met
-	Missing Criteria: Ensure login works with 2FA.
-	Improvement Suggestions: Implement two-factor authentication (2FA) in the login module.
-	
-	=========[ Suggestion ]=========
-	3. Third suggestion:
-	Commit: 📚 docs: update documentation for API endpoints
-	Files: api.md
-	Explanation: Updated the documentation for all available API endpoints.
-	Criteria Status: not_met
-	Missing Criteria: Ensure all endpoints are documented.
-	Improvement Suggestions: Add documentation for the missing endpoints.
-	
-	Now, generate %d similar suggestions based on the following information.
-	
-	Modified files:
-	%s
-	Diff:
-	%s
-	%s  <!-- Aquí se agregará la información del ticket si está disponible -->
-	
-	Additional Instructions:
-	1. Each commit message must follow the exact template above.
-	2. Commit messages should be clear and concise.
-	3. Limit each commit message to 100 characters.
-	4. Ensure that the commit type matches the change (e.g., feat, fix, refactor, chore).
-	5. Use a variety of commit types (feat, fix, docs, chore, refactor, etc).
-	6. The ordinal must be correct (e.g., "First", "Second", "Third", etc.)
-	7. If acceptance criteria are provided, verify if the code meets them. Indicate if the criteria are fully met, partially met, or not met.
-	8. If criteria are not fully met, list the specific criteria that are missing and provide suggestions for improvement.
-	9. Follow the exact structure for Criteria Status, Missing Criteria, and Improvement Suggestions. Do not mix them with the Explanation.
-	10. Use the following format for Criteria Status, Missing Criteria, and Improvement Suggestions:
-	    - Criteria Status: [fully_met, partially_met, or not_met]
-	    - Missing Criteria: [list of missing criteria, separated by commas]
-	    - Improvement Suggestions: [list of suggestions, separated by commas]
-	`
+	promptTemplateEN = `
+	Instructions:
+    1. Generate %d commit message suggestions based on the provided code changes and ticket information (if provided).
+    2. Each suggestion MUST follow the format defined in the "Suggestion Format" section.
+    3. Analyze code changes in detail to provide accurate suggestions.
+    4. If a ticket is provided, compare code changes against acceptance criteria, flag any missing implementations and suggest specific improvements.
+    5. If no ticket is provided, focus on technical aspects, best practices, code quality and impact on maintainability/performance.
+    6. Use appropriate commit types:
+        - feat: New features
+        - fix: Bug fixes
+        - refactor: Code restructuring
+        - test: Adding or modifying tests
+        - docs: Documentation updates
+        - chore: Maintenance tasks
+    7. Keep commit messages under 100 characters.
+    8. Provide specific, actionable improvement suggestions.
 
-	promptTemplateES = `Generá %d sugerencias de mensajes de commit. Respondé con la siguiente estructura para CADA sugerencia:
-	=========[ Sugerencia ]=========
-	[número]. [Ordinal] sugerencia:
-	Commit: [tipo]: [mensaje]
-	Archivos: [lista de archivos modificados, separados por coma]
-	Explicación: [explicación del commit]
-	Estado de los Criterios: [Indicá si los criterios de aceptación se cumplen completamente, parcialmente o no se cumplen.]
-	Criterios Faltantes: [Listá los criterios específicos que faltan, si los hay.]
-	Sugerencias de Mejora: [Proporcioná sugerencias de mejora, si las hay.]
-	
-	Ejemplo (con emojis):
-	=========[ Sugerencia ]=========
-	1. Primera sugerencia:
-	Commit: ✨ feat: Agregar opción de configuración para generación de sugerencias de commit
-	Archivos: main.go, config.go
-	Explicación: Se agregó una nueva opción de configuración para habilitar la generación de sugerencias de commit.
-	Estado de los Criterios: completamente_cumplidos
-	Criterios Faltantes: Ninguno
-	Sugerencias de Mejora: Ninguna
-	
-	=========[ Sugerencia ]=========
-	2. Segunda sugerencia:
-	Commit: 🐛 fix: Corregir problemas de inicio de sesión
-	Archivos: auth.go, login.go
-	Explicación: Se corrigió un problema por el cual los usuarios no podían iniciar sesión debido a un error de validación.
-	Estado de los Criterios: parcialmente_cumplidos
-	Criterios Faltantes: Asegurar que el inicio de sesión funcione con 2FA.
-	Sugerencias de Mejora: Implementar autenticación de dos factores (2FA) en el módulo de inicio de sesión.
-	
-	=========[ Sugerencia ]=========
-	3. Tercera sugerencia:
-	Commit: 📚 docs: Actualizar documentación para endpoints de la API
-	Archivos: api.md
-	Explicación: Se actualizó la documentación para todos los endpoints de la API disponibles.
-	Estado de los Criterios: no_cumplidos
-	Criterios Faltantes: Asegurar que todos los endpoints estén documentados.
-	Sugerencias de Mejora: Agregar documentación para los endpoints faltantes.
-	
-	Ahora, generá %d sugerencias similares basándote en la siguiente información.
-	
-	Archivos modificados:
-	%s
-	Diff:
-	%s
-	%s  <!-- Aquí se agregará la información del ticket si está disponible -->
-	
-	Instrucciones adicionales:
-	1. Cada mensaje de commit tiene que seguir la estructura exacta de arriba.
-	2. Los mensajes de commit tienen que ser claros y concisos.
-	3. Limitá cada mensaje de commit a 100 caracteres.
-	4. Asegurate de que el tipo de commit coincida con el cambio (e.g., feat, fix, refactor, chore).
-	5. Usá una variedad de tipos de commit (feat, fix, docs, chore, refactor, etc).
-	6. El ordinal tiene que ser correcto (e.g., "Primera", "Segunda", "Tercera", etc.)
-	7. Si se proporcionan criterios de aceptación, verificá si el código los cumple. Indicá si los criterios se cumplen completamente, parcialmente o no se cumplen.
-	8. Si los criterios no se cumplen completamente, listá los criterios específicos que faltan y proporcioná sugerencias de mejora.
-	9. Seguí la estructura exacta para Estado de los Criterios, Criterios Faltantes y Sugerencias de Mejora. No los mezcles con la Explicación.
-	10. Usá el siguiente formato para Estado de los Criterios, Criterios Faltantes y Sugerencias de Mejora:
-	    - Estado de los Criterios: [completamente_cumplidos, parcialmente_cumplidos, o no_cumplidos]
-	    - Criterios Faltantes: [lista de criterios faltantes, separados por comas]
-	    - Sugerencias de Mejora: [lista de sugerencias, separadas por comas]
-	`
+	Suggestion Format:
+    =========[ Suggestion ]=========
+    [number]. [Ordinal] suggestion:
+    🔍 Analyzing changes...
+    
+    📊 Code Analysis:
+    - Changes Overview: [Brief overview of what changed in the code]
+    - Primary Purpose: [Main goal of these changes]
+    - Technical Impact: [How these changes affect the codebase]
+    
+    📝 Suggestions:
+    ━━━━━━━━━━━━━━━━━━━━━━━
+    Commit: [type]: [message]
+    📄 Modified files:
+       - [list of modified files, separated by newline and indented]
+    Explanation: [commit explanation]
+    
+    🎯 Requirements Analysis:
+    %s
+    ━━━━━━━━━━━━━━━━━━━━━━━
+
+    Example:
+    =========[ Suggestion ]=========
+    1. First suggestion:
+    🔍 Analyzing changes...
+    
+    📊 Code Analysis:
+    - Changes Overview: Implementation of Jira API integration and error handling
+    - Primary Purpose: Enable ticket information retrieval from Jira
+    - Technical Impact: Adds new service layer for Jira integration with proper error handling
+    
+    📝 Suggestions:
+    ━━━━━━━━━━━━━━━━━━━━━━━
+    Commit: ✨ feat: Integrate Jira API with error handling and tests
+    📄 Modified files:
+       - cmd/main.go
+       - internal/infrastructure/jira/service.go
+       - internal/infrastructure/jira/service_test.go
+    Explanation: Added Jira API integration with comprehensive error handling and test coverage
+    
+    🎯 Requirements Analysis:
+    ✅ Criteria Status: Fully met
+    ⚠️  Missing Criteria: 
+       - Authentication with different token types not implemented
+       - Retry mechanism for failed API calls missing
+    💡 Improvement Suggestions: 
+       - Add support for multiple authentication methods
+       - Implement retry strategy for API failures
+       - Add detailed logging for debugging
+    ━━━━━━━━━━━━━━━━━━━━━━━
+
+    Now, generate %d similar suggestions based on the following information.
+
+    Modified files:
+    %s
+    
+    Diff:
+    %s
+    %s
+    `
+
+	promptTemplateES = `
+    Instrucciones:
+    1. Generá %d sugerencias de mensajes de commit basadas en los cambios de código proporcionados y la información del ticket (si se proporciona).
+    2. Cada sugerencia DEBE seguir el formato definido en la sección "Formato de Sugerencia".
+    3. Analizá los cambios de código en detalle para proporcionar sugerencias precisas.
+    4. Si se proporciona un ticket, compará los cambios de código con los criterios de aceptación específicamente:
+       - Evaluá cada criterio de aceptación individualmente
+       - Indicá claramente qué criterios están implementados y cuáles no
+       - Proporcioná sugerencias específicas para los criterios no implementados
+    5. Si no se proporciona un ticket, concentrate en aspectos técnicos, mejores prácticas, calidad del código e impacto en la mantenibilidad/rendimiento.
+    6. Usá tipos de commit apropiados:
+        - feat: Nuevas funcionalidades
+        - fix: Correcciones de bugs
+        - refactor: Reestructuración de código
+        - test: Agregar o modificar pruebas
+        - docs: Actualizaciones de documentación
+        - chore: Tareas de mantenimiento
+    7. Mantené los mensajes de commit en menos de 100 caracteres.
+    8. Proporcioná sugerencias de mejora específicas y accionables.
+
+    Formato de Sugerencia:
+    =========[ Sugerencia ]=========
+    [número]. [Ordinal] sugerencia:
+    🔍 Analizando cambios...
+    
+    📊 Análisis de Código:
+    - Resumen de Cambios: [Breve resumen de qué cambió en el código]
+    - Propósito Principal: [Objetivo principal de estos cambios]
+    - Impacto Técnico: [Cómo estos cambios afectan la base de código]
+    
+    📝 Sugerencias:
+    ━━━━━━━━━━━━━━━━━━━━━━━
+    Commit: [tipo]: [mensaje]
+    📄 Archivos modificados:
+       - [lista de archivos modificados, separados por nueva línea e indentados]
+    Explicación: [explicación del commit]
+    
+    🎯 Análisis de Criterios de Aceptación:
+    ⚠️ Estado de los Criterios: [completamente_cumplidos/parcialmente_cumplidos/no_cumplidos]
+    
+    ❌ Criterios Pendientes:
+    %s
+    
+    💡 Sugerencias de Mejora:
+    - [Lista detallada de mejoras específicas para implementar los criterios pendientes]
+    ━━━━━━━━━━━━━━━━━━━━━━━
+
+    Ejemplo de Análisis de Criterios:
+    🎯 Análisis de Criterios de Aceptación:
+    ⚠️ Estado de los Criterios: Parcialmente cumplidos
+    
+    ❌ Criterios Pendientes:
+    - Conexión a la API de Jira:
+      * Falta implementar manejo de token expirado
+      * No se detecta implementación de manejo de API no disponible
+    - Extracción de Tickets:
+      * No se encuentra implementación de almacenamiento en estructura TicketInfo
+    
+    💡 Sugerencias de Mejora:
+    - Implementar manejo de errores para token expirado
+    - Agregar retry mechanism para API no disponible
+    - Crear estructura TicketInfo y implementar almacenamiento
+    ━━━━━━━━━━━━━━━━━━━━━━━
+
+    Ahora, generá %d sugerencias similares basándote en la siguiente información.
+
+    Archivos modificados:
+    %s
+    
+    Diff:
+    %s
+    %s
+    `
 )

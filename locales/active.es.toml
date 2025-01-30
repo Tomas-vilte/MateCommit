@@ -168,3 +168,21 @@ ticket_disabled_success = "La integración de tickets ha sido desactivada exitos
 ticket_enabled_success = "La integración de tickets ha sido activada exitosamente"
 
 error_saving_config = "Error al guardar la configuración: {{.Error}}"
+
+[gemini_service]
+modified_files_prefix = "📄 Archivos modificados:"
+explanation_prefix = "Explicación:"
+requirements_analysis_prefix = "🎯 Análisis de Requerimientos:"
+criteria_status_prefix = "⚠️ Estado de los Criterios:"
+missing_criteria_prefix = "❌ Criterios Faltantes:"
+missing_criteria_none = "-"
+improvement_suggestions_prefix = "💡 Sugerencias de Mejora:"
+improvement_suggestions_none = "-"
+criteria_fully_met_prefix = "Completamente cumplidos"
+criteria_partially_met_prefix = "Parcialmente cumplidos"
+criteria_not_met_prefix = "No cumplidos"
+criterial_status_unknown = "Estado Desconocido"
+code_analysis_prefix = "📊 Análisis de Código:"
+changes_overview_prefix = "- Resumen de Cambios:"
+primary_purpose_prefix = "- Propósito Principal:"
+technical_impact_prefix = "- Impacto Técnico:"

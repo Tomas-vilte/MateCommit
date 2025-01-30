@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -73,13 +74,14 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		mockGit := new(MockGitService)
 		mockAI := new(MockAIProvider)
 		mockJiraService := new(MockJiraService)
+		cfgApp := &config.Config{UseTicket: true}
 
 		mockGit.On("GetCurrentBranch").Return("feature/PROJ-1234-user-authentication", nil)
 
 		ticketInfo := &models.TicketInfo{
-			ID:          "PROJ-1234",
-			Title:       "Implement user authentication",
-			Description: "As a user, I want to log in to the system so that I can access my account.",
+			TicketID:    "PROJ-1234",
+			TicketTitle: "Implement user authentication",
+			TitleDesc:   "As a user, I want to log in to the system so that I can access my account.",
 			Criteria:    []string{"User can log in with valid credentials", "User cannot log in with invalid credentials"},
 		}
 		mockJiraService.On("GetTicketInfo", "PROJ-1234").Return(ticketInfo, nil)
@@ -97,15 +99,18 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 			Explanation: "some explanation",
 		}}
 		expectedInfo := models.CommitInfo{
-			Files:       []string{"file1.go"},
-			Diff:        "some diff",
-			TicketTitle: "Implement user authentication",
-			TicketDesc:  "As a user, I want to log in to the system so that I can access my account.",
-			Criteria:    []string{"User can log in with valid credentials", "User cannot log in with invalid credentials"},
+			Files: []string{"file1.go"},
+			Diff:  "some diff",
+			TicketInfo: &models.TicketInfo{
+				TicketID:    "PROJ-1234",
+				TicketTitle: "Implement user authentication",
+				TitleDesc:   "As a user, I want to log in to the system so that I can access my account.",
+				Criteria:    []string{"User can log in with valid credentials", "User cannot log in with invalid credentials"},
+			},
 		}
 		mockAI.On("GenerateSuggestions", mock.Anything, expectedInfo, 3).Return(expectedResponse, nil)
 
-		service := NewCommitService(mockGit, mockAI, mockJiraService)
+		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp)
 
 		// act
 		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
@@ -124,12 +129,12 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		mockGit := new(MockGitService)
 		mockAI := new(MockAIProvider)
 		mockJiraService := new(MockJiraService)
+		cfgApp := &config.Config{UseTicket: true} // Asegúrate de que UseTicket esté configurado
 
-		mockGit.On("GetCurrentBranch").Return("feature/PROJ-1234-user-authentication", nil)
-		mockJiraService.On("GetTicketInfo", "PROJ-1234").Return(&models.TicketInfo{}, nil)
-		mockGit.On("GetChangedFiles").Return([]models.GitChange{}, nil)
+		//mockGit.On("GetCurrentBranch").Return("feature/PROJ-1234-user-authentication", nil)
+		mockGit.On("GetChangedFiles").Return([]models.GitChange{}, nil) // Simular que no hay cambios
 
-		service := NewCommitService(mockGit, mockAI, mockJiraService)
+		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp)
 
 		// act
 		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
@@ -137,6 +142,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		// assert
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
+		assert.EqualError(t, err, "no hay cambios detectados") // Verificar el mensaje de error
 
 		mockGit.AssertExpectations(t)
 	})
@@ -146,6 +152,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		mockGit := new(MockGitService)
 		mockAI := new(MockAIProvider)
 		mockJiraService := new(MockJiraService)
+		cfgApp := &config.Config{UseTicket: true}
 
 		changes := []models.GitChange{
 			{
@@ -153,12 +160,10 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 				Status: "M",
 			},
 		}
-		mockGit.On("GetCurrentBranch").Return("feature/PROJ-1234-user-authentication", nil)
-		mockJiraService.On("GetTicketInfo", "PROJ-1234").Return(&models.TicketInfo{}, nil)
 		mockGit.On("GetChangedFiles").Return(changes, nil)
-		mockGit.On("GetDiff").Return("", errors.New("git error"))
+		mockGit.On("GetDiff").Return("", errors.New("git error")) // Simular un error al obtener el diff
 
-		service := NewCommitService(mockGit, mockAI, mockJiraService)
+		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp)
 
 		// act
 		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
@@ -166,6 +171,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		// assert
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
+		assert.EqualError(t, err, "error al obtener el diff: git error")
 
 		mockGit.AssertExpectations(t)
 	})
@@ -175,11 +181,13 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		mockGit := new(MockGitService)
 		mockAI := new(MockAIProvider)
 		mockJiraService := new(MockJiraService)
+		cfgApp := &config.Config{UseTicket: true} // Asegúrate de que UseTicket esté configurado
 
-		// Simular una branch sin ID de ticket
+		mockGit.On("GetChangedFiles").Return([]models.GitChange{{Path: "file1.go", Status: "M"}}, nil)
+		mockGit.On("GetDiff").Return("some diff", nil)
 		mockGit.On("GetCurrentBranch").Return("main", nil)
 
-		service := NewCommitService(mockGit, mockAI, mockJiraService)
+		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp)
 
 		// act
 		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
@@ -187,6 +195,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		// assert
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
+		assert.EqualError(t, err, "error al obtener el ID del ticket: no se encontró un ID de ticket en el nombre de la branch") // Verificar el mensaje de error
 
 		mockGit.AssertExpectations(t)
 	})
@@ -224,15 +233,16 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		mockGit := new(MockGitService)
 		mockAI := new(MockAIProvider)
 		mockJiraService := new(MockJiraService)
+		cfgApp := &config.Config{UseTicket: true}
 
 		// Configurar el mock para manejar la llamada a GetCurrentBranch
 		mockGit.On("GetCurrentBranch").Return("feature/PROJ-1234-user-authentication", nil)
 
 		// Configurar el mock para manejar la llamada a GetTicketInfo
 		ticketInfo := &models.TicketInfo{
-			ID:          "PROJ-1234",
-			Title:       "Implement user authentication",
-			Description: "As a user, I want to log in to the system so that I can access my account.",
+			TicketID:    "PROJ-1234",
+			TicketTitle: "Implement user authentication",
+			TitleDesc:   "As a user, I want to log in to the system so that I can access my account.",
 			Criteria:    []string{"User can log in with valid credentials", "User cannot log in with invalid credentials"},
 		}
 		mockJiraService.On("GetTicketInfo", "PROJ-1234").Return(ticketInfo, nil)
@@ -252,15 +262,18 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 			Explanation: "some explanation",
 		}}
 		expectedInfo := models.CommitInfo{
-			Files:       []string{"file1.go"},
-			Diff:        "some diff",
-			TicketTitle: "Implement user authentication",
-			TicketDesc:  "As a user, I want to log in to the system so that I can access my account.",
-			Criteria:    []string{"User can log in with valid credentials", "User cannot log in with invalid credentials"},
+			Files: []string{"file1.go"},
+			Diff:  "some diff",
+			TicketInfo: &models.TicketInfo{
+				TicketID:    "PROJ-1234",
+				TicketTitle: "Implement user authentication",
+				TitleDesc:   "As a user, I want to log in to the system so that I can access my account.",
+				Criteria:    []string{"User can log in with valid credentials", "User cannot log in with invalid credentials"},
+			},
 		}
 		mockAI.On("GenerateSuggestions", mock.Anything, expectedInfo, 3).Return(expectedResponse, nil)
 
-		service := NewCommitService(mockGit, mockAI, mockJiraService)
+		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp)
 
 		// Act
 		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
@@ -279,15 +292,16 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		mockGit := new(MockGitService)
 		mockAI := new(MockAIProvider)
 		mockJiraService := new(MockJiraService)
+		cfgApp := &config.Config{UseTicket: true}
 
 		// Configurar el mock para manejar la llamada a GetCurrentBranch
 		mockGit.On("GetCurrentBranch").Return("bugfix/PROJ-5678-fix-login", nil)
 
 		// Configurar el mock para manejar la llamada a GetTicketInfo
 		ticketInfo := &models.TicketInfo{
-			ID:          "PROJ-5678",
-			Title:       "Fix login issue",
-			Description: "As a user, I want to log in without errors so that I can access my account.",
+			TicketID:    "PROJ-5678",
+			TicketTitle: "Fix login issue",
+			TitleDesc:   "As a user, I want to log in without errors so that I can access my account.",
 			Criteria:    []string{"User can log in without errors", "Error messages are clear"},
 		}
 		mockJiraService.On("GetTicketInfo", "PROJ-5678").Return(ticketInfo, nil)
@@ -307,15 +321,18 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 			Explanation: "some explanation",
 		}}
 		expectedInfo := models.CommitInfo{
-			Files:       []string{"file2.go"},
-			Diff:        "some diff",
-			TicketTitle: "Fix login issue",
-			TicketDesc:  "As a user, I want to log in without errors so that I can access my account.",
-			Criteria:    []string{"User can log in without errors", "Error messages are clear"},
+			Files: []string{"file2.go"},
+			Diff:  "some diff",
+			TicketInfo: &models.TicketInfo{
+				TicketID:    "PROJ-5678",
+				TicketTitle: "Fix login issue",
+				TitleDesc:   "As a user, I want to log in without errors so that I can access my account.",
+				Criteria:    []string{"User can log in without errors", "Error messages are clear"},
+			},
 		}
 		mockAI.On("GenerateSuggestions", mock.Anything, expectedInfo, 3).Return(expectedResponse, nil)
 
-		service := NewCommitService(mockGit, mockAI, mockJiraService)
+		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp)
 
 		// Act
 		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
@@ -334,15 +351,16 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		mockGit := new(MockGitService)
 		mockAI := new(MockAIProvider)
 		mockJiraService := new(MockJiraService)
+		cfgApp := &config.Config{UseTicket: true}
 
 		// Configurar el mock para manejar la llamada a GetCurrentBranch
 		mockGit.On("GetCurrentBranch").Return("hotfix/PROJ-9999-critical-bug", nil)
 
 		// Configurar el mock para manejar la llamada a GetTicketInfo
 		ticketInfo := &models.TicketInfo{
-			ID:          "PROJ-9999",
-			Title:       "Fix critical bug",
-			Description: "As a user, I want the system to be stable so that I can use it without issues.",
+			TicketID:    "PROJ-9999",
+			TicketTitle: "Fix critical bug",
+			TitleDesc:   "As a user, I want the system to be stable so that I can use it without issues.",
 			Criteria:    []string{"System should not crash", "Critical functionality should work"},
 		}
 		mockJiraService.On("GetTicketInfo", "PROJ-9999").Return(ticketInfo, nil)
@@ -362,15 +380,18 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 			Explanation: "some explanation",
 		}}
 		expectedInfo := models.CommitInfo{
-			Files:       []string{"file3.go"},
-			Diff:        "some diff",
-			TicketTitle: "Fix critical bug",
-			TicketDesc:  "As a user, I want the system to be stable so that I can use it without issues.",
-			Criteria:    []string{"System should not crash", "Critical functionality should work"},
+			Files: []string{"file3.go"},
+			Diff:  "some diff",
+			TicketInfo: &models.TicketInfo{
+				TicketID:    "PROJ-9999",
+				TicketTitle: "Fix critical bug",
+				TitleDesc:   "As a user, I want the system to be stable so that I can use it without issues.",
+				Criteria:    []string{"System should not crash", "Critical functionality should work"},
+			},
 		}
 		mockAI.On("GenerateSuggestions", mock.Anything, expectedInfo, 3).Return(expectedResponse, nil)
 
-		service := NewCommitService(mockGit, mockAI, mockJiraService)
+		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp)
 
 		// Act
 		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
@@ -389,15 +410,16 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		mockGit := new(MockGitService)
 		mockAI := new(MockAIProvider)
 		mockJiraService := new(MockJiraService)
+		cfgApp := &config.Config{UseTicket: true}
 
 		// Configurar el mock para manejar la llamada a GetCurrentBranch
 		mockGit.On("GetCurrentBranch").Return("release/PROJ-1000-final-release", nil)
 
 		// Configurar el mock para manejar la llamada a GetTicketInfo
 		ticketInfo := &models.TicketInfo{
-			ID:          "PROJ-1000",
-			Title:       "Final release",
-			Description: "As a user, I want the final version of the system so that I can use all features.",
+			TicketID:    "PROJ-1000",
+			TicketTitle: "Final release",
+			TitleDesc:   "As a user, I want the final version of the system so that I can use all features.",
 			Criteria:    []string{"All features should work", "No known bugs"},
 		}
 		mockJiraService.On("GetTicketInfo", "PROJ-1000").Return(ticketInfo, nil)
@@ -417,15 +439,18 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 			Explanation: "some explanation",
 		}}
 		expectedInfo := models.CommitInfo{
-			Files:       []string{"file4.go"},
-			Diff:        "some diff",
-			TicketTitle: "Final release",
-			TicketDesc:  "As a user, I want the final version of the system so that I can use all features.",
-			Criteria:    []string{"All features should work", "No known bugs"},
+			Files: []string{"file4.go"},
+			Diff:  "some diff",
+			TicketInfo: &models.TicketInfo{
+				TicketID:    "PROJ-1000",
+				TicketTitle: "Final release",
+				TitleDesc:   "As a user, I want the final version of the system so that I can use all features.",
+				Criteria:    []string{"All features should work", "No known bugs"},
+			},
 		}
 		mockAI.On("GenerateSuggestions", mock.Anything, expectedInfo, 3).Return(expectedResponse, nil)
 
-		service := NewCommitService(mockGit, mockAI, mockJiraService)
+		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp)
 
 		// Act
 		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
@@ -444,11 +469,20 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		mockGit := new(MockGitService)
 		mockAI := new(MockAIProvider)
 		mockJiraService := new(MockJiraService)
+		cfgApp := &config.Config{UseTicket: true} // Asegúrate de que UseTicket esté configurado
 
 		// Configurar el mock para manejar la llamada a GetCurrentBranch
-		mockGit.On("GetCurrentBranch").Return("main", nil)
+		mockGit.On("GetCurrentBranch").Return("main", nil) // Simular una rama sin ID de ticket
 
-		service := NewCommitService(mockGit, mockAI, mockJiraService)
+		// Simular la obtención de los archivos modificados y el diff
+		changes := []models.GitChange{{
+			Path:   "file5.go",
+			Status: "M",
+		}}
+		mockGit.On("GetChangedFiles").Return(changes, nil) // Configurar el mock para GetChangedFiles
+		mockGit.On("GetDiff").Return("some diff", nil)     // Configurar el mock para GetDiff
+
+		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp)
 
 		// Act
 		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
@@ -456,6 +490,7 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		// Assert
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
+		assert.EqualError(t, err, "error al obtener el ID del ticket: no se encontró un ID de ticket en el nombre de la branch")
 
 		mockGit.AssertExpectations(t)
 	})
@@ -465,15 +500,16 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		mockGit := new(MockGitService)
 		mockAI := new(MockAIProvider)
 		mockJiraService := new(MockJiraService)
+		cfgApp := &config.Config{UseTicket: true}
 
 		// Configurar el mock para manejar la llamada a GetCurrentBranch
 		mockGit.On("GetCurrentBranch").Return("custom/PROJ-2000-custom-feature", nil)
 
 		// Configurar el mock para manejar la llamada a GetTicketInfo
 		ticketInfo := &models.TicketInfo{
-			ID:          "PROJ-2000",
-			Title:       "Custom feature",
-			Description: "As a user, I want a custom feature so that I can do something specific.",
+			TicketID:    "PROJ-2000",
+			TicketTitle: "Custom feature",
+			TitleDesc:   "As a user, I want a custom feature so that I can do something specific.",
 			Criteria:    []string{"Custom feature should work", "No side effects"},
 		}
 		mockJiraService.On("GetTicketInfo", "PROJ-2000").Return(ticketInfo, nil)
@@ -493,15 +529,18 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 			Explanation: "some explanation",
 		}}
 		expectedInfo := models.CommitInfo{
-			Files:       []string{"file5.go"},
-			Diff:        "some diff",
-			TicketTitle: "Custom feature",
-			TicketDesc:  "As a user, I want a custom feature so that I can do something specific.",
-			Criteria:    []string{"Custom feature should work", "No side effects"},
+			Files: []string{"file5.go"},
+			Diff:  "some diff",
+			TicketInfo: &models.TicketInfo{
+				TicketID:    "PROJ-2000",
+				TicketTitle: "Custom feature",
+				TitleDesc:   "As a user, I want a custom feature so that I can do something specific.",
+				Criteria:    []string{"Custom feature should work", "No side effects"},
+			},
 		}
 		mockAI.On("GenerateSuggestions", mock.Anything, expectedInfo, 3).Return(expectedResponse, nil)
 
-		service := NewCommitService(mockGit, mockAI, mockJiraService)
+		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp)
 
 		// Act
 		suggestions, err := service.GenerateSuggestions(context.Background(), 3)

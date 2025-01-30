@@ -7,7 +7,7 @@ import (
 )
 
 func TestJiraService_GetTicketInfo_Integration(t *testing.T) {
-	t.Skip("skipping integration test")
+	//t.Skip("skipping integration test")
 	// Arrange
 	client := &http.Client{}
 	service := &JiraService{
@@ -25,11 +25,11 @@ func TestJiraService_GetTicketInfo_Integration(t *testing.T) {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 
-	if ticketInfo.ID != "MAT-13" {
-		t.Errorf("Expected ticket ID MAT-13, got %s", ticketInfo.ID)
+	if ticketInfo.TicketID != "MAT-13" {
+		t.Errorf("Expected ticket ID MAT-13, got %s", ticketInfo.TicketID)
 	}
 
-	if ticketInfo.Title == "" {
+	if ticketInfo.TicketTitle == "" {
 		t.Error("Expected a non-empty ticket title")
 	}
 

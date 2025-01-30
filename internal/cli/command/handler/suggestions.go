@@ -27,40 +27,43 @@ func (h *SuggestionHandler) HandleSuggestions(suggestions []models.CommitSuggest
 
 func (h *SuggestionHandler) displaySuggestions(suggestions []models.CommitSuggestion) {
 	fmt.Printf("%s\n", h.t.GetMessage("commit.header_message", 0, nil))
-	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━")
 
-	for _, suggestion := range suggestions {
-		fmt.Printf("%s\n", suggestion.CommitTitle)
-		fmt.Println(h.t.GetMessage("commit.file_list_header", 0, nil))
+	for i, suggestion := range suggestions {
+		fmt.Printf("\n=========[ Sugerencia %d ]=========\n", i+1)
+
+		// Mostrar análisis de código
+		fmt.Println("\n📊 Análisis de Código:")
+		fmt.Printf("- Resumen de Cambios: %s\n", suggestion.CodeAnalysis.ChangesOverview)
+		fmt.Printf("- Propósito Principal: %s\n", suggestion.CodeAnalysis.PrimaryPurpose)
+		fmt.Printf("- Impacto Técnico: %s\n", suggestion.CodeAnalysis.TechnicalImpact)
+
+		// Mostrar sugerencia de commit
+		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━")
+		fmt.Printf("Commit: %s\n", suggestion.CommitTitle)
+
+		// Mostrar archivos modificados
+		fmt.Println("📄 Archivos modificados:")
 		for _, file := range suggestion.Files {
 			fmt.Printf("   - %s\n", file)
 		}
-		fmt.Printf("%s\n", suggestion.Explanation)
+		fmt.Printf("Explicación: %s\n", suggestion.Explanation)
 
-		// Formatear CriteriaStatus
-		switch suggestion.CriteriaStatus {
-		case models.CriteriaFullyMet:
-			fmt.Println(h.t.GetMessage("commit.criteria_fully_met", 0, nil))
-		case models.CriteriaPartiallyMet:
-			fmt.Println(h.t.GetMessage("commit.criteria_partially_met", 0, nil))
-		case models.CriteriaNotMet:
-			fmt.Println(h.t.GetMessage("commit.criteria_not_met", 0, nil))
-		default:
-			fmt.Println(h.t.GetMessage("commit.criteria_unknown", 0, nil))
+		// Mostrar análisis de requerimientos
+		fmt.Println("\n🎯 Análisis de Requerimientos:")
+		fmt.Printf("⚠️  Estado de los Criterios: %s\n", h.getCriteriaStatusText(suggestion.RequirementsAnalysis.CriteriaStatus))
+
+		if len(suggestion.RequirementsAnalysis.MissingCriteria) > 0 {
+			fmt.Println("\n❌ Criterios Faltantes:")
+			for _, criteria := range suggestion.RequirementsAnalysis.MissingCriteria {
+				fmt.Printf("   - %s\n", criteria)
+			}
 		}
 
-		// Formatear MissingCriteria
-		if len(suggestion.MissingCriteria) > 0 {
-			fmt.Printf("%s: %s\n", h.t.GetMessage("commit.missing_criteria_header", 0, nil), strings.Join(suggestion.MissingCriteria, ", "))
-		} else {
-			fmt.Println(h.t.GetMessage("commit.missing_criteria_none", 0, nil))
-		}
-
-		// Formatear ImprovementSuggestions
-		if len(suggestion.ImprovementSuggestions) > 0 {
-			fmt.Printf("%s: %s\n", h.t.GetMessage("commit.improvement_suggestions_header", 0, nil), strings.Join(suggestion.ImprovementSuggestions, ", "))
-		} else {
-			fmt.Println(h.t.GetMessage("commit.improvement_suggestions_none", 0, nil))
+		if len(suggestion.RequirementsAnalysis.ImprovementSuggestions) > 0 {
+			fmt.Println("\n💡 Sugerencias de Mejora:")
+			for _, improvement := range suggestion.RequirementsAnalysis.ImprovementSuggestions {
+				fmt.Printf("   - %s\n", improvement)
+			}
 		}
 
 		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━")
@@ -69,6 +72,24 @@ func (h *SuggestionHandler) displaySuggestions(suggestions []models.CommitSugges
 	fmt.Println(h.t.GetMessage("commit.select_option_prompt", 0, nil))
 	fmt.Println(h.t.GetMessage("commit.option_commit", 0, nil))
 	fmt.Println(h.t.GetMessage("commit.option_exit", 0, nil))
+}
+
+func (h *SuggestionHandler) getCriteriaStatusText(status models.CriteriaStatus) string {
+	var msg string
+	switch status {
+	case models.CriteriaFullyMet:
+		msg = h.t.GetMessage("gemini_service.criteria_fully_met_prefix", 0, nil)
+		return msg
+	case models.CriteriaPartiallyMet:
+		msg = h.t.GetMessage("gemini_service.criteria_partially_met_prefix", 0, nil)
+		return msg
+	case models.CriteriaNotMet:
+		msg = h.t.GetMessage("gemini_service.criteria_not_met_prefix", 0, nil)
+		return msg
+	default:
+		msg = h.t.GetMessage("gemini_service.criteria_unknown_prefix", 0, nil)
+		return msg
+	}
 }
 
 func (h *SuggestionHandler) handleCommitSelection(suggestions []models.CommitSuggestion) error {

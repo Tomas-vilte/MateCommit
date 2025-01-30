@@ -71,33 +71,58 @@ func (s *GeminiService) generatePrompt(locale string, info models.CommitInfo, co
 	switch locale {
 	case "es":
 		promptTemplate = promptTemplateES
-	case "en":
-		promptTemplate = promptTemplateEN
 	default:
 		promptTemplate = promptTemplateEN
 	}
 
-	if s.config.UseEmoji {
-		promptTemplate = strings.Replace(promptTemplate, "Commit: [type]: [message]\n", "Commit: ✨ [type]: [message]\n", 1)
-		promptTemplate = strings.Replace(promptTemplate, "Commit: fix:", "Commit: 🐛 fix:", 1)
-		promptTemplate = strings.Replace(promptTemplate, "Commit: docs:", "Commit: 📚 docs:", 1)
+	// Determinar la sección de análisis de requerimientos
+	var reqAnalysisTemplate string
+	if info.TicketInfo != nil && info.TicketInfo.TicketTitle != "" {
+		if locale == "es" {
+			reqAnalysisTemplate = `⚠️ Estado de los Criterios: [completamente_cumplidos/parcialmente_cumplidos/no_cumplidos]
+			❌ Criterios Faltantes:
+			   - [Lista detallada de criterios no implementados o parcialmente implementados]
+			💡 Sugerencias de Mejora:
+			   - [Lista de mejoras específicas para cumplir los criterios]`
+		} else {
+			reqAnalysisTemplate = `⚠️ Criteria Status: [fully_met/partially_met/not_met]
+			❌ Missing Criteria:
+			   - [Detailed list of non-implemented or partially implemented criteria]
+			💡 Improvement Suggestions:
+			   - [List of specific improvements to meet criteria]`
+		}
+	} else {
+		if locale == "es" {
+			reqAnalysisTemplate = `💭 Análisis Técnico:
+			- Calidad del Código: [Evaluación de la calidad y claridad del código]
+			- Mejores Prácticas: [Análisis de adherencia a mejores prácticas]
+			💡 Sugerencias de Mejora:
+			   - [Lista de mejoras técnicas recomendadas]`
+		} else {
+			reqAnalysisTemplate = `💭 Technical Analysis:
+			- Code Quality: [Evaluation of code quality and clarity]
+			- Best Practices: [Analysis of adherence to best practices]
+			💡 Improvement Suggestions:
+			   - [List of recommended technical improvements]`
+		}
 	}
 
 	// Si hay información del ticket, la agregamos al prompt
 	ticketInfo := ""
-	if info.TicketTitle != "" {
+	if info.TicketInfo != nil && info.TicketInfo.TicketTitle != "" {
 		ticketInfo = fmt.Sprintf("\nTicket Title: %s\nTicket Description: %s\nAcceptance Criteria: %s",
-			info.TicketTitle, info.TicketDesc, strings.Join(info.Criteria, ", "))
+			info.TicketInfo.TicketTitle, info.TicketInfo.TitleDesc, strings.Join(info.TicketInfo.Criteria, ", "))
 	}
 
 	return fmt.Sprintf(promptTemplate,
 		count,
-		count,
-		ticketInfo,
 		formatChanges(info.Files),
 		info.Diff,
+		reqAnalysisTemplate,
+		ticketInfo,
 	)
 }
+
 func formatChanges(files []string) string {
 	if len(files) == 0 {
 		return ""
@@ -127,10 +152,6 @@ func formatResponse(resp *genai.GenerateContentResponse) string {
 
 func (s *GeminiService) getSuggestionDelimiter() string {
 	return s.trans.GetMessage("suggestion_delimiter", 0, nil)
-}
-
-func (s *GeminiService) getFilesPrefix() string {
-	return s.trans.GetMessage("files_prefix", 0, nil)
 }
 
 func (s *GeminiService) parseSuggestions(resp *genai.GenerateContentResponse) []models.CommitSuggestion {
@@ -167,73 +188,124 @@ func (s *GeminiService) parseSuggestionPart(part string) *models.CommitSuggestio
 		return nil
 	}
 
-	suggestion := &models.CommitSuggestion{}
+	suggestion := &models.CommitSuggestion{
+		CodeAnalysis:         models.CodeAnalysis{},
+		RequirementsAnalysis: models.RequirementsAnalysis{},
+	}
 
 	// Extraer el título del commit
-	suggestion.CommitTitle = strings.TrimSpace(lines[1])
+	for _, line := range lines {
+		if strings.HasPrefix(line, "Commit:") {
+			suggestion.CommitTitle = strings.TrimSpace(strings.TrimPrefix(line, "Commit:"))
+			break
+		}
+	}
 
 	// Extraer los archivos modificados
-	prefixFiles := s.getFilesPrefix()
-	if filesPart := strings.TrimPrefix(lines[2], prefixFiles); filesPart != "" {
-		files := strings.Split(filesPart, ",")
-		suggestion.Files = make([]string, 0, len(files))
-		for _, file := range files {
-			if trimmed := strings.TrimSpace(file); trimmed != "" {
-				suggestion.Files = append(suggestion.Files, trimmed)
+	var collectingFiles bool
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+
+		if strings.HasPrefix(trimmedLine, "📄") {
+			collectingFiles = true
+			continue
+		}
+
+		if collectingFiles {
+			if strings.HasPrefix(trimmedLine, "-") {
+				file := strings.TrimSpace(strings.TrimPrefix(trimmedLine, "-"))
+				suggestion.Files = append(suggestion.Files, file)
+			} else if trimmedLine == "" || strings.HasPrefix(trimmedLine, s.trans.GetMessage("gemini_service.explanation_prefix", 0, nil)) {
+				collectingFiles = false
 			}
 		}
 	}
 
 	// Extraer la explicación
 	var explanation strings.Builder
-	for i := 3; i < len(lines); i++ {
-		if strings.HasPrefix(lines[i], s.trans.GetMessage("commit.criteria_status_prefix", 0, nil)) ||
-			strings.HasPrefix(lines[i], s.trans.GetMessage("commit.missing_criteria_prefix", 0, nil)) ||
-			strings.HasPrefix(lines[i], s.trans.GetMessage("commit.improvement_suggestions_prefix", 0, nil)) {
-			break // Detener si encontramos los campos adicionales
+	for _, line := range lines {
+		if strings.HasPrefix(line, s.trans.GetMessage("gemini_service.explanation_prefix", 0, nil)) {
+			explanation.WriteString(strings.TrimSpace(strings.TrimPrefix(line, s.trans.GetMessage("gemini_service.explanation_prefix", 0, nil))))
+			explanation.WriteString("\n")
 		}
-		explanation.WriteString(lines[i])
-		explanation.WriteString("\n")
 	}
 	suggestion.Explanation = strings.TrimSpace(explanation.String())
 
-	// Extraer el estado de los criterios
-	criteriaStatusPrefix := s.trans.GetMessage("commit.criteria_status_prefix", 0, nil)
+	// Extraer el análisis de código
+	for i, line := range lines {
+		if strings.HasPrefix(line, s.trans.GetMessage("gemini_service.code_analysis_prefix", 0, nil)) {
+			if i+1 < len(lines) && strings.HasPrefix(lines[i+1], s.trans.GetMessage("gemini_service.changes_overview_prefix", 0, nil)) {
+				suggestion.CodeAnalysis.ChangesOverview = strings.TrimSpace(strings.TrimPrefix(lines[i+1], s.trans.GetMessage("gemini_service.changes_overview_prefix", 0, nil)))
+			}
+			if i+2 < len(lines) && strings.HasPrefix(lines[i+2], s.trans.GetMessage("gemini_service.primary_purpose_prefix", 0, nil)) {
+				suggestion.CodeAnalysis.PrimaryPurpose = strings.TrimSpace(strings.TrimPrefix(lines[i+2], s.trans.GetMessage("gemini_service.primary_purpose_prefix", 0, nil)))
+			}
+			if i+3 < len(lines) && strings.HasPrefix(lines[i+3], s.trans.GetMessage("gemini_service.technical_impact_prefix", 0, nil)) {
+				suggestion.CodeAnalysis.TechnicalImpact = strings.TrimSpace(strings.TrimPrefix(lines[i+3], s.trans.GetMessage("gemini_service.technical_impact_prefix", 0, nil)))
+			}
+			break
+		}
+	}
+
+	// Extraer el análisis de requisitos
+	var (
+		collectingMissingCriteria bool
+		collectingImprovements    bool
+	)
+
 	for _, line := range lines {
-		if strings.HasPrefix(line, criteriaStatusPrefix) {
-			criteriaStatus := strings.TrimSpace(strings.TrimPrefix(line, criteriaStatusPrefix))
-			switch criteriaStatus {
-			case s.trans.GetMessage("commit.criteria_fully_met_prefix", 0, nil):
-				suggestion.CriteriaStatus = models.CriteriaFullyMet
-			case s.trans.GetMessage("commit.criteria_partially_met_prefix", 0, nil):
-				suggestion.CriteriaStatus = models.CriteriaPartiallyMet
-			case s.trans.GetMessage("commit.criteria_not_met_prefix", 0, nil):
-				suggestion.CriteriaStatus = models.CriteriaNotMet
+		trimmedLine := strings.TrimSpace(line)
+
+		// Procesar estado de criterios
+		if strings.HasPrefix(trimmedLine, "⚠️") {
+			switch {
+			case strings.Contains(trimmedLine, s.trans.GetMessage("gemini_service.criteria_fully_met_prefix", 0, nil)):
+				suggestion.RequirementsAnalysis.CriteriaStatus = models.CriteriaFullyMet
+			case strings.Contains(trimmedLine, s.trans.GetMessage("gemini_service.criteria_partially_met_prefix", 0, nil)):
+				suggestion.RequirementsAnalysis.CriteriaStatus = models.CriteriaPartiallyMet
 			default:
-				suggestion.CriteriaStatus = models.CriteriaNotMet
+				suggestion.RequirementsAnalysis.CriteriaStatus = models.CriteriaNotMet
 			}
+			continue
 		}
-	}
 
-	// Extraer los criterios faltantes
-	missingCriteriaPrefix := s.trans.GetMessage("commit.missing_criteria_prefix", 0, nil)
-	for _, line := range lines {
-		if strings.HasPrefix(line, missingCriteriaPrefix) {
-			missingCriteria := strings.TrimSpace(strings.TrimPrefix(line, missingCriteriaPrefix))
-			if missingCriteria != s.trans.GetMessage("commit.missing_criteria_none", 0, nil) {
-				suggestion.MissingCriteria = strings.Split(missingCriteria, ",")
-			}
+		// Procesar criterios faltantes
+		if strings.HasPrefix(trimmedLine, "❌") {
+			collectingMissingCriteria = true
+			collectingImprovements = false
+			continue
 		}
-	}
 
-	// Extraer las sugerencias de mejora
-	improvementSuggestionsPrefix := s.trans.GetMessage("commit.improvement_suggestions_prefix", 0, nil)
-	for _, line := range lines {
-		if strings.HasPrefix(line, improvementSuggestionsPrefix) {
-			improvementSuggestions := strings.TrimSpace(strings.TrimPrefix(line, improvementSuggestionsPrefix))
-			if improvementSuggestions != s.trans.GetMessage("commit.improvement_suggestions_none", 0, nil) {
-				suggestion.ImprovementSuggestions = strings.Split(improvementSuggestions, ",")
-			}
+		// Procesar sugerencias de mejora
+		if strings.HasPrefix(trimmedLine, "💡") {
+			collectingMissingCriteria = false
+			collectingImprovements = true
+			continue
+		}
+
+		// Recolectar criterios faltantes
+		if collectingMissingCriteria && strings.HasPrefix(trimmedLine, "-") {
+			criteria := strings.TrimSpace(strings.TrimPrefix(trimmedLine, "-"))
+			suggestion.RequirementsAnalysis.MissingCriteria = append(
+				suggestion.RequirementsAnalysis.MissingCriteria,
+				criteria,
+			)
+		}
+
+		// Recolectar sugerencias de mejora
+		if collectingImprovements && strings.HasPrefix(trimmedLine, "-") {
+			improvement := strings.TrimSpace(strings.TrimPrefix(trimmedLine, "-"))
+			suggestion.RequirementsAnalysis.ImprovementSuggestions = append(
+				suggestion.RequirementsAnalysis.ImprovementSuggestions,
+				improvement,
+			)
+		}
+
+		// Detener la recolección si encontramos una línea vacía o un nuevo encabezado
+		if trimmedLine == "" || strings.HasPrefix(trimmedLine, "📊") ||
+			strings.HasPrefix(trimmedLine, "📝") {
+			collectingMissingCriteria = false
+			collectingImprovements = false
 		}
 	}
 
