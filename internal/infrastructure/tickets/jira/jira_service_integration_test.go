@@ -7,7 +7,7 @@ import (
 )
 
 func TestJiraService_GetTicketInfo_Integration(t *testing.T) {
-	//t.Skip("skipping integration test")
+	t.Skip("skipping integration test")
 	// Arrange
 	client := &http.Client{}
 	service := &JiraService{
