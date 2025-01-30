@@ -10,12 +10,9 @@ const (
 
 type (
 	CommitInfo struct {
-		Files       []string
-		Diff        string
-		Format      string
-		TicketTitle string
-		TicketDesc  string
-		Criteria    []string
+		Files      []string
+		Diff       string
+		TicketInfo *TicketInfo
 	}
 
 	GitChange struct {
@@ -24,10 +21,20 @@ type (
 	}
 
 	CommitSuggestion struct {
-		CommitTitle            string
-		Explanation            string
-		Files                  []string
-		CriteriaMsg            string
+		CommitTitle          string
+		Explanation          string
+		Files                []string
+		CodeAnalysis         CodeAnalysis
+		RequirementsAnalysis RequirementsAnalysis
+	}
+
+	CodeAnalysis struct {
+		ChangesOverview string
+		PrimaryPurpose  string
+		TechnicalImpact string
+	}
+
+	RequirementsAnalysis struct {
 		CriteriaStatus         CriteriaStatus
 		MissingCriteria        []string
 		ImprovementSuggestions []string

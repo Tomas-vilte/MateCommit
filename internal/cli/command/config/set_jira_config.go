@@ -33,7 +33,8 @@ func (c *ConfigCommandFactory) newSetJiraConfigCommand(t *i18n.Translations, cfg
 			email := command.String("email")
 
 			if baseURL == "" || apiKey == "" || email == "" {
-				return fmt.Errorf(t.GetMessage("jira_config_command_usage.jira_config_missing_fields", 0, nil))
+				msg := t.GetMessage("jira_config_command_usage.jira_config_missing_fields", 0, nil)
+				return fmt.Errorf("%s", msg)
 			}
 
 			cfg.JiraConfig.BaseURL = baseURL

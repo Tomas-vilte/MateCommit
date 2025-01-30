@@ -1,8 +1,8 @@
 package models
 
 type TicketInfo struct {
-	ID          string   `json:"id"`
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
+	TicketID    string   `json:"ticket_id"`
+	TicketTitle string   `json:"ticket_title"`
+	TitleDesc   string   `json:"title_desc"`
 	Criteria    []string `json:"criteria"`
 }

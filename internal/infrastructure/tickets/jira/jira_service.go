@@ -80,9 +80,9 @@ func (s *JiraService) GetTicketInfo(ticketID string) (*models.TicketInfo, error)
 	criteria, description := s.extractCriteria(ticketFields, criteriaFieldID, description)
 
 	ticketInfo := &models.TicketInfo{
-		ID:          ticketID,
-		Title:       ticketFields.Summary,
-		Description: description,
+		TicketID:    ticketID,
+		TicketTitle: ticketFields.Summary,
+		TitleDesc:   description,
 		Criteria:    criteria,
 	}
 
