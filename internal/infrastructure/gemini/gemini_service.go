@@ -8,6 +8,7 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/google/generative-ai-go/genai"
 	"google.golang.org/api/option"
+	"regexp"
 	"strings"
 )
 
@@ -68,59 +69,76 @@ func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.Com
 
 func (s *GeminiService) generatePrompt(locale string, info models.CommitInfo, count int) string {
 	var promptTemplate string
-	switch locale {
-	case "es":
-		promptTemplate = promptTemplateES
-	default:
-		promptTemplate = promptTemplateEN
-	}
 
-	// Determinar la sección de análisis de requerimientos
-	var reqAnalysisTemplate string
+	// Seleccionar el template según el idioma y si hay un ticket
 	if info.TicketInfo != nil && info.TicketInfo.TicketTitle != "" {
-		if locale == "es" {
-			reqAnalysisTemplate = `⚠️ Estado de los Criterios: [completamente_cumplidos/parcialmente_cumplidos/no_cumplidos]
-			❌ Criterios Faltantes:
-			   - [Lista detallada de criterios no implementados o parcialmente implementados]
-			💡 Sugerencias de Mejora:
-			   - [Lista de mejoras específicas para cumplir los criterios]`
-		} else {
-			reqAnalysisTemplate = `⚠️ Criteria Status: [fully_met/partially_met/not_met]
-			❌ Missing Criteria:
-			   - [Detailed list of non-implemented or partially implemented criteria]
-			💡 Improvement Suggestions:
-			   - [List of specific improvements to meet criteria]`
+		switch locale {
+		case "es":
+			promptTemplate = promptTemplateWithTicketES
+		default:
+			promptTemplate = promptTemplateWithTicketEN
 		}
 	} else {
-		if locale == "es" {
-			reqAnalysisTemplate = `💭 Análisis Técnico:
-			- Calidad del Código: [Evaluación de la calidad y claridad del código]
-			- Mejores Prácticas: [Análisis de adherencia a mejores prácticas]
-			💡 Sugerencias de Mejora:
-			   - [Lista de mejoras técnicas recomendadas]`
-		} else {
-			reqAnalysisTemplate = `💭 Technical Analysis:
-			- Code Quality: [Evaluation of code quality and clarity]
-			- Best Practices: [Analysis of adherence to best practices]
-			💡 Improvement Suggestions:
-			   - [List of recommended technical improvements]`
+		switch locale {
+		case "es":
+			promptTemplate = promptTemplateWithoutTicketES
+		default:
+			promptTemplate = promptTemplateWithoutTicketEN
 		}
 	}
 
-	// Si hay información del ticket, la agregamos al prompt
+	// Preparar la información del ticket si existe
 	ticketInfo := ""
 	if info.TicketInfo != nil && info.TicketInfo.TicketTitle != "" {
 		ticketInfo = fmt.Sprintf("\nTicket Title: %s\nTicket Description: %s\nAcceptance Criteria: %s",
-			info.TicketInfo.TicketTitle, info.TicketInfo.TitleDesc, strings.Join(info.TicketInfo.Criteria, ", "))
+			info.TicketInfo.TicketTitle,
+			info.TicketInfo.TitleDesc,
+			strings.Join(info.TicketInfo.Criteria, ", "))
 	}
 
+	// Preparar el análisis de requerimientos
+	reqAnalysisTemplate := s.getRequirementsAnalysisTemplate(locale, info.TicketInfo != nil)
+
+	// El orden de los argumentos debe coincidir con los placeholders en el template
 	return fmt.Sprintf(promptTemplate,
-		count,
-		formatChanges(info.Files),
-		info.Diff,
-		reqAnalysisTemplate,
-		ticketInfo,
+		count,                     // Primer %d
+		reqAnalysisTemplate,       // %s para el template de análisis
+		count,                     // Segundo %d
+		formatChanges(info.Files), // %s para archivos modificados
+		info.Diff,                 // %s para el diff
+		ticketInfo,                // %s para la información del ticket
 	)
+}
+
+// Función auxiliar para obtener el template de análisis de requerimientos
+func (s *GeminiService) getRequirementsAnalysisTemplate(locale string, hasTicket bool) string {
+	if hasTicket {
+		if locale == "es" {
+			return `⚠️ Estado de los Criterios: [completamente_cumplidos/parcialmente_cumplidos/no_cumplidos]
+            ❌ Criterios Faltantes:
+               - [Lista detallada de criterios no implementados o parcialmente implementados]
+            💡 Sugerencias de Mejora:
+               - [Lista de mejoras específicas para cumplir los criterios]`
+		}
+		return `⚠️ Criteria Status: [fully_met/partially_met/not_met]
+            ❌ Missing Criteria:
+               - [Detailed list of non-implemented or partially implemented criteria]
+            💡 Improvement Suggestions:
+               - [List of specific improvements to meet criteria]`
+	}
+
+	if locale == "es" {
+		return `💭 Análisis Técnico:
+            - Calidad del Código: [Evaluación de la calidad y claridad del código]
+            - Mejores Prácticas: [Análisis de adherencia a mejores prácticas]
+            💡 Sugerencias de Mejora:
+               - [Lista de mejoras técnicas recomendadas]`
+	}
+	return `💭 Technical Analysis:
+            - Code Quality: [Evaluation of code quality and clarity]
+            - Best Practices: [Analysis of adherence to best practices]
+            💡 Improvement Suggestions:
+               - [List of recommended technical improvements]`
 }
 
 func formatChanges(files []string) string {
@@ -151,7 +169,7 @@ func formatResponse(resp *genai.GenerateContentResponse) string {
 }
 
 func (s *GeminiService) getSuggestionDelimiter() string {
-	return s.trans.GetMessage("suggestion_delimiter", 0, nil)
+	return s.trans.GetMessage("gemini_service.suggestion_prefix", 0, nil)
 }
 
 func (s *GeminiService) parseSuggestions(resp *genai.GenerateContentResponse) []models.CommitSuggestion {
@@ -164,12 +182,14 @@ func (s *GeminiService) parseSuggestions(resp *genai.GenerateContentResponse) []
 		return nil
 	}
 
-	suggestions := make([]models.CommitSuggestion, 0)
 	delimiter := s.getSuggestionDelimiter()
-	parts := strings.Split(responseText, delimiter)
+	re := regexp.MustCompile(delimiter)
+	parts := re.Split(responseText, -1) // Dividir usando regex
+	suggestions := make([]models.CommitSuggestion, 0)
 
 	for _, part := range parts {
-		if strings.TrimSpace(part) == "" {
+		part = strings.TrimSpace(part)
+		if part == "" {
 			continue
 		}
 

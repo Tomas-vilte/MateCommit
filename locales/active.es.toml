@@ -55,9 +55,6 @@ other = "No se proporcionaron archivos para analizar"
 [error_no_suggestions]
 other = "No se pudieron generar sugerencias de commit"
 
-[suggestion_delimiter]
-other = "=========[ Sugerencia ]========="
-
 [files_prefix]
 other = "Archivos: "
 
@@ -181,8 +178,10 @@ improvement_suggestions_none = "-"
 criteria_fully_met_prefix = "Completamente cumplidos"
 criteria_partially_met_prefix = "Parcialmente cumplidos"
 criteria_not_met_prefix = "No cumplidos"
-criterial_status_unknown = "Estado Desconocido"
+criteria_unknown_prefix = "Estado Desconocido"
 code_analysis_prefix = "📊 Análisis de Código:"
 changes_overview_prefix = "- Resumen de Cambios:"
 primary_purpose_prefix = "- Propósito Principal:"
 technical_impact_prefix = "- Impacto Técnico:"
+suggestion_prefix = "=========\\[ Sugerencia\\s*\\d*\\s*\\]========="
+technical_analysis_section = "💭 Analisis Tecnico:"

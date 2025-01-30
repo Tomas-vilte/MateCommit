@@ -29,40 +29,51 @@ func (h *SuggestionHandler) displaySuggestions(suggestions []models.CommitSugges
 	fmt.Printf("%s\n", h.t.GetMessage("commit.header_message", 0, nil))
 
 	for i, suggestion := range suggestions {
-		fmt.Printf("\n=========[ Sugerencia %d ]=========\n", i+1)
+		suggestionHeader := h.t.GetMessage("suggestion_header", 0, map[string]interface{}{"Number": i + 1})
+		fmt.Printf("\n%s\n", suggestionHeader)
 
-		// Mostrar análisis de código
-		fmt.Println("\n📊 Análisis de Código:")
-		fmt.Printf("- Resumen de Cambios: %s\n", suggestion.CodeAnalysis.ChangesOverview)
-		fmt.Printf("- Propósito Principal: %s\n", suggestion.CodeAnalysis.PrimaryPurpose)
-		fmt.Printf("- Impacto Técnico: %s\n", suggestion.CodeAnalysis.TechnicalImpact)
+		// Mostrar análisis de código (común para ambos casos)
+		fmt.Printf("\n%s\n", h.t.GetMessage("gemini_service.code_analysis_prefix", 0, nil))
+		fmt.Printf("%s %s\n", h.t.GetMessage("gemini_service.changes_overview_prefix", 0, nil), suggestion.CodeAnalysis.ChangesOverview)
+		fmt.Printf("%s %s\n", h.t.GetMessage("gemini_service.primary_purpose_prefix", 0, nil), suggestion.CodeAnalysis.PrimaryPurpose)
+		fmt.Printf("%s %s\n", h.t.GetMessage("gemini_service.technical_impact_prefix", 0, nil), suggestion.CodeAnalysis.TechnicalImpact)
 
-		// Mostrar sugerencia de commit
+		// Mostrar sugerencia de commit (común para ambos casos)
 		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━")
 		fmt.Printf("Commit: %s\n", suggestion.CommitTitle)
 
-		// Mostrar archivos modificados
-		fmt.Println("📄 Archivos modificados:")
+		// Mostrar archivos modificados (común para ambos casos)
+		fmt.Println(h.t.GetMessage("gemini_service.modified_files_prefix", 0, nil))
 		for _, file := range suggestion.Files {
 			fmt.Printf("   - %s\n", file)
 		}
-		fmt.Printf("Explicación: %s\n", suggestion.Explanation)
+		fmt.Printf("%s %s\n", h.t.GetMessage("gemini_service.explanation_prefix", 0, nil), suggestion.Explanation)
 
-		// Mostrar análisis de requerimientos
-		fmt.Println("\n🎯 Análisis de Requerimientos:")
-		fmt.Printf("⚠️  Estado de los Criterios: %s\n", h.getCriteriaStatusText(suggestion.RequirementsAnalysis.CriteriaStatus))
+		// Mostrar análisis basado en si hay ticket o no
+		if suggestion.RequirementsAnalysis.CriteriaStatus != "" {
+			// Caso con ticket
+			fmt.Printf("\n%s\n", h.t.GetMessage("gemini_service.requirements_analysis_prefix", 0, nil))
+			statusMsg := h.t.GetMessage("gemini_service.criteria_status_full", 0, map[string]interface{}{
+				"Status": h.getCriteriaStatusText(suggestion.RequirementsAnalysis.CriteriaStatus),
+			})
+			fmt.Printf("%s", statusMsg)
 
-		if len(suggestion.RequirementsAnalysis.MissingCriteria) > 0 {
-			fmt.Println("\n❌ Criterios Faltantes:")
-			for _, criteria := range suggestion.RequirementsAnalysis.MissingCriteria {
-				fmt.Printf("   - %s\n", criteria)
+			if len(suggestion.RequirementsAnalysis.MissingCriteria) > 0 {
+				fmt.Printf("\n%s", h.t.GetMessage("gemini_service.missing_criteria_prefix", 0, nil))
+				for _, criteria := range suggestion.RequirementsAnalysis.MissingCriteria {
+					fmt.Printf("\n   - %s\n", criteria)
+				}
+			} else {
+				fmt.Println(h.t.GetMessage("gemini_service.missing_criteria_none", 0, nil))
 			}
-		}
-
-		if len(suggestion.RequirementsAnalysis.ImprovementSuggestions) > 0 {
-			fmt.Println("\n💡 Sugerencias de Mejora:")
-			for _, improvement := range suggestion.RequirementsAnalysis.ImprovementSuggestions {
-				fmt.Printf("   - %s\n", improvement)
+		} else {
+			// Caso sin ticket
+			fmt.Printf("\n%s\n", h.t.GetMessage("gemini_service.technical_analysis_section", 0, nil))
+			if len(suggestion.RequirementsAnalysis.ImprovementSuggestions) > 0 {
+				fmt.Println(h.t.GetMessage("gemini_service.improvement_suggestions_label", 0, nil))
+				for _, improvement := range suggestion.RequirementsAnalysis.ImprovementSuggestions {
+					fmt.Printf("   - %s\n", improvement)
+				}
 			}
 		}
 

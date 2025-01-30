@@ -73,9 +73,6 @@ other = "No files provided for analysis"
 [error_no_suggestions]
 other = "Could not generate any commit suggestions"
 
-[suggestion_delimiter]
-other = "=========[ Suggestion ]========="
-
 [files_prefix]
 other = "Files: "
 
@@ -131,20 +128,6 @@ option_exit = "0: Exit without committing"
 error_creating_commit = "❌ Error creating the commit: {0}"
 factory_already_registered = "❌ The factory with the name '{{.FactoryName}}' is already registered"
 
-criteria_fully_met = "✅ Criteria Status: Fully met"
-criteria_partially_met = "⚠️  Criteria Status: Partially met"
-criteria_not_met = "❌ Criteria Status: Not met"
-criteria_unknown = "❓ Criteria Status: Unknown"
-missing_criteria_header = "❌ Missing Criteria:"
-missing_criteria_none = "✅ Missing Criteria: None"
-improvement_suggestions_header = "💡 Improvement Suggestions:"
-improvement_suggestions_none = "💡 Improvement Suggestions: None"
-criteria_status_prefix = "Criteria Status:"
-criteria_fully_met_prefix = "fully_met"
-criteria_partially_met_prefix = "partially_met"
-criteria_not_met_prefix = "not_met"
-missing_criteria_prefix = "Missing Criteria:"
-improvement_suggestions_prefix = "Improvement Suggestions:"
 
 [jira_config_command_usage]
 jira_config_usage = "Set up Jira credentials"
@@ -161,3 +144,28 @@ ticket_disabled_success = "Ticket integration has been disabled successfully"
 ticket_enabled_success = "Ticket integration has been enabled successfully"
 
 error_saving_config = "Error saving configuration: {{.Error}}"
+
+[gemini_service]
+modified_files_prefix = "📄 Modified files:"
+explanation_prefix = "Explanation:"
+requirements_analysis_prefix = "🎯 Requirements Analysis:"
+criteria_status_prefix = "⚠️ Criteria Status:"
+missing_criteria_prefix = "❌ Missing Criteria:"
+improvement_suggestions_prefix = "💡 Improvement Suggestions:"
+improvement_suggestions_none = "-"
+criteria_fully_met_prefix = "Completely fulfilled"
+criteria_partially_met_prefix = "Partially fulfilled"
+criteria_not_met_prefix = "Not fulfilled"
+criteria_unknown_prefix = "Unknown Status"
+code_analysis_prefix = "📊 Code Analysis:"
+changes_overview_prefix = "- Changes Overview:"
+primary_purpose_prefix = "- Primary Purpose:"
+technical_impact_prefix = "- Technical Impact:"
+suggestion_prefix = "=========\\[ Suggestion\\s*\\d*\\s*\\]========="
+technical_analysis_section = "💭 Technical Analysis:"
+improvement_suggestions_label = "Suggested Improvements:"
+criteria_status_full = "⚠️  Criteria Status: {{.Status}}"
+missing_criteria_none = "✅ Missing Criteria: None"
+
+[suggestion_header]
+other = "=========[ Suggestion {{.Number}} ]========="
