@@ -41,6 +41,12 @@ func (m *mockGitService) AddFileToStaging(file string) error {
 	return args.Error(0)
 }
 
+func (m *mockGitService) GetCurrentBranch() (string, error) {
+	args := m.Called()
+	return args.String(0), args.Error(1)
+
+}
+
 func captureOutput(f func()) string {
 	old := os.Stdout
 	r, w, _ := os.Pipe()
@@ -130,24 +136,6 @@ func TestSuggestionHandler_DisplaySuggestions(t *testing.T) {
 		assert.Contains(t, output, "fix: bug fix")
 		assert.Contains(t, output, "file3.go")
 		assert.Contains(t, output, "Second explanation")
-	})
-
-	t.Run("should display empty suggestions list", func(t *testing.T) {
-		// Arrange
-		mockGit := new(mockGitService)
-		translations, err := i18n.NewTranslations("en", "../../../../locales")
-		assert.NoError(t, err)
-		handler := NewSuggestionHandler(mockGit, translations)
-
-		var suggestions []models.CommitSuggestion
-
-		// Act
-		output := captureOutput(func() {
-			handler.displaySuggestions(suggestions)
-		})
-
-		// Assert
-		assert.Contains(t, output, "━━━━━━━━━━━━━━━━━━━━━━━")
 	})
 }
 

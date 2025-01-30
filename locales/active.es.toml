@@ -55,9 +55,6 @@ other = "No se proporcionaron archivos para analizar"
 [error_no_suggestions]
 other = "No se pudieron generar sugerencias de commit"
 
-[suggestion_delimiter]
-other = "=========[ Sugerencia ]========="
-
 [files_prefix]
 other = "Archivos: "
 
@@ -135,10 +132,6 @@ option_exit = "0: Salir sin commitear"
 error_creating_commit = "❌ Error al crear el commit: {0}"
 factory_already_registered = "❌ La fabrica con el nombre '{{.FactoryName}}' ya está registrada"
 
-criteria_fully_met = "completamente_cumplidos"
-criteria_partially_met = "parcialmente_cumplidos"
-criteria_not_met = "no_cumplidos"
-criteria_unknown = "❓ Estado de los Criterios: Desconocido"
 missing_criteria_header = "❌ Criterios Faltantes:"
 missing_criteria_none = "✅ Criterios Faltantes: Ninguno"
 improvement_suggestions_header = "💡 Sugerencias de Mejora:"
@@ -146,3 +139,49 @@ improvement_suggestions_none = "💡 Sugerencias de Mejora: Ninguna"
 criteria_status_prefix = "Estado de los Criterios:"
 missing_criteria_prefix = "Criterios Faltantes:"
 improvement_suggestions_prefix = "Sugerencias de Mejora:"
+
+criteria_fully_met_prefix = "completamente_cumplidos"
+criteria_partially_met_prefix = "parcialmente_cumplidos"
+criteria_not_met_prefix = "no_cumplidos"
+criteria_status = "Estado de los Criterios:"
+
+criteria_unknown = "❓ Estado de los Criterios: Desconocido"
+criteria_fully_met = "✅ Estado de los Criterios: Completamente cumplidos"
+criteria_partially_met = "⚠️  Estado de los Criterios: Parcialmente cumplidos"
+criteria_not_met = "❌ Estado de los Criterios: No cumplidos"
+
+[jira_config_command_usage]
+jira_config_usage = "Configura las credenciales de Jira"
+jira_config_base_url_usage = "URL base de Jira"
+jira_config_api_key_usage = "API Key de Jira"
+jira_config_email_usage = "Email asociado a Jira"
+jira_config_missing_fields = "Todos los campos son requeridos: base-url, api-key, email"
+jira_config_save_error = "Error al guardar la configuración de Jira: {{.Error}}"
+jira_config_success = "Configuración de Jira guardada exitosamente"
+ticket_command_usage = "Gestionar la configuración de integración de tickets"
+disable_ticket_command_usage = "Desactivar la integración de tickets"
+enable_ticket_command_usage = "Activar la integración de tickets"
+ticket_disabled_success = "La integración de tickets ha sido desactivada exitosamente"
+ticket_enabled_success = "La integración de tickets ha sido activada exitosamente"
+
+error_saving_config = "Error al guardar la configuración: {{.Error}}"
+
+[gemini_service]
+modified_files_prefix = "📄 Archivos modificados:"
+explanation_prefix = "Explicación:"
+requirements_analysis_prefix = "🎯 Análisis de Requerimientos:"
+criteria_status_prefix = "⚠️ Estado de los Criterios:"
+missing_criteria_prefix = "❌ Criterios Faltantes:"
+missing_criteria_none = "-"
+improvement_suggestions_prefix = "💡 Sugerencias de Mejora:"
+improvement_suggestions_none = "-"
+criteria_fully_met_prefix = "Completamente cumplidos"
+criteria_partially_met_prefix = "Parcialmente cumplidos"
+criteria_not_met_prefix = "No cumplidos"
+criteria_unknown_prefix = "Estado Desconocido"
+code_analysis_prefix = "📊 Análisis de Código:"
+changes_overview_prefix = "- Resumen de Cambios:"
+primary_purpose_prefix = "- Propósito Principal:"
+technical_impact_prefix = "- Impacto Técnico:"
+suggestion_prefix = "=========\\[ Sugerencia\\s*\\d*\\s*\\]========="
+technical_analysis_section = "💭 Analisis Tecnico:"

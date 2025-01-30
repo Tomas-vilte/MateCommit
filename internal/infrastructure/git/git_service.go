@@ -99,3 +99,18 @@ func (s *GitService) AddFileToStaging(file string) error {
 	cmd := exec.Command("git", "add", file)
 	return cmd.Run()
 }
+
+func (s *GitService) GetCurrentBranch() (string, error) {
+	cmd := exec.Command("git", "branch", "--show-current")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("error al obtener el nombre de la branch: %v", err)
+	}
+
+	branchName := strings.TrimSpace(string(output))
+	if branchName == "" {
+		return "", fmt.Errorf("no se pudo detectar el nombre de la branch")
+	}
+
+	return branchName, nil
+}

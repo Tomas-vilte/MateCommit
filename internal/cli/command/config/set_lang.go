@@ -8,7 +8,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-func (f *ConfigCommandFactory) newSetLangCommand(t *i18n.Translations, cfg *config.Config) *cli.Command {
+func (c *ConfigCommandFactory) newSetLangCommand(t *i18n.Translations, cfg *config.Config) *cli.Command {
 	return &cli.Command{
 		Name:  "set-lang",
 		Usage: t.GetMessage("config_set_lang_usage", 0, nil),
