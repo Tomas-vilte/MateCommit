@@ -54,7 +54,6 @@ func TestLoadConfig(t *testing.T) {
 		config := &Config{
 			GeminiAPIKey: "key",
 			Language:     "",
-			MaxLength:    -1,
 		}
 
 		data, _ := json.MarshalIndent(config, "", "  ")
@@ -78,7 +77,6 @@ func TestLoadConfig(t *testing.T) {
 	t.Run("debería manejar errores al guardar configuración", func(t *testing.T) {
 		config := &Config{
 			GeminiAPIKey: "key",
-			MaxLength:    -1,
 		}
 
 		err := SaveConfig(config)
@@ -147,10 +145,6 @@ func TestSaveConfig(t *testing.T) {
 			t.Errorf("DefaultLang = %v, want %v", loadedConfig.Language, defaultLang)
 		}
 
-		if loadedConfig.MaxLength != defaultMaxLength {
-			t.Errorf("MaxLength = %v, want %v", loadedConfig.MaxLength, defaultMaxLength)
-		}
-
 		if loadedConfig.UseEmoji != defaultUseEmoji {
 			t.Errorf("UseEmoji = %v, want %v", loadedConfig.UseEmoji, defaultUseEmoji)
 		}
@@ -165,7 +159,6 @@ func TestSaveConfig(t *testing.T) {
 			GeminiAPIKey: "test-key",
 			Language:     "es",
 			UseEmoji:     true,
-			MaxLength:    50,
 			PathFile:     configPath,
 		}
 
@@ -204,8 +197,7 @@ func TestSaveConfig(t *testing.T) {
 		t.Setenv("HOME", "")
 
 		config := &Config{
-			Language:  "en",
-			MaxLength: 72,
+			Language: "en",
 		}
 
 		err := SaveConfig(config)
@@ -230,8 +222,7 @@ func TestSaveConfig(t *testing.T) {
 		}()
 
 		config := &Config{
-			Language:  "en",
-			MaxLength: 72,
+			Language: "en",
 		}
 
 		err := SaveConfig(config)
@@ -242,8 +233,7 @@ func TestSaveConfig(t *testing.T) {
 
 	t.Run("debería validar la configuración antes de guardar", func(t *testing.T) {
 		config := &Config{
-			Language:  "",
-			MaxLength: 0,
+			Language: "",
 		}
 
 		err := SaveConfig(config)
@@ -274,7 +264,6 @@ func TestSaveConfig(t *testing.T) {
 			GeminiAPIKey: "new-key",
 			Language:     "fr",
 			UseEmoji:     false,
-			MaxLength:    50,
 			PathFile:     configPath,
 		}
 
@@ -302,9 +291,7 @@ func TestSaveConfig(t *testing.T) {
 		if savedConfig.Language != config.Language {
 			t.Errorf("Saved DefaultLang = %v, want %v", savedConfig.Language, config.Language)
 		}
-		if savedConfig.MaxLength != config.MaxLength {
-			t.Errorf("Saved MaxLength = %v, want %v", savedConfig.MaxLength, config.MaxLength)
-		}
+
 		if savedConfig.UseEmoji != config.UseEmoji {
 			t.Errorf("Saved UseEmoji = %v, want %v", savedConfig.UseEmoji, config.UseEmoji)
 		}
@@ -333,9 +320,6 @@ func TestCreateDefaultConfig(t *testing.T) {
 		}
 		if config.UseEmoji != defaultUseEmoji {
 			t.Errorf("UseEmoji = %v, want %v", config.UseEmoji, defaultUseEmoji)
-		}
-		if config.MaxLength != defaultMaxLength {
-			t.Errorf("MaxLength = %v, want %v", config.MaxLength, defaultMaxLength)
 		}
 	})
 
@@ -390,7 +374,6 @@ func TestCreateDefaultConfig(t *testing.T) {
 		config := &Config{
 			GeminiAPIKey: "test-key",
 			Language:     "es",
-			MaxLength:    50,
 			PathFile:     configPath,
 		}
 
@@ -417,32 +400,22 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "configuración válida",
 			config: &Config{
-				Language:  "en",
-				MaxLength: 72,
+				Language: "en",
 			},
 			wantErr: false,
 		},
-		{
-			name: "MaxLength inválido",
-			config: &Config{
-				Language:  "en",
-				MaxLength: 0,
-			},
-			wantErr: true,
-		},
+		
 		{
 			name: "DefaultLang vacío",
 			config: &Config{
-				Language:  "",
-				MaxLength: 72,
+				Language: "",
 			},
 			wantErr: true,
 		},
 		{
 			name: "múltiples campos inválidos",
 			config: &Config{
-				Language:  "",
-				MaxLength: -1,
+				Language: "",
 			},
 			wantErr: true,
 		},

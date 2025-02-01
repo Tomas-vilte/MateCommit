@@ -43,7 +43,6 @@ func setupTestEnv(t *testing.T) (*config.Config, *i18n.Translations, func()) {
 	cfg := &config.Config{
 		PathFile:         tmpConfigPath,
 		Language:         "es",
-		MaxLength:        72,
 		UseEmoji:         true,
 		SuggestionsCount: 3, // Añadido el valor por defecto
 	}

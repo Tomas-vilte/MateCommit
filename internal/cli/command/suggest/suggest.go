@@ -52,12 +52,6 @@ func (f *SuggestCommandFactory) createFlags(cfg *config.Config, t *i18n.Translat
 			Value:   cfg.UseEmoji,
 			Usage:   t.GetMessage("suggest_no_emoji_flag_usage", 0, nil),
 		},
-		&cli.IntFlag{
-			Name:    "max-length",
-			Aliases: []string{"ml"},
-			Value:   int64(cfg.MaxLength),
-			Usage:   t.GetMessage("suggest_max_length_flag_usage", 0, nil),
-		},
 	}
 }
 
@@ -79,7 +73,6 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 		}
 
 		cfg.Language = command.String("lang")
-		cfg.MaxLength = int(command.Int("max-length"))
 
 		if err := config.SaveConfig(cfg); err != nil {
 			return fmt.Errorf("error al guardar la configuración: %w", err)

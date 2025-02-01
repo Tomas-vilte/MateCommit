@@ -29,7 +29,10 @@ func (c *ConfigCommandFactory) newSetLangCommand(t *i18n.Translations, cfg *conf
 
 			cfg.Language = lang
 			if err := config.SaveConfig(cfg); err != nil {
-				return err
+				msg := t.GetMessage("config_save.error_saving_config", 0, map[string]interface{}{
+					"Error": err.Error(),
+				})
+				return fmt.Errorf("%s", msg)
 			}
 
 			fmt.Printf("%s\n", t.GetMessage("language_configured", 0, map[string]interface{}{"Lang": lang}))

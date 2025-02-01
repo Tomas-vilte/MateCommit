@@ -29,7 +29,9 @@ func NewGeminiService(ctx context.Context, cfg *config.Config, trans *i18n.Trans
 		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
 	}
 
-	model := client.GenerativeModel("gemini-1.5-flash")
+	modelName := string(cfg.AIConfig.Models[config.AIGemini])
+
+	model := client.GenerativeModel(modelName)
 	return &GeminiService{
 		client: client,
 		model:  model,

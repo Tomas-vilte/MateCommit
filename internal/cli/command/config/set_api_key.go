@@ -29,7 +29,10 @@ func (c *ConfigCommandFactory) newSetAPIKeyCommand(t *i18n.Translations, cfg *co
 
 			cfg.GeminiAPIKey = apiKey
 			if err := config.SaveConfig(cfg); err != nil {
-				return err
+				msg := t.GetMessage("config_save.error_saving_config", 0, map[string]interface{}{
+					"Error": err.Error(),
+				})
+				return fmt.Errorf("%s", msg)
 			}
 
 			fmt.Printf("%s\n", t.GetMessage("api.key_configured", 0, nil))
