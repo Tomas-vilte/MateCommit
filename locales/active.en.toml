@@ -25,9 +25,6 @@ other = "Language (en, es)"
 [suggest_no_emoji_flag_usage]
 other = "Disable emojis"
 
-[suggest_max_length_flag_usage]
-other = "Maximum message length"
-
 [no_staged_changes]
 other = "❌ No staged changes to commit.\nUse 'git add' to stage your changes first"
 
@@ -143,6 +140,7 @@ enable_ticket_command_usage = "Enable ticket integration"
 ticket_disabled_success = "Ticket integration has been disabled successfully"
 ticket_enabled_success = "Ticket integration has been enabled successfully"
 
+[config_save]
 error_saving_config = "Error saving configuration: {{.Error}}"
 
 [gemini_service]
@@ -169,3 +167,17 @@ missing_criteria_none = "✅ Missing Criteria: None"
 
 [suggestion_header]
 other = "=========[ Suggestion {{.Number}} ]========="
+
+[config_models]
+config_set_ai_active_usage = "Set the active AI for commit generation"
+config_set_ai_model_usage = "Set the model for a specific AI"
+error_missing_ai = "You must specify an AI"
+error_invalid_ai = "Invalid AI: {{.AI}}"
+error_missing_ai_or_model = "You must specify an AI and a model"
+config_set_ai_active_success = "Active AI set to: {{.AI}}"
+config_set_ai_model_success = "Model for {{.AI}} set to: {{.Model}}"
+config_available_ais = "Available AIs:"
+error_missing_model = "You must specify a model"
+error_invalid_model = "Invalid Model {{.Model}}"
+config_current_model_for_ai = "Current model for {{.AI}}: {{.Model}}"
+config_no_model_selected_for_ai = "No model selected for {{.AI}}"

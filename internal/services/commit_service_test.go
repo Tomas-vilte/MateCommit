@@ -129,10 +129,9 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		mockGit := new(MockGitService)
 		mockAI := new(MockAIProvider)
 		mockJiraService := new(MockJiraService)
-		cfgApp := &config.Config{UseTicket: true} // Asegúrate de que UseTicket esté configurado
+		cfgApp := &config.Config{UseTicket: true}
 
-		//mockGit.On("GetCurrentBranch").Return("feature/PROJ-1234-user-authentication", nil)
-		mockGit.On("GetChangedFiles").Return([]models.GitChange{}, nil) // Simular que no hay cambios
+		mockGit.On("GetChangedFiles").Return([]models.GitChange{}, nil)
 
 		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp)
 
@@ -142,7 +141,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		// assert
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
-		assert.EqualError(t, err, "no hay cambios detectados") // Verificar el mensaje de error
+		assert.EqualError(t, err, "no hay cambios detectados")
 
 		mockGit.AssertExpectations(t)
 	})
@@ -161,7 +160,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 			},
 		}
 		mockGit.On("GetChangedFiles").Return(changes, nil)
-		mockGit.On("GetDiff").Return("", errors.New("git error")) // Simular un error al obtener el diff
+		mockGit.On("GetDiff").Return("", errors.New("git error"))
 
 		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp)
 
@@ -181,7 +180,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		mockGit := new(MockGitService)
 		mockAI := new(MockAIProvider)
 		mockJiraService := new(MockJiraService)
-		cfgApp := &config.Config{UseTicket: true} // Asegúrate de que UseTicket esté configurado
+		cfgApp := &config.Config{UseTicket: true}
 
 		mockGit.On("GetChangedFiles").Return([]models.GitChange{{Path: "file1.go", Status: "M"}}, nil)
 		mockGit.On("GetDiff").Return("some diff", nil)
@@ -195,7 +194,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		// assert
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
-		assert.EqualError(t, err, "error al obtener el ID del ticket: no se encontró un ID de ticket en el nombre de la branch") // Verificar el mensaje de error
+		assert.EqualError(t, err, "error al obtener el ID del ticket: no se encontró un ID de ticket en el nombre de la branch")
 
 		mockGit.AssertExpectations(t)
 	})
@@ -235,10 +234,8 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		mockJiraService := new(MockJiraService)
 		cfgApp := &config.Config{UseTicket: true}
 
-		// Configurar el mock para manejar la llamada a GetCurrentBranch
 		mockGit.On("GetCurrentBranch").Return("feature/PROJ-1234-user-authentication", nil)
 
-		// Configurar el mock para manejar la llamada a GetTicketInfo
 		ticketInfo := &models.TicketInfo{
 			TicketID:    "PROJ-1234",
 			TicketTitle: "Implement user authentication",
@@ -247,7 +244,6 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		}
 		mockJiraService.On("GetTicketInfo", "PROJ-1234").Return(ticketInfo, nil)
 
-		// Simular la obtención de los archivos modificados y el diff
 		changes := []models.GitChange{{
 			Path:   "file1.go",
 			Status: "M",
@@ -255,7 +251,6 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		mockGit.On("GetChangedFiles").Return(changes, nil)
 		mockGit.On("GetDiff").Return("some diff", nil)
 
-		// Simular la generación de sugerencias de commit
 		expectedResponse := []models.CommitSuggestion{{
 			CommitTitle: "feat: implement user authentication",
 			Files:       []string{"file1.go"},
@@ -294,10 +289,8 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		mockJiraService := new(MockJiraService)
 		cfgApp := &config.Config{UseTicket: true}
 
-		// Configurar el mock para manejar la llamada a GetCurrentBranch
 		mockGit.On("GetCurrentBranch").Return("bugfix/PROJ-5678-fix-login", nil)
 
-		// Configurar el mock para manejar la llamada a GetTicketInfo
 		ticketInfo := &models.TicketInfo{
 			TicketID:    "PROJ-5678",
 			TicketTitle: "Fix login issue",
@@ -306,7 +299,6 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		}
 		mockJiraService.On("GetTicketInfo", "PROJ-5678").Return(ticketInfo, nil)
 
-		// Simular la obtención de los archivos modificados y el diff
 		changes := []models.GitChange{{
 			Path:   "file2.go",
 			Status: "M",
@@ -314,7 +306,6 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		mockGit.On("GetChangedFiles").Return(changes, nil)
 		mockGit.On("GetDiff").Return("some diff", nil)
 
-		// Simular la generación de sugerencias de commit
 		expectedResponse := []models.CommitSuggestion{{
 			CommitTitle: "fix: resolve login issue",
 			Files:       []string{"file2.go"},
@@ -353,10 +344,8 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		mockJiraService := new(MockJiraService)
 		cfgApp := &config.Config{UseTicket: true}
 
-		// Configurar el mock para manejar la llamada a GetCurrentBranch
 		mockGit.On("GetCurrentBranch").Return("hotfix/PROJ-9999-critical-bug", nil)
 
-		// Configurar el mock para manejar la llamada a GetTicketInfo
 		ticketInfo := &models.TicketInfo{
 			TicketID:    "PROJ-9999",
 			TicketTitle: "Fix critical bug",
@@ -365,7 +354,6 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		}
 		mockJiraService.On("GetTicketInfo", "PROJ-9999").Return(ticketInfo, nil)
 
-		// Simular la obtención de los archivos modificados y el diff
 		changes := []models.GitChange{{
 			Path:   "file3.go",
 			Status: "M",
@@ -373,7 +361,6 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		mockGit.On("GetChangedFiles").Return(changes, nil)
 		mockGit.On("GetDiff").Return("some diff", nil)
 
-		// Simular la generación de sugerencias de commit
 		expectedResponse := []models.CommitSuggestion{{
 			CommitTitle: "fix: resolve critical bug",
 			Files:       []string{"file3.go"},
@@ -412,10 +399,8 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		mockJiraService := new(MockJiraService)
 		cfgApp := &config.Config{UseTicket: true}
 
-		// Configurar el mock para manejar la llamada a GetCurrentBranch
 		mockGit.On("GetCurrentBranch").Return("release/PROJ-1000-final-release", nil)
 
-		// Configurar el mock para manejar la llamada a GetTicketInfo
 		ticketInfo := &models.TicketInfo{
 			TicketID:    "PROJ-1000",
 			TicketTitle: "Final release",
@@ -424,7 +409,6 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		}
 		mockJiraService.On("GetTicketInfo", "PROJ-1000").Return(ticketInfo, nil)
 
-		// Simular la obtención de los archivos modificados y el diff
 		changes := []models.GitChange{{
 			Path:   "file4.go",
 			Status: "M",
@@ -432,7 +416,6 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		mockGit.On("GetChangedFiles").Return(changes, nil)
 		mockGit.On("GetDiff").Return("some diff", nil)
 
-		// Simular la generación de sugerencias de commit
 		expectedResponse := []models.CommitSuggestion{{
 			CommitTitle: "chore: prepare for final release",
 			Files:       []string{"file4.go"},
@@ -469,18 +452,16 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		mockGit := new(MockGitService)
 		mockAI := new(MockAIProvider)
 		mockJiraService := new(MockJiraService)
-		cfgApp := &config.Config{UseTicket: true} // Asegúrate de que UseTicket esté configurado
+		cfgApp := &config.Config{UseTicket: true}
 
-		// Configurar el mock para manejar la llamada a GetCurrentBranch
-		mockGit.On("GetCurrentBranch").Return("main", nil) // Simular una rama sin ID de ticket
+		mockGit.On("GetCurrentBranch").Return("main", nil)
 
-		// Simular la obtención de los archivos modificados y el diff
 		changes := []models.GitChange{{
 			Path:   "file5.go",
 			Status: "M",
 		}}
-		mockGit.On("GetChangedFiles").Return(changes, nil) // Configurar el mock para GetChangedFiles
-		mockGit.On("GetDiff").Return("some diff", nil)     // Configurar el mock para GetDiff
+		mockGit.On("GetChangedFiles").Return(changes, nil)
+		mockGit.On("GetDiff").Return("some diff", nil)
 
 		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp)
 
@@ -502,10 +483,8 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		mockJiraService := new(MockJiraService)
 		cfgApp := &config.Config{UseTicket: true}
 
-		// Configurar el mock para manejar la llamada a GetCurrentBranch
 		mockGit.On("GetCurrentBranch").Return("custom/PROJ-2000-custom-feature", nil)
 
-		// Configurar el mock para manejar la llamada a GetTicketInfo
 		ticketInfo := &models.TicketInfo{
 			TicketID:    "PROJ-2000",
 			TicketTitle: "Custom feature",
@@ -514,7 +493,6 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		}
 		mockJiraService.On("GetTicketInfo", "PROJ-2000").Return(ticketInfo, nil)
 
-		// Simular la obtención de los archivos modificados y el diff
 		changes := []models.GitChange{{
 			Path:   "file5.go",
 			Status: "M",
@@ -522,7 +500,6 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		mockGit.On("GetChangedFiles").Return(changes, nil)
 		mockGit.On("GetDiff").Return("some diff", nil)
 
-		// Simular la generación de sugerencias de commit
 		expectedResponse := []models.CommitSuggestion{{
 			CommitTitle: "feat: add custom feature",
 			Files:       []string{"file5.go"},

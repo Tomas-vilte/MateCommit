@@ -42,7 +42,10 @@ func (c *ConfigCommandFactory) newSetJiraConfigCommand(t *i18n.Translations, cfg
 			cfg.JiraConfig.Email = email
 
 			if err := config.SaveConfig(cfg); err != nil {
-				return err
+				msg := t.GetMessage("config_save.error_saving_config", 0, map[string]interface{}{
+					"Error": err.Error(),
+				})
+				return fmt.Errorf("%s", msg)
 			}
 
 			fmt.Println(t.GetMessage("jira_config_command_usage.jira_config_success", 0, nil))

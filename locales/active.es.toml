@@ -25,9 +25,6 @@ other = "Idioma (en, es)"
 [suggest_no_emoji_flag_usage]
 other = "Desactivar emojis"
 
-[suggest_max_length_flag_usage]
-other = "Longitud máxima del mensaje"
-
 [no_staged_changes]
 other = "❌ No hay cambios preparados para commitear.\nUsá 'git add' para preparar tus cambios primero"
 
@@ -164,6 +161,7 @@ enable_ticket_command_usage = "Activar la integración de tickets"
 ticket_disabled_success = "La integración de tickets ha sido desactivada exitosamente"
 ticket_enabled_success = "La integración de tickets ha sido activada exitosamente"
 
+[config_save]
 error_saving_config = "Error al guardar la configuración: {{.Error}}"
 
 [gemini_service]
@@ -171,6 +169,7 @@ modified_files_prefix = "📄 Archivos modificados:"
 explanation_prefix = "Explicación:"
 requirements_analysis_prefix = "🎯 Análisis de Requerimientos:"
 criteria_status_prefix = "⚠️ Estado de los Criterios:"
+criteria_status_full = "⚠️  Estado de los Criterios: {{.Status}}"
 missing_criteria_prefix = "❌ Criterios Faltantes:"
 missing_criteria_none = "-"
 improvement_suggestions_prefix = "💡 Sugerencias de Mejora:"
@@ -185,3 +184,26 @@ primary_purpose_prefix = "- Propósito Principal:"
 technical_impact_prefix = "- Impacto Técnico:"
 suggestion_prefix = "=========\\[ Sugerencia\\s*\\d*\\s*\\]========="
 technical_analysis_section = "💭 Analisis Tecnico:"
+
+[suggestion_header]
+other = "=========[ Sugerencias {{.Number}} ]========="
+
+[config_models]
+config_set_ai_active_usage = "Establecer la IA activa para la generación de commits"
+config_set_ai_model_usage = "Establecer el modelo para una IA específica"
+error_missing_ai = "Debes especificar una IA"
+error_invalid_ai = "IA Invalida: {{.AI}}"
+error_missing_ai_or_model = "Tenes que especificar una IA y un modelo"
+config_set_ai_active_success = "IA activa configurada en: {{.AI}}"
+config_set_ai_model_success = "Modelo para {{.AI}} establecido en: {{.Model}}"
+config_available_ais = "IAs Disponibles:"
+error_missing_model = "Necesitas especificar un modelo"
+error_invalid_model = "Modelo invalido {{.Model}}"
+config_current_model_for_ai = "Modelo actual para {{.AI}}: {{.Model}}"
+config_no_model_selected_for_ai = "Ningún modelo seleccionado para {{.AI}}"
+ticket_service_enabled = "Servicio de tickets habilitado: {{.Service}}"
+ticket_service_disabled = "Servicio de tickets deshabilitado"
+jira_config_label = "Configuración de Jira - BaseURL: {{.BaseURL}}, Email: {{.Email}}"
+active_ai_label = "IA Activa: {{.IA}}"
+ai_models_label = "Modelos de IA configurados:"
+no_ai_models_configured = "No hay modelos de IA configurados"
