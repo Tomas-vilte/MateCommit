@@ -23,15 +23,19 @@ func (c *ConfigCommandFactory) newSetAIActiveCommand(t *i18n.Translations, cfg *
 				return fmt.Errorf("%s", msg)
 			}
 
+			var newActiveAI config.AI
 			switch config.AI(ai) {
 			case config.AIGemini, config.AIOpenAI:
-				cfg.AIConfig.ActiveAI = config.AI(ai)
+				newActiveAI = config.AI(ai)
 			default:
 				msg := t.GetMessage("config_models.error_invalid_ai", 0, map[string]interface{}{
 					"AI": ai,
 				})
 				return fmt.Errorf("%s", msg)
 			}
+
+			cfgCopy := *cfg
+			cfgCopy.AIConfig.ActiveAI = newActiveAI
 
 			if err := config.SaveConfig(cfg); err != nil {
 				msg := t.GetMessage("config_save.error_saving_config", 0, map[string]interface{}{
@@ -42,6 +46,8 @@ func (c *ConfigCommandFactory) newSetAIActiveCommand(t *i18n.Translations, cfg *
 			fmt.Println(t.GetMessage("config_models.config_set_ai_active_success", 0, map[string]interface{}{
 				"AI": ai,
 			}))
+
+			cfg.AIConfig.ActiveAI = newActiveAI
 			return nil
 		},
 	}
