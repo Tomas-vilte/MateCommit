@@ -23,7 +23,10 @@ func (c *ConfigCommandFactory) newSetTicketCommand(t *i18n.Translations, cfg *co
 					cfg.ActiveTicketService = ""
 
 					if err := config.SaveConfig(cfg); err != nil {
-						return fmt.Errorf(t.GetMessage("error_saving_config", 0, nil), err)
+						msg := t.GetMessage("config_save.error_saving_config", 0, map[string]interface{}{
+							"Error": err.Error(),
+						})
+						return fmt.Errorf("%s", msg)
 					}
 
 					fmt.Println(t.GetMessage("jira_config_command_usage.ticket_disabled_success", 0, nil))
@@ -38,7 +41,10 @@ func (c *ConfigCommandFactory) newSetTicketCommand(t *i18n.Translations, cfg *co
 					cfg.UseTicket = true
 
 					if err := config.SaveConfig(cfg); err != nil {
-						return fmt.Errorf(t.GetMessage("error_saving_config", 0, nil), err)
+						msg := t.GetMessage("config_save.error_saving_config", 0, map[string]interface{}{
+							"Error": err.Error(),
+						})
+						return fmt.Errorf("%s", msg)
 					}
 
 					fmt.Println(t.GetMessage("jira_config_command_usage.ticket_enabled_success", 0, nil))
