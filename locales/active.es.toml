@@ -207,3 +207,4 @@ jira_config_label = "Configuración de Jira - BaseURL: {{.BaseURL}}, Email: {{.E
 active_ai_label = "IA Activa: {{.IA}}"
 ai_models_label = "Modelos de IA configurados:"
 no_ai_models_configured = "No hay modelos de IA configurados"
+error_invalid_language = "Lenguaje invalido: {{.Language}}"
