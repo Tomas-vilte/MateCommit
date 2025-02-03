@@ -13,13 +13,13 @@ type (
 		GeminiAPIKey     string `json:"gemini_api_key"`
 		Language         string `json:"language"`
 		UseEmoji         bool   `json:"use_emoji"`
-		MaxLength        int    `json:"max_length"`
 		SuggestionsCount int    `json:"suggestions_count"`
 		PathFile         string `json:"path_file"`
 
 		ActiveTicketService string     `json:"active_ticket_service,omitempty"` // "jira", "trello", "github", etc.
 		JiraConfig          JiraConfig `json:"jira_config"`
 		UseTicket           bool       `json:"use_ticket,omitempty"`
+		AIConfig            AIConfig   `json:"ai_config"`
 	}
 
 	JiraConfig struct {
@@ -27,12 +27,16 @@ type (
 		BaseURL string `json:"base_url,omitempty"`
 		Email   string `json:"email,omitempty"`
 	}
+
+	AIConfig struct {
+		ActiveAI AI           `json:"active_ai"`
+		Models   map[AI]Model `json:"models"`
+	}
 )
 
 const (
 	defaultLang             = "en"
 	defaultUseEmoji         = true
-	defaultMaxLength        = 72
 	defaultSuggestionsCount = 3
 )
 
@@ -77,9 +81,12 @@ func createDefaultConfig(path string) (*Config, error) {
 	config := &Config{
 		Language:         defaultLang,
 		UseEmoji:         defaultUseEmoji,
-		MaxLength:        defaultMaxLength,
 		SuggestionsCount: defaultSuggestionsCount,
 		PathFile:         path,
+		AIConfig: AIConfig{
+			ActiveAI: AIGemini,
+			Models:   make(map[AI]Model),
+		},
 
 		JiraConfig: JiraConfig{
 			APIKey:  "",
@@ -129,11 +136,8 @@ func SaveConfig(config *Config) error {
 }
 
 func validateConfig(config *Config) error {
-	if config.MaxLength <= 0 {
-		return errors.New("MaxLength debe ser mayor que 0")
-	}
 	if config.Language == "" {
-		return errors.New("DefaultLang no puede estar vacío")
+		return errors.New("language no puede estar vacío")
 	}
 
 	if config.ActiveTicketService != "" {

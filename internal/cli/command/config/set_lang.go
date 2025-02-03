@@ -22,15 +22,35 @@ func (c *ConfigCommandFactory) newSetLangCommand(t *i18n.Translations, cfg *conf
 		},
 		Action: func(ctx context.Context, command *cli.Command) error {
 			lang := command.String("lang")
-			if lang != "en" && lang != "es" {
-				msg := t.GetMessage("unsupported_language", 0, nil)
+
+			supportedLanguages := []string{"en", "es"}
+			var validLang bool
+			for _, supportedLang := range supportedLanguages {
+				if lang == supportedLang {
+					validLang = true
+					break
+				}
+			}
+
+			if !validLang {
+				msg := t.GetMessage("config_models.error_invalid_language", 0, map[string]interface{}{
+					"Language": lang,
+				})
+				return fmt.Errorf("%s", msg)
+			}
+
+			cfgCopy := *cfg
+			cfgCopy.Language = lang
+
+			cfg.Language = lang
+			if err := config.SaveConfig(&cfgCopy); err != nil {
+				msg := t.GetMessage("config_save.error_saving_config", 0, map[string]interface{}{
+					"Error": err.Error(),
+				})
 				return fmt.Errorf("%s", msg)
 			}
 
 			cfg.Language = lang
-			if err := config.SaveConfig(cfg); err != nil {
-				return err
-			}
 
 			fmt.Printf("%s\n", t.GetMessage("language_configured", 0, map[string]interface{}{"Lang": lang}))
 			return nil
