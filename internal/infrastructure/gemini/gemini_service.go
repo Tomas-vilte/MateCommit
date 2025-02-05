@@ -119,6 +119,10 @@ func formatChanges(files []string) string {
 	return strings.Join(formattedFiles, "\n")
 }
 
+// formatResponse formatea la respuesta de la API de Gemini en una cadena.
+//
+// Itera a través de los candidatos en la respuesta y agrega el contenido de cada parte a un generador de cadenas.
+// Devuelve una cadena vacía si la respuesta o sus candidatos son nulos.
 func formatResponse(resp *genai.GenerateContentResponse) string {
 	if resp == nil || resp.Candidates == nil {
 		return ""
