@@ -20,7 +20,7 @@ func (m *mockCommandFactory) CreateCommand(t *i18n.Translations, cfg *config.Con
 func TestRegistry_Register(t *testing.T) {
 	t.Run("should register new factory successfully", func(t *testing.T) {
 		cfg := &config.Config{}
-		translations, err := i18n.NewTranslations("en", "../../../locales")
+		translations, err := i18n.NewTranslations("en", "../../i18n/locales")
 		assert.NoError(t, err)
 		registry := NewRegistry(cfg, translations)
 		factory := &mockCommandFactory{}
@@ -37,7 +37,7 @@ func TestRegistry_Register(t *testing.T) {
 	t.Run("should return error when registering duplicate factory", func(t *testing.T) {
 		// arrange
 		cfg := &config.Config{}
-		translations, err := i18n.NewTranslations("en", "../../../locales")
+		translations, err := i18n.NewTranslations("en", "../../i18n/locales")
 		assert.NoError(t, err)
 		registry := NewRegistry(cfg, translations)
 		factory := &mockCommandFactory{}
@@ -56,7 +56,7 @@ func TestRegistry_CreateCommands(t *testing.T) {
 	t.Run("should create commands from registered factories", func(t *testing.T) {
 		// Arrange
 		cfg := &config.Config{}
-		translations, err := i18n.NewTranslations("en", "../../../locales")
+		translations, err := i18n.NewTranslations("en", "../../i18n/locales")
 		assert.NoError(t, err)
 		registry := NewRegistry(cfg, translations)
 		factory1 := &mockCommandFactory{}
@@ -77,7 +77,7 @@ func TestRegistry_CreateCommands(t *testing.T) {
 	t.Run("should return empty slice when no factories registered", func(t *testing.T) {
 		// Arrange
 		cfg := &config.Config{}
-		translations, err := i18n.NewTranslations("en", "../../../locales")
+		translations, err := i18n.NewTranslations("en", "../../i18n/locales")
 		assert.NoError(t, err)
 		registry := NewRegistry(cfg, translations)
 
@@ -92,7 +92,7 @@ func TestNewRegistry(t *testing.T) {
 	t.Run("should create new registry with empty factories", func(t *testing.T) {
 		// Arrange
 		cfg := &config.Config{}
-		translations, err := i18n.NewTranslations("en", "../../../locales")
+		translations, err := i18n.NewTranslations("en", "../../i18n/locales")
 		assert.NoError(t, err)
 
 		// Act

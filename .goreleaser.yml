@@ -1,5 +1,3 @@
-version: 2
-
 before:
   hooks:
     - go mod tidy
@@ -13,6 +11,7 @@ builds:
     goos:
       - linux
       - windows
+      - darwin
     goarch:
       - amd64  # x86_64
       - arm64  # ARM 64-bit
@@ -23,7 +22,8 @@ builds:
       - -X main.date={{.Date}}
 
 archives:
-  - format: tar.gz
+  - id: default
+    format: tar.gz
     files:
       - locales/**
     name_template: >-
@@ -46,3 +46,5 @@ changelog:
       - '^test:'
       - Merge pull request
       - Merge branch
+
+version: 2

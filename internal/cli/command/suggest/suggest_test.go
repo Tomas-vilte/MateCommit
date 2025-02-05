@@ -47,7 +47,7 @@ func setupTestEnv(t *testing.T) (*config.Config, *i18n.Translations, func()) {
 		SuggestionsCount: 3, // Añadido el valor por defecto
 	}
 
-	translations, err := i18n.NewTranslations("es", "../../../../locales")
+	translations, err := i18n.NewTranslations("es", "../../../i18n/locales")
 	if err != nil {
 		t.Fatal(err)
 	}

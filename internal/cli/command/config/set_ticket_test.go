@@ -3,7 +3,6 @@ package config
 import (
 	"context"
 	"github.com/Tomas-vilte/MateCommit/internal/config"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli/v3"
 	"os"
@@ -12,30 +11,15 @@ import (
 )
 
 func TestSetTicketCommand(t *testing.T) {
-	translations, err := i18n.NewTranslations("es", "../../../../locales")
-	assert.NoError(t, err)
-
 	t.Run("should successfully enable ticket", func(t *testing.T) {
 		// Arrange
-		tmpDir, err := os.MkdirTemp("", "matecommit-test-*")
-		assert.NoError(t, err)
-		defer func() {
-			if err := os.RemoveAll(tmpDir); err != nil {
-				return
-			}
-		}()
-
-		tmpConfigPath := filepath.Join(tmpDir, "config.json")
-		cfg := &config.Config{
-			PathFile:  tmpConfigPath,
-			UseTicket: false,
-			Language:  "es",
-		}
+		cfg, translations, tmpConfigPath, cleanup := setupConfigTest(t)
+		defer cleanup()
 
 		cmd := NewConfigCommandFactory().newSetTicketCommand(translations, cfg)
 
 		// Act
-		err = cmd.Commands[1].Action(context.Background(), &cli.Command{})
+		err := cmd.Commands[1].Action(context.Background(), &cli.Command{})
 
 		// Assert
 		assert.NoError(t, err)
@@ -49,25 +33,14 @@ func TestSetTicketCommand(t *testing.T) {
 
 	t.Run("should successfully disable ticket", func(t *testing.T) {
 		// arrange
-		tmpDir, err := os.MkdirTemp("", "matecommit-test-*")
-		assert.NoError(t, err)
-		defer func() {
-			if err := os.RemoveAll(tmpDir); err != nil {
-				return
-			}
-		}()
-
-		tmpConfigPath := filepath.Join(tmpDir, "config.json")
-		cfg := &config.Config{
-			PathFile:  tmpConfigPath,
-			UseTicket: true,
-			Language:  "es",
-		}
+		cfg, translations, tmpConfigPath, cleanup := setupConfigTest(t)
+		cfg.UseTicket = true
+		defer cleanup()
 
 		cmd := NewConfigCommandFactory().newSetTicketCommand(translations, cfg)
 
 		// act
-		err = cmd.Commands[0].Action(context.Background(), &cli.Command{})
+		err := cmd.Commands[0].Action(context.Background(), &cli.Command{})
 
 		// assert
 		assert.NoError(t, err)
@@ -93,10 +66,9 @@ func TestSetTicketCommand(t *testing.T) {
 		assert.NoError(t, err)
 
 		// config inicial
-		cfg := &config.Config{
-			PathFile: tmpConfigPath,
-			Language: "es",
-		}
+		cfg, translations, _, cleanup := setupConfigTest(t)
+		cfg.PathFile = tmpConfigPath
+		defer cleanup()
 
 		factory := NewConfigCommandFactory()
 		cmd := factory.newSetTicketCommand(translations, cfg)
@@ -128,10 +100,9 @@ func TestSetTicketCommand(t *testing.T) {
 		assert.NoError(t, err)
 
 		// config inicial
-		cfg := &config.Config{
-			PathFile: tmpConfigPath,
-			Language: "es",
-		}
+		cfg, translations, _, cleanup := setupConfigTest(t)
+		cfg.PathFile = tmpConfigPath
+		defer cleanup()
 
 		factory := NewConfigCommandFactory()
 		cmd := factory.newSetTicketCommand(translations, cfg)

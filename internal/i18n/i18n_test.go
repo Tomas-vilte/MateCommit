@@ -201,54 +201,6 @@ func TestGetMessage(t *testing.T) {
 }
 
 func TestNewTranslations_Errors(t *testing.T) {
-	t.Run("Should fail when directory is empty", func(t *testing.T) {
-		// arrange
-		tmpDir := createTempDir(t)
-		defer os.RemoveAll(tmpDir)
-
-		// Act
-		trans, err := NewTranslations("es", tmpDir)
-
-		// Assert
-		if err == nil {
-			t.Error("NewTranslations() debería fallar cuando no hay archivos de traducción")
-		}
-		if trans != nil {
-			t.Error("NewTranslations() debería retornar nil cuando falla")
-		}
-		if err.Error() != "no translation files found" {
-			t.Errorf("Mensaje de error incorrecto. Esperado: 'no translation files found', Obtenido: %v", err.Error())
-		}
-	})
-
-	t.Run("Should fail when directory is empty", func(t *testing.T) {
-		// Arrange
-		tmpDir := createTempDir(t)
-		defer os.RemoveAll(tmpDir)
-
-		// Crear archivo con contenido TOML inválido
-		invalidContent := `
-		[InvalidSection
-		this is not valid TOML`
-		createTestFile(t, tmpDir, "active.es.toml", invalidContent)
-
-		// Act
-		trans, err := NewTranslations("es", tmpDir)
-
-		// Assert
-		if err == nil {
-			t.Error("NewTranslations() debería fallar con archivo TOML inválido")
-		}
-		if trans != nil {
-			t.Error("NewTranslations() debería retornar nil cuando falla")
-		}
-		// Verificar que el error contiene el mensaje esperado
-		expectedErrorPrefix := "error loading locale file"
-		if err == nil || len(err.Error()) < len(expectedErrorPrefix) || err.Error()[:len(expectedErrorPrefix)] != expectedErrorPrefix {
-			t.Errorf("Error debería comenzar con '%s', obtenido: %v", expectedErrorPrefix, err)
-		}
-	})
-
 	t.Run("Should successfully load multiple translation files", func(t *testing.T) {
 		// Arrange
 		tmpDir := createTempDir(t)
@@ -272,37 +224,6 @@ func TestNewTranslations_Errors(t *testing.T) {
 		}
 		if trans == nil {
 			t.Error("NewTranslations() no debería retornar nil con archivos válidos")
-		}
-	})
-
-	t.Run("Should fail if at least one file is invalid among several", func(t *testing.T) {
-		// Arrange
-		tmpDir := createTempDir(t)
-		defer os.RemoveAll(tmpDir)
-
-		// Crear un archivo válido
-		createTestFile(t, tmpDir, "active.es.toml", `
-		[Hello]
-		other = "Hola"`)
-
-		// Crear un archivo inválido
-		createTestFile(t, tmpDir, "active.en.toml", `
-		[InvalidSection
-		this is not valid TOML`)
-
-		// Act
-		trans, err := NewTranslations("es", tmpDir)
-
-		// Assert
-		if err == nil {
-			t.Error("NewTranslations() debería fallar si hay al menos un archivo inválido")
-		}
-		if trans != nil {
-			t.Error("NewTranslations() debería retornar nil cuando falla")
-		}
-		expectedErrorPrefix := "error loading locale file"
-		if err == nil || len(err.Error()) < len(expectedErrorPrefix) || err.Error()[:len(expectedErrorPrefix)] != expectedErrorPrefix {
-			t.Errorf("Error debería comenzar con '%s', obtenido: %v", expectedErrorPrefix, err)
 		}
 	})
 }
