@@ -20,7 +20,7 @@ func setupConfigTest(t *testing.T) (*config.Config, *i18n.Translations, string, 
 		Language: "es",
 	}
 
-	translations, err := i18n.NewTranslations("es", "../../../../locales")
+	translations, err := i18n.NewTranslations("es", "../../../../internal/i18n/locales")
 	assert.NoError(t, err)
 
 	cleanup := func() {

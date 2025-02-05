@@ -1,12 +1,17 @@
 package i18n
 
 import (
+	"embed"
 	"fmt"
 	"github.com/BurntSushi/toml"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"golang.org/x/text/language"
+	"os"
 	"path/filepath"
 )
+
+//go:embed locales/*
+var localesFS embed.FS
 
 type Translations struct {
 	bundle   *i18n.Bundle
@@ -18,22 +23,37 @@ func NewTranslations(defaultLang string, localesPath string) (*Translations, err
 		return nil, fmt.Errorf("default language cannot be empty")
 	}
 
-	files, err := filepath.Glob(filepath.Join(localesPath, "active.*.toml"))
-	if err != nil {
-		return nil, fmt.Errorf("no translation files found in directory: locales/")
+	var files []os.DirEntry
+	var err error
+
+	// Si localesPath está vacío, usamos el sistema embebido
+	if localesPath == "" {
+		files, err = readEmbeddedLocales()
+	} else {
+		files, err = readLocalesFromFileSystem(localesPath)
 	}
 
-	if len(files) == 0 {
-		return nil, fmt.Errorf("no translation files found")
+	if err != nil {
+		return nil, err
 	}
 
 	bundle := i18n.NewBundle(language.English)
 	bundle.RegisterUnmarshalFunc("toml", toml.Unmarshal)
 
+	// Cargar archivos de traducción
 	for _, file := range files {
-		if _, err := bundle.LoadMessageFile(file); err != nil {
-			return nil, fmt.Errorf("error loading locale file %s: %w", file, err)
+		var data []byte
+		if localesPath == "" {
+			data, err = localesFS.ReadFile(filepath.Join("locales", file.Name()))
+		} else {
+			data, err = os.ReadFile(filepath.Join(localesPath, file.Name()))
 		}
+
+		if err != nil {
+			return nil, fmt.Errorf("error reading file %s: %w", file.Name(), err)
+		}
+
+		bundle.MustParseMessageFileBytes(data, file.Name())
 	}
 
 	localize := i18n.NewLocalizer(bundle, defaultLang)
@@ -66,4 +86,12 @@ func (t *Translations) GetMessage(messageID string, count int, templateData map[
 		return "Translation missing: " + messageID
 	}
 	return localized
+}
+
+func readEmbeddedLocales() ([]os.DirEntry, error) {
+	return localesFS.ReadDir("locales")
+}
+
+func readLocalesFromFileSystem(localesPath string) ([]os.DirEntry, error) {
+	return os.ReadDir(localesPath)
 }

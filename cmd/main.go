@@ -41,7 +41,7 @@ func initializeApp() (*cli.Command, error) {
 		return nil, err
 	}
 
-	translations, err := i18n.NewTranslations(cfgApp.Language, "locales")
+	translations, err := i18n.NewTranslations(cfgApp.Language, "")
 	if err != nil {
 		log.Fatalf("Error loading translations: %v", err)
 	}
@@ -76,7 +76,7 @@ func initializeApp() (*cli.Command, error) {
 	return &cli.Command{
 		Name:        "mate-commit",
 		Usage:       translations.GetMessage("app_usage", 0, nil),
-		Version:     "1.0.0",
+		Version:     "1.1.0",
 		Description: translations.GetMessage("app_description", 0, nil),
 		Commands:    registerCommand.CreateCommands(),
 	}, nil
