@@ -60,7 +60,7 @@ func TestShowCommand(t *testing.T) {
 		cfg.JiraConfig = config.JiraConfig{
 			BaseURL: "https://example.atlassian.net",
 			Email:   "user@example.com",
-			APIKey:  os.Getenv("JIRA_API_KEY"),
+			APIKey:  "test-api-key",
 		}
 		cfg.AIConfig = config.AIConfig{
 			ActiveAI: config.AIGemini,

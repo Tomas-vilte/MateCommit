@@ -98,49 +98,14 @@ func (s *GeminiService) generatePrompt(locale string, info models.CommitInfo, co
 			strings.Join(info.TicketInfo.Criteria, ", "))
 	}
 
-	// Preparar el análisis de requerimientos
-	reqAnalysisTemplate := s.getRequirementsAnalysisTemplate(locale, info.TicketInfo != nil)
-
 	// El orden de los argumentos debe coincidir con los placeholders en el template
 	return fmt.Sprintf(promptTemplate,
 		count,                     // Primer %d
-		reqAnalysisTemplate,       // %s para el template de análisis
 		count,                     // Segundo %d
 		formatChanges(info.Files), // %s para archivos modificados
 		info.Diff,                 // %s para el diff
 		ticketInfo,                // %s para la información del ticket
 	)
-}
-
-// Función auxiliar para obtener el template de análisis de requerimientos
-func (s *GeminiService) getRequirementsAnalysisTemplate(locale string, hasTicket bool) string {
-	if hasTicket {
-		if locale == "es" {
-			return `⚠️ Estado de los Criterios: [completamente_cumplidos/parcialmente_cumplidos/no_cumplidos]
-            ❌ Criterios Faltantes:
-               - [Lista detallada de criterios no implementados o parcialmente implementados]
-            💡 Sugerencias de Mejora:
-               - [Lista de mejoras específicas para cumplir los criterios]`
-		}
-		return `⚠️ Criteria Status: [fully_met/partially_met/not_met]
-            ❌ Missing Criteria:
-               - [Detailed list of non-implemented or partially implemented criteria]
-            💡 Improvement Suggestions:
-               - [List of specific improvements to meet criteria]`
-	}
-
-	if locale == "es" {
-		return `💭 Análisis Técnico:
-            - Calidad del Código: [Evaluación de la calidad y claridad del código]
-            - Mejores Prácticas: [Análisis de adherencia a mejores prácticas]
-            💡 Sugerencias de Mejora:
-               - [Lista de mejoras técnicas recomendadas]`
-	}
-	return `💭 Technical Analysis:
-            - Code Quality: [Evaluation of code quality and clarity]
-            - Best Practices: [Analysis of adherence to best practices]
-            💡 Improvement Suggestions:
-               - [List of recommended technical improvements]`
 }
 
 func formatChanges(files []string) string {
