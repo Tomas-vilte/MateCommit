@@ -24,7 +24,7 @@ Commit: refactor: Mejoras en la presentación de sugerencias y configuración de
 Explicación: Se mejoró la salida de sugerencias y el manejo de errores en la configuración de Jira.
 
 🎯 Análisis de Criterios de Aceptación:
-⚠️ Estado de los Criterios: Parcialmente cumplidos
+⚠️ Estado de los Criterios: Cumplimiento Parcial
 ❌ Criterios Faltantes:
    - Conexión a la API de Jira
    - Extracción de Tickets
