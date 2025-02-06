@@ -96,8 +96,14 @@ func (s *GitService) CreateCommit(message string) error {
 }
 
 func (s *GitService) AddFileToStaging(file string) error {
-	cmd := exec.Command("git", "add", file)
-	return cmd.Run()
+	cmd := exec.Command("git", "add", "--all", "--", file)
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("error al agregar '%s': %v → %s", file, err, strings.TrimSpace(stderr.String()))
+	}
+	return nil
 }
 
 func (s *GitService) GetCurrentBranch() (string, error) {
