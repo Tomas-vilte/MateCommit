@@ -370,15 +370,19 @@ func TestAddFileToStaging(t *testing.T) {
 		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
 			return
 		}
-		err := service.AddFileToStaging(testFile)
-		err = service.CreateCommit("Commit inicial")
+		if err := service.AddFileToStaging(testFile); err != nil {
+			t.Fatalf("Error al agregar archivo al staging: %v", err)
+		}
+		if err := service.CreateCommit("Commit inicial"); err != nil {
+			t.Fatalf("Error al crear commit inicial: %v", err)
+		}
 
 		// Eliminar y agregar al staging
 		if err := os.Remove(testFile); err != nil {
 			return
 		}
-		err = service.AddFileToStaging(testFile)
-		if err != nil {
+
+		if err := service.AddFileToStaging(testFile); err != nil {
 			t.Fatalf("Error inesperado: %v", err)
 		}
 
@@ -432,15 +436,18 @@ func TestAddFileToStaging(t *testing.T) {
 		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
 			return
 		}
-		err := service.AddFileToStaging(".")
-		err = service.CreateCommit("Commit inicial")
+		if err := service.AddFileToStaging(testFile); err != nil {
+			t.Fatalf("Error al agregar archivo al staging: %v", err)
+		}
+		if err := service.CreateCommit("Commit inicial"); err != nil {
+			t.Fatalf("Error al crear commit inicial: %v", err)
+		}
 
 		if err := os.RemoveAll(filepath.Dir(testFile)); err != nil {
 			return
 		}
 
-		err = service.AddFileToStaging(testFile)
-		if err != nil {
+		if err := service.AddFileToStaging(testFile); err != nil {
 			t.Fatalf("Error inesperado: %v", err)
 		}
 
