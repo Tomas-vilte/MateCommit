@@ -76,7 +76,7 @@ func initializeApp() (*cli.Command, error) {
 	return &cli.Command{
 		Name:        "mate-commit",
 		Usage:       translations.GetMessage("app_usage", 0, nil),
-		Version:     "1.1.0",
+		Version:     "1.1.1",
 		Description: translations.GetMessage("app_description", 0, nil),
 		Commands:    registerCommand.CreateCommands(),
 	}, nil
