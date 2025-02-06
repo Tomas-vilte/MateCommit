@@ -334,3 +334,120 @@ func TestGitService(t *testing.T) {
 		}
 	})
 }
+
+func TestAddFileToStaging(t *testing.T) {
+	t.Run("AddNewFile", func(t *testing.T) {
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		service := NewGitService()
+		testFile := "newfile.txt"
+		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+			return
+		}
+
+		err := service.AddFileToStaging(testFile)
+		if err != nil {
+			t.Fatalf("Error inesperado: %v", err)
+		}
+
+		// verificar staging
+		cmd := exec.Command("git", "diff", "--cached", "--name-status")
+		output, _ := cmd.Output()
+		if !strings.Contains(string(output), "A\t"+testFile) {
+			t.Error("Archivo nuevo no agregado correctamente")
+		}
+	})
+
+	t.Run("Add deleted file", func(t *testing.T) {
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		service := NewGitService()
+		testFile := "deleted.txt"
+
+		// Crear y committear archivo
+		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+			return
+		}
+		err := service.AddFileToStaging(testFile)
+		err = service.CreateCommit("Commit inicial")
+
+		// Eliminar y agregar al staging
+		if err := os.Remove(testFile); err != nil {
+			return
+		}
+		err = service.AddFileToStaging(testFile)
+		if err != nil {
+			t.Fatalf("Error inesperado: %v", err)
+		}
+
+		// Verificar eliminación en staging
+		cmd := exec.Command("git", "diff", "--cached", "--name-status")
+		output, _ := cmd.Output()
+		if !strings.Contains(string(output), "D\t"+testFile) {
+			t.Error("Eliminación no registrada en staging")
+		}
+	})
+
+	t.Run("Non-existent file", func(t *testing.T) {
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		service := NewGitService()
+		err := service.AddFileToStaging("fantasma.txt")
+
+		if err == nil {
+			t.Error("Se esperaba error")
+		}
+
+		expectedMessages := []string{
+			"did not match any files",
+			"no concordó con ningún archivo",
+		}
+
+		match := false
+		for _, msg := range expectedMessages {
+			if strings.Contains(err.Error(), msg) {
+				match = true
+				break
+			}
+		}
+
+		if !match {
+			t.Errorf("Mensaje incorrecto. Se obtuvo: %v", err)
+		}
+	})
+
+	t.Run("Add file in deleted directory", func(t *testing.T) {
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		service := NewGitService()
+		testFile := "dir1/dir2/archivos.txt"
+
+		if err := os.MkdirAll(filepath.Dir(testFile), 0755); err != nil {
+			return
+		}
+		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+			return
+		}
+		err := service.AddFileToStaging(".")
+		err = service.CreateCommit("Commit inicial")
+
+		if err := os.RemoveAll(filepath.Dir(testFile)); err != nil {
+			return
+		}
+
+		err = service.AddFileToStaging(testFile)
+		if err != nil {
+			t.Fatalf("Error inesperado: %v", err)
+		}
+
+		cmd := exec.Command("git", "diff", "--cached", "--name-status")
+		output, _ := cmd.Output()
+		if !strings.Contains(string(output), "D\t"+testFile) {
+			t.Error("La eliminación no se registró en staging")
+		}
+	})
+}
