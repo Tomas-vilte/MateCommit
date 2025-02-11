@@ -1,7 +1,32 @@
-package gemini
+package ai
 
+// Templates para Pull Requests
 const (
-	// Template en inglés con ticket
+	prPromptTemplateEN = `Please generate a concise and clear summary of this Pull Request.
+	The summary should include:
+	- The main changes made
+	- The purpose of the changes
+	- Any significant technical impact
+	
+	PR Content:
+	%s
+	
+	Please structure the summary in a professional and clear manner.`
+
+	prPromptTemplateES = `Por favor, genera un resumen conciso y claro de este Pull Request.
+	El resumen debe incluir:
+	- Los cambios principales realizados
+	- El propósito de los cambios
+	- Cualquier impacto técnico significativo
+	
+	Contenido del PR:
+	%s
+	
+	Por favor, estructura el resumen de manera profesional y clara.`
+)
+
+// Templates para Commits con ticket
+const (
 	promptTemplateWithTicketEN = `
     Instructions:
     1. Generate %d commit message suggestions based on the provided code changes and ticket information.
@@ -60,54 +85,6 @@ const (
     %s
     `
 
-	// Template en inglés sin ticket
-	promptTemplateWithoutTicketEN = `
-    Instructions:
-    1. Generate %d commit message suggestions based on the provided code changes.
-    2. Each suggestion MUST follow the format defined in the "Suggestion Format" section.
-    3. Analyze code changes in detail to provide accurate suggestions.
-    4. Focus on technical aspects, best practices, code quality and impact on maintainability/performance.
-    5. Use appropriate commit types:
-        - feat: New features
-        - fix: Bug fixes
-        - refactor: Code restructuring
-        - test: Adding or modifying tests
-        - docs: Documentation updates
-        - chore: Maintenance tasks
-    6. Keep commit messages under 100 characters.
-    7. Provide specific, actionable improvement suggestions.
-
-    Suggestion Format:
-    =========[ Suggestion ]=========
-    [number]. [Ordinal] suggestion:
-    🔍 Analyzing changes...
-    
-    📊 Code Analysis:
-    - Changes Overview: [Brief overview of what changed in the code]
-    - Primary Purpose: [Main goal of these changes]
-    - Technical Impact: [How these changes affect the codebase]
-    
-    📝 Suggestions:
-    ━━━━━━━━━━━━━━━━━━━━━━━
-    Commit: [type]: [message]
-    📄 Modified files:
-       - [list of modified files, separated by newline and indented]
-    Explanation: [commit explanation]
-    
-    💭 Technical Analysis:
-    %s
-    ━━━━━━━━━━━━━━━━━━━━━━━
-
-    Now, generate %d similar suggestions based on the following information.
-
-    Modified files:
-    %s
-    
-    Diff:
-    %s
-    `
-
-	// Template en español con ticket
 	promptTemplateWithTicketES = `
     Instrucciones:
     1. Generá %d sugerencias de mensajes de commit basadas en los cambios de código proporcionados y la información del ticket.
@@ -165,7 +142,10 @@ const (
     Información del Ticket:
     %s
     `
+)
 
+// Templates para Commits sin ticket
+const (
 	// Template en español sin ticket
 	promptTemplateWithoutTicketES = `
     Instrucciones:
@@ -212,4 +192,74 @@ const (
     Diff:
     %s
     `
+
+	promptTemplateWithoutTicketEN = `
+    Instructions:
+    1. Generate %d commit message suggestions based on the provided code changes.
+    2. Each suggestion MUST follow the format defined in the "Suggestion Format" section.
+    3. Analyze code changes in detail to provide accurate suggestions.
+    4. Focus on technical aspects, best practices, code quality and impact on maintainability/performance.
+    5. Use appropriate commit types:
+        - feat: New features
+        - fix: Bug fixes
+        - refactor: Code restructuring
+        - test: Adding or modifying tests
+        - docs: Documentation updates
+        - chore: Maintenance tasks
+    6. Keep commit messages under 100 characters.
+    7. Provide specific, actionable improvement suggestions.
+
+    Suggestion Format:
+    =========[ Suggestion ]=========
+    [number]. [Ordinal] suggestion:
+    🔍 Analyzing changes...
+    
+    📊 Code Analysis:
+    - Changes Overview: [Brief overview of what changed in the code]
+    - Primary Purpose: [Main goal of these changes]
+    - Technical Impact: [How these changes affect the codebase]
+    
+    📝 Suggestions:
+    ━━━━━━━━━━━━━━━━━━━━━━━
+    Commit: [type]: [message]
+    📄 Modified files:
+       - [list of modified files, separated by newline and indented]
+    Explanation: [commit explanation]
+    
+    💭 Technical Analysis:
+    %s
+    ━━━━━━━━━━━━━━━━━━━━━━━
+
+    Now, generate %d similar suggestions based on the following information.
+
+    Modified files:
+    %s
+    
+    Diff:
+    %s
+    `
 )
+
+// GetPRPromptTemplate devuelve el template adecuado según el idioma
+func GetPRPromptTemplate(lang string) string {
+	switch lang {
+	case "es":
+		return prPromptTemplateES
+	default:
+		return prPromptTemplateEN
+	}
+}
+
+// GetCommitPromptTemplate devuelve el template para commits según el idioma y si hay ticket
+func GetCommitPromptTemplate(lang string, hasTicket bool) string {
+	switch {
+	case lang == "es" && hasTicket:
+		return promptTemplateWithTicketES
+	case lang == "es" && !hasTicket:
+		return promptTemplateWithoutTicketES
+	case hasTicket:
+		return promptTemplateWithTicketEN
+	default:
+		return promptTemplateWithoutTicketEN
+	}
+}

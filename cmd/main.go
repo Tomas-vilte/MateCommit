@@ -9,7 +9,7 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/cli/registry"
 	cfg "github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
-	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/gemini"
+	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/ai/gemini"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/git"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/tickets/jira"
 	"github.com/Tomas-vilte/MateCommit/internal/services"

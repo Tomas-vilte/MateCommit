@@ -41,7 +41,7 @@ func TestGeminiService(t *testing.T) {
 			GeminiAPIKey: "",
 		}
 
-		trans, err := i18n.NewTranslations("es", "../../i18n/locales/")
+		trans, err := i18n.NewTranslations("es", "../../../i18n/locales/")
 		assert.NoError(t, err)
 
 		// act
@@ -64,7 +64,7 @@ func TestGeminiService(t *testing.T) {
 			GeminiAPIKey: "test-api-key",
 		}
 
-		trans, err := i18n.NewTranslations("es", "../../i18n/locales/")
+		trans, err := i18n.NewTranslations("es", "../../../i18n/locales/")
 		if err != nil {
 			t.Fatalf("Error al crear el traductor: %v", err)
 		}
@@ -98,7 +98,7 @@ func TestGeminiService(t *testing.T) {
 			GeminiAPIKey: "test-api-key",
 		}
 
-		trans, err := i18n.NewTranslations("es", "../../i18n/locales/")
+		trans, err := i18n.NewTranslations("es", "../../../i18n/locales/")
 		if err != nil {
 			t.Fatalf("Error creando traductor: %v", err)
 		}
@@ -131,7 +131,7 @@ func TestGeminiService(t *testing.T) {
 			GeminiAPIKey: "test-api-key",
 		}
 
-		trans, err := i18n.NewTranslations("es", "../../i18n/locales/")
+		trans, err := i18n.NewTranslations("es", "../../../i18n/locales/")
 		assert.NoError(t, err)
 		service, err := NewGeminiService(ctx, cfg, trans)
 		assert.NoError(t, err)
@@ -206,7 +206,7 @@ func TestGeminiService(t *testing.T) {
 			GeminiAPIKey: "test-api-key",
 		}
 
-		trans, err := i18n.NewTranslations("es", "../../i18n/locales/")
+		trans, err := i18n.NewTranslations("es", "../../../i18n/locales/")
 		assert.NoError(t, err)
 		service, err := NewGeminiService(ctx, cfg, trans)
 		assert.NoError(t, err)
@@ -238,7 +238,7 @@ func TestGeminiService(t *testing.T) {
 			GeminiAPIKey: "test-api-key",
 		}
 
-		trans, err := i18n.NewTranslations("en", "../../i18n/locales/")
+		trans, err := i18n.NewTranslations("es", "../../../i18n/locales/")
 		assert.NoError(t, err)
 		service, err := NewGeminiService(ctx, cfg, trans)
 		assert.NoError(t, err)
@@ -270,7 +270,7 @@ func TestGeminiService(t *testing.T) {
 			GeminiAPIKey: "test-api-key",
 		}
 
-		trans, err := i18n.NewTranslations("en", "../../i18n/locales/")
+		trans, err := i18n.NewTranslations("es", "../../../i18n/locales/")
 		assert.NoError(t, err)
 		service, err := NewGeminiService(ctx, cfg, trans)
 		assert.NoError(t, err)
