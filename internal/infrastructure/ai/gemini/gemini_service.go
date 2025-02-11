@@ -6,6 +6,7 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
+	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/ai"
 	"github.com/google/generative-ai-go/genai"
 	"google.golang.org/api/option"
 	"regexp"
@@ -70,24 +71,7 @@ func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.Com
 }
 
 func (s *GeminiService) generatePrompt(locale string, info models.CommitInfo, count int) string {
-	var promptTemplate string
-
-	// Seleccionar el template según el idioma y si hay un ticket
-	if info.TicketInfo != nil && info.TicketInfo.TicketTitle != "" {
-		switch locale {
-		case "es":
-			promptTemplate = promptTemplateWithTicketES
-		default:
-			promptTemplate = promptTemplateWithTicketEN
-		}
-	} else {
-		switch locale {
-		case "es":
-			promptTemplate = promptTemplateWithoutTicketES
-		default:
-			promptTemplate = promptTemplateWithoutTicketEN
-		}
-	}
+	promptTemplate := ai.GetCommitPromptTemplate(locale, info.TicketInfo != nil && info.TicketInfo.TicketTitle != "")
 
 	// Preparar la información del ticket si existe
 	ticketInfo := ""

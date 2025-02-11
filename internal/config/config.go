@@ -20,6 +20,8 @@ type (
 		JiraConfig          JiraConfig `json:"jira_config"`
 		UseTicket           bool       `json:"use_ticket,omitempty"`
 		AIConfig            AIConfig   `json:"ai_config"`
+
+		GitHubConfig GitHubConfig `json:"github_config"`
 	}
 
 	JiraConfig struct {
@@ -31,6 +33,12 @@ type (
 	AIConfig struct {
 		ActiveAI AI           `json:"active_ai"`
 		Models   map[AI]Model `json:"models"`
+	}
+
+	GitHubConfig struct {
+		GitHubToken string `json:"github_token,omitempty"`
+		GitHubOwner string `json:"github_owner,omitempty"`
+		GitHubRepo  string `json:"github_repo,omitempty"`
 	}
 )
 
