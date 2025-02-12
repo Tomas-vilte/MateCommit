@@ -227,7 +227,7 @@ func setupTestConfig(t *testing.T) TestConfig {
 	conf := TestConfig{
 		GithubToken:  os.Getenv("GITHUB_TOKEN"),
 		GithubOwner:  "Tomas-vilte",
-		GithubRepo:   "MateCommit",
+		GithubRepo:   "ButakeroMusicBotGo",
 		GeminiAPIKey: os.Getenv("GEMINI_API_KEY"),
 		PRNumber:     272,
 	}
