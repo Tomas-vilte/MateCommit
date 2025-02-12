@@ -1,8 +1,11 @@
 package ports
 
-import "context"
+import (
+	"context"
+	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
+)
 
 // PRService define la interfaz para el servicio de resumen de Pull Requests.
 type PRService interface {
-	SummarizePR(ctx context.Context, prNumber int) (string, error)
+	SummarizePR(ctx context.Context, prNumber int) (models.PRSummary, error)
 }

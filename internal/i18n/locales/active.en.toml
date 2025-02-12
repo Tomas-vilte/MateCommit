@@ -182,3 +182,23 @@ error_invalid_model = "Invalid Model {{.Model}}"
 config_current_model_for_ai = "Current model for {{.AI}}: {{.Model}}"
 config_no_model_selected_for_ai = "No model selected for {{.AI}}"
 error_invalid_language = "Invalid Language: {{.Language}}"
+
+[error]
+get_labels = "Error getting labels"
+create_label = "Error creating label '{{.label}}'"
+update_pr = "Error updating PR #{{.pr_number}}"
+get_pr = "Error getting PR #{{.pr_number}}"
+get_commits = "Error getting commits for PR #{{.pr_number}}"
+get_diff = "Error getting diff for PR #{{.pr_number}}"
+get_repo_labels = "Error getting repository labels"
+add_labels = "Error adding labels to PR #{{.pr_number}}"
+
+[label]
+feature = "New features"
+fix = "Bug fixes"
+docs = "Documentation changes"
+refactor = "Code refactoring"
+test = "Testing and coverage"
+infra = "Infrastructure and DevOps"
+hotfix = "Critical fixes"
+default = "Label: {{.label}}"

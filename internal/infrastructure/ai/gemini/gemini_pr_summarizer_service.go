@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"github.com/Tomas-vilte/MateCommit/internal/config"
+	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/ai"
 	"github.com/google/generative-ai-go/genai"
 	"google.golang.org/api/option"
+	"strings"
+	"unicode/utf8"
 )
 
 type GeminiPRSummarizer struct {
@@ -39,28 +42,83 @@ func NewGeminiPRSummarizer(ctx context.Context, cfg *config.Config, trans *i18n.
 	}, nil
 }
 
-func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prompt string) (string, error) {
+func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prompt string) (models.PRSummary, error) {
 	if prompt == "" {
 		msg := gps.trans.GetMessage("error_empty_prompt", 0, nil)
-		return "", fmt.Errorf("%s", msg)
+		return models.PRSummary{}, fmt.Errorf("%s", msg)
 	}
 
 	formattedPrompt := gps.generatePRPrompt(prompt)
 
 	resp, err := gps.model.GenerateContent(ctx, genai.Text(formattedPrompt))
 	if err != nil {
-		return "", err
+		return models.PRSummary{}, err
 	}
 
-	summary := formatResponse(resp)
-	if summary == "" {
-		return "", fmt.Errorf("error vacio")
+	rawSummary := formatResponse(resp)
+	if rawSummary == "" {
+		return models.PRSummary{}, fmt.Errorf("respuesta vacía de la IA")
 	}
 
-	return summary, nil
+	return parseSummary(rawSummary)
 }
 
 func (gps *GeminiPRSummarizer) generatePRPrompt(prContent string) string {
 	template := ai.GetPRPromptTemplate(gps.config.Language)
 	return fmt.Sprintf(template, prContent)
+}
+
+func parseSummary(raw string) (models.PRSummary, error) {
+	summary := models.PRSummary{}
+	raw = strings.ReplaceAll(raw, "## ", "##")
+	sections := strings.Split(raw, "##")
+
+	// Extraer título
+	for _, sec := range sections {
+		if strings.HasPrefix(sec, "Título del PR") {
+			lines := strings.SplitN(sec, "\n", 2)
+			if len(lines) > 1 {
+				summary.Title = strings.TrimSpace(lines[1])
+				break
+			}
+		}
+	}
+
+	// Extraer etiquetas
+	for _, sec := range sections {
+		if strings.HasPrefix(sec, "Etiquetas sugeridas") {
+			lines := strings.SplitN(sec, "\n", 2)
+			if len(lines) > 1 {
+				labels := strings.Split(lines[1], ",")
+				for _, l := range labels {
+					cleaned := strings.TrimSpace(l)
+					if cleaned != "" {
+						summary.Labels = append(summary.Labels, cleaned)
+					}
+				}
+			}
+		}
+	}
+
+	// Extraer body
+	var bodyParts []string
+	for _, sec := range sections {
+		if strings.HasPrefix(sec, "Cambios clave") {
+			lines := strings.SplitN(sec, "\n", 2)
+			if len(lines) > 1 {
+				bodyParts = append(bodyParts, strings.TrimSpace(lines[1]))
+			}
+		}
+	}
+	summary.Body = strings.Join(bodyParts, "\n\n")
+
+	if summary.Title == "" {
+		return summary, fmt.Errorf("no se encontró el título en la respuesta")
+	}
+
+	if utf8.RuneCountInString(summary.Title) > 80 {
+		summary.Title = string([]rune(summary.Title)[:77]) + "..."
+	}
+
+	return summary, nil
 }
