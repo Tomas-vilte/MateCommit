@@ -24,16 +24,16 @@ func setupTestConfig(t *testing.T) TestConfig {
 
 	conf := TestConfig{
 		GithubToken:  os.Getenv("GITHUB_TOKEN"),
-		GithubOwner:  os.Getenv("GITHUB_OWNER"),
-		GithubRepo:   os.Getenv("GITHUB_REPO"),
+		GithubOwner:  "Tomas-vilte",
+		GithubRepo:   "MateCommit",
 		GeminiAPIKey: os.Getenv("GEMINI_API_KEY"),
 		PRNumber:     272,
 	}
 
-	require.NotEmpty(t, conf.GithubToken, "GITHUB_TOKEN environment variable is required")
-	require.NotEmpty(t, conf.GithubOwner, "GITHUB_OWNER environment variable is required")
-	require.NotEmpty(t, conf.GithubRepo, "GITHUB_REPO environment variable is required")
-	require.NotEmpty(t, conf.GeminiAPIKey, "GEMINI_API_KEY environment variable is required")
+	require.NotEmpty(t, conf.GithubToken, "GITHUB_TOKEN falta esto")
+	require.NotEmpty(t, conf.GithubOwner, "GITHUB_OWNER falta esto")
+	require.NotEmpty(t, conf.GithubRepo, "GITHUB_REPO falta esto")
+	require.NotEmpty(t, conf.GeminiAPIKey, "GEMINI_API_KEY falta esto")
 
 	return conf
 }
@@ -41,10 +41,14 @@ func setupTestConfig(t *testing.T) TestConfig {
 func setupServices(t *testing.T, testConfig TestConfig) (*PRService, error) {
 	t.Helper()
 
+	trans, err := i18n.NewTranslations("es", "../i18n/locales/")
+	require.NoError(t, err)
+
 	githubClient := github.NewGitHubClient(
 		testConfig.GithubOwner,
 		testConfig.GithubRepo,
 		testConfig.GithubToken,
+		trans,
 	)
 
 	cfg := &config.Config{
@@ -57,15 +61,13 @@ func setupServices(t *testing.T, testConfig TestConfig) (*PRService, error) {
 		},
 	}
 
-	trans, _ := i18n.NewTranslations("es", "../i18n/locales/")
-
 	ctx := context.Background()
 	geminiSummarizer, err := gemini.NewGeminiPRSummarizer(ctx, cfg, trans)
 	if err != nil {
 		return nil, err
 	}
 
-	prService := NewPRService(githubClient, geminiSummarizer, trans)
+	prService := NewPRService(githubClient, geminiSummarizer)
 
 	return prService, nil
 }
@@ -73,7 +75,7 @@ func setupServices(t *testing.T, testConfig TestConfig) (*PRService, error) {
 func TestPRService_SummarizePR_Integration(t *testing.T) {
 	t.Skip("omitir test")
 	if testing.Short() {
-		t.Skip("Skipping integration test in short mode")
+		t.Skip("saltar a modo corto")
 	}
 
 	testConfig := setupTestConfig(t)

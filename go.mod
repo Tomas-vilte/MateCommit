@@ -5,9 +5,11 @@ go 1.23.0
 require (
 	github.com/BurntSushi/toml v1.4.0
 	github.com/google/generative-ai-go v0.19.0
+	github.com/google/go-github v17.0.0+incompatible
 	github.com/nicksnyder/go-i18n/v2 v2.4.1
 	github.com/stretchr/testify v1.9.0
 	github.com/urfave/cli/v3 v3.0.0-beta1
+	golang.org/x/oauth2 v0.21.0
 	golang.org/x/text v0.19.0
 	google.golang.org/api v0.186.0
 )
@@ -25,7 +27,6 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
-	github.com/google/go-github v17.0.0+incompatible // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/s2a-go v0.1.7 // indirect
 	github.com/google/uuid v1.6.0 // indirect
@@ -41,7 +42,6 @@ require (
 	go.opentelemetry.io/otel/trace v1.26.0 // indirect
 	golang.org/x/crypto v0.24.0 // indirect
 	golang.org/x/net v0.26.0 // indirect
-	golang.org/x/oauth2 v0.21.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
 	golang.org/x/sys v0.21.0 // indirect
 	golang.org/x/time v0.5.0 // indirect

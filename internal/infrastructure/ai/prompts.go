@@ -13,16 +13,23 @@ const (
 	
 	Please structure the summary in a professional and clear manner.`
 
-	prPromptTemplateES = `Por favor, genera un resumen conciso y claro de este Pull Request.
-	El resumen debe incluir:
-	- Los cambios principales realizados
-	- El propósito de los cambios
-	- Cualquier impacto técnico significativo
+	prPromptTemplateES = `Che, armame un resumen de este PR con:
+
+	## Título del PR
+	Un título corto (máx 80 caracteres). Ej: "fix: Error al cargar imágenes"
+	
+	## Cambios clave
+	- Los 3 cambios principales
+	- El propósito de cada uno
+	- Impacto técnico si aplica
+	
+	## Etiquetas sugeridas
+	Separadas por coma. Opciones: feature, fix, refactor, docs, infra, test. Ej: fix,infra
 	
 	Contenido del PR:
 	%s
 	
-	Por favor, estructura el resumen de manera profesional y clara.`
+	¡Gracias máquina!`
 )
 
 // Templates para Commits con ticket

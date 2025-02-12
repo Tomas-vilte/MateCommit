@@ -196,3 +196,23 @@ active_ai_label = "IA Activa: {{.IA}}"
 ai_models_label = "Modelos de IA configurados:"
 no_ai_models_configured = "No hay modelos de IA configurados"
 error_invalid_language = "Lenguaje invalido: {{.Language}}"
+
+[error]
+get_labels = "Error al obtener las etiquetas"
+create_label = "Error al crear la etiqueta '{{.label}}'"
+update_pr = "Error al actualizar el PR #{{.pr_number}}"
+get_pr = "Error al obtener el PR #{{.pr_number}}"
+get_commits = "Error al obtener los commits del PR #{{.pr_number}}"
+get_diff = "Error al obtener el diff del PR #{{.pr_number}}"
+get_repo_labels = "Error al obtener las etiquetas del repo"
+add_labels = "Error al añadir las etiquetas al repo #{{.pr_number}}"
+
+[label]
+feature = "Nuevas funcionalidades"
+fix = "Correcciones de errores"
+docs = "Cambios en documentación"
+refactor = "Reestructuración de código"
+test = "Pruebas y coverage"
+infra = "Infraestructura y DevOps"
+hotfix = "Correcciones críticas"
+default = "Etiqueta: {{.label}}"
