@@ -28,7 +28,6 @@ func (c *ConfigCommandFactory) newShowCommand(t *i18n.Translations, cfg *config.
 				fmt.Println(t.GetMessage("api.key_set", 0, nil))
 			}
 
-			// Imprimir el servicio de tickets activo
 			if cfg.UseTicket {
 				fmt.Printf("%s\n", t.GetMessage("config_models.ticket_service_enabled", 0, map[string]interface{}{"Service": cfg.ActiveTicketService}))
 				if cfg.ActiveTicketService == "jira" {
@@ -41,10 +40,8 @@ func (c *ConfigCommandFactory) newShowCommand(t *i18n.Translations, cfg *config.
 				fmt.Println(t.GetMessage("config_models.ticket_service_disabled", 0, nil))
 			}
 
-			// Imprimir la IA activa
 			fmt.Printf("%s\n", t.GetMessage("config_models.active_ai_label", 0, map[string]interface{}{"IA": cfg.AIConfig.ActiveAI}))
 
-			// Imprimir los modelos configurados para cada IA
 			if len(cfg.AIConfig.Models) > 0 {
 				fmt.Println(t.GetMessage("config_models.ai_models_label", 0, nil))
 				for ai, model := range cfg.AIConfig.Models {

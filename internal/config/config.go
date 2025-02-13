@@ -21,7 +21,8 @@ type (
 		UseTicket           bool       `json:"use_ticket,omitempty"`
 		AIConfig            AIConfig   `json:"ai_config"`
 
-		GitHubConfig GitHubConfig `json:"github_config"`
+		VCSConfigs        map[string]VCSConfig `json:"vcs_configs"`
+		ActiveVCSProvider string               `json:"active_vcs_provider,omitempty"`
 	}
 
 	JiraConfig struct {
@@ -34,11 +35,12 @@ type (
 		ActiveAI AI           `json:"active_ai"`
 		Models   map[AI]Model `json:"models"`
 	}
-
-	GitHubConfig struct {
-		GitHubToken string `json:"github_token,omitempty"`
-		GitHubOwner string `json:"github_owner,omitempty"`
-		GitHubRepo  string `json:"github_repo,omitempty"`
+	
+	VCSConfig struct {
+		Provider string `json:"provider"` // github o gitlab lo que se te cante
+		Token    string `json:"token,omitempty"`
+		Owner    string `json:"owner,omitempty"`
+		Repo     string `json:"repo,omitempty"`
 	}
 )
 

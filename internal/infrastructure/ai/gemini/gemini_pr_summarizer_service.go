@@ -60,7 +60,7 @@ func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prompt str
 		return models.PRSummary{}, fmt.Errorf("respuesta vacía de la IA")
 	}
 
-	return parseSummary(rawSummary)
+	return gps.parseSummary(rawSummary)
 }
 
 func (gps *GeminiPRSummarizer) generatePRPrompt(prContent string) string {
@@ -68,14 +68,16 @@ func (gps *GeminiPRSummarizer) generatePRPrompt(prContent string) string {
 	return fmt.Sprintf(template, prContent)
 }
 
-func parseSummary(raw string) (models.PRSummary, error) {
+func (gps *GeminiPRSummarizer) parseSummary(raw string) (models.PRSummary, error) {
 	summary := models.PRSummary{}
 	raw = strings.ReplaceAll(raw, "## ", "##")
 	sections := strings.Split(raw, "##")
+	titleKey := gps.trans.GetMessage("gemini_service.pr_title_section", 0, nil)
+	labelsKey := gps.trans.GetMessage("gemini_service.pr_labels_section", 0, nil)
+	changesKey := gps.trans.GetMessage("gemini_service.pr_changes_section", 0, nil)
 
-	// Extraer título
 	for _, sec := range sections {
-		if strings.HasPrefix(sec, "Título del PR") {
+		if strings.HasPrefix(sec, titleKey) {
 			lines := strings.SplitN(sec, "\n", 2)
 			if len(lines) > 1 {
 				summary.Title = strings.TrimSpace(lines[1])
@@ -84,9 +86,8 @@ func parseSummary(raw string) (models.PRSummary, error) {
 		}
 	}
 
-	// Extraer etiquetas
 	for _, sec := range sections {
-		if strings.HasPrefix(sec, "Etiquetas sugeridas") {
+		if strings.HasPrefix(sec, labelsKey) {
 			lines := strings.SplitN(sec, "\n", 2)
 			if len(lines) > 1 {
 				labels := strings.Split(lines[1], ",")
@@ -100,10 +101,9 @@ func parseSummary(raw string) (models.PRSummary, error) {
 		}
 	}
 
-	// Extraer body
 	var bodyParts []string
 	for _, sec := range sections {
-		if strings.HasPrefix(sec, "Cambios clave") {
+		if strings.HasPrefix(sec, changesKey) {
 			lines := strings.SplitN(sec, "\n", 2)
 			if len(lines) > 1 {
 				bodyParts = append(bodyParts, strings.TrimSpace(lines[1]))
