@@ -26,6 +26,8 @@ func (c *ConfigCommandFactory) CreateCommand(t *i18n.Translations, cfg *config.C
 			c.newSetTicketCommand(t, cfg),
 			c.newSetAIActiveCommand(t, cfg),
 			c.newSetAIModelCommand(t, cfg),
+			c.newSetActiveVCSCommand(t, cfg),
+			c.newSetVCSConfigCommand(t, cfg),
 		},
 	}
 }
