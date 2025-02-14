@@ -2,16 +2,23 @@ package ai
 
 // Templates para Pull Requests
 const (
-	prPromptTemplateEN = `Please generate a concise and clear summary of this Pull Request.
-	The summary should include:
-	- The main changes made
-	- The purpose of the changes
-	- Any significant technical impact
+	prPromptTemplateEN = `Hey, could you whip up a summary for this PR with:
+
+	## PR Title
+	A short title (max 80 chars). Example: "fix: Image loading error"
+	
+	## Key Changes
+	- The 3 main changes
+	- Purpose of each one
+	- Technical impact if applicable
+	
+	## Suggested Tags
+	Comma-separated. Options: feature, fix, refactor, docs, infra, test. Example: fix,infra
 	
 	PR Content:
 	%s
 	
-	Please structure the summary in a professional and clear manner.`
+	Thanks a bunch, you rock!`
 
 	prPromptTemplateES = `Che, armame un resumen de este PR con:
 
