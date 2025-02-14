@@ -172,9 +172,9 @@ primary_purpose_prefix = "- Propósito Principal:"
 technical_impact_prefix = "- Impacto Técnico:"
 suggestion_prefix = "=========\\[ Sugerencia\\s*\\d*\\s*\\]========="
 technical_analysis_section = "💭 Analisis Tecnico:"
-pr_title_section = "Titulo del PR"
 pr_labels_section = "Etiquetas sugeridas"
-pr_changes_section = "Cambios Clave"
+pr_changes_section = "Cambios clave"
+context_additional = "Ninguno"
 
 [suggestion_header]
 other = "=========[ Sugerencias {{.Number}} ]========="

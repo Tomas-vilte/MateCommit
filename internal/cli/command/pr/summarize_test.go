@@ -16,8 +16,8 @@ type MockPRService struct {
 	mock.Mock
 }
 
-func (m *MockPRService) SummarizePR(ctx context.Context, prNumber int) (models.PRSummary, error) {
-	args := m.Called(ctx, prNumber)
+func (m *MockPRService) SummarizePR(ctx context.Context, prNumber int, contextAdditional string) (models.PRSummary, error) {
+	args := m.Called(ctx, prNumber, contextAdditional)
 	return args.Get(0).(models.PRSummary), args.Error(1)
 }
 
@@ -50,7 +50,7 @@ func TestSummarizeCommand(t *testing.T) {
 			Title: "Test PR",
 		}
 
-		mockPRService.On("SummarizePR", mock.Anything, prNumber).Return(summary, nil)
+		mockPRService.On("SummarizePR", mock.Anything, prNumber, mock.AnythingOfType("string")).Return(summary, nil)
 
 		cmd := NewSummarizeCommand(mockPRService).CreateCommand(translations, cfg)
 		app := cmd
@@ -105,7 +105,7 @@ func TestSummarizeCommand(t *testing.T) {
 		prNumber := 123
 		mockError := fmt.Errorf("service error")
 
-		mockPRService.On("SummarizePR", mock.Anything, prNumber).Return(models.PRSummary{}, mockError)
+		mockPRService.On("SummarizePR", mock.Anything, prNumber, mock.AnythingOfType("string")).Return(models.PRSummary{}, mockError)
 
 		cmd := NewSummarizeCommand(mockPRService).CreateCommand(translations, cfg)
 		app := cmd

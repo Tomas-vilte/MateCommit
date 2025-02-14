@@ -45,20 +45,27 @@ func (c *SummarizeCommand) CreateCommand(t *i18n.Translations, cfg *cfg.Config) 
 				Usage:    t.GetMessage("vcs_summary.pr_number_usage", 0, nil),
 				Required: true,
 			},
+			&cli.StringFlag{
+				Name:    "context",
+				Aliases: []string{"c"},
+				Usage:   t.GetMessage("vcs_summary.additional_context_usage", 0, nil),
+				Value:   "",
+			},
 		},
 		Action: func(ctx context.Context, command *cli.Command) error {
 			prNumber := command.Int("pr-number")
 			repo := command.String("repo")
+			additionalContext := command.String("context")
 
 			if repo == "" || prNumber == 0 {
 				return fmt.Errorf("%s", t.GetMessage("error.no_repo_configured", 0, nil))
 			}
-			
+
 			if _, _, err := parseRepo(repo); err != nil {
 				return fmt.Errorf(t.GetMessage("error.invalid_repo_format", 0, nil)+": %w", err)
 			}
 
-			summary, err := c.prService.SummarizePR(ctx, int(prNumber))
+			summary, err := c.prService.SummarizePR(ctx, int(prNumber), additionalContext)
 			if err != nil {
 				return fmt.Errorf(t.GetMessage("error.pr_summary_error", 0, nil)+": %w", err)
 			}

@@ -164,9 +164,9 @@ technical_analysis_section = "💭 Technical Analysis:"
 improvement_suggestions_label = "Suggested Improvements:"
 criteria_status_full = "⚠️  Criteria Status: {{.Status}}"
 missing_criteria_none = "✅ Missing Criteria: None"
-pr_title_section = "PR Title"
 pr_labels_section = "Suggested Tags"
 pr_changes_section = "Key Changes"
+context_additional = "None"
 
 [suggestion_header]
 other = "=========[ Suggestion {{.Number}} ]========="

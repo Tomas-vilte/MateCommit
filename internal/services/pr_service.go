@@ -19,7 +19,7 @@ func NewPRService(vcsClient ports.VCSClient, aiService ports.PRSummarizer) *PRSe
 	}
 }
 
-func (s *PRService) SummarizePR(ctx context.Context, prNumber int) (models.PRSummary, error) {
+func (s *PRService) SummarizePR(ctx context.Context, prNumber int, contextAdditional string) (models.PRSummary, error) {
 	prData, err := s.vcsClient.GetPR(ctx, prNumber)
 	if err != nil {
 		return models.PRSummary{}, fmt.Errorf("hubo un error al obtener el pr: %w", err)
@@ -27,7 +27,7 @@ func (s *PRService) SummarizePR(ctx context.Context, prNumber int) (models.PRSum
 
 	prompt := s.buildPRPrompt(prData)
 
-	summary, err := s.aiService.GeneratePRSummary(ctx, prompt)
+	summary, err := s.aiService.GeneratePRSummary(ctx, prompt, contextAdditional)
 	if err != nil {
 		return models.PRSummary{}, fmt.Errorf("hubo un error al crear el resumen del pull requests: %w", err)
 	}

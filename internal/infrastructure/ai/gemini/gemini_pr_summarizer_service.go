@@ -42,13 +42,13 @@ func NewGeminiPRSummarizer(ctx context.Context, cfg *config.Config, trans *i18n.
 	}, nil
 }
 
-func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prompt string) (models.PRSummary, error) {
+func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prompt, contextAdditional string) (models.PRSummary, error) {
 	if prompt == "" {
 		msg := gps.trans.GetMessage("error_empty_prompt", 0, nil)
 		return models.PRSummary{}, fmt.Errorf("%s", msg)
 	}
 
-	formattedPrompt := gps.generatePRPrompt(prompt)
+	formattedPrompt := gps.generatePRPrompt(prompt, contextAdditional)
 
 	resp, err := gps.model.GenerateContent(ctx, genai.Text(formattedPrompt))
 	if err != nil {
@@ -63,26 +63,26 @@ func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prompt str
 	return gps.parseSummary(rawSummary)
 }
 
-func (gps *GeminiPRSummarizer) generatePRPrompt(prContent string) string {
+func (gps *GeminiPRSummarizer) generatePRPrompt(prContent, contextAdditional string) string {
 	template := ai.GetPRPromptTemplate(gps.config.Language)
-	return fmt.Sprintf(template, prContent)
+	if contextAdditional == "" {
+		contextAdditional = gps.trans.GetMessage("gemini_service.context_additional", 0, nil)
+	}
+	return fmt.Sprintf(template, prContent, contextAdditional)
 }
 
 func (gps *GeminiPRSummarizer) parseSummary(raw string) (models.PRSummary, error) {
 	summary := models.PRSummary{}
 	raw = strings.ReplaceAll(raw, "## ", "##")
 	sections := strings.Split(raw, "##")
-	titleKey := gps.trans.GetMessage("gemini_service.pr_title_section", 0, nil)
 	labelsKey := gps.trans.GetMessage("gemini_service.pr_labels_section", 0, nil)
 	changesKey := gps.trans.GetMessage("gemini_service.pr_changes_section", 0, nil)
 
 	for _, sec := range sections {
-		if strings.HasPrefix(sec, titleKey) {
-			lines := strings.SplitN(sec, "\n", 2)
-			if len(lines) > 1 {
-				summary.Title = strings.TrimSpace(lines[1])
-				break
-			}
+		lines := strings.SplitN(sec, "\n", 2)
+		if len(lines) > 1 {
+			summary.Title = strings.TrimSpace(lines[0])
+			break
 		}
 	}
 

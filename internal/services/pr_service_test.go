@@ -48,8 +48,8 @@ type MockPRSummarizer struct {
 	mock.Mock
 }
 
-func (m *MockPRSummarizer) GeneratePRSummary(ctx context.Context, prompt string) (models.PRSummary, error) {
-	args := m.Called(ctx, prompt)
+func (m *MockPRSummarizer) GeneratePRSummary(ctx context.Context, prompt, contextAdditional string) (models.PRSummary, error) {
+	args := m.Called(ctx, prompt, contextAdditional)
 	return args.Get(0).(models.PRSummary), args.Error(1)
 }
 
@@ -78,13 +78,13 @@ func TestPRService_SummarizePR_Success(t *testing.T) {
 	}
 
 	mockVCS.On("GetPR", ctx, prNumber).Return(prData, nil)
-	mockAI.On("GeneratePRSummary", ctx, mock.AnythingOfType("string")).Return(expectedSummary, nil)
+	mockAI.On("GeneratePRSummary", ctx, mock.AnythingOfType("string"), "context").Return(expectedSummary, nil)
 	mockVCS.On("UpdatePR", ctx, prNumber, expectedSummary).Return(nil)
 
 	service := NewPRService(mockVCS, mockAI)
 
 	// Act
-	result, err := service.SummarizePR(ctx, prNumber)
+	result, err := service.SummarizePR(ctx, prNumber, "context")
 
 	// Assert
 	assert.NoError(t, err)
@@ -107,7 +107,7 @@ func TestPRService_SummarizePR_GetPRError(t *testing.T) {
 	service := NewPRService(mockVCS, mockAI)
 
 	// act
-	_, err := service.SummarizePR(ctx, prNumber)
+	_, err := service.SummarizePR(ctx, prNumber, "")
 
 	// assert
 	assert.ErrorContains(t, err, "hubo un error al obtener el pr")
@@ -133,12 +133,12 @@ func TestPRService_SummarizePR_GenerateError(t *testing.T) {
 	expectedError := errors.New("AI failure")
 
 	mockVCS.On("GetPR", ctx, prNumber).Return(prData, nil)
-	mockAI.On("GeneratePRSummary", ctx, mock.Anything).Return(models.PRSummary{}, expectedError)
+	mockAI.On("GeneratePRSummary", ctx, mock.Anything, mock.Anything).Return(models.PRSummary{}, expectedError)
 
 	service := NewPRService(mockVCS, mockAI)
 
 	// Act
-	_, err := service.SummarizePR(ctx, prNumber)
+	_, err := service.SummarizePR(ctx, prNumber, "")
 
 	// Assert
 	assert.ErrorContains(t, err, "hubo un error al crear el resumen del pull requests")
@@ -170,12 +170,12 @@ func TestPRService_SummarizePR_UpdateError(t *testing.T) {
 	expectedError := errors.New("update failed")
 
 	mockVCS.On("GetPR", ctx, prNumber).Return(prData, nil)
-	mockAI.On("GeneratePRSummary", ctx, mock.Anything).Return(summary, nil)
+	mockAI.On("GeneratePRSummary", ctx, mock.Anything, mock.Anything).Return(summary, nil)
 	mockVCS.On("UpdatePR", ctx, prNumber, summary).Return(expectedError)
 
 	service := NewPRService(mockVCS, mockAI)
 
-	_, err := service.SummarizePR(ctx, prNumber)
+	_, err := service.SummarizePR(ctx, prNumber, "")
 
 	assert.ErrorContains(t, err, "hubo un error al actualizar el pull requests")
 	assert.ErrorIs(t, err, expectedError)
@@ -284,7 +284,7 @@ func TestPRService_SummarizePR_Integration(t *testing.T) {
 
 	t.Run("should successfully summarize a real PR", func(t *testing.T) {
 		ctx := context.Background()
-		summary, err := prService.SummarizePR(ctx, testConfig.PRNumber)
+		summary, err := prService.SummarizePR(ctx, testConfig.PRNumber, "")
 
 		require.NoError(t, err)
 		require.NotEmpty(t, summary)

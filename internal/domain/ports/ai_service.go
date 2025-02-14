@@ -12,5 +12,5 @@ type AIProvider interface {
 // PRSummarizer define la interfaz para los servicios que resumen Pull Requests.
 type PRSummarizer interface {
 	// GeneratePRSummary genera un resumen de un Pull Request dado un prompt.
-	GeneratePRSummary(ctx context.Context, prompt string) (models.PRSummary, error)
+	GeneratePRSummary(ctx context.Context, prompt, contextAdditional string) (models.PRSummary, error)
 }

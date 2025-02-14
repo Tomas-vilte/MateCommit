@@ -7,5 +7,5 @@ import (
 
 // PRService define la interfaz para el servicio de resumen de Pull Requests.
 type PRService interface {
-	SummarizePR(ctx context.Context, prNumber int) (models.PRSummary, error)
+	SummarizePR(ctx context.Context, prNumber int, contextAdditional string) (models.PRSummary, error)
 }

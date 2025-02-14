@@ -2,41 +2,71 @@ package ai
 
 // Templates para Pull Requests
 const (
-	prPromptTemplateEN = `Hey, could you whip up a summary for this PR with:
+	prPromptTemplateEN = `Hey, could you create a PR summary following this **Markdown format**?
 
+	**Response Format:**
+	
 	## PR Title
-	A short title (max 80 chars). Example: "fix: Image loading error"
+	A **short, descriptive title** (max 80 chars) capturing the PR's essence. Example: "fix: Image loading error". **Ensure the title is informative even without reading the full summary.**
 	
 	## Key Changes
-	- The 3 main changes
-	- Purpose of each one
-	- Technical impact if applicable
+	Describe **the 3 most significant changes** in the PR. For each change, include:
+	- **Change Description:** What was modified?
+	- **Purpose of Change:** Why was this done? What problem does it solve or improvement does it introduce?
+	- **Technical Impact (if relevant):** How does this affect the codebase, architecture, or performance?
+	
+	**Focus on changes most relevant to understanding the PR's main goal and impact.** Avoid minor implementation details.
 	
 	## Suggested Tags
-	Comma-separated. Options: feature, fix, refactor, docs, infra, test. Example: fix,infra
+	Comma-separated **relevant tags** from: feature, fix, refactor, docs, infra, test. Example: fix,infra. **Select tags that best represent the changes.**
 	
-	PR Content:
+	**Additional Context (user-provided):**
 	%s
 	
-	Thanks a bunch, you rock!`
+	**PR Content (Diff):**
+	%s
+	
+	**Instructions:**
+	* **Prioritize important and relevant information.** Avoid unnecessary details.
+	* **Be concise and clear in each section.** Use precise language, avoid excessive jargon.
+	* **Ensure the summary is understandable to someone unfamiliar with code details.**
+	* **Use "Additional Context" (if provided) to guide key changes selection and enrich explanations.**
+	
+	Thanks a ton! You're awesome!`
 
-	prPromptTemplateES = `Che, armame un resumen de este PR con:
+	prPromptTemplateES = `Che, necesito que me **devuelvas la respuesta en el siguiente formato Markdown**:
 
+	**Formato de la Respuesta:**
+	
 	## Título del PR
-	Un título corto (máx 80 caracteres). Ej: "fix: Error al cargar imágenes"
+	Un título **breve y descriptivo** (máx 80 caracteres) que capture la esencia del PR.  Ej: "fix: Error al cargar imágenes". **Procura que el título sea informativo incluso sin leer el resto del resumen.**
 	
 	## Cambios clave
-	- Los 3 cambios principales
-	- El propósito de cada uno
-	- Impacto técnico si aplica
+	Describe **los 3 cambios más importantes y significativos** del PR.  Para cada cambio, incluye **brevemente**:
+	- **Descripción del cambio:** ¿Qué se modificó?
+	- **Propósito del cambio:** ¿Por qué se hizo este cambio? ¿Qué problema resuelve o qué mejora introduce?
+	- **Impacto técnico (si aplica y es relevante):**  ¿Cómo afecta este cambio a la base de código, la arquitectura o el rendimiento?
+	
+	**Prioriza los cambios que sean más relevantes para entender el objetivo principal del PR y su impacto.**  Evita detalles de implementación menores.
 	
 	## Etiquetas sugeridas
-	Separadas por coma. Opciones: feature, fix, refactor, docs, infra, test. Ej: fix,infra
+	Lista de etiquetas **relevantes y concisas**, separadas por coma.  Opciones: feature, fix, refactor, docs, infra, test.  Ej: fix,infra. **Selecciona las etiquetas que mejor representen el tipo de cambios realizados en el PR.**
 	
-	Contenido del PR:
+	**Contexto adicional (opcional, proporcionado por el usuario):**
 	%s
 	
-	¡Gracias máquina!`
+	**Contenido del PR (Diff):**
+	%s
+	
+	**Instrucciones adicionales:**
+	
+	*   **Concéntrate en la información más importante y relevante.**  Evita detalles innecesarios.
+	*   **Sé conciso y claro en cada sección.**  Utiliza lenguaje preciso y evita jerga técnica excesiva a menos que sea necesario.
+	*   **Asegúrate de que el resumen sea comprensible para alguien que no esté familiarizado con los detalles del código.**
+	*   **Si se proporciona "Contexto adicional", úsalo para guiar la selección de los "Cambios clave" y para enriquecer la "Explicación" de cada cambio.**
+	
+	¡Gracias máquina!
+`
 )
 
 // Templates para Commits con ticket
