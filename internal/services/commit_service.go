@@ -29,7 +29,6 @@ func NewCommitService(git ports.GitService, ai ports.AIProvider, jiraService por
 func (s *CommitService) GenerateSuggestions(ctx context.Context, count int) ([]models.CommitSuggestion, error) {
 	var commitInfo models.CommitInfo
 
-	// Obtener los cambios en el código
 	changes, err := s.git.GetChangedFiles()
 	if err != nil {
 		return nil, err
@@ -72,7 +71,6 @@ func (s *CommitService) GenerateSuggestions(ctx context.Context, count int) ([]m
 		commitInfo.TicketInfo = ticketInfo
 	}
 
-	// Generar sugerencias de commit usando la IA
 	return s.ai.GenerateSuggestions(ctx, commitInfo, count)
 }
 
