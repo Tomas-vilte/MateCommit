@@ -38,7 +38,7 @@ other = "❌ Error al iniciar Gemini: {{.Error}}"
 other = "🔍 Analizando cambios..."
 
 [error_missing_api_key]
-other = "La variable de entorno, GEMINI_API_KEY no esta configurada"
+other = "La GEMINI_API_KEY no está configurada"
 
 [error_generating_content]
 other = "Error generando el contenido: {{.Error}}"
@@ -178,6 +178,7 @@ pr_changes_section = "Cambios Clave"
 error_gemini_client = "Error al crear el cliente de Gemini: {{.Error}}"
 response_empty = "Respuesta de la IA vacia"
 title_not_found = "No se encontro el titulo en la respuesta"
+error_empty_prompt = "El prompt no puede estar vacio"
 
 [suggestion_header]
 other = "=========[ Sugerencias {{.Number}} ]========="

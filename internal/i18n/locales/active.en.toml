@@ -170,6 +170,7 @@ pr_changes_section = "Key Changes"
 error_gemini_client = "Error creating Gemini client: {{.Error}}"
 response_empty = "Empty AI response"
 title_not_found = "The title was not found in the answer"
+error_empty_prompt = "The prompt cannot be empty"
 
 [suggestion_header]
 other = "=========[ Suggestion {{.Number}} ]========="
