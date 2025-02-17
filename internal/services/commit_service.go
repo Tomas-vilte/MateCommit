@@ -12,13 +12,13 @@ import (
 
 type CommitService struct {
 	git           ports.GitService
-	ai            ports.AIProvider
+	ai            ports.CommitSummarizer
 	ticketManager ports.TickerManager
 	config        *config.Config
 	trans         *i18n.Translations
 }
 
-func NewCommitService(git ports.GitService, ai ports.AIProvider, ticketManager ports.TickerManager, cfg *config.Config, trans *i18n.Translations) *CommitService {
+func NewCommitService(git ports.GitService, ai ports.CommitSummarizer, ticketManager ports.TickerManager, cfg *config.Config, trans *i18n.Translations) *CommitService {
 	return &CommitService{
 		git:           git,
 		ai:            ai,
