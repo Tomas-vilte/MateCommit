@@ -175,6 +175,9 @@ technical_analysis_section = "💭 Analisis Tecnico:"
 pr_title_section = "Titulo del PR"
 pr_labels_section = "Etiquetas sugeridas"
 pr_changes_section = "Cambios Clave"
+error_gemini_client = "Error al crear el cliente de Gemini: {{.Error}}"
+response_empty = "Respuesta de la IA vacia"
+title_not_found = "No se encontro el titulo en la respuesta"
 
 [suggestion_header]
 other = "=========[ Sugerencias {{.Number}} ]========="
@@ -238,3 +241,17 @@ config_vcs_updated = "Configuración del proveedor VCS '{{.Provider}}' actualiza
 config_set_active_vcs_usage = "Establecer el proveedor VCS activo"
 config_set_active_vcs_provider_usage = "Nombre del proveedor VCS a establecer como activo"
 config_active_vcs_updated = "Proveedor VCS activo establecido a '{{.Provider}}'"
+
+[commit_service]
+undetected_changes = "No hay cambios detectados"
+error_getting_diff = "Error al obtener los cambios: {{.Error}}"
+no_differences_detected = "No se detectaron diferencias en los archivos"
+error_get_id_ticket = "Error al obtener el ID del ticket: {{.Error}}"
+error_get_ticket_info = "Error al obtener informacion del ticket: {{.Error}}"
+ticket_id_not_found_branch = "No se encontro un ID de ticket en el nombre de la branch"
+error_get_name_from_branch = "Error al obtener el nombre de la branch: {{.Error}}"
+
+[pr_service]
+error_get_pr = "Error al obtener el PR: {{.Error}}"
+error_create_summary_pr = "Error al crear el resumen del PR: {{.Error}}"
+error_update_pr = "Error al actualizar el PR: {{.Error}}"

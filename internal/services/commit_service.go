@@ -2,50 +2,56 @@ package services
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
+	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"regexp"
 )
 
 type CommitService struct {
-	git         ports.GitService
-	ai          ports.AIProvider
-	jiraService ports.TickerManager
-	config      *config.Config
+	git           ports.GitService
+	ai            ports.AIProvider
+	ticketManager ports.TickerManager
+	config        *config.Config
+	trans         *i18n.Translations
 }
 
-func NewCommitService(git ports.GitService, ai ports.AIProvider, jiraService ports.TickerManager, cfg *config.Config) *CommitService {
+func NewCommitService(git ports.GitService, ai ports.AIProvider, ticketManager ports.TickerManager, cfg *config.Config, trans *i18n.Translations) *CommitService {
 	return &CommitService{
-		git:         git,
-		ai:          ai,
-		jiraService: jiraService,
-		config:      cfg,
+		git:           git,
+		ai:            ai,
+		ticketManager: ticketManager,
+		config:        cfg,
+		trans:         trans,
 	}
 }
 
 func (s *CommitService) GenerateSuggestions(ctx context.Context, count int) ([]models.CommitSuggestion, error) {
 	var commitInfo models.CommitInfo
 
-	// Obtener los cambios en el código
 	changes, err := s.git.GetChangedFiles()
 	if err != nil {
 		return nil, err
 	}
 
 	if len(changes) == 0 {
-		return nil, fmt.Errorf("no hay cambios detectados")
+		msg := s.trans.GetMessage("commit_service.undetected_changes", 0, nil)
+		return nil, fmt.Errorf("%s", msg)
 	}
 
 	diff, err := s.git.GetDiff()
 	if err != nil {
-		return nil, fmt.Errorf("error al obtener el diff: %v", err)
+		msg := s.trans.GetMessage("commit_service.error_getting_diff", 0, map[string]interface{}{
+			"Error": err,
+		})
+		return nil, fmt.Errorf("%s", msg)
 	}
 
 	if diff == "" {
-		return nil, errors.New("no se detectaron diferencias en los archivos")
+		msg := s.trans.GetMessage("commit_service.no_differences_detected", 0, nil)
+		return nil, fmt.Errorf("%s", msg)
 	}
 
 	files := make([]string, 0)
@@ -61,31 +67,40 @@ func (s *CommitService) GenerateSuggestions(ctx context.Context, count int) ([]m
 	if s.config.UseTicket {
 		ticketID, err := s.getTicketIDFromBranch()
 		if err != nil {
-			return nil, fmt.Errorf("error al obtener el ID del ticket: %v", err)
+			msg := s.trans.GetMessage("commit_service.error_get_id_ticket", 0, map[string]interface{}{
+				"Error": err,
+			})
+			return nil, fmt.Errorf("%s", msg)
 		}
 
-		ticketInfo, err := s.jiraService.GetTicketInfo(ticketID)
+		ticketInfo, err := s.ticketManager.GetTicketInfo(ticketID)
 		if err != nil {
-			return nil, fmt.Errorf("error al obtener la información del ticket: %v", err)
+			msg := s.trans.GetMessage("commit_service.error_get_ticket_info", 0, map[string]interface{}{
+				"Error": err,
+			})
+			return nil, fmt.Errorf("%s", msg)
 		}
 
 		commitInfo.TicketInfo = ticketInfo
 	}
 
-	// Generar sugerencias de commit usando la IA
 	return s.ai.GenerateSuggestions(ctx, commitInfo, count)
 }
 
 func (s *CommitService) getTicketIDFromBranch() (string, error) {
 	branchName, err := s.git.GetCurrentBranch()
 	if err != nil {
-		return "", fmt.Errorf("error al obtener el nombre de la branch: %v", err)
+		msg := s.trans.GetMessage("commit_service.error_get_name_from_branch", 0, map[string]interface{}{
+			"Error": err,
+		})
+		return "", fmt.Errorf("%s", msg)
 	}
 
 	re := regexp.MustCompile(`([A-Za-z]+-\d+)`)
 	match := re.FindString(branchName)
 	if match == "" {
-		return "", fmt.Errorf("no se encontró un ID de ticket en el nombre de la branch")
+		msg := s.trans.GetMessage("commit_service.ticket_id_not_found_branch", 0, nil)
+		return "", fmt.Errorf("%s", msg)
 	}
 
 	return match, nil
