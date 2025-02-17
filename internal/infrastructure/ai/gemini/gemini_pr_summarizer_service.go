@@ -47,7 +47,7 @@ func NewGeminiPRSummarizer(ctx context.Context, cfg *config.Config, trans *i18n.
 
 func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prompt string) (models.PRSummary, error) {
 	if prompt == "" {
-		msg := gps.trans.GetMessage("error_empty_prompt", 0, nil)
+		msg := gps.trans.GetMessage("gemini_service.error_empty_prompt", 0, nil)
 		return models.PRSummary{}, fmt.Errorf("%s", msg)
 	}
 
