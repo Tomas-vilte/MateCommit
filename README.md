@@ -11,9 +11,10 @@
 ### Características 
 - 🧉 **Sugerencias inteligentes**: Te ayudamos a elegir los mejores nombres para tus commits
 - 💻 **Compatible con GitHub**: Se integra perfectamente con tu flujo de trabajo
-- 🤖 **Potenciado por IA**: Actualmente usa Gemini, con planes de soportar más modelos en el futuro
+- 🤖 **Potenciado por IA**: Actualmente usa Gemini, y soporta varios modelos de Gemini.
 - 🌎 **Bilingüe**: Soporta español e inglés
 - ⚽ **Fácil de usar**: Simple y efectivo
+- 🚀 **Resumenes de Pull Requests**: Ahora podes crear resumenes de Pull Requests, en base a los cambios que hiciste
 
 ## Instalación
 
@@ -74,7 +75,10 @@ Para una guía detallada de todos los comandos disponibles, opciones y ejemplos 
 ## Modelos de IA Soportados
 
 ### Actual
-- 🤖 **Gemini**: Modelo principal actual
+- 🤖 **Gemini**: 
+   - Gemini-1.5-flash
+   - Gemini-1.5-pro
+   - Gemini-2.0-flash
 
 ### Próximamente
 - 🔄 **GPT-4**: Integración planificada

@@ -9,6 +9,7 @@ Bienvenido a la guía de MateCommit. Acá vas a encontrar todo lo que necesitás
   - [Configuración Básica](#configuración-básica)
   - [Configuración de IA](#configuración-de-ia)
   - [Integración con Jira](#integración-con-jira)
+  - [Configuración de VCS](#configuración-de-vcs)
   - [Idiomas](#idiomas)
 - [Ejemplos con Salidas](#ejemplos-con-salidas)
 - [Tips y Trucos](#tips-y-trucos)
@@ -171,6 +172,30 @@ matecommit s
    - Pendiente actualizar tests
 
 💡 feat(PROJ-123): implementa nuevo endpoint de usuarios
+```
+
+### Configuración de VCS
+
+Configura proveedores de control de versiones (GitHub, GitLab, etc.):
+```bash
++# Configurar un proveedor VCS (ej: GitHub)
++matecommit config set-vcs \
+  --provider github \
+  --token tu-token \
+  --owner tu-usuario \
+  --repo tu-repositorio
+  
+# Establecer el proveedor VCS activo
+matecommit config set-active-vcs --provider github
+# Resumir un Pull Request (requiere VCS configurado)
+matecommit summarize-pr --pr-number 42
+matecommit spr -n 42  # alias corto
+```
+
+### Ejemplo 4: Resumen de PR con VCS
+```bash
+matecommit spr -n 42
+✅ PR #42 actulizado: Implementacion de repository
 ```
 
 ## Tips y Trucos
