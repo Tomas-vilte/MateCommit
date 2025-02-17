@@ -27,7 +27,10 @@ func NewGeminiService(ctx context.Context, cfg *config.Config, trans *i18n.Trans
 	}
 	client, err := genai.NewClient(ctx, option.WithAPIKey(cfg.GeminiAPIKey))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
+		msg := trans.GetMessage("error_gemini_client", 0, map[string]interface{}{
+			"Error": err,
+		})
+		return nil, fmt.Errorf("%s", msg)
 	}
 
 	modelName := string(cfg.AIConfig.Models[config.AIGemini])
@@ -73,7 +76,6 @@ func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.Com
 func (s *GeminiService) generatePrompt(locale string, info models.CommitInfo, count int) string {
 	promptTemplate := ai.GetCommitPromptTemplate(locale, info.TicketInfo != nil && info.TicketInfo.TicketTitle != "")
 
-	// Preparar la información del ticket si existe
 	ticketInfo := ""
 	if info.TicketInfo != nil && info.TicketInfo.TicketTitle != "" {
 		ticketInfo = fmt.Sprintf("\nTicket Title: %s\nTicket Description: %s\nAcceptance Criteria: %s",
@@ -82,13 +84,12 @@ func (s *GeminiService) generatePrompt(locale string, info models.CommitInfo, co
 			strings.Join(info.TicketInfo.Criteria, ", "))
 	}
 
-	// El orden de los argumentos debe coincidir con los placeholders en el template
 	return fmt.Sprintf(promptTemplate,
-		count,                     // Primer %d
-		count,                     // Segundo %d
-		formatChanges(info.Files), // %s para archivos modificados
-		info.Diff,                 // %s para el diff
-		ticketInfo,                // %s para la información del ticket
+		count,
+		count,
+		formatChanges(info.Files),
+		info.Diff,
+		ticketInfo,
 	)
 }
 
@@ -139,7 +140,7 @@ func (s *GeminiService) parseSuggestions(resp *genai.GenerateContentResponse) []
 
 	delimiter := s.getSuggestionDelimiter()
 	re := regexp.MustCompile(delimiter)
-	parts := re.Split(responseText, -1) // Dividir usando regex
+	parts := re.Split(responseText, -1)
 	suggestions := make([]models.CommitSuggestion, 0)
 
 	for _, part := range parts {
@@ -168,7 +169,6 @@ func (s *GeminiService) parseSuggestionPart(part string) *models.CommitSuggestio
 		RequirementsAnalysis: models.RequirementsAnalysis{},
 	}
 
-	// Extraer el título del commit
 	for _, line := range lines {
 		if strings.HasPrefix(line, "Commit:") {
 			suggestion.CommitTitle = strings.TrimSpace(strings.TrimPrefix(line, "Commit:"))
@@ -176,7 +176,6 @@ func (s *GeminiService) parseSuggestionPart(part string) *models.CommitSuggestio
 		}
 	}
 
-	// Extraer los archivos modificados
 	var collectingFiles bool
 	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
@@ -196,7 +195,6 @@ func (s *GeminiService) parseSuggestionPart(part string) *models.CommitSuggestio
 		}
 	}
 
-	// Extraer la explicación
 	var explanation strings.Builder
 	for _, line := range lines {
 		if strings.HasPrefix(line, s.trans.GetMessage("gemini_service.explanation_prefix", 0, nil)) {
@@ -206,7 +204,6 @@ func (s *GeminiService) parseSuggestionPart(part string) *models.CommitSuggestio
 	}
 	suggestion.Explanation = strings.TrimSpace(explanation.String())
 
-	// Extraer el análisis de código
 	for i, line := range lines {
 		if strings.HasPrefix(line, s.trans.GetMessage("gemini_service.code_analysis_prefix", 0, nil)) {
 			if i+1 < len(lines) && strings.HasPrefix(lines[i+1], s.trans.GetMessage("gemini_service.changes_overview_prefix", 0, nil)) {
@@ -222,7 +219,6 @@ func (s *GeminiService) parseSuggestionPart(part string) *models.CommitSuggestio
 		}
 	}
 
-	// Extraer el análisis de requisitos
 	var (
 		collectingMissingCriteria bool
 		collectingImprovements    bool
@@ -231,7 +227,6 @@ func (s *GeminiService) parseSuggestionPart(part string) *models.CommitSuggestio
 	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
 
-		// Procesar estado de criterios
 		if strings.HasPrefix(trimmedLine, "⚠️") {
 			switch {
 			case strings.Contains(trimmedLine, s.trans.GetMessage("gemini_service.criteria_fully_met_prefix", 0, nil)):
@@ -244,21 +239,18 @@ func (s *GeminiService) parseSuggestionPart(part string) *models.CommitSuggestio
 			continue
 		}
 
-		// Procesar criterios faltantes
 		if strings.HasPrefix(trimmedLine, "❌") {
 			collectingMissingCriteria = true
 			collectingImprovements = false
 			continue
 		}
 
-		// Procesar sugerencias de mejora
 		if strings.HasPrefix(trimmedLine, "💡") {
 			collectingMissingCriteria = false
 			collectingImprovements = true
 			continue
 		}
 
-		// Recolectar criterios faltantes
 		if collectingMissingCriteria && strings.HasPrefix(trimmedLine, "-") {
 			criteria := strings.TrimSpace(strings.TrimPrefix(trimmedLine, "-"))
 			suggestion.RequirementsAnalysis.MissingCriteria = append(
@@ -267,7 +259,6 @@ func (s *GeminiService) parseSuggestionPart(part string) *models.CommitSuggestio
 			)
 		}
 
-		// Recolectar sugerencias de mejora
 		if collectingImprovements && strings.HasPrefix(trimmedLine, "-") {
 			improvement := strings.TrimSpace(strings.TrimPrefix(trimmedLine, "-"))
 			suggestion.RequirementsAnalysis.ImprovementSuggestions = append(
@@ -276,7 +267,6 @@ func (s *GeminiService) parseSuggestionPart(part string) *models.CommitSuggestio
 			)
 		}
 
-		// Detener la recolección si encontramos una línea vacía o un nuevo encabezado
 		if trimmedLine == "" || strings.HasPrefix(trimmedLine, "📊") ||
 			strings.HasPrefix(trimmedLine, "📝") {
 			collectingMissingCriteria = false

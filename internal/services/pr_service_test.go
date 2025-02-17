@@ -60,6 +60,8 @@ func TestPRService_SummarizePR_Success(t *testing.T) {
 
 	mockVCS := new(MockVCSClient)
 	mockAI := new(MockPRSummarizer)
+	trans, err := i18n.NewTranslations("es", "../i18n/locales")
+	require.NoError(t, err)
 
 	prData := models.PRData{
 		ID:      123,
@@ -81,7 +83,7 @@ func TestPRService_SummarizePR_Success(t *testing.T) {
 	mockAI.On("GeneratePRSummary", ctx, mock.AnythingOfType("string")).Return(expectedSummary, nil)
 	mockVCS.On("UpdatePR", ctx, prNumber, expectedSummary).Return(nil)
 
-	service := NewPRService(mockVCS, mockAI)
+	service := NewPRService(mockVCS, mockAI, trans)
 
 	// Act
 	result, err := service.SummarizePR(ctx, prNumber)
@@ -99,19 +101,21 @@ func TestPRService_SummarizePR_GetPRError(t *testing.T) {
 
 	mockVCS := new(MockVCSClient)
 	mockAI := new(MockPRSummarizer)
+	trans, err := i18n.NewTranslations("es", "../i18n/locales")
+	require.NoError(t, err)
 
 	expectedError := errors.New("API error")
 
 	mockVCS.On("GetPR", ctx, prNumber).Return(models.PRData{}, expectedError)
 
-	service := NewPRService(mockVCS, mockAI)
+	service := NewPRService(mockVCS, mockAI, trans)
 
 	// act
-	_, err := service.SummarizePR(ctx, prNumber)
+	_, err = service.SummarizePR(ctx, prNumber)
 
 	// assert
-	assert.ErrorContains(t, err, "hubo un error al obtener el pr")
-	assert.ErrorIs(t, err, expectedError)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Error al obtener el PR")
 	mockVCS.AssertExpectations(t)
 	mockAI.AssertNotCalled(t, "GeneratePRSummary")
 }
@@ -122,6 +126,8 @@ func TestPRService_SummarizePR_GenerateError(t *testing.T) {
 
 	mockVCS := new(MockVCSClient)
 	mockAI := new(MockPRSummarizer)
+	trans, err := i18n.NewTranslations("es", "../i18n/locales")
+	require.NoError(t, err)
 
 	prData := models.PRData{
 		ID:      123,
@@ -135,14 +141,14 @@ func TestPRService_SummarizePR_GenerateError(t *testing.T) {
 	mockVCS.On("GetPR", ctx, prNumber).Return(prData, nil)
 	mockAI.On("GeneratePRSummary", ctx, mock.Anything).Return(models.PRSummary{}, expectedError)
 
-	service := NewPRService(mockVCS, mockAI)
+	service := NewPRService(mockVCS, mockAI, trans)
 
 	// Act
-	_, err := service.SummarizePR(ctx, prNumber)
+	_, err = service.SummarizePR(ctx, prNumber)
 
 	// Assert
-	assert.ErrorContains(t, err, "hubo un error al crear el resumen del pull requests")
-	assert.ErrorIs(t, err, expectedError)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Error al crear el resumen del PR")
 	mockVCS.AssertExpectations(t)
 	mockAI.AssertExpectations(t)
 	mockVCS.AssertNotCalled(t, "UpdatePR")
@@ -154,6 +160,8 @@ func TestPRService_SummarizePR_UpdateError(t *testing.T) {
 
 	mockVCS := new(MockVCSClient)
 	mockAI := new(MockPRSummarizer)
+	trans, err := i18n.NewTranslations("es", "../i18n/locales")
+	require.NoError(t, err)
 
 	prData := models.PRData{
 		ID:      123,
@@ -173,12 +181,11 @@ func TestPRService_SummarizePR_UpdateError(t *testing.T) {
 	mockAI.On("GeneratePRSummary", ctx, mock.Anything).Return(summary, nil)
 	mockVCS.On("UpdatePR", ctx, prNumber, summary).Return(expectedError)
 
-	service := NewPRService(mockVCS, mockAI)
+	service := NewPRService(mockVCS, mockAI, trans)
 
-	_, err := service.SummarizePR(ctx, prNumber)
+	_, err = service.SummarizePR(ctx, prNumber)
 
-	assert.ErrorContains(t, err, "hubo un error al actualizar el pull requests")
-	assert.ErrorIs(t, err, expectedError)
+	assert.ErrorContains(t, err, "Error al actualizar el PR: update failed")
 	mockVCS.AssertExpectations(t)
 	mockAI.AssertExpectations(t)
 }
@@ -267,7 +274,7 @@ func setupServices(t *testing.T, testConfig TestConfig) (*PRService, error) {
 		return nil, err
 	}
 
-	prService := NewPRService(githubClient, geminiSummarizer)
+	prService := NewPRService(githubClient, geminiSummarizer, trans)
 
 	return prService, nil
 }
