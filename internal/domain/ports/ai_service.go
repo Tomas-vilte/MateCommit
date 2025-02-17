@@ -5,7 +5,9 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 )
 
-type AIProvider interface {
+// CommitSummarizer es una interfaz que define el servicio para generar sugerencias de commits.
+type CommitSummarizer interface {
+	//GenerateSuggestions genera una lista de sugerencias de mensajes de commit.
 	GenerateSuggestions(ctx context.Context, info models.CommitInfo, count int) ([]models.CommitSuggestion, error)
 }
 
