@@ -28,7 +28,10 @@ func NewGeminiPRSummarizer(ctx context.Context, cfg *config.Config, trans *i18n.
 
 	client, err := genai.NewClient(ctx, option.WithAPIKey(cfg.GeminiAPIKey))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
+		msg := trans.GetMessage("error_gemini_client", 0, map[string]interface{}{
+			"Error": err,
+		})
+		return nil, fmt.Errorf("%s", msg)
 	}
 
 	modelName := string(cfg.AIConfig.Models[config.AIGemini])
@@ -57,7 +60,8 @@ func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prompt str
 
 	rawSummary := formatResponse(resp)
 	if rawSummary == "" {
-		return models.PRSummary{}, fmt.Errorf("respuesta vacía de la IA")
+		msg := gps.trans.GetMessage("gemini_service.response_empty", 0, nil)
+		return models.PRSummary{}, fmt.Errorf("%s", msg)
 	}
 
 	return gps.parseSummary(rawSummary)
@@ -113,7 +117,8 @@ func (gps *GeminiPRSummarizer) parseSummary(raw string) (models.PRSummary, error
 	summary.Body = strings.Join(bodyParts, "\n\n")
 
 	if summary.Title == "" {
-		return summary, fmt.Errorf("no se encontró el título en la respuesta")
+		msg := gps.trans.GetMessage("title_not_found", 0, nil)
+		return summary, fmt.Errorf("%s", msg)
 	}
 
 	if utf8.RuneCountInString(summary.Title) > 80 {

@@ -5,36 +5,48 @@ import (
 	"fmt"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
+	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 )
 
 type PRService struct {
 	vcsClient ports.VCSClient
 	aiService ports.PRSummarizer
+	trans     *i18n.Translations
 }
 
-func NewPRService(vcsClient ports.VCSClient, aiService ports.PRSummarizer) *PRService {
+func NewPRService(vcsClient ports.VCSClient, aiService ports.PRSummarizer, trans *i18n.Translations) *PRService {
 	return &PRService{
 		vcsClient: vcsClient,
 		aiService: aiService,
+		trans:     trans,
 	}
 }
 
 func (s *PRService) SummarizePR(ctx context.Context, prNumber int) (models.PRSummary, error) {
 	prData, err := s.vcsClient.GetPR(ctx, prNumber)
 	if err != nil {
-		return models.PRSummary{}, fmt.Errorf("hubo un error al obtener el pr: %w", err)
+		msg := s.trans.GetMessage("pr_service.error_get_pr", 0, map[string]interface{}{
+			"Error": err,
+		})
+		return models.PRSummary{}, fmt.Errorf("%s", msg)
 	}
 
 	prompt := s.buildPRPrompt(prData)
 
 	summary, err := s.aiService.GeneratePRSummary(ctx, prompt)
 	if err != nil {
-		return models.PRSummary{}, fmt.Errorf("hubo un error al crear el resumen del pull requests: %w", err)
+		msg := s.trans.GetMessage("pr_service.error_create_summary_pr", 0, map[string]interface{}{
+			"Error": err,
+		})
+		return models.PRSummary{}, fmt.Errorf("%s", msg)
 	}
 
 	err = s.vcsClient.UpdatePR(ctx, prNumber, summary)
 	if err != nil {
-		return models.PRSummary{}, fmt.Errorf("hubo un error al actualizar el pull requests: %w", err)
+		msg := s.trans.GetMessage("pr_service.error_update_pr", 0, map[string]interface{}{
+			"Error": err,
+		})
+		return models.PRSummary{}, fmt.Errorf("%s", msg)
 	}
 
 	return summary, nil

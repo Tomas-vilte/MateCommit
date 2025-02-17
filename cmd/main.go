@@ -66,7 +66,7 @@ func initializeApp() (*cli.Command, error) {
 
 	ticketService := jira.NewJiraService(cfgApp, &http.Client{})
 
-	commitService := services.NewCommitService(gitService, aiProvider, ticketService, cfgApp)
+	commitService := services.NewCommitService(gitService, aiProvider, ticketService, cfgApp, translations)
 
 	commitHandler := handler.NewSuggestionHandler(gitService, translations)
 
