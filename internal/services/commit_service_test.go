@@ -5,8 +5,10 @@ import (
 	"errors"
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
+	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -75,6 +77,8 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		mockAI := new(MockAIProvider)
 		mockJiraService := new(MockJiraService)
 		cfgApp := &config.Config{UseTicket: true}
+		trans, err := i18n.NewTranslations("es", "../i18n/locales")
+		require.NoError(t, err)
 
 		mockGit.On("GetCurrentBranch").Return("feature/PROJ-1234-user-authentication", nil)
 
@@ -110,7 +114,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		}
 		mockAI.On("GenerateSuggestions", mock.Anything, expectedInfo, 3).Return(expectedResponse, nil)
 
-		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp)
+		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp, trans)
 
 		// act
 		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
@@ -130,10 +134,12 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		mockAI := new(MockAIProvider)
 		mockJiraService := new(MockJiraService)
 		cfgApp := &config.Config{UseTicket: true}
+		trans, err := i18n.NewTranslations("es", "../i18n/locales")
+		require.NoError(t, err)
 
 		mockGit.On("GetChangedFiles").Return([]models.GitChange{}, nil)
 
-		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp)
+		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp, trans)
 
 		// act
 		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
@@ -141,7 +147,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		// assert
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
-		assert.EqualError(t, err, "no hay cambios detectados")
+		assert.EqualError(t, err, "No hay cambios detectados")
 
 		mockGit.AssertExpectations(t)
 	})
@@ -152,6 +158,8 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		mockAI := new(MockAIProvider)
 		mockJiraService := new(MockJiraService)
 		cfgApp := &config.Config{UseTicket: true}
+		trans, err := i18n.NewTranslations("es", "../i18n/locales")
+		require.NoError(t, err)
 
 		changes := []models.GitChange{
 			{
@@ -162,7 +170,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		mockGit.On("GetChangedFiles").Return(changes, nil)
 		mockGit.On("GetDiff").Return("", errors.New("git error"))
 
-		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp)
+		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp, trans)
 
 		// act
 		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
@@ -170,7 +178,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		// assert
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
-		assert.EqualError(t, err, "error al obtener el diff: git error")
+		assert.EqualError(t, err, "Error al obtener los cambios: git error")
 
 		mockGit.AssertExpectations(t)
 	})
@@ -181,12 +189,14 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		mockAI := new(MockAIProvider)
 		mockJiraService := new(MockJiraService)
 		cfgApp := &config.Config{UseTicket: true}
+		trans, err := i18n.NewTranslations("es", "../i18n/locales")
+		require.NoError(t, err)
 
 		mockGit.On("GetChangedFiles").Return([]models.GitChange{{Path: "file1.go", Status: "M"}}, nil)
 		mockGit.On("GetDiff").Return("some diff", nil)
 		mockGit.On("GetCurrentBranch").Return("main", nil)
 
-		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp)
+		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp, trans)
 
 		// act
 		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
@@ -194,7 +204,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		// assert
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
-		assert.EqualError(t, err, "error al obtener el ID del ticket: no se encontró un ID de ticket en el nombre de la branch")
+		assert.EqualError(t, err, "Error al obtener el ID del ticket: No se encontro un ID de ticket en el nombre de la branch")
 
 		mockGit.AssertExpectations(t)
 	})
@@ -233,6 +243,8 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		mockAI := new(MockAIProvider)
 		mockJiraService := new(MockJiraService)
 		cfgApp := &config.Config{UseTicket: true}
+		trans, err := i18n.NewTranslations("es", "../i18n/locales")
+		require.NoError(t, err)
 
 		mockGit.On("GetCurrentBranch").Return("feature/PROJ-1234-user-authentication", nil)
 
@@ -268,7 +280,7 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		}
 		mockAI.On("GenerateSuggestions", mock.Anything, expectedInfo, 3).Return(expectedResponse, nil)
 
-		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp)
+		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp, trans)
 
 		// Act
 		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
@@ -288,6 +300,8 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		mockAI := new(MockAIProvider)
 		mockJiraService := new(MockJiraService)
 		cfgApp := &config.Config{UseTicket: true}
+		trans, err := i18n.NewTranslations("es", "../i18n/locales")
+		require.NoError(t, err)
 
 		mockGit.On("GetCurrentBranch").Return("bugfix/PROJ-5678-fix-login", nil)
 
@@ -323,7 +337,7 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		}
 		mockAI.On("GenerateSuggestions", mock.Anything, expectedInfo, 3).Return(expectedResponse, nil)
 
-		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp)
+		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp, trans)
 
 		// Act
 		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
@@ -343,6 +357,8 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		mockAI := new(MockAIProvider)
 		mockJiraService := new(MockJiraService)
 		cfgApp := &config.Config{UseTicket: true}
+		trans, err := i18n.NewTranslations("es", "../i18n/locales")
+		require.NoError(t, err)
 
 		mockGit.On("GetCurrentBranch").Return("hotfix/PROJ-9999-critical-bug", nil)
 
@@ -378,7 +394,7 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		}
 		mockAI.On("GenerateSuggestions", mock.Anything, expectedInfo, 3).Return(expectedResponse, nil)
 
-		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp)
+		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp, trans)
 
 		// Act
 		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
@@ -398,6 +414,8 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		mockAI := new(MockAIProvider)
 		mockJiraService := new(MockJiraService)
 		cfgApp := &config.Config{UseTicket: true}
+		trans, err := i18n.NewTranslations("es", "../i18n/locales")
+		require.NoError(t, err)
 
 		mockGit.On("GetCurrentBranch").Return("release/PROJ-1000-final-release", nil)
 
@@ -433,7 +451,7 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		}
 		mockAI.On("GenerateSuggestions", mock.Anything, expectedInfo, 3).Return(expectedResponse, nil)
 
-		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp)
+		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp, trans)
 
 		// Act
 		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
@@ -453,6 +471,8 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		mockAI := new(MockAIProvider)
 		mockJiraService := new(MockJiraService)
 		cfgApp := &config.Config{UseTicket: true}
+		trans, err := i18n.NewTranslations("es", "../i18n/locales")
+		require.NoError(t, err)
 
 		mockGit.On("GetCurrentBranch").Return("main", nil)
 
@@ -463,7 +483,7 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		mockGit.On("GetChangedFiles").Return(changes, nil)
 		mockGit.On("GetDiff").Return("some diff", nil)
 
-		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp)
+		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp, trans)
 
 		// Act
 		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
@@ -471,7 +491,7 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		// Assert
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
-		assert.EqualError(t, err, "error al obtener el ID del ticket: no se encontró un ID de ticket en el nombre de la branch")
+		assert.EqualError(t, err, "Error al obtener el ID del ticket: No se encontro un ID de ticket en el nombre de la branch")
 
 		mockGit.AssertExpectations(t)
 	})
@@ -482,6 +502,8 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		mockAI := new(MockAIProvider)
 		mockJiraService := new(MockJiraService)
 		cfgApp := &config.Config{UseTicket: true}
+		trans, err := i18n.NewTranslations("es", "../i18n/locales")
+		require.NoError(t, err)
 
 		mockGit.On("GetCurrentBranch").Return("custom/PROJ-2000-custom-feature", nil)
 
@@ -517,7 +539,7 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		}
 		mockAI.On("GenerateSuggestions", mock.Anything, expectedInfo, 3).Return(expectedResponse, nil)
 
-		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp)
+		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp, trans)
 
 		// Act
 		suggestions, err := service.GenerateSuggestions(context.Background(), 3)

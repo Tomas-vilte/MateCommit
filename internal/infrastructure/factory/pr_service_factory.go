@@ -43,5 +43,5 @@ func (f *PRServiceFactory) CreatePRService() (ports.PRService, error) {
 		return nil, fmt.Errorf("proveedor de VCS no compatible: %s", vcsConfig.Provider)
 	}
 
-	return services.NewPRService(vcsClient, f.aiService), nil
+	return services.NewPRService(vcsClient, f.aiService, f.trans), nil
 }
