@@ -3,14 +3,15 @@ package gemini
 import (
 	"context"
 	"fmt"
+	"strings"
+	"unicode/utf8"
+
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/ai"
 	"github.com/google/generative-ai-go/genai"
 	"google.golang.org/api/option"
-	"strings"
-	"unicode/utf8"
 )
 
 type GeminiPRSummarizer struct {
@@ -117,7 +118,7 @@ func (gps *GeminiPRSummarizer) parseSummary(raw string) (models.PRSummary, error
 	summary.Body = strings.Join(bodyParts, "\n\n")
 
 	if summary.Title == "" {
-		msg := gps.trans.GetMessage("title_not_found", 0, nil)
+		msg := gps.trans.GetMessage("gemini_serivce.title_not_found", 0, nil)
 		return summary, fmt.Errorf("%s", msg)
 	}
 
