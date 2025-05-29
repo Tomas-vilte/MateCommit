@@ -3,6 +3,7 @@ package gemini
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 
@@ -19,6 +20,15 @@ type GeminiPRSummarizer struct {
 	model  *genai.GenerativeModel
 	config *config.Config
 	trans  *i18n.Translations
+}
+
+var validLabels = map[string]bool{
+	"feature":  true,
+	"fix":      true,
+	"refactor": true,
+	"docs":     true,
+	"infra":    true,
+	"test":     true,
 }
 
 func NewGeminiPRSummarizer(ctx context.Context, cfg *config.Config, trans *i18n.Translations) (*GeminiPRSummarizer, error) {
@@ -73,6 +83,27 @@ func (gps *GeminiPRSummarizer) generatePRPrompt(prContent string) string {
 	return fmt.Sprintf(template, prContent)
 }
 
+func (gps *GeminiPRSummarizer) cleanLabel(label string) string {
+	cleaned := strings.TrimSpace(label)
+
+	cleaned = strings.Trim(cleaned, `"'`)
+
+	cleaned = strings.Trim(cleaned, "`")
+
+	cleaned = strings.Trim(cleaned, "*_-~")
+
+	cleaned = strings.ToLower(cleaned)
+
+	reg := regexp.MustCompile(`[^a-z0-9\-_]`)
+	cleaned = reg.ReplaceAllString(cleaned, "")
+
+	return cleaned
+}
+
+func (gps *GeminiPRSummarizer) isValidLabel(label string) bool {
+	return validLabels[label]
+}
+
 func (gps *GeminiPRSummarizer) parseSummary(raw string) (models.PRSummary, error) {
 	summary := models.PRSummary{}
 	raw = strings.ReplaceAll(raw, "## ", "##")
@@ -95,13 +126,24 @@ func (gps *GeminiPRSummarizer) parseSummary(raw string) (models.PRSummary, error
 		if strings.HasPrefix(sec, labelsKey) {
 			lines := strings.SplitN(sec, "\n", 2)
 			if len(lines) > 1 {
-				labels := strings.Split(lines[1], ",")
-				for _, l := range labels {
-					cleaned := strings.TrimSpace(l)
-					if cleaned != "" {
+				labelText := lines[1]
+
+				var labelParts []string
+				if strings.Contains(labelText, ",") {
+					labelParts = strings.Split(labelText, ",")
+				} else {
+					labelText = strings.ReplaceAll(labelText, "\n", " ")
+					labelParts = strings.Fields(labelText)
+				}
+
+				for _, l := range labelParts {
+					cleaned := gps.cleanLabel(l)
+
+					if cleaned != "" && gps.isValidLabel(cleaned) {
 						summary.Labels = append(summary.Labels, cleaned)
 					}
 				}
+				break
 			}
 		}
 	}
@@ -118,7 +160,7 @@ func (gps *GeminiPRSummarizer) parseSummary(raw string) (models.PRSummary, error
 	summary.Body = strings.Join(bodyParts, "\n\n")
 
 	if summary.Title == "" {
-		msg := gps.trans.GetMessage("gemini_serivce.title_not_found", 0, nil)
+		msg := gps.trans.GetMessage("gemini_service.title_not_found", 0, nil)
 		return summary, fmt.Errorf("%s", msg)
 	}
 
