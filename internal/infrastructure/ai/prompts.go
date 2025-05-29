@@ -23,7 +23,7 @@ const (
 	prPromptTemplateES = `Che, armame un resumen de este PR con:
 
 	## Título del PR
-	Un título corto (máx 80 caracteres). Ej: "fix: Error al cargar imágenes"
+	Un título corto (máx 40 caracteres). Ej: "fix: Error al cargar imágenes"
 	
 	## Cambios clave
 	- Los 3 cambios principales
