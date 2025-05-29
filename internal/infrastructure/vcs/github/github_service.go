@@ -33,17 +33,16 @@ type GitHubClient struct {
 	trans         *i18n.Translations
 }
 
-var labelMetadata = map[string]struct {
+var allowedLabels = map[string]struct {
 	Color string
 	Key   string
 }{
 	"feature":  {"00FF00", "label.feature"},
 	"fix":      {"FF0000", "label.fix"},
-	"docs":     {"0075CA", "label.docs"},
 	"refactor": {"FFA500", "label.refactor"},
-	"test":     {"8A2BE2", "label.test"},
+	"docs":     {"0075CA", "label.docs"},
 	"infra":    {"808080", "label.infra"},
-	"hotfix":   {"FF4500", "label.hotfix"},
+	"test":     {"8A2BE2", "label.test"},
 }
 
 func NewGitHubClient(owner, repo, token string, trans *i18n.Translations) *GitHubClient {
@@ -133,35 +132,51 @@ func (ghc *GitHubClient) GetPR(ctx context.Context, prNumber int) (models.PRData
 	}, nil
 }
 
+func (ghc *GitHubClient) validateAndFilterLabels(labels []string) []string {
+	var validLabels []string
+	for _, label := range labels {
+		cleaned := strings.ToLower(strings.TrimSpace(label))
+		if cleaned != "" && ghc.isAllowedLabel(cleaned) {
+			validLabels = append(validLabels, cleaned)
+		}
+	}
+	return validLabels
+}
+
+func (ghc *GitHubClient) isAllowedLabel(label string) bool {
+	_, exists := allowedLabels[label]
+	return exists
+}
+
 func (ghc *GitHubClient) AddLabelsToPR(ctx context.Context, prNumber int, labels []string) error {
+	validLabels := ghc.validateAndFilterLabels(labels)
+	if len(validLabels) == 0 {
+		return nil
+	}
+
 	existingLabels, err := ghc.GetRepoLabels(ctx)
 	if err != nil {
 		return fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.get_labels", 0, nil), err)
 	}
 
-	if err := ghc.ensureLabelsExist(ctx, existingLabels, labels); err != nil {
+	if err := ghc.ensureLabelsExist(ctx, existingLabels, validLabels); err != nil {
 		return err
 	}
 
-	return ghc.addLabelsToIssue(ctx, prNumber, labels)
+	return ghc.addLabelsToIssue(ctx, prNumber, validLabels)
 }
 
 func (ghc *GitHubClient) ensureLabelsExist(ctx context.Context, existingLabels []string, requiredLabels []string) error {
 	for _, label := range requiredLabels {
-		normalized := strings.ToLower(label)
-		meta, exists := labelMetadata[normalized]
-
 		if !ghc.labelExists(existingLabels, label) {
-			color := "D3D3D3"
-			descKey := "label.default"
-			if exists {
-				color = meta.Color
-				descKey = meta.Key
-			}
+			meta := allowedLabels[label]
 
-			description := ghc.trans.GetMessage(descKey, 0, map[string]interface{}{"label": label})
-			if err := ghc.CreateLabel(ctx, label, color, description); err != nil {
-				return fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.create_label", 0, map[string]interface{}{"label": label}), err)
+			description := ghc.trans.GetMessage(meta.Key, 0, map[string]interface{}{"label": label})
+			if err := ghc.CreateLabel(ctx, label, meta.Color, description); err != nil {
+				if !strings.Contains(err.Error(), "already_exists") && !strings.Contains(err.Error(), "422") {
+					return fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.create_label", 0, map[string]interface{}{"label": label}), err)
+				}
+				fmt.Printf("Label '%s' already exists, continuing...\n", label)
 			}
 		}
 	}
@@ -200,7 +215,7 @@ func (ghc *GitHubClient) CreateLabel(ctx context.Context, name, color, descripti
 
 func (ghc *GitHubClient) labelExists(existingLabels []string, target string) bool {
 	for _, l := range existingLabels {
-		if strings.EqualFold(l, target) {
+		if l == target {
 			return true
 		}
 	}
