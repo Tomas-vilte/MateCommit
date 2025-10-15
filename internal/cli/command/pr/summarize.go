@@ -5,18 +5,19 @@ import (
 	"fmt"
 
 	cfg "github.com/Tomas-vilte/MateCommit/internal/config"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
+	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/factory"
+
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/urfave/cli/v3"
 )
 
 type SummarizeCommand struct {
-	prService ports.PRService
+	prFactory factory.PRServiceFactoryInterface
 }
 
-func NewSummarizeCommand(prService ports.PRService) *SummarizeCommand {
+func NewSummarizeCommand(prFactory factory.PRServiceFactoryInterface) *SummarizeCommand {
 	return &SummarizeCommand{
-		prService: prService,
+		prFactory: prFactory,
 	}
 }
 
@@ -34,19 +35,13 @@ func (c *SummarizeCommand) CreateCommand(t *i18n.Translations, cfg *cfg.Config) 
 			},
 		},
 		Action: func(ctx context.Context, command *cli.Command) error {
-			activeVCS := cfg.VCSConfigs[cfg.ActiveVCSProvider]
-
-			if cfg.ActiveVCSProvider == "" || cfg.VCSConfigs == nil || activeVCS.Owner == "" {
-				return fmt.Errorf("%s", t.GetMessage("error.no_repo_configured", 0, nil))
+			prService, err := c.prFactory.CreatePRService()
+			if err != nil {
+				return fmt.Errorf(t.GetMessage("error.pr_service_creation_error", 0, nil)+": %w", err)
 			}
-
-			if activeVCS.Repo == "" {
-				return fmt.Errorf("%s", t.GetMessage("error.invalid_repo_format", 0, nil))
-			}
-
 			prNumber := command.Int("pr-number")
 
-			summary, err := c.prService.SummarizePR(ctx, int(prNumber))
+			summary, err := prService.SummarizePR(ctx, int(prNumber))
 			if err != nil {
 				return fmt.Errorf(t.GetMessage("error.pr_summary_error", 0, nil)+": %w", err)
 			}

@@ -78,13 +78,8 @@ func initializeApp() (*cli.Command, error) {
 	registerCommand := registry.NewRegistry(cfgApp, translations)
 
 	prServiceFactory := factory.NewPrServiceFactory(cfgApp, translations, aiSummarizer, gitService)
-	prService, err := prServiceFactory.CreatePRService()
-	if err != nil {
-		log.Printf("Warning: %v", err)
-		log.Println("Algunos comandos estan desactivados, configura el vcs")
-	}
 
-	prCommand := pr.NewSummarizeCommand(prService)
+	prCommand := pr.NewSummarizeCommand(prServiceFactory)
 
 	if err := registerCommand.Register("suggest", suggest.NewSuggestCommandFactory(commitService, commitHandler)); err != nil {
 		log.Fatalf("Error al registrar el comando 'suggest': %v", err)

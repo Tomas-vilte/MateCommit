@@ -10,15 +10,19 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/services"
 )
 
-type PRServiceFactory struct {
+type PRServiceFactoryInterface interface {
+	CreatePRService() (ports.PRService, error)
+}
+
+type prServiceFactory struct {
 	config     *config.Config
 	aiService  ports.PRSummarizer
 	trans      *i18n.Translations
 	gitService ports.GitService
 }
 
-func NewPrServiceFactory(cfg *config.Config, trans *i18n.Translations, aiService ports.PRSummarizer, gitService ports.GitService) *PRServiceFactory {
-	return &PRServiceFactory{
+func NewPrServiceFactory(cfg *config.Config, trans *i18n.Translations, aiService ports.PRSummarizer, gitService ports.GitService) PRServiceFactoryInterface {
+	return &prServiceFactory{
 		config:     cfg,
 		trans:      trans,
 		aiService:  aiService,
@@ -26,7 +30,7 @@ func NewPrServiceFactory(cfg *config.Config, trans *i18n.Translations, aiService
 	}
 }
 
-func (f *PRServiceFactory) CreatePRService() (ports.PRService, error) {
+func (f *prServiceFactory) CreatePRService() (ports.PRService, error) {
 	owner, repo, provider, err := f.gitService.GetRepoInfo()
 	if err != nil {
 		return nil, fmt.Errorf("error al obtener la informacion del repositorio: %w", err)
@@ -41,7 +45,7 @@ func (f *PRServiceFactory) CreatePRService() (ports.PRService, error) {
 			}
 			provider = f.config.ActiveVCSProvider
 		} else {
-			return nil, fmt.Errorf("proveedor de VCS '%s' detectado automáticamente pero no configurado. Use 'matecommit config set-vcs --provider %s --token <token>' para configurarlo", provider, provider)
+			return nil, fmt.Errorf("proveedor de VCS '%s' detectado automáticamente pero no configurado", provider)
 		}
 	}
 
