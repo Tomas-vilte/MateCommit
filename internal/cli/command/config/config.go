@@ -19,15 +19,9 @@ func (c *ConfigCommandFactory) CreateCommand(t *i18n.Translations, cfg *config.C
 		Aliases: []string{"c"},
 		Usage:   t.GetMessage("config_command_usage", 0, nil),
 		Commands: []*cli.Command{
-			c.newSetLangCommand(t, cfg),
 			c.newShowCommand(t, cfg),
-			c.newSetAPIKeyCommand(t, cfg),
-			c.newSetJiraConfigCommand(t, cfg),
-			c.newSetTicketCommand(t, cfg),
-			c.newSetAIActiveCommand(t, cfg),
-			c.newSetAIModelCommand(t, cfg),
-			c.newSetActiveVCSCommand(t, cfg),
-			c.newSetVCSConfigCommand(t, cfg),
+			c.newInitCommand(t, cfg),
+			c.newEditCommand(t, cfg),
 		},
 	}
 }

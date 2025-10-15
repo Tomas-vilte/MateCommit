@@ -61,6 +61,15 @@ other = "❌ Error al generar sugerencias: {{.Error}}"
 [config_command_usage]
 other = "⚙️  Administrar configuración"
 
+[config_init_usage]
+other = "🚀 Iniciar asistente de configuración"
+
+[config_edit_usage]
+other = "✏️  Abrir archivo de configuración en el editor"
+
+[work_in_progress]
+other = "🚧 Esta funcionalidad está en desarrollo."
+
 [config_set_lang_usage]
 other = "🌍 Configurar idioma por defecto"
 
@@ -257,3 +266,44 @@ error_get_name_from_branch = "Error al obtener el nombre de la branch: {{.Error}
 error_get_pr = "Error al obtener el PR: {{.Error}}"
 error_create_summary_pr = "Error al crear el resumen del PR: {{.Error}}"
 error_update_pr = "Error al actualizar el PR: {{.Error}}"
+
+[init]
+section_welcome = "1. Bienvenida e IA"
+welcome = "👋 ¡Bienvenido al asistente de configuración de MateCommit!"
+ai_intro = "Primero, configuremos la IA. (Proveedores soportados: {{.Providers}})"
+prompt_gemini_api_key = "> Introduce tu API Key de Gemini (Enter para omitir): "
+model_hint_supported = "> Puedes especificar un modelo (soportados: {{.Models}})."
+prompt_model_with_default = "> Modelo a usar (por defecto: {{.Default}}): "
+
+section_language = "2. Idioma"
+language_supported_with_current = "Ahora, el idioma. (Soportados: en, es) Actual: {{.Current}}"
+prompt_language_blank_keeps = "> Elige tu idioma preferido (en/es). Enter mantiene el actual: "
+error_invalid_language = "Idioma inválido. Por favor ingresa 'en' o 'es'."
+
+section_vcs = "3. Control de Versiones (VCS)"
+prompt_vcs_enable_blank_no = "¿Configurar VCS para funciones como resúmenes de PRs? (Soportado: {{.Providers}}) (s/n, Enter = no): "
+prompt_github_token_blank_skip = "> Introduce tu token de acceso de GitHub (Enter para omitir): "
+info_vcs_skipped = "Se omitió la configuración de VCS."
+
+section_tickets = "4. Gestor de Tickets"
+prompt_ticket_enable_blank_no = "¿Integrar un gestor de tickets? (Soportado: {{.Providers}}) (s/n, Enter = no): "
+prompt_jira_base_url_blank_cancel = "> URL base de tu instancia de Jira (Enter para cancelar): "
+prompt_jira_email_blank_cancel = "> Tu email de Jira (Enter para cancelar): "
+prompt_jira_api_token_blank_cancel = "> Tu API Token de Jira (Enter para cancelar): "
+info_jira_canceled = "Se canceló la configuración de Jira."
+
+section_finish = "5. Finalización"
+saved_ok = "✅ ¡Configuración guardada con éxito!"
+summary_header = "📋 Resumen de configuración"
+summary_model = "Modelo configurado para {{.AI}}: {{.Model}}"
+summary_model_none = "Ningún modelo configurado para {{.AI}}"
+summary_api = "🔑 API {{.AI}}: {{.Configured}}"
+summary_vcs_none = "Proveedor VCS no configurado"
+prompt_run_again = "¿Querés volver a ejecutar el asistente? (s/n): "
+
+[ai_missing]
+for_suggest = "❌ La IA no está configurada. Configurá tu API Key de Gemini para usar 'suggest'.\n   👉 matecommit config init"
+for_pr = "❌ La IA no está configurada. Configurá tu API Key de Gemini para usar 'summarize-pr'.\n   👉 matecommit config init"
+
+ai_missing_for_suggest = "❌ La IA no está configurada. Configurá tu API Key de Gemini para usar 'suggest'.\n   👉 matecommit config init"
+ai_missing_for_pr = "❌ La IA no está configurada. Configurá tu API Key de Gemini para usar 'summarize-pr'.\n   👉 matecommit config init"
