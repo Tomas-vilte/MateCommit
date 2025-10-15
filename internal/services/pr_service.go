@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
@@ -23,6 +24,10 @@ func NewPRService(vcsClient ports.VCSClient, aiService ports.PRSummarizer, trans
 }
 
 func (s *PRService) SummarizePR(ctx context.Context, prNumber int) (models.PRSummary, error) {
+	if s.aiService == nil {
+		msg := s.trans.GetMessage("ai_missing_for_pr", 0, nil)
+		return models.PRSummary{}, fmt.Errorf("%s", msg)
+	}
 	prData, err := s.vcsClient.GetPR(ctx, prNumber)
 	if err != nil {
 		msg := s.trans.GetMessage("pr_service.error_get_pr", 0, map[string]interface{}{

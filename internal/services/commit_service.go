@@ -32,6 +32,11 @@ func NewCommitService(git ports.GitService, ai ports.CommitSummarizer, ticketMan
 func (s *CommitService) GenerateSuggestions(ctx context.Context, count int) ([]models.CommitSuggestion, error) {
 	var commitInfo models.CommitInfo
 
+	if s.ai == nil {
+		msg := s.trans.GetMessage("ai_missing_for_suggest", 0, nil)
+		return nil, fmt.Errorf("%s", msg)
+	}
+
 	changes, err := s.git.GetChangedFiles()
 	if err != nil {
 		return nil, err
