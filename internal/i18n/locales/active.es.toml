@@ -306,4 +306,10 @@ for_suggest = "❌ La IA no está configurada. Configurá tu API Key de Gemini p
 for_pr = "❌ La IA no está configurada. Configurá tu API Key de Gemini para usar 'summarize-pr'.\n   👉 matecommit config init"
 
 ai_missing_for_suggest = "❌ La IA no está configurada. Configurá tu API Key de Gemini para usar 'suggest'.\n   👉 matecommit config init"
+
 ai_missing_for_pr = "❌ La IA no está configurada. Configurá tu API Key de Gemini para usar 'summarize-pr'.\n   👉 matecommit config init"
+
+
+
+[help_command_usage]
+other = "Muestra una lista de comandos o ayuda para un comando"
