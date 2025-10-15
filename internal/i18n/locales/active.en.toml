@@ -300,3 +300,6 @@ for_pr = "❌ AI is not configured. Set your Gemini API Key to use 'summarize-pr
 
 ai_missing_for_suggest = "❌ AI is not configured. Set your Gemini API Key to use 'suggest'.\n   👉 matecommit config init"
 ai_missing_for_pr = "❌ AI is not configured. Set your Gemini API Key to use 'summarize-pr'.\n   👉 matecommit config init"
+
+[help_command_usage]
+other = "Shows a list of commands or help for one command"
