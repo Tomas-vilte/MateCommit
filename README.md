@@ -37,11 +37,11 @@
 
 4. **Configuración inicial**:
    ```bash
-   # Configura tu API key de Gemini
-   matecommit config set-api-key --key <tu-api-key>
+   # Configuración interactiva completa
+   matecommit config init
    
-   # Establece tu idioma preferido
-   matecommit config set-lang --lang es  # o en para inglés
+   # O si solo querés ver la configuración actual
+   matecommit config show
    ```
 
 ### Desde el código fuente
