@@ -217,6 +217,7 @@ invalid_repo_format = "Formato de repositorio inválido"
 pr_summary_error = "Error generando el resumen del PR"
 no_repo_configured = "No se ha configurado ningún repositorio. Usa --repo o configura un proveedor VCS activo"
 vcs_provider_not_configured = "El proveedor VCS '{{.Provider}}' no está configurado"
+vcs_provider_auto_detected_not_configured = "Proveedor de VCS '%s' detectado automáticamente pero no configurado. Use 'matecommit config set-vcs --provider %s --token <token>' para configurarlo"
 
 [label]
 feature = "Nuevas funcionalidades"

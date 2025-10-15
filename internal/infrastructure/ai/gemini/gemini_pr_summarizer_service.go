@@ -23,12 +23,13 @@ type GeminiPRSummarizer struct {
 }
 
 var validLabels = map[string]bool{
-	"feature":  true,
-	"fix":      true,
-	"refactor": true,
-	"docs":     true,
-	"infra":    true,
-	"test":     true,
+	"feature":     true,
+	"fix":         true,
+	"refactor":    true,
+	"docs":        true,
+	"infra":       true,
+	"test":        true,
+	"performance": true,
 }
 
 func NewGeminiPRSummarizer(ctx context.Context, cfg *config.Config, trans *i18n.Translations) (*GeminiPRSummarizer, error) {
