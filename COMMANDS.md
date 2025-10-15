@@ -21,11 +21,11 @@ MateCommit es simple de usar. La idea es que te ayude a hacer commits más copad
 ### Instalación Básica
 
 ```bash
-# Configurar el idioma a español
-matecommit config set-lang --lang es
+# Configuración interactiva completa (recomendado)
+matecommit config init
 
-# Configurar tu API key de Gemini
-matecommit config set-api-key --key tu-api-key
+# O si solo querés ver la configuración actual
+matecommit config show
 ```
 
 ## Comandos Principales
@@ -50,7 +50,18 @@ matecommit s --no-emoji
 
 ### Configuración Básica
 
-#### Ver toda la configuración
+#### Configuración interactiva completa
+```bash
+matecommit config init
+```
+
+Este comando te guía paso a paso para configurar:
+- 🌍 **Idioma**: Español o inglés
+- 🤖 **IA**: API key de Gemini y modelo
+- 🔧 **VCS**: Token de GitHub para resúmenes de PR
+- 🎫 **Tickets**: Integración con Jira (opcional)
+
+#### Ver configuración actual
 ```bash
 matecommit config show
 ```
@@ -67,58 +78,74 @@ Modelos de IA configurados:
 - gemini: gemini-1.5-pro
 ```
 
-#### Configurar API Key
+#### Editar configuración manualmente
 ```bash
-# Configurar la API key de Gemini
-matecommit config set-api-key --key tu-api-key
+matecommit config edit
 ```
+
+Abre el archivo de configuración en tu editor preferido para editarlo manualmente.
 
 ### Configuración de IA
 
-Ahora podés elegir entre diferentes IAs y modelos:
+La configuración de IA se hace a través del comando `config init`:
 
 ```bash
-# Ver las IAs disponibles
-matecommit config set-ai-active
-
-# Activar Gemini
-matecommit config set-ai-active gemini
-
-# Configurar el modelo de Gemini
-matecommit config set-ai-model gemini gemini-1.5-pro
-
-# O si preferís OpenAI
-matecommit config set-ai-active openai
-matecommit config set-ai-model openai gpt-4
+# Configuración interactiva que incluye IA
+matecommit config init
 ```
+
+Durante el proceso te va a preguntar:
+- 🤖 **API Key de Gemini**: Tu clave para usar Gemini
+- 🧠 **Modelo**: Qué modelo usar (gemini-1.5-flash, gemini-1.5-pro, etc.)
+
+**Nota**: Actualmente solo soporta Gemini, pero próximamente vamos a agregar OpenAI y Claude.
 
 ### Integración con Jira
 
-Si laburás con Jira, tenés estas opciones:
+La configuración de Jira también se hace con `config init`:
 
 ```bash
-# Configurar las credenciales
-matecommit config jira \
-  --base-url https://tu-empresa.atlassian.net \
-  --api-key tu-api-key \
-  --email tu@email.com
+# Configuración interactiva que incluye Jira
+matecommit config init
+```
 
-# Activar la integración
-matecommit config ticket enable
+Durante el proceso te va a preguntar si querés habilitar Jira y te pedirá:
+- 🌐 **Base URL**: La URL de tu instancia de Jira
+- 📧 **Email**: Tu email de Jira
+- 🔑 **API Token**: Tu token de API de Jira
 
-# Desactivar la integración
-matecommit config ticket disable
+### Configuración de VCS
+
+La configuración de VCS se hace con `config init`:
+
+```bash
+# Configuración interactiva que incluye VCS
+matecommit config init
+```
+
+Durante el proceso te va a preguntar si querés habilitar VCS y te pedirá:
+- 🔑 **Token de GitHub**: Tu Personal Access Token (recomendamos classic tokens)
+
+**Importante para repositorios de organizaciones**: 
+- Usá **Personal access tokens (classic)** en lugar de fine-grained tokens
+- Los classic tokens funcionan mejor con organizaciones sin necesidad de aprobación
+
+Una vez configurado, podés usar:
+```bash
+# Resumir un Pull Request
+matecommit summarize-pr --pr-number 42
+matecommit spr -n 42  # alias corto
 ```
 
 ### Idiomas
 
 ```bash
-# Cambiar el idioma default
-matecommit config set-lang --lang es  # español
-matecommit config set-lang --lang en  # inglés
+# Configurar idioma default (se hace en config init)
+matecommit config init  # te pregunta el idioma
 
 # O usar otro idioma solo para una sugerencia
 matecommit s -l en  # sugerencia en inglés
+matecommit s -l es  # sugerencia en español
 ```
 
 ## Ejemplos con Salidas
@@ -174,56 +201,47 @@ matecommit s
 💡 feat(PROJ-123): implementa nuevo endpoint de usuarios
 ```
 
-### Configuración de VCS
-
-Configura proveedores de control de versiones (GitHub, GitLab, etc.):
-```bash
-+# Configurar un proveedor VCS (ej: GitHub)
-+matecommit config set-vcs \
-  --provider github \
-  --token tu-token \
-  --owner tu-usuario \
-  --repo tu-repositorio
-  
-# Establecer el proveedor VCS activo
-matecommit config set-active-vcs --provider github
-# Resumir un Pull Request (requiere VCS configurado)
-matecommit summarize-pr --pr-number 42
-matecommit spr -n 42  # alias corto
-```
-
 ### Ejemplo 4: Resumen de PR con VCS
 ```bash
 matecommit spr -n 42
-✅ PR #42 actulizado: Implementacion de repository
+✅ PR #42 actualizado: Implementación de repository
 ```
 
 ## Tips y Trucos
 
 1. **Alias Rápidos**:
    - Usá `s` en lugar de `suggest`
+   - Usá `spr` en lugar de `summarize-pr`
    - `config show` te muestra todo de una
 
 2. **Mejores Prácticas**:
    - Siempre hacé `git add` antes de usar MateCommit
    - Si no te convence ninguna sugerencia, apretá 0 y pedí más
+   - Usá classic tokens para GitHub en lugar de fine-grained tokens
 
 3. **Personalización**:
-   - Probá diferentes IAs hasta encontrar la que mejor te funcione
-   - Podés tener diferentes modelos configurados para cada IA
+   - Probá diferentes modelos de Gemini hasta encontrar el que mejor te funcione
    - Los emojis son opcionales pero le dan más onda 😎
+   - Podés tener un idioma default y usar otro para commits específicos
 
 4. **Integración con Jira**:
    - Activala solo si trabajás con tickets
    - Te agrega automáticamente el número de ticket en los commits
 
-5. **Idiomas**:
-   - Podés tener un idioma default y usar otro para commits específicos
-   - El análisis técnico se adapta al idioma elegido
+5. **Configuración**:
+   - Usá `config init` para configurar todo de una vez
+   - Si algo no te gusta, podés editarlo con `config edit`
+   - Siempre podés volver a ejecutar `config init` para cambiar algo
+
+6. **Repositorios de Organización**:
+   - Para repos de organizaciones, usá Personal Access Tokens (classic)
+   - Los fine-grained tokens requieren aprobación de la organización
 
 ¿Necesitás más ayuda? Siempre podés usar:
 ```bash
 matecommit --help
 # o para un comando específico
 matecommit config --help
+matecommit suggest --help
+matecommit summarize-pr --help
 ```

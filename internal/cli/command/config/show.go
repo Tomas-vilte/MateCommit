@@ -3,6 +3,7 @@ package config
 import (
 	"context"
 	"fmt"
+
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/urfave/cli/v3"

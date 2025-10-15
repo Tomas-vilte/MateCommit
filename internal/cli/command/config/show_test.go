@@ -3,12 +3,13 @@ package config
 import (
 	"bytes"
 	"context"
-	"github.com/Tomas-vilte/MateCommit/internal/config"
-	"github.com/stretchr/testify/assert"
-	"github.com/urfave/cli/v3"
 	"io"
 	"os"
 	"testing"
+
+	"github.com/Tomas-vilte/MateCommit/internal/config"
+	"github.com/stretchr/testify/assert"
+	"github.com/urfave/cli/v3"
 )
 
 func TestShowCommand(t *testing.T) {
@@ -65,7 +66,7 @@ func TestShowCommand(t *testing.T) {
 		cfg.AIConfig = config.AIConfig{
 			ActiveAI: config.AIGemini,
 			Models: map[config.AI]config.Model{
-				config.AIGemini: config.ModelGeminiV15Flash,
+				config.AIGemini: config.ModelGeminiV25Flash,
 				config.AIOpenAI: config.ModelGPTV4o,
 			},
 		}
@@ -101,7 +102,7 @@ func TestShowCommand(t *testing.T) {
 		assert.Contains(t, output, "Configuración de Jira - BaseURL: https://example.atlassian.net, Email: user@example.com")
 
 		// Check AI models
-		assert.Contains(t, output, "gemini: gemini-1.5-flash")
+		assert.Contains(t, output, "gemini: gemini-2.5-flash")
 		assert.Contains(t, output, "openai: gpt-4o")
 	})
 }

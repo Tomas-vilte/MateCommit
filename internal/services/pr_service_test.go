@@ -263,7 +263,7 @@ func setupServices(t *testing.T, testConfig TestConfig) (*PRService, error) {
 		Language:     "es",
 		AIConfig: config.AIConfig{
 			Models: map[config.AI]config.Model{
-				config.AIGemini: config.ModelGeminiV15Flash,
+				config.AIGemini: config.ModelGeminiV25Flash,
 			},
 		},
 	}
