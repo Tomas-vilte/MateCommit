@@ -2,13 +2,14 @@ package github
 
 import (
 	"context"
+	"testing"
+
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/google/go-github/github"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func newTestClient(pr *MockPRService, issues *MockIssuesService) *GitHubClient {
@@ -32,16 +33,16 @@ func TestGitHubClient_UpdatePR(t *testing.T) {
 		summary := models.PRSummary{
 			Title:  "New Title",
 			Body:   "New Body",
-			Labels: []string{"bug"},
+			Labels: []string{"fix"},
 		}
 
-		mockIssues.On("ListLabels", mock.Anything, "test-owner", "test-repo", &github.ListOptions{PerPage: 100}).
+		mockIssues.On("ListLabels", mock.Anything, "test-owner", "test-repo", mock.Anything).
 			Return([]*github.Label{}, &github.Response{}, nil).Once()
 
-		mockIssues.On("CreateLabel", mock.Anything, "test-owner", "test-repo", mock.AnythingOfType("*github.Label")).
-			Return(&github.Label{}, &github.Response{}, nil).Once()
+		mockIssues.On("CreateLabel", mock.Anything, "test-owner", "test-repo", mock.MatchedBy(func(label *github.Label) bool {
+			return *label.Name == "fix"
+		})).Return(&github.Label{}, &github.Response{}, nil).Once()
 
-		// Original mocks
 		mockPR.On("Edit", mock.Anything, "test-owner", "test-repo", prNumber, mock.Anything).
 			Return(&github.PullRequest{}, &github.Response{}, nil)
 
@@ -60,21 +61,22 @@ func TestGitHubClient_UpdatePR(t *testing.T) {
 		mockIssues := &MockIssuesService{}
 		client := newTestClient(mockPR, mockIssues)
 
-		// Setup all required mock expectations
+		labelsToAdd := []string{"fix"}
+
 		mockPR.On("Edit", mock.Anything, "test-owner", "test-repo", 123, mock.Anything).
 			Return(&github.PullRequest{}, &github.Response{}, nil)
 
-		mockIssues.On("ListLabels", mock.Anything, "test-owner", "test-repo", &github.ListOptions{PerPage: 100}).
+		mockIssues.On("ListLabels", mock.Anything, "test-owner", "test-repo", mock.Anything).
 			Return([]*github.Label{}, &github.Response{}, nil)
 
 		mockIssues.On("CreateLabel", mock.Anything, "test-owner", "test-repo", mock.Anything).
 			Return(&github.Label{}, &github.Response{}, nil)
 
-		mockIssues.On("AddLabelsToIssue", mock.Anything, "test-owner", "test-repo", 123, []string{"bug"}).
+		mockIssues.On("AddLabelsToIssue", mock.Anything, "test-owner", "test-repo", 123, labelsToAdd).
 			Return([]*github.Label{}, &github.Response{}, nil)
 
 		err := client.UpdatePR(context.Background(), 123, models.PRSummary{
-			Labels: []string{"bug"},
+			Labels: labelsToAdd,
 		})
 
 		assert.NoError(t, err)
@@ -90,16 +92,15 @@ func TestGitHubClient_AddLabelsToPR(t *testing.T) {
 		client := newTestClient(mockPR, mockIssues)
 
 		prNumber := 123
-		labels := []string{"new-feature", "fix"}
+		labels := []string{"feature", "fix"}
 
-		// Mockear lista de labels existentes
 		mockIssues.On("ListLabels", mock.Anything, "test-owner", "test-repo", mock.Anything).
 			Return([]*github.Label{
 				{Name: github.String("fix")},
 			}, &github.Response{}, nil)
 
 		mockIssues.On("CreateLabel", mock.Anything, "test-owner", "test-repo", mock.MatchedBy(func(label *github.Label) bool {
-			return *label.Name == "new-feature"
+			return *label.Name == "feature"
 		})).Return(&github.Label{}, &github.Response{}, nil)
 
 		mockIssues.On("AddLabelsToIssue", mock.Anything, "test-owner", "test-repo", prNumber, labels).
@@ -213,7 +214,7 @@ func TestGitHubClient_UpdatePR_ErrorCases(t *testing.T) {
 		client := newTestClient(mockPR, mockIssues)
 
 		prNumber := 123
-		summary := models.PRSummary{Labels: []string{"bug"}}
+		summary := models.PRSummary{Labels: []string{"fix"}}
 
 		mockPR.On("Edit", mock.Anything, "test-owner", "test-repo", prNumber, mock.Anything).
 			Return(&github.PullRequest{}, &github.Response{}, nil)
@@ -223,6 +224,7 @@ func TestGitHubClient_UpdatePR_ErrorCases(t *testing.T) {
 
 		err := client.UpdatePR(context.Background(), prNumber, summary)
 
+		assert.Error(t, err)
 		assert.ErrorContains(t, err, client.trans.GetMessage("error.add_labels", 0, map[string]interface{}{"pr_number": prNumber}))
 		mockIssues.AssertExpectations(t)
 	})
@@ -237,7 +239,8 @@ func TestGitHubClient_AddLabelsToPR_ErrorCases(t *testing.T) {
 		mockIssues.On("ListLabels", mock.Anything, "test-owner", "test-repo", mock.Anything).
 			Return([]*github.Label{}, &github.Response{}, assert.AnError)
 
-		err := client.AddLabelsToPR(context.Background(), 123, []string{"label"})
+		err := client.AddLabelsToPR(context.Background(), 123, []string{"fix"})
+		assert.Error(t, err)
 		assert.ErrorContains(t, err, client.trans.GetMessage("error.get_labels", 0, nil))
 	})
 
@@ -252,8 +255,9 @@ func TestGitHubClient_AddLabelsToPR_ErrorCases(t *testing.T) {
 		mockIssues.On("CreateLabel", mock.Anything, "test-owner", "test-repo", mock.Anything).
 			Return(&github.Label{}, &github.Response{}, assert.AnError)
 
-		err := client.AddLabelsToPR(context.Background(), 123, []string{"new-label"})
-		assert.ErrorContains(t, err, client.trans.GetMessage("error.create_label", 0, map[string]interface{}{"label": "new-label"}))
+		err := client.AddLabelsToPR(context.Background(), 123, []string{"feature"})
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, client.trans.GetMessage("error.create_label", 0, map[string]interface{}{"label": "feature"}))
 	})
 
 	t.Run("should return error if AddLabelsToIssue fails", func(t *testing.T) {
@@ -262,12 +266,13 @@ func TestGitHubClient_AddLabelsToPR_ErrorCases(t *testing.T) {
 		client := newTestClient(mockPR, mockIssues)
 
 		mockIssues.On("ListLabels", mock.Anything, "test-owner", "test-repo", mock.Anything).
-			Return([]*github.Label{{Name: github.String("existing-label")}}, &github.Response{}, nil)
+			Return([]*github.Label{{Name: github.String("fix")}}, &github.Response{}, nil)
 
-		mockIssues.On("AddLabelsToIssue", mock.Anything, "test-owner", "test-repo", 123, []string{"existing-label"}).
+		mockIssues.On("AddLabelsToIssue", mock.Anything, "test-owner", "test-repo", 123, []string{"fix"}).
 			Return([]*github.Label{}, &github.Response{}, assert.AnError)
 
-		err := client.AddLabelsToPR(context.Background(), 123, []string{"existing-label"})
+		err := client.AddLabelsToPR(context.Background(), 123, []string{"fix"})
+		assert.Error(t, err)
 		assert.ErrorContains(t, err, client.trans.GetMessage("error.add_labels", 0, map[string]interface{}{"pr_number": 123}))
 	})
 }

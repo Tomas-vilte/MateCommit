@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+
 	"github.com/google/go-github/github"
 	"github.com/stretchr/testify/mock"
 )

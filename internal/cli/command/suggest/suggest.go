@@ -3,6 +3,7 @@ package suggest
 import (
 	"context"
 	"fmt"
+
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
