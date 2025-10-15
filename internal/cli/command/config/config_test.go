@@ -1,12 +1,13 @@
 package config
 
 import (
-	"github.com/Tomas-vilte/MateCommit/internal/config"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/Tomas-vilte/MateCommit/internal/config"
+	"github.com/Tomas-vilte/MateCommit/internal/i18n"
+	"github.com/stretchr/testify/assert"
 )
 
 func setupConfigTest(t *testing.T) (*config.Config, *i18n.Translations, string, func()) {
