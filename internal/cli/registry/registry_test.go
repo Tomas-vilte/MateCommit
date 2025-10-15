@@ -1,11 +1,12 @@
 package registry
 
 import (
+	"testing"
+
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli/v3"
-	"testing"
 )
 
 type mockCommandFactory struct {

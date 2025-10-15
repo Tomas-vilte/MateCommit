@@ -3,14 +3,15 @@ package suggest
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"testing"
+
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"os"
-	"path/filepath"
-	"testing"
 )
 
 // Mock para CommitService
@@ -53,7 +54,7 @@ func setupTestEnv(t *testing.T) (*config.Config, *i18n.Translations, func()) {
 	}
 
 	cleanup := func() {
-		os.RemoveAll(tmpDir)
+		_ = os.RemoveAll(tmpDir)
 	}
 
 	return cfg, translations, cleanup

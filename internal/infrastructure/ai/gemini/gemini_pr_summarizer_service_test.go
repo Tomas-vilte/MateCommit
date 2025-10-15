@@ -2,12 +2,13 @@ package gemini
 
 import (
 	"context"
+	"testing"
+
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/google/generative-ai-go/genai"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 const (

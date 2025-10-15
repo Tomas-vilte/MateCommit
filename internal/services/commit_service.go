@@ -3,11 +3,12 @@ package services
 import (
 	"context"
 	"fmt"
+	"regexp"
+
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
-	"regexp"
 )
 
 type CommitService struct {

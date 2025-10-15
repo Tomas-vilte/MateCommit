@@ -215,7 +215,7 @@ func (ghc *GitHubClient) CreateLabel(ctx context.Context, name, color, descripti
 
 func (ghc *GitHubClient) labelExists(existingLabels []string, target string) bool {
 	for _, l := range existingLabels {
-		if l == target {
+		if strings.EqualFold(l, target) {
 			return true
 		}
 	}

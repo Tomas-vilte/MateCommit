@@ -10,7 +10,11 @@ func TestNewTranslations(t *testing.T) {
 	t.Run("Should successfully create translations with valid language", func(t *testing.T) {
 		// Arrange
 		tmpDir := createTempDir(t)
-		defer os.RemoveAll(tmpDir)
+		defer func() {
+			if err := os.RemoveAll(tmpDir); err != nil {
+				t.Errorf("error al eliminar directorio: %v", err)
+			}
+		}()
 
 		createTestFile(t, tmpDir, "active.es.toml", `
 		[HelloWorld]
@@ -33,7 +37,11 @@ func TestNewTranslations(t *testing.T) {
 	t.Run("Should fail with empty language", func(t *testing.T) {
 		// arrange
 		tmpDir := createTempDir(t)
-		defer os.RemoveAll(tmpDir)
+		defer func() {
+			if err := os.RemoveAll(tmpDir); err != nil {
+				t.Errorf("error al eliminar directorio: %v", err)
+			}
+		}()
 
 		// act
 		trans, err := NewTranslations("", tmpDir)
@@ -53,7 +61,11 @@ func TestSetLanguage(t *testing.T) {
 	t.Run("Should change to a valid language", func(t *testing.T) {
 		// arrange
 		tmpDir := createTempDir(t)
-		defer os.RemoveAll(tmpDir)
+		defer func() {
+			if err := os.RemoveAll(tmpDir); err != nil {
+				t.Errorf("error al eliminar directorio: %v", err)
+			}
+		}()
 
 		createTestFile(t, tmpDir, "active.es.toml", `[Test]
 		other = "Prueba"`)
@@ -77,7 +89,11 @@ func TestSetLanguage(t *testing.T) {
 	t.Run("Should fail with unsupported language", func(t *testing.T) {
 		// arrange
 		tmpDir := createTempDir(t)
-		defer os.RemoveAll(tmpDir)
+		defer func() {
+			if err := os.RemoveAll(tmpDir); err != nil {
+				t.Errorf("error al eliminar directorio: %v", err)
+			}
+		}()
 
 		createTestFile(t, tmpDir, "active.es.toml", `[Test]
 		other = "Prueba"`)
@@ -101,7 +117,11 @@ func TestGetMessage(t *testing.T) {
 	t.Run("Should get singular message correctly", func(t *testing.T) {
 		// arrange
 		tmpDir := createTempDir(t)
-		defer os.RemoveAll(tmpDir)
+		defer func() {
+			if err := os.RemoveAll(tmpDir); err != nil {
+				t.Errorf("error al eliminar directorio: %v", err)
+			}
+		}()
 
 		createTestFile(t, tmpDir, "active.es.toml", `
 		[Welcome]
@@ -126,7 +146,11 @@ func TestGetMessage(t *testing.T) {
 	t.Run("Should get plural message correctly", func(t *testing.T) {
 		// arrange
 		tmpDir := createTempDir(t)
-		defer os.RemoveAll(tmpDir)
+		defer func() {
+			if err := os.RemoveAll(tmpDir); err != nil {
+				t.Errorf("error al eliminar directorio: %v", err)
+			}
+		}()
 
 		createTestFile(t, tmpDir, "active.es.toml", `
 		[Welcome]
@@ -151,7 +175,11 @@ func TestGetMessage(t *testing.T) {
 	t.Run("Should handle templates correctly", func(t *testing.T) {
 		// arrange
 		tmpDir := createTempDir(t)
-		defer os.RemoveAll(tmpDir)
+		defer func() {
+			if err := os.RemoveAll(tmpDir); err != nil {
+				t.Errorf("error al eliminar directorio: %v", err)
+			}
+		}()
 
 		createTestFile(t, tmpDir, "active.es.toml", `
 		[HelloName]
@@ -179,7 +207,11 @@ func TestGetMessage(t *testing.T) {
 	t.Run("Should handle missing messages", func(t *testing.T) {
 		// arrange
 		tmpDir := createTempDir(t)
-		defer os.RemoveAll(tmpDir)
+		defer func() {
+			if err := os.RemoveAll(tmpDir); err != nil {
+				t.Errorf("error al eliminar directorio: %v", err)
+			}
+		}()
 
 		createTestFile(t, tmpDir, "active.es.toml", `[Test]
 		other = "Prueba"`)
@@ -204,7 +236,11 @@ func TestNewTranslations_Errors(t *testing.T) {
 	t.Run("Should successfully load multiple translation files", func(t *testing.T) {
 		// Arrange
 		tmpDir := createTempDir(t)
-		defer os.RemoveAll(tmpDir)
+		defer func() {
+			if err := os.RemoveAll(tmpDir); err != nil {
+				t.Errorf("error al eliminar directorio: %v", err)
+			}
+		}()
 
 		// Crear múltiples archivos válidos
 		createTestFile(t, tmpDir, "active.es.toml", `
