@@ -92,12 +92,22 @@ func initializeApp() (*cli.Command, error) {
 	if err := registerCommand.Register("summarize-pr", prCommand); err != nil {
 		log.Fatalf("Error al registrar el comando 'summarize-pr': %v", err)
 	}
+	commands := registerCommand.CreateCommands()
+	helpCommand := &cli.Command{
+		Name:    "help",
+		Aliases: []string{"h"},
+		Usage:   translations.GetMessage("help_command_usage", 0, nil),
+		Action: func(ctx context.Context, cmd *cli.Command) error {
+			return cli.ShowAppHelp(cmd)
+		},
+	}
+	commands = append(commands, helpCommand)
 
 	return &cli.Command{
 		Name:        "mate-commit",
 		Usage:       translations.GetMessage("app_usage", 0, nil),
 		Version:     "1.3.0",
 		Description: translations.GetMessage("app_description", 0, nil),
-		Commands:    registerCommand.CreateCommands(),
+		Commands:    commands,
 	}, nil
 }
