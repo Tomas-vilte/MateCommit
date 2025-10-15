@@ -72,7 +72,7 @@ func initializeApp() (*cli.Command, error) {
 
 	registerCommand := registry.NewRegistry(cfgApp, translations)
 
-	prServiceFactory := factory.NewPrServiceFactory(cfgApp, translations, aiSummarizer)
+	prServiceFactory := factory.NewPrServiceFactory(cfgApp, translations, aiSummarizer, gitService)
 	prService, err := prServiceFactory.CreatePRService()
 	if err != nil {
 		log.Printf("Warning: %v", err)
