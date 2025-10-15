@@ -2,10 +2,15 @@ package git
 
 import (
 	"fmt"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"os/exec"
+	"regexp"
 	"strings"
+
+	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
+	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 )
+
+var _ ports.GitService = (*GitService)(nil)
 
 type GitService struct {
 }
@@ -119,4 +124,45 @@ func (s *GitService) GetCurrentBranch() (string, error) {
 	}
 
 	return branchName, nil
+}
+
+func (s *GitService) GetRepoInfo() (string, string, string, error) {
+	cmd := exec.Command("git", "remote", "get-url", "origin")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", "", "", fmt.Errorf("error al obtener la URL del repositorio: %w", err)
+	}
+
+	url := strings.TrimSpace(string(output))
+	return parseRepoURL(url)
+}
+
+func parseRepoURL(url string) (string, string, string, error) {
+	sshRegex := regexp.MustCompile(`git@([^:]+):([^/]+)/(.+)\.git$`)
+	httpsRegex := regexp.MustCompile(`https://([^/]+)/([^/]+)/(.+?)(?:\.git)?$`)
+
+	var matches []string
+	if sshRegex.MatchString(url) {
+		matches = sshRegex.FindStringSubmatch(url)
+	} else if httpsRegex.MatchString(url) {
+		matches = httpsRegex.FindStringSubmatch(url)
+	}
+
+	if len(matches) >= 4 {
+		provider := detectProvider(matches[1])
+		repoName := strings.TrimSuffix(matches[3], ".git")
+		return matches[2], repoName, provider, nil
+	}
+
+	return "", "", "", fmt.Errorf("no se pudo extraer el propietario y el repositorio de la URL: %s", url)
+}
+
+func detectProvider(host string) string {
+	if strings.Contains(host, "github") {
+		return "github"
+	}
+	if strings.Contains(host, "gitlab") {
+		return "gitlab"
+	}
+	return "unknown"
 }

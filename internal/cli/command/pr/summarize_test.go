@@ -3,13 +3,14 @@ package pr
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 type MockPRService struct {
@@ -86,12 +87,17 @@ func TestSummarizeCommand(t *testing.T) {
 		// Arrange
 		mockPRService, translations, cfg := setupSummarizeTest(t)
 
+		cfg.VCSConfigs["github"] = config.VCSConfig{
+			Owner: "testowner",
+			Repo:  "",
+		}
+
 		cmd := NewSummarizeCommand(mockPRService).CreateCommand(translations, cfg)
 		app := cmd
 		ctx := context.Background()
 
 		// Act
-		err := app.Run(ctx, []string{"summarize-pr", "--pr-number", "123", "--repo", "invalid-format"})
+		err := app.Run(ctx, []string{"summarize-pr", "--pr-number", "123"})
 
 		// Assert
 		assert.Error(t, err)

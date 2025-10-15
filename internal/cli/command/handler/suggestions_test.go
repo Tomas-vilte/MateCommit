@@ -3,13 +3,14 @@ package handler
 import (
 	"bytes"
 	"errors"
+	"io"
+	"os"
+	"testing"
+
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"io"
-	"os"
-	"testing"
 )
 
 type mockGitService struct {
@@ -44,7 +45,11 @@ func (m *mockGitService) AddFileToStaging(file string) error {
 func (m *mockGitService) GetCurrentBranch() (string, error) {
 	args := m.Called()
 	return args.String(0), args.Error(1)
+}
 
+func (m *mockGitService) GetRepoInfo() (string, string, string, error) {
+	args := m.Called()
+	return args.String(0), args.String(1), args.String(2), args.Error(3)
 }
 
 func captureOutput(f func()) string {

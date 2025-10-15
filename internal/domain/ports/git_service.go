@@ -22,4 +22,7 @@ type GitService interface {
 
 	// GetCurrentBranch obtiene el nombre de la branch actual
 	GetCurrentBranch() (string, error)
+
+	// GetRepoInfo obtiene la informacion del repo
+	GetRepoInfo() (string, string, string, error)
 }

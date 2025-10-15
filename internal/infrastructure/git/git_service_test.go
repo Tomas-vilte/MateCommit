@@ -1,12 +1,14 @@
 package git
 
 import (
-	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
+	"github.com/stretchr/testify/assert"
 )
 
 var originalDir string
@@ -457,4 +459,63 @@ func TestAddFileToStaging(t *testing.T) {
 			t.Error("La eliminación no se registró en staging")
 		}
 	})
+}
+
+func TestGetRepoInfo(t *testing.T) {
+	tests := []struct {
+		name             string
+		url              string
+		expectedOwner    string
+		expectedRepo     string
+		expectedProvider string
+		expectedError    bool
+	}{
+		{
+			name:             "GitHub HTTPS URL",
+			url:              "https://github.com/owner/repo.git",
+			expectedOwner:    "owner",
+			expectedRepo:     "repo",
+			expectedProvider: "github",
+			expectedError:    false,
+		},
+		{
+			name:             "GitHub SSH URL",
+			url:              "git@github.com:owner/repo.git",
+			expectedOwner:    "owner",
+			expectedRepo:     "repo",
+			expectedProvider: "github",
+			expectedError:    false,
+		},
+		{
+			name:             "GitLab HTTPS URL",
+			url:              "https://gitlab.com/owner/repo.git",
+			expectedOwner:    "owner",
+			expectedRepo:     "repo",
+			expectedProvider: "gitlab",
+			expectedError:    false,
+		},
+		{
+			name:             "Invalid URL",
+			url:              "invalid-url",
+			expectedOwner:    "",
+			expectedRepo:     "",
+			expectedProvider: "",
+			expectedError:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			owner, repo, provider, err := parseRepoURL(tt.url)
+
+			if tt.expectedError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedOwner, owner)
+				assert.Equal(t, tt.expectedRepo, repo)
+				assert.Equal(t, tt.expectedProvider, provider)
+			}
+		})
+	}
 }

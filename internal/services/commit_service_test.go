@@ -3,13 +3,14 @@ package services
 import (
 	"context"
 	"errors"
+	"testing"
+
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 type (
@@ -63,6 +64,11 @@ func (m *MockGitService) CreateCommit(message string) error {
 func (m *MockGitService) GetCurrentBranch() (string, error) {
 	args := m.Called()
 	return args.String(0), args.Error(1)
+}
+
+func (m *MockGitService) GetRepoInfo() (string, string, string, error) {
+	args := m.Called()
+	return args.String(0), args.String(1), args.String(2), args.Error(3)
 }
 
 func (m *MockAIProvider) GenerateSuggestions(ctx context.Context, info models.CommitInfo, count int) ([]models.CommitSuggestion, error) {
