@@ -3,6 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
+	"net/http"
+	"os"
+
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/config"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/handler"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/pr"
@@ -16,9 +20,6 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/tickets/jira"
 	"github.com/Tomas-vilte/MateCommit/internal/services"
 	"github.com/urfave/cli/v3"
-	"log"
-	"net/http"
-	"os"
 )
 
 func main() {
@@ -56,12 +57,16 @@ func initializeApp() (*cli.Command, error) {
 	gitService := git.NewGitService()
 	aiProvider, err := gemini.NewGeminiService(context.Background(), cfgApp, translations)
 	if err != nil {
-		log.Fatalf("Error initializing AI service: %v", err)
+		log.Printf("Warning: %v", err)
+		log.Println("La IA no está configurada. Podés configurarla con 'matecommit config init'")
+		aiProvider = nil
 	}
 
 	aiSummarizer, err := gemini.NewGeminiPRSummarizer(context.Background(), cfgApp, translations)
 	if err != nil {
-		log.Fatalf("Error al crear el servicio: %v", err)
+		log.Printf("Warning: %v", err)
+		log.Println("El resumidor de PRs está deshabilitado hasta configurar la IA (Gemini).")
+		aiSummarizer = nil
 	}
 
 	ticketService := jira.NewJiraService(cfgApp, &http.Client{})
@@ -96,7 +101,7 @@ func initializeApp() (*cli.Command, error) {
 	return &cli.Command{
 		Name:        "mate-commit",
 		Usage:       translations.GetMessage("app_usage", 0, nil),
-		Version:     "1.2.0",
+		Version:     "1.3.0",
 		Description: translations.GetMessage("app_description", 0, nil),
 		Commands:    registerCommand.CreateCommands(),
 	}, nil
