@@ -14,9 +14,11 @@ import (
 
 func newTestClient(pr *MockPRService, issues *MockIssuesService) *GitHubClient {
 	trans, _ := i18n.NewTranslations("es", "../../../i18n/locales/")
+	repo := &MockRepoService{}
 	return NewGitHubClientWithServices(
 		pr,
 		issues,
+		repo,
 		"test-owner",
 		"test-repo",
 		trans,
@@ -310,11 +312,11 @@ func TestGitHubClient_GetPR_ErrorCases(t *testing.T) {
 		client := newTestClient(mockPR, mockIssues)
 
 		mockPR.On("Get", mock.Anything, "test-owner", "test-repo", 123).
-			Return(&github.PullRequest{}, &github.Response{}, nil)
+			Return(&github.PullRequest{User: &github.User{Login: github.String("test-user")}}, &github.Response{}, nil)
 		mockPR.On("ListCommits", mock.Anything, "test-owner", "test-repo", 123, mock.Anything).
 			Return([]*github.RepositoryCommit{}, &github.Response{}, nil)
 		mockPR.On("GetRaw", mock.Anything, "test-owner", "test-repo", 123, mock.Anything).
-			Return("", &github.Response{}, assert.AnError)
+			Return("", nil, assert.AnError)
 
 		_, err := client.GetPR(context.Background(), 123)
 		assert.ErrorContains(t, err, client.trans.GetMessage("error.get_diff", 0, map[string]interface{}{"pr_number": 123}))

@@ -28,6 +28,9 @@ func (m *MockPRService) ListCommits(ctx context.Context, owner, repo string, num
 
 func (m *MockPRService) GetRaw(ctx context.Context, owner, repo string, number int, opts github.RawOptions) (string, *github.Response, error) {
 	args := m.Called(ctx, owner, repo, number, opts)
+	if args.Get(1) == nil {
+		return args.String(0), nil, args.Error(2)
+	}
 	return args.String(0), args.Get(1).(*github.Response), args.Error(2)
 }
 
@@ -48,4 +51,13 @@ func (m *MockIssuesService) CreateLabel(ctx context.Context, owner, repo string,
 func (m *MockIssuesService) AddLabelsToIssue(ctx context.Context, owner, repo string, number int, labels []string) ([]*github.Label, *github.Response, error) {
 	args := m.Called(ctx, owner, repo, number, labels)
 	return args.Get(0).([]*github.Label), args.Get(1).(*github.Response), args.Error(2)
+}
+
+type MockRepoService struct {
+	mock.Mock
+}
+
+func (m *MockRepoService) GetCommit(ctx context.Context, owner, repo, sha string) (*github.RepositoryCommit, *github.Response, error) {
+	args := m.Called(ctx, owner, repo, sha)
+	return args.Get(0).(*github.RepositoryCommit), args.Get(1).(*github.Response), args.Error(2)
 }

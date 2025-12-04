@@ -220,6 +220,8 @@ update_pr = "Error al actualizar el PR #{{.pr_number}}"
 get_pr = "Error al obtener el PR #{{.pr_number}}"
 get_commits = "Error al obtener los commits del PR #{{.pr_number}}"
 get_diff = "Error al obtener el diff del PR #{{.pr_number}}"
+get_diff_from_commits = "Error al obtener el diff por commits del PR #{{.pr_number}}"
+get_commit_diff = "Error al obtener el diff del commit"
 get_repo_labels = "Error al obtener las etiquetas del repo"
 add_labels = "Error al añadir las etiquetas al repo #{{.pr_number}}"
 invalid_repo_format = "Formato de repositorio inválido"
@@ -227,6 +229,13 @@ pr_summary_error = "Error generando el resumen del PR"
 no_repo_configured = "No se ha configurado ningún repositorio. Usa --repo o configura un proveedor VCS activo"
 vcs_provider_not_configured = "El proveedor VCS '{{.Provider}}' no está configurado"
 vcs_provider_auto_detected_not_configured = "Proveedor de VCS '%s' detectado automáticamente pero no configurado. Use 'matecommit config set-vcs --provider %s --token <token>' para configurarlo"
+
+[warning]
+pr_too_large = "⚠️  El PR #{{.pr_number}} es demasiado grande (>20,000 líneas). Obteniendo diff commit por commit..."
+
+[info]
+fetching_commit_diffs = "📥 Obteniendo diffs de {{.total}} commits..."
+processing_commit = "🔄 Procesando commit {{.sha}}"
 
 [label]
 feature = "Nuevas funcionalidades"
