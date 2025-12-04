@@ -231,11 +231,11 @@ vcs_provider_not_configured = "El proveedor VCS '{{.Provider}}' no está configu
 vcs_provider_auto_detected_not_configured = "Proveedor de VCS '%s' detectado automáticamente pero no configurado. Use 'matecommit config set-vcs --provider %s --token <token>' para configurarlo"
 
 [warning]
-pr_too_large = "⚠️  El PR #{{.pr_number}} es demasiado grande (>20,000 líneas). Obteniendo diff commit por commit..."
+pr_too_large = "El PR #{{.pr_number}} es demasiado grande (>20,000 líneas). Obteniendo diff commit por commit..."
 
 [info]
-fetching_commit_diffs = "📥 Obteniendo diffs de {{.total}} commits..."
-processing_commit = "🔄 Procesando commit {{.sha}}"
+fetching_commit_diffs = "Obteniendo diffs de {{.total}} commits..."
+processing_commit = "Procesando commit {{.sha}}"
 
 [label]
 feature = "Nuevas funcionalidades"
