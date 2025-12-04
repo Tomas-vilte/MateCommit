@@ -25,9 +25,14 @@ type IssuesService interface {
 	AddLabelsToIssue(ctx context.Context, owner, repo string, number int, labels []string) ([]*github.Label, *github.Response, error)
 }
 
+type RepositoriesService interface {
+	GetCommit(ctx context.Context, owner, repo, sha string) (*github.RepositoryCommit, *github.Response, error)
+}
+
 type GitHubClient struct {
 	prService     PullRequestsService
 	issuesService IssuesService
+	repoService   RepositoriesService
 	owner         string
 	repo          string
 	trans         *i18n.Translations
@@ -56,6 +61,7 @@ func NewGitHubClient(owner, repo, token string, trans *i18n.Translations) *GitHu
 	return &GitHubClient{
 		prService:     client.PullRequests,
 		issuesService: client.Issues,
+		repoService:   client.Repositories,
 		owner:         owner,
 		repo:          repo,
 		trans:         trans,
@@ -65,6 +71,7 @@ func NewGitHubClient(owner, repo, token string, trans *i18n.Translations) *GitHu
 func NewGitHubClientWithServices(
 	prService PullRequestsService,
 	issuesService IssuesService,
+	repoService RepositoriesService,
 	owner string,
 	repo string,
 	trans *i18n.Translations,
@@ -72,6 +79,7 @@ func NewGitHubClientWithServices(
 	return &GitHubClient{
 		prService:     prService,
 		issuesService: issuesService,
+		repoService:   repoService,
 		owner:         owner,
 		repo:          repo,
 		trans:         trans,
@@ -120,16 +128,68 @@ func (ghc *GitHubClient) GetPR(ctx context.Context, prNumber int) (models.PRData
 		}
 	}
 
-	diff, _, err := ghc.prService.GetRaw(ctx, ghc.owner, ghc.repo, prNumber, github.RawOptions{Type: github.Diff})
+	diff, resp, err := ghc.prService.GetRaw(ctx, ghc.owner, ghc.repo, prNumber, github.RawOptions{Type: github.Diff})
 	if err != nil {
-		return models.PRData{}, fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.get_diff", 0, map[string]interface{}{"pr_number": prNumber}), err)
+		// Si es error 406 (diff demasiado grande), usar fallback commit por commit
+		if resp != nil && resp.StatusCode == http.StatusNotAcceptable {
+			fmt.Printf("%s\n", ghc.trans.GetMessage("warning.pr_too_large", 0, map[string]interface{}{
+				"pr_number": prNumber,
+			}))
+			diff, err = ghc.getDiffFromCommits(ctx, commits)
+			if err != nil {
+				return models.PRData{}, fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.get_diff_from_commits", 0, map[string]interface{}{
+					"pr_number": prNumber,
+				}), err)
+			}
+		} else {
+			return models.PRData{}, fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.get_diff", 0, map[string]interface{}{"pr_number": prNumber}), err)
+		}
 	}
+
 	return models.PRData{
 		ID:      prNumber,
 		Creator: pr.GetUser().GetLogin(),
 		Commits: prCommits,
 		Diff:    diff,
 	}, nil
+}
+
+// getDiffFromCommits obtiene el diff combinado de todos los commits cuando el diff completo del PR es demasiado grande
+func (ghc *GitHubClient) getDiffFromCommits(ctx context.Context, commits []*github.RepositoryCommit) (string, error) {
+	var combinedDiff strings.Builder
+
+	fmt.Printf("%s\n", ghc.trans.GetMessage("info.fetching_commit_diffs", 0, map[string]interface{}{
+		"total": len(commits),
+	}))
+
+	for i, commit := range commits {
+		sha := commit.GetSHA()
+		fmt.Printf("%s (%d/%d)\n", ghc.trans.GetMessage("info.processing_commit", 0, map[string]interface{}{
+			"current": i + 1,
+			"total":   len(commits),
+			"sha":     sha[:8],
+		}), i+1, len(commits))
+
+		fullCommit, _, err := ghc.repoService.GetCommit(ctx, ghc.owner, ghc.repo, sha)
+		if err != nil {
+			return "", fmt.Errorf("%s %s: %w", ghc.trans.GetMessage("error.get_commit_diff", 0, nil), sha[:8], err)
+		}
+
+		if fullCommit.GetStats().GetTotal() > 0 {
+			combinedDiff.WriteString(fmt.Sprintf("\n# Commit: %s\n", sha[:8]))
+			combinedDiff.WriteString(fmt.Sprintf("# Message: %s\n\n", strings.Split(commit.GetCommit().GetMessage(), "\n")[0]))
+
+			for _, file := range fullCommit.Files {
+				if file.Patch != nil {
+					combinedDiff.WriteString(fmt.Sprintf("diff --git a/%s b/%s\n", file.GetFilename(), file.GetFilename()))
+					combinedDiff.WriteString(*file.Patch)
+					combinedDiff.WriteString("\n")
+				}
+			}
+		}
+	}
+
+	return combinedDiff.String(), nil
 }
 
 func (ghc *GitHubClient) validateAndFilterLabels(labels []string) []string {
