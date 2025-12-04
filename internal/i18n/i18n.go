@@ -3,11 +3,12 @@ package i18n
 import (
 	"embed"
 	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/BurntSushi/toml"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"golang.org/x/text/language"
-	"os"
-	"path/filepath"
 )
 
 //go:embed locales/*
@@ -26,7 +27,6 @@ func NewTranslations(defaultLang string, localesPath string) (*Translations, err
 	var files []os.DirEntry
 	var err error
 
-	// Si localesPath está vacío, usamos el sistema embebido
 	if localesPath == "" {
 		files, err = readEmbeddedLocales()
 	} else {
@@ -40,7 +40,6 @@ func NewTranslations(defaultLang string, localesPath string) (*Translations, err
 	bundle := i18n.NewBundle(language.English)
 	bundle.RegisterUnmarshalFunc("toml", toml.Unmarshal)
 
-	// Cargar archivos de traducción
 	for _, file := range files {
 		var data []byte
 		if localesPath == "" {
