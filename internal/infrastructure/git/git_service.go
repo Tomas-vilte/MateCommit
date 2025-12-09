@@ -101,7 +101,13 @@ func (s *GitService) CreateCommit(message string) error {
 }
 
 func (s *GitService) AddFileToStaging(file string) error {
-	cmd := exec.Command("git", "add", "--all", "--", file)
+	repoRoot, err := s.getRepoRoot()
+	if err != nil {
+		return fmt.Errorf("error al obtener la raíz del repositorio: %v", err)
+	}
+
+	cmd := exec.Command("git", "add", "--", file)
+	cmd.Dir = repoRoot
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 
@@ -109,6 +115,16 @@ func (s *GitService) AddFileToStaging(file string) error {
 		return fmt.Errorf("error al agregar '%s': %v → %s", file, err, strings.TrimSpace(stderr.String()))
 	}
 	return nil
+}
+
+// getRepoRoot obtiene la ruta absoluta de la raíz del repositorio git
+func (s *GitService) getRepoRoot() (string, error) {
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("error al obtener la raíz del repositorio: %v", err)
+	}
+	return strings.TrimSpace(string(output)), nil
 }
 
 func (s *GitService) GetCurrentBranch() (string, error) {

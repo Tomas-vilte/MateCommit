@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"net/http"
 	"testing"
 
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
@@ -14,9 +15,11 @@ import (
 
 func newTestClient(pr *MockPRService, issues *MockIssuesService) *GitHubClient {
 	trans, _ := i18n.NewTranslations("es", "../../../i18n/locales/")
+	repo := &MockRepoService{}
 	return NewGitHubClientWithServices(
 		pr,
 		issues,
+		repo,
 		"test-owner",
 		"test-repo",
 		trans,
@@ -228,6 +231,36 @@ func TestGitHubClient_UpdatePR_ErrorCases(t *testing.T) {
 		assert.ErrorContains(t, err, client.trans.GetMessage("error.add_labels", 0, map[string]interface{}{"pr_number": prNumber}))
 		mockIssues.AssertExpectations(t)
 	})
+
+	t.Run("should return helpful error message for 403 insufficient permissions", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		client := newTestClient(mockPR, mockIssues)
+
+		prNumber := 123
+		summary := models.PRSummary{Title: "Title", Body: "Body"}
+
+		// Simular un error 403
+		resp403 := &github.Response{
+			Response: &http.Response{
+				StatusCode: http.StatusForbidden,
+			},
+		}
+
+		mockPR.On("Edit", mock.Anything, "test-owner", "test-repo", prNumber, mock.Anything).
+			Return(&github.PullRequest{}, resp403, assert.AnError)
+
+		err := client.UpdatePR(context.Background(), prNumber, summary)
+
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, client.trans.GetMessage("error.insufficient_permissions", 0, map[string]interface{}{
+			"pr_number": prNumber,
+			"owner":     "test-owner",
+			"repo":      "test-repo",
+		}))
+		assert.ErrorContains(t, err, client.trans.GetMessage("error.token_scopes_help", 0, nil))
+		mockPR.AssertExpectations(t)
+	})
 }
 
 func TestGitHubClient_AddLabelsToPR_ErrorCases(t *testing.T) {
@@ -310,11 +343,11 @@ func TestGitHubClient_GetPR_ErrorCases(t *testing.T) {
 		client := newTestClient(mockPR, mockIssues)
 
 		mockPR.On("Get", mock.Anything, "test-owner", "test-repo", 123).
-			Return(&github.PullRequest{}, &github.Response{}, nil)
+			Return(&github.PullRequest{User: &github.User{Login: github.String("test-user")}}, &github.Response{}, nil)
 		mockPR.On("ListCommits", mock.Anything, "test-owner", "test-repo", 123, mock.Anything).
 			Return([]*github.RepositoryCommit{}, &github.Response{}, nil)
 		mockPR.On("GetRaw", mock.Anything, "test-owner", "test-repo", 123, mock.Anything).
-			Return("", &github.Response{}, assert.AnError)
+			Return("", nil, assert.AnError)
 
 		_, err := client.GetPR(context.Background(), 123)
 		assert.ErrorContains(t, err, client.trans.GetMessage("error.get_diff", 0, map[string]interface{}{"pr_number": 123}))

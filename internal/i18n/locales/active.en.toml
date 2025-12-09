@@ -212,13 +212,36 @@ update_pr = "Error updating PR #{{.pr_number}}"
 get_pr = "Error getting PR #{{.pr_number}}"
 get_commits = "Error getting commits for PR #{{.pr_number}}"
 get_diff = "Error getting diff for PR #{{.pr_number}}"
+get_diff_from_commits = "Error obtaining the diff by commits of the PR #{{.pr_number}}"
+get_commit_diff = "Error getting the commit diff"
 get_repo_labels = "Error getting repository labels"
+insufficient_permissions = "❌ Permissions error while updating PR #{{.pr_number}} in {{.owner}}/{{.repo}}"
+token_scopes_help = """💡 Solution: Your GitHub token needs additional permissions
+
+To update PRs in personal repositories, your token needs these scopes:
+  • 'repo' (full access) - for private repositories
+  • 'public_repo' - for public repositories
+
+📝 How to update your token:
+  1. Go to: https://github.com/settings/tokens
+  2. Generate a new token (classic) or edit the existing one
+  3. Mark the scope 'repo' or 'public_repo'
+  4. Update your configuration with: matecommit config set-vcs --provider github --token <new-token>
+
+Note: Organization tokens may have different permission requirements.
 add_labels = "Error adding labels to PR #{{.pr_number}}"
 invalid_repo_format = "Invalid repository format"
 pr_summary_error = "Error generating PR summary"
 no_repo_configured = "No repository configured. Use --repo or configure an active VCS provider"
 vcs_provider_not_configured = "VCS provider '{{.Provider}}' is not configured"
 vcs_provider_auto_detected_not_configured = "VCS provider '%s' auto-detected but not configured. Use 'matecommit config set-vcs --provider %s --token <token>' to configure it"
+
+[warning]
+pr_too_large = "The PR #{{.pr_number}} is too large (>20,000 lines). We're getting diffs commit by commit..."
+
+[info]
+fetching_commit_diffs = "Obtaining diffs from {{.total}} commits..."
+processing_commit = "Processing commit {{.sha}}"
 
 [label]
 feature = "New features"
