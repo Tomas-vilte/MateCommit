@@ -34,6 +34,7 @@ func (r *ReleaseCommandFactory) CreateCommand(t *i18n.Translations, _ *cfg.Confi
 			r.newGenerateCommand(t),
 			r.newCreateCommand(t),
 			r.newPushCommand(t),
+			r.newPublishCommand(t),
 		},
 	}
 }

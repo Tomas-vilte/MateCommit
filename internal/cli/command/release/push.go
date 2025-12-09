@@ -15,10 +15,9 @@ func (r *ReleaseCommandFactory) newPushCommand(trans *i18n.Translations) *cli.Co
 		Usage: trans.GetMessage("release.push_usage", 0, nil),
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:     "version",
-				Aliases:  []string{"v"},
-				Usage:    trans.GetMessage("release.push_version_flag", 0, nil),
-				Required: true,
+				Name:    "version",
+				Aliases: []string{"v"},
+				Usage:   trans.GetMessage("release.push_version_flag", 0, nil),
 			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
@@ -34,6 +33,14 @@ func (r *ReleaseCommandFactory) newPushCommand(trans *i18n.Translations) *cli.Co
 func pushReleaseAction(releaseService ports.ReleaseService, trans *i18n.Translations) cli.ActionFunc {
 	return func(ctx context.Context, cmd *cli.Command) error {
 		version := cmd.String("version")
+
+		if version == "" {
+			release, err := releaseService.AnalyzeNextRelease(ctx)
+			if err != nil {
+				return fmt.Errorf("%s", trans.GetMessage("release.error_analyzing", 0, map[string]interface{}{"Error": err.Error()}))
+			}
+			version = release.Version
+		}
 
 		fmt.Println(trans.GetMessage("release.pushing_tag", 0, map[string]interface{}{"Version": version}))
 
