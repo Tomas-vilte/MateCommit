@@ -254,6 +254,59 @@ const (
     `
 )
 
+// Templates para Releases
+const (
+	releasePromptTemplateES = `
+  Sos un escritor técnico experto creando release notes para un proyecto de software.
+
+  Versión anterior: %s
+  Nueva versión: %s
+  Tipo de bump: %s
+
+  Cambios en este release:
+
+  %s
+
+  Generá:
+  1. TÍTULO: Un título conciso y atractivo (máximo 60 caracteres)
+  2. RESUMEN: 2-3 oraciones destacando los cambios más importantes
+  3. HIGHLIGHTS: 3-5 puntos clave que los usuarios deben saber
+
+  Formato de respuesta:
+  TÍTULO: <título>
+  RESUMEN: <resumen>
+  HIGHLIGHTS:
+  - <highlight 1>
+  - <highlight 2>
+  - <highlight 3>
+  `
+
+	releasePromptTemplateEN = `
+  You are an expert technical writer creating release notes for a software project.
+
+  Previous version: %s
+  New version: %s
+  Bump type: %s
+
+  Changes in this release:
+
+  %s
+
+  Generate:
+  1. TITLE: A concise, engaging title (max 60 chars)
+  2. SUMMARY: 2-3 sentences highlighting the most important changes
+  3. HIGHLIGHTS: 3-5 key points that users should know about
+
+  Response format:
+  TITLE: <title>
+  SUMMARY: <summary>
+  HIGHLIGHTS:
+  - <highlight 1>
+  - <highlight 2>
+  - <highlight 3>
+  `
+)
+
 // GetPRPromptTemplate devuelve el template adecuado según el idioma
 func GetPRPromptTemplate(lang string) string {
 	switch lang {
@@ -275,5 +328,15 @@ func GetCommitPromptTemplate(lang string, hasTicket bool) string {
 		return promptTemplateWithTicketEN
 	default:
 		return promptTemplateWithoutTicketEN
+	}
+}
+
+// GetReleasePromptTemplate devuelve el template para releases según el idioma
+func GetReleasePromptTemplate(lang string) string {
+	switch lang {
+	case "es":
+		return releasePromptTemplateES
+	default:
+		return releasePromptTemplateEN
 	}
 }

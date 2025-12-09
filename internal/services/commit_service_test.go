@@ -31,44 +31,72 @@ func (m *MockJiraService) GetTicketInfo(ticketID string) (*models.TicketInfo, er
 	return args.Get(0).(*models.TicketInfo), args.Error(1)
 }
 
-func (m *MockGitService) HasStagedChanges() bool {
-	args := m.Called()
+func (m *MockGitService) HasStagedChanges(ctx context.Context) bool {
+	args := m.Called(ctx)
 	return args.Bool(0)
 }
 
-func (m *MockGitService) AddFileToStaging(file string) error {
-	args := m.Called(file)
+func (m *MockGitService) AddFileToStaging(ctx context.Context, file string) error {
+	args := m.Called(ctx, file)
 	return args.Error(0)
 }
 
-func (m *MockGitService) GetChangedFiles() ([]models.GitChange, error) {
-	args := m.Called()
+func (m *MockGitService) GetChangedFiles(ctx context.Context) ([]models.GitChange, error) {
+	args := m.Called(ctx)
 	return args.Get(0).([]models.GitChange), args.Error(1)
 }
 
-func (m *MockGitService) GetDiff() (string, error) {
-	args := m.Called()
+func (m *MockGitService) GetDiff(ctx context.Context) (string, error) {
+	args := m.Called(ctx)
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockGitService) StageAllChanges() error {
-	args := m.Called()
+func (m *MockGitService) StageAllChanges(ctx context.Context) error {
+	args := m.Called(ctx)
 	return args.Error(0)
 }
 
-func (m *MockGitService) CreateCommit(message string) error {
-	args := m.Called(message)
+func (m *MockGitService) CreateCommit(ctx context.Context, message string) error {
+	args := m.Called(ctx, message)
 	return args.Error(0)
 }
 
-func (m *MockGitService) GetCurrentBranch() (string, error) {
-	args := m.Called()
+func (m *MockGitService) GetCurrentBranch(ctx context.Context) (string, error) {
+	args := m.Called(ctx)
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockGitService) GetRepoInfo() (string, string, string, error) {
-	args := m.Called()
+func (m *MockGitService) GetRepoInfo(ctx context.Context) (string, string, string, error) {
+	args := m.Called(ctx)
 	return args.String(0), args.String(1), args.String(2), args.Error(3)
+}
+
+func (m *MockGitService) GetLastTag(ctx context.Context) (string, error) {
+	args := m.Called(ctx)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockGitService) GetCommitCount(ctx context.Context) (int, error) {
+	args := m.Called(ctx)
+	return args.Int(0), args.Error(1)
+}
+
+func (m *MockGitService) GetCommitsSinceTag(ctx context.Context, tag string) ([]models.Commit, error) {
+	args := m.Called(ctx, tag)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.Commit), args.Error(1)
+}
+
+func (m *MockGitService) CreateTag(ctx context.Context, version, message string) error {
+	args := m.Called(ctx, version, message)
+	return args.Error(0)
+}
+
+func (m *MockGitService) PushTag(ctx context.Context, version string) error {
+	args := m.Called(ctx, version)
+	return args.Error(0)
 }
 
 func (m *MockAIProvider) GenerateSuggestions(ctx context.Context, info models.CommitInfo, count int) ([]models.CommitSuggestion, error) {
@@ -86,7 +114,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		trans, err := i18n.NewTranslations("es", "../i18n/locales")
 		require.NoError(t, err)
 
-		mockGit.On("GetCurrentBranch").Return("feature/PROJ-1234-user-authentication", nil)
+		mockGit.On("GetCurrentBranch", mock.Anything).Return("feature/PROJ-1234-user-authentication", nil)
 
 		ticketInfo := &models.TicketInfo{
 			TicketID:    "PROJ-1234",
@@ -100,8 +128,8 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 			Path:   "file1.go",
 			Status: "M",
 		}}
-		mockGit.On("GetChangedFiles").Return(changes, nil)
-		mockGit.On("GetDiff").Return("some diff", nil)
+		mockGit.On("GetChangedFiles", mock.Anything).Return(changes, nil)
+		mockGit.On("GetDiff", mock.Anything).Return("some diff", nil)
 
 		expectedResponse := []models.CommitSuggestion{{
 			CommitTitle: "feat: implement user authentication",
@@ -143,7 +171,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		trans, err := i18n.NewTranslations("es", "../i18n/locales")
 		require.NoError(t, err)
 
-		mockGit.On("GetChangedFiles").Return([]models.GitChange{}, nil)
+		mockGit.On("GetChangedFiles", mock.Anything).Return([]models.GitChange{}, nil)
 
 		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp, trans)
 
@@ -173,8 +201,8 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 				Status: "M",
 			},
 		}
-		mockGit.On("GetChangedFiles").Return(changes, nil)
-		mockGit.On("GetDiff").Return("", errors.New("git error"))
+		mockGit.On("GetChangedFiles", mock.Anything).Return(changes, nil)
+		mockGit.On("GetDiff", mock.Anything).Return("", errors.New("git error"))
 
 		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp, trans)
 
@@ -198,9 +226,9 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		trans, err := i18n.NewTranslations("es", "../i18n/locales")
 		require.NoError(t, err)
 
-		mockGit.On("GetChangedFiles").Return([]models.GitChange{{Path: "file1.go", Status: "M"}}, nil)
-		mockGit.On("GetDiff").Return("some diff", nil)
-		mockGit.On("GetCurrentBranch").Return("main", nil)
+		mockGit.On("GetChangedFiles", mock.Anything).Return([]models.GitChange{{Path: "file1.go", Status: "M"}}, nil)
+		mockGit.On("GetDiff", mock.Anything).Return("some diff", nil)
+		mockGit.On("GetCurrentBranch", mock.Anything).Return("main", nil)
 
 		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp, trans)
 
@@ -220,10 +248,10 @@ func TestGitService_HasStagedChanges(t *testing.T) {
 	t.Run("has staged changes", func(t *testing.T) {
 		// arrange
 		mockGit := new(MockGitService)
-		mockGit.On("HasStagedChanges").Return(true)
+		mockGit.On("HasStagedChanges", mock.Anything).Return(true)
 
 		// act
-		result := mockGit.HasStagedChanges()
+		result := mockGit.HasStagedChanges(context.Background())
 
 		// assert
 		assert.True(t, result)
@@ -232,10 +260,10 @@ func TestGitService_HasStagedChanges(t *testing.T) {
 	t.Run("no staged changes", func(t *testing.T) {
 		// arrange
 		mockGit := new(MockGitService)
-		mockGit.On("HasStagedChanges").Return(false)
+		mockGit.On("HasStagedChanges", mock.Anything).Return(false)
 
 		// act
-		result := mockGit.HasStagedChanges()
+		result := mockGit.HasStagedChanges(context.Background())
 
 		// assert
 		assert.False(t, result)
@@ -252,7 +280,7 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		trans, err := i18n.NewTranslations("es", "../i18n/locales")
 		require.NoError(t, err)
 
-		mockGit.On("GetCurrentBranch").Return("feature/PROJ-1234-user-authentication", nil)
+		mockGit.On("GetCurrentBranch", mock.Anything).Return("feature/PROJ-1234-user-authentication", nil)
 
 		ticketInfo := &models.TicketInfo{
 			TicketID:    "PROJ-1234",
@@ -266,8 +294,8 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 			Path:   "file1.go",
 			Status: "M",
 		}}
-		mockGit.On("GetChangedFiles").Return(changes, nil)
-		mockGit.On("GetDiff").Return("some diff", nil)
+		mockGit.On("GetChangedFiles", mock.Anything).Return(changes, nil)
+		mockGit.On("GetDiff", mock.Anything).Return("some diff", nil)
 
 		expectedResponse := []models.CommitSuggestion{{
 			CommitTitle: "feat: implement user authentication",
@@ -309,7 +337,7 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		trans, err := i18n.NewTranslations("es", "../i18n/locales")
 		require.NoError(t, err)
 
-		mockGit.On("GetCurrentBranch").Return("bugfix/PROJ-5678-fix-login", nil)
+		mockGit.On("GetCurrentBranch", mock.Anything).Return("bugfix/PROJ-5678-fix-login", nil)
 
 		ticketInfo := &models.TicketInfo{
 			TicketID:    "PROJ-5678",
@@ -323,8 +351,8 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 			Path:   "file2.go",
 			Status: "M",
 		}}
-		mockGit.On("GetChangedFiles").Return(changes, nil)
-		mockGit.On("GetDiff").Return("some diff", nil)
+		mockGit.On("GetChangedFiles", mock.Anything).Return(changes, nil)
+		mockGit.On("GetDiff", mock.Anything).Return("some diff", nil)
 
 		expectedResponse := []models.CommitSuggestion{{
 			CommitTitle: "fix: resolve login issue",
@@ -366,7 +394,7 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		trans, err := i18n.NewTranslations("es", "../i18n/locales")
 		require.NoError(t, err)
 
-		mockGit.On("GetCurrentBranch").Return("hotfix/PROJ-9999-critical-bug", nil)
+		mockGit.On("GetCurrentBranch", mock.Anything).Return("hotfix/PROJ-9999-critical-bug", nil)
 
 		ticketInfo := &models.TicketInfo{
 			TicketID:    "PROJ-9999",
@@ -380,8 +408,8 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 			Path:   "file3.go",
 			Status: "M",
 		}}
-		mockGit.On("GetChangedFiles").Return(changes, nil)
-		mockGit.On("GetDiff").Return("some diff", nil)
+		mockGit.On("GetChangedFiles", mock.Anything).Return(changes, nil)
+		mockGit.On("GetDiff", mock.Anything).Return("some diff", nil)
 
 		expectedResponse := []models.CommitSuggestion{{
 			CommitTitle: "fix: resolve critical bug",
@@ -423,7 +451,7 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		trans, err := i18n.NewTranslations("es", "../i18n/locales")
 		require.NoError(t, err)
 
-		mockGit.On("GetCurrentBranch").Return("release/PROJ-1000-final-release", nil)
+		mockGit.On("GetCurrentBranch", mock.Anything).Return("release/PROJ-1000-final-release", nil)
 
 		ticketInfo := &models.TicketInfo{
 			TicketID:    "PROJ-1000",
@@ -437,8 +465,8 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 			Path:   "file4.go",
 			Status: "M",
 		}}
-		mockGit.On("GetChangedFiles").Return(changes, nil)
-		mockGit.On("GetDiff").Return("some diff", nil)
+		mockGit.On("GetChangedFiles", mock.Anything).Return(changes, nil)
+		mockGit.On("GetDiff", mock.Anything).Return("some diff", nil)
 
 		expectedResponse := []models.CommitSuggestion{{
 			CommitTitle: "chore: prepare for final release",
@@ -480,14 +508,14 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		trans, err := i18n.NewTranslations("es", "../i18n/locales")
 		require.NoError(t, err)
 
-		mockGit.On("GetCurrentBranch").Return("main", nil)
+		mockGit.On("GetCurrentBranch", mock.Anything).Return("main", nil)
 
 		changes := []models.GitChange{{
 			Path:   "file5.go",
 			Status: "M",
 		}}
-		mockGit.On("GetChangedFiles").Return(changes, nil)
-		mockGit.On("GetDiff").Return("some diff", nil)
+		mockGit.On("GetChangedFiles", mock.Anything).Return(changes, nil)
+		mockGit.On("GetDiff", mock.Anything).Return("some diff", nil)
 
 		service := NewCommitService(mockGit, mockAI, mockJiraService, cfgApp, trans)
 
@@ -511,7 +539,7 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 		trans, err := i18n.NewTranslations("es", "../i18n/locales")
 		require.NoError(t, err)
 
-		mockGit.On("GetCurrentBranch").Return("custom/PROJ-2000-custom-feature", nil)
+		mockGit.On("GetCurrentBranch", mock.Anything).Return("custom/PROJ-2000-custom-feature", nil)
 
 		ticketInfo := &models.TicketInfo{
 			TicketID:    "PROJ-2000",
@@ -525,8 +553,8 @@ func TestCommitService_GenerateSuggestions_DifferentBranchNames(t *testing.T) {
 			Path:   "file5.go",
 			Status: "M",
 		}}
-		mockGit.On("GetChangedFiles").Return(changes, nil)
-		mockGit.On("GetDiff").Return("some diff", nil)
+		mockGit.On("GetChangedFiles", mock.Anything).Return(changes, nil)
+		mockGit.On("GetDiff", mock.Anything).Return("some diff", nil)
 
 		expectedResponse := []models.CommitSuggestion{{
 			CommitTitle: "feat: add custom feature",

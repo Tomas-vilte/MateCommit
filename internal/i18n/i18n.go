@@ -63,6 +63,8 @@ func NewTranslations(defaultLang string, localesPath string) (*Translations, err
 	}, nil
 }
 
+// Force re-embed check 2
+
 func (t *Translations) SetLanguage(lang string) error {
 	for _, tag := range t.bundle.LanguageTags() {
 		if tag.String() == lang {
