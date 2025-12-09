@@ -215,6 +215,20 @@ get_diff = "Error getting diff for PR #{{.pr_number}}"
 get_diff_from_commits = "Error obtaining the diff by commits of the PR #{{.pr_number}}"
 get_commit_diff = "Error getting the commit diff"
 get_repo_labels = "Error getting repository labels"
+insufficient_permissions = "❌ Permissions error while updating PR #{{.pr_number}} in {{.owner}}/{{.repo}}"
+token_scopes_help = """💡 Solution: Your GitHub token needs additional permissions
+
+To update PRs in personal repositories, your token needs these scopes:
+  • 'repo' (full access) - for private repositories
+  • 'public_repo' - for public repositories
+
+📝 How to update your token:
+  1. Go to: https://github.com/settings/tokens
+  2. Generate a new token (classic) or edit the existing one
+  3. Mark the scope 'repo' or 'public_repo'
+  4. Update your configuration with: matecommit config set-vcs --provider github --token <new-token>
+
+Note: Organization tokens may have different permission requirements.
 add_labels = "Error adding labels to PR #{{.pr_number}}"
 invalid_repo_format = "Invalid repository format"
 pr_summary_error = "Error generating PR summary"
