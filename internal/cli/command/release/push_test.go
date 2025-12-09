@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -12,7 +13,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-func runPushTest(t *testing.T, args []string, mockService *MockReleaseService) error {
+func runPushTest(t *testing.T, args []string, mockService *MockReleaseService, mockGit *MockGitService) error {
 	trans, err := i18n.NewTranslations("en", "../../../../internal/i18n/locales")
 	if err != nil {
 		t.Logf("Advertencia: usando traducciones vacías: %v", err)
@@ -24,7 +25,7 @@ func runPushTest(t *testing.T, args []string, mockService *MockReleaseService) e
 			{
 				Name: "push",
 				Flags: []cli.Flag{
-					&cli.StringFlag{Name: "version", Required: true},
+					&cli.StringFlag{Name: "version"},
 				},
 				Action: func(ctx context.Context, c *cli.Command) error {
 					return pushReleaseAction(mockService, trans)(ctx, c)
@@ -38,10 +39,11 @@ func runPushTest(t *testing.T, args []string, mockService *MockReleaseService) e
 
 func TestPushCommand_Success(t *testing.T) {
 	mockService := new(MockReleaseService)
+	mockGit := new(MockGitService)
 
 	mockService.On("PushTag", mock.Anything, "v1.0.0").Return(nil)
 
-	err := runPushTest(t, []string{"--version", "v1.0.0"}, mockService)
+	err := runPushTest(t, []string{"--version", "v1.0.0"}, mockService, mockGit)
 	assert.NoError(t, err)
 
 	mockService.AssertExpectations(t)
@@ -49,14 +51,34 @@ func TestPushCommand_Success(t *testing.T) {
 
 func TestPushCommand_Error(t *testing.T) {
 	mockService := new(MockReleaseService)
+	mockGit := new(MockGitService)
 
 	mockService.On("PushTag", mock.Anything, "v1.0.0").Return(errors.New("push failed"))
 
-	err := runPushTest(t, []string{"--version", "v1.0.0"}, mockService)
+	err := runPushTest(t, []string{"--version", "v1.0.0"}, mockService, mockGit)
 	assert.Error(t, err)
 	require.Error(t, err)
 
 	assert.Contains(t, err.Error(), "push failed")
+
+	mockService.AssertExpectations(t)
+}
+
+func TestPushCommand_AutoDetectVersion(t *testing.T) {
+	mockService := new(MockReleaseService)
+	mockGit := new(MockGitService)
+
+	release := &models.Release{
+		Version:         "v1.0.0",
+		PreviousVersion: "v0.9.0",
+		VersionBump:     models.MinorBump,
+	}
+
+	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
+	mockService.On("PushTag", mock.Anything, "v1.0.0").Return(nil)
+
+	err := runPushTest(t, []string{}, mockService, mockGit)
+	assert.NoError(t, err)
 
 	mockService.AssertExpectations(t)
 }
