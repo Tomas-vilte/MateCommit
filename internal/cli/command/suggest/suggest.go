@@ -38,7 +38,7 @@ func (f *SuggestCommandFactory) createFlags(cfg *config.Config, t *i18n.Translat
 		&cli.IntFlag{
 			Name:    "count",
 			Aliases: []string{"n"},
-			Value:   int64(cfg.SuggestionsCount),
+			Value:   cfg.SuggestionsCount,
 			Usage:   t.GetMessage("suggest_count_flag_usage", 0, nil),
 		},
 		&cli.StringFlag{
@@ -86,6 +86,6 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 			return fmt.Errorf("%s", msg)
 		}
 
-		return f.commitHandler.HandleSuggestions(suggestions)
+		return f.commitHandler.HandleSuggestions(ctx, suggestions)
 	}
 }

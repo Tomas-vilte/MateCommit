@@ -3,6 +3,9 @@ package services
 import (
 	"context"
 	"errors"
+	"os"
+	"testing"
+
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
@@ -11,8 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"os"
-	"testing"
 )
 
 type MockVCSClient struct {
@@ -41,6 +42,11 @@ func (m *MockVCSClient) CreateLabel(ctx context.Context, name, color, descriptio
 
 func (m *MockVCSClient) AddLabelsToPR(ctx context.Context, prNumber int, labels []string) error {
 	args := m.Called(ctx, prNumber, labels)
+	return args.Error(0)
+}
+
+func (m *MockVCSClient) CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool) error {
+	args := m.Called(ctx, release, notes, draft)
 	return args.Error(0)
 }
 

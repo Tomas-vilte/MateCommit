@@ -21,7 +21,7 @@ func NewSummarizeCommand(prFactory factory.PRServiceFactoryInterface) *Summarize
 	}
 }
 
-func (c *SummarizeCommand) CreateCommand(t *i18n.Translations, cfg *cfg.Config) *cli.Command {
+func (c *SummarizeCommand) CreateCommand(t *i18n.Translations, _ *cfg.Config) *cli.Command {
 	return &cli.Command{
 		Name:    "summarize-pr",
 		Aliases: []string{"spr"},
@@ -35,7 +35,7 @@ func (c *SummarizeCommand) CreateCommand(t *i18n.Translations, cfg *cfg.Config) 
 			},
 		},
 		Action: func(ctx context.Context, command *cli.Command) error {
-			prService, err := c.prFactory.CreatePRService()
+			prService, err := c.prFactory.CreatePRService(ctx)
 			if err != nil {
 				return fmt.Errorf(t.GetMessage("error.pr_service_creation_error", 0, nil)+": %w", err)
 			}

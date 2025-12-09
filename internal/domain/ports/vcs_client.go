@@ -2,6 +2,7 @@ package ports
 
 import (
 	"context"
+
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 )
 
@@ -17,4 +18,5 @@ type VCSClient interface {
 	CreateLabel(ctx context.Context, name string, color string, description string) error
 	// AddLabelsToPR agrega labels específicas a un PR
 	AddLabelsToPR(ctx context.Context, prNumber int, labels []string) error
+	CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool) error
 }

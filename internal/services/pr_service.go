@@ -9,6 +9,8 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 )
 
+var _ ports.PRService = (*PRService)(nil)
+
 type PRService struct {
 	vcsClient ports.VCSClient
 	aiService ports.PRSummarizer

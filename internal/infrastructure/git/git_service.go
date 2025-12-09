@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"regexp"
@@ -8,28 +9,32 @@ import (
 
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
+	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 )
 
 var _ ports.GitService = (*GitService)(nil)
 
 type GitService struct {
+	trans *i18n.Translations
 }
 
-func NewGitService() *GitService {
-	return &GitService{}
+func NewGitService(trans *i18n.Translations) *GitService {
+	return &GitService{
+		trans: trans,
+	}
 }
 
 // HasStagedChanges verifica si hay cambios en el área de staging
-func (s *GitService) HasStagedChanges() bool {
-	cmd := exec.Command("git", "diff", "--cached", "--quiet")
+func (s *GitService) HasStagedChanges(ctx context.Context) bool {
+	cmd := exec.CommandContext(ctx, "git", "diff", "--cached", "--quiet")
 	err := cmd.Run()
 
 	// Si el comando retorna error (exit status 1), significa que hay cambios staged
 	return err != nil && cmd.ProcessState.ExitCode() == 1
 }
 
-func (s *GitService) GetChangedFiles() ([]models.GitChange, error) {
-	cmd := exec.Command("git", "status", "--porcelain")
+func (s *GitService) GetChangedFiles(ctx context.Context) ([]models.GitChange, error) {
+	cmd := exec.CommandContext(ctx, "git", "status", "--porcelain")
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, err
@@ -55,14 +60,14 @@ func (s *GitService) GetChangedFiles() ([]models.GitChange, error) {
 	return changes, nil
 }
 
-func (s *GitService) GetDiff() (string, error) {
-	stagedCmd := exec.Command("git", "diff", "--cached")
+func (s *GitService) GetDiff(ctx context.Context) (string, error) {
+	stagedCmd := exec.CommandContext(ctx, "git", "diff", "--cached")
 	stagedOutput, err := stagedCmd.Output()
 	if err != nil {
 		return "", err
 	}
 
-	unstagedCmd := exec.Command("git", "diff")
+	unstagedCmd := exec.CommandContext(ctx, "git", "diff")
 	unstageOutput, err := unstagedCmd.Output()
 	if err != nil {
 		return "", err
@@ -71,12 +76,12 @@ func (s *GitService) GetDiff() (string, error) {
 	combinedDiff := string(stagedOutput) + string(unstageOutput)
 
 	if combinedDiff == "" {
-		untrackedCmd := exec.Command("git", "ls-files", "--others", "--exclude-standard")
+		untrackedCmd := exec.CommandContext(ctx, "git", "ls-files", "--others", "--exclude-standard")
 		untrackedFiles, err := untrackedCmd.Output()
 		if err == nil && len(untrackedFiles) > 0 {
 			for _, file := range strings.Split(string(untrackedFiles), "\n") {
 				if file != "" {
-					fileContentCmd := exec.Command("git", "show", ":"+file)
+					fileContentCmd := exec.CommandContext(ctx, "git", "show", ":"+file)
 					content, err := fileContentCmd.Output()
 					if err != nil {
 						combinedDiff += "\n=== Nuevo archivo" + " " + file + "===\n"
@@ -89,71 +94,151 @@ func (s *GitService) GetDiff() (string, error) {
 	return combinedDiff, nil
 }
 
-func (s *GitService) CreateCommit(message string) error {
+func (s *GitService) CreateCommit(ctx context.Context, message string) error {
 	// Primero verificamos si hay cambios staged
-	if !s.HasStagedChanges() {
-		return fmt.Errorf("no hay cambios en el área de staging")
+	if !s.HasStagedChanges(ctx) {
+		msg := s.trans.GetMessage("git.no_staged_changes", 0, nil)
+		return fmt.Errorf("%s", msg)
 	}
 
 	// Creamos el commit
-	cmd := exec.Command("git", "commit", "-m", message)
+	cmd := exec.CommandContext(ctx, "git", "commit", "-m", message)
 	return cmd.Run()
 }
 
-func (s *GitService) AddFileToStaging(file string) error {
-	repoRoot, err := s.getRepoRoot()
+func (s *GitService) AddFileToStaging(ctx context.Context, file string) error {
+	repoRoot, err := s.getRepoRoot(ctx)
 	if err != nil {
-		return fmt.Errorf("error al obtener la raíz del repositorio: %v", err)
+		msg := s.trans.GetMessage("git.get_repo_root", 0, map[string]interface{}{
+			"Error": err,
+		})
+		return fmt.Errorf("%s", msg)
 	}
 
-	cmd := exec.Command("git", "add", "--", file)
+	cmd := exec.CommandContext(ctx, "git", "add", "--", file)
 	cmd.Dir = repoRoot
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("error al agregar '%s': %v → %s", file, err, strings.TrimSpace(stderr.String()))
+		fullErr := fmt.Sprintf("%v → %s", err, strings.TrimSpace(stderr.String()))
+		msg := s.trans.GetMessage("git.add_file", 0, map[string]interface{}{
+			"File":  file,
+			"Error": fullErr,
+		})
+		return fmt.Errorf("%s", msg)
 	}
 	return nil
 }
 
-// getRepoRoot obtiene la ruta absoluta de la raíz del repositorio git
-func (s *GitService) getRepoRoot() (string, error) {
-	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+func (s *GitService) GetCurrentBranch(ctx context.Context) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", "branch", "--show-current")
 	output, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("error al obtener la raíz del repositorio: %v", err)
-	}
-	return strings.TrimSpace(string(output)), nil
-}
-
-func (s *GitService) GetCurrentBranch() (string, error) {
-	cmd := exec.Command("git", "branch", "--show-current")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("error al obtener el nombre de la branch: %v", err)
+		msg := s.trans.GetMessage("git.get_branch_name", 0, map[string]interface{}{
+			"Error": err,
+		})
+		return "", fmt.Errorf("%s", msg)
 	}
 
 	branchName := strings.TrimSpace(string(output))
 	if branchName == "" {
-		return "", fmt.Errorf("no se pudo detectar el nombre de la branch")
+		msg := s.trans.GetMessage("git.branch_not_detected", 0, nil)
+		return "", fmt.Errorf("%s", msg)
 	}
 
 	return branchName, nil
 }
 
-func (s *GitService) GetRepoInfo() (string, string, string, error) {
-	cmd := exec.Command("git", "remote", "get-url", "origin")
+func (s *GitService) GetRepoInfo(ctx context.Context) (string, string, string, error) {
+	cmd := exec.CommandContext(ctx, "git", "remote", "get-url", "origin")
 	output, err := cmd.Output()
 	if err != nil {
-		return "", "", "", fmt.Errorf("error al obtener la URL del repositorio: %w", err)
+		msg := s.trans.GetMessage("git.get_repo_url", 0, map[string]interface{}{
+			"Error": err,
+		})
+		return "", "", "", fmt.Errorf("%s", msg)
 	}
 
 	url := strings.TrimSpace(string(output))
-	return parseRepoURL(url)
+	return parseRepoURL(url, s.trans)
 }
 
-func parseRepoURL(url string) (string, string, string, error) {
+func (s *GitService) GetLastTag(ctx context.Context) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", "describe", "--tags", "--abbrev=0")
+	output, err := cmd.Output()
+	if err != nil {
+		// no hay tags
+		return "", nil
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
+func (s *GitService) GetCommitsSinceTag(ctx context.Context, tag string) ([]models.Commit, error) {
+	var args []string
+	if tag == "" {
+		// si no hay tag anterior, obtener todos los commits
+		args = []string{"log", "--pretty=format:%H|%s|%b", "--no-merges"}
+	} else {
+		args = []string{"log", tag + "..HEAD", "--pretty=format:%H|%s|%b", "--no-merges"}
+	}
+
+	cmd := exec.CommandContext(ctx, "git", args...)
+	output, err := cmd.Output()
+	if err != nil {
+		msg := s.trans.GetMessage("git.get_commits", 0, map[string]interface{}{
+			"Error": err,
+		})
+		return nil, fmt.Errorf("%s", msg)
+	}
+
+	if len(output) == 0 {
+		return []models.Commit{}, nil
+	}
+
+	var commits []models.Commit
+	lines := strings.Split(string(output), "\n")
+
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "|", 3)
+		if len(parts) >= 2 {
+			commit := models.Commit{
+				Message: parts[1],
+			}
+			if len(parts) == 3 {
+				commit.Message = parts[1] + "\n" + parts[2]
+			}
+			commits = append(commits, commit)
+		}
+	}
+	return commits, nil
+}
+
+func (s *GitService) CreateTag(ctx context.Context, version, message string) error {
+	cmd := exec.CommandContext(ctx, "git", "tag", "-a", version, "-m", message)
+	return cmd.Run()
+}
+
+func (s *GitService) PushTag(ctx context.Context, version string) error {
+	cmd := exec.CommandContext(ctx, "git", "push", "origin", version)
+	return cmd.Run()
+}
+
+func (s *GitService) GetCommitCount(ctx context.Context) (int, error) {
+	cmd := exec.CommandContext(ctx, "git", "rev-list", "--count", "HEAD")
+	output, err := cmd.Output()
+	if err != nil {
+		return 0, err
+	}
+	count := 0
+	_, _ = fmt.Sscanf(strings.TrimSpace(string(output)), "%d", &count)
+	return count, nil
+}
+
+func parseRepoURL(url string, trans *i18n.Translations) (string, string, string, error) {
 	sshRegex := regexp.MustCompile(`git@([^:]+):([^/]+)/(.+)\.git$`)
 	httpsRegex := regexp.MustCompile(`https://([^/]+)/([^/]+)/(.+?)(?:\.git)?$`)
 
@@ -170,7 +255,10 @@ func parseRepoURL(url string) (string, string, string, error) {
 		return matches[2], repoName, provider, nil
 	}
 
-	return "", "", "", fmt.Errorf("no se pudo extraer el propietario y el repositorio de la URL: %s", url)
+	msg := trans.GetMessage("git.extract_repo_info", 0, map[string]interface{}{
+		"Url": url,
+	})
+	return "", "", "", fmt.Errorf("%s", msg)
 }
 
 func detectProvider(host string) string {
@@ -181,4 +269,17 @@ func detectProvider(host string) string {
 		return "gitlab"
 	}
 	return "unknown"
+}
+
+// getRepoRoot obtiene la ruta absoluta de la raíz del repositorio git
+func (s *GitService) getRepoRoot(ctx context.Context) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--show-toplevel")
+	output, err := cmd.Output()
+	if err != nil {
+		msg := s.trans.GetMessage("git.get_repo_root", 0, map[string]interface{}{
+			"Error": err,
+		})
+		return "", fmt.Errorf("%s", msg)
+	}
+	return strings.TrimSpace(string(output)), nil
 }

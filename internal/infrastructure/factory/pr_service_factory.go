@@ -1,6 +1,7 @@
 package factory
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
@@ -11,7 +12,7 @@ import (
 )
 
 type PRServiceFactoryInterface interface {
-	CreatePRService() (ports.PRService, error)
+	CreatePRService(ctx context.Context) (ports.PRService, error)
 }
 
 type prServiceFactory struct {
@@ -30,8 +31,8 @@ func NewPrServiceFactory(cfg *config.Config, trans *i18n.Translations, aiService
 	}
 }
 
-func (f *prServiceFactory) CreatePRService() (ports.PRService, error) {
-	owner, repo, provider, err := f.gitService.GetRepoInfo()
+func (f *prServiceFactory) CreatePRService(ctx context.Context) (ports.PRService, error) {
+	owner, repo, provider, err := f.gitService.GetRepoInfo(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error al obtener la informacion del repositorio: %w", err)
 	}

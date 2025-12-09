@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -8,6 +9,8 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 )
+
+var _ ports.CommitHandler = (*SuggestionHandler)(nil)
 
 type SuggestionHandler struct {
 	gitService ports.GitService
@@ -21,9 +24,9 @@ func NewSuggestionHandler(git ports.GitService, t *i18n.Translations) *Suggestio
 	}
 }
 
-func (h *SuggestionHandler) HandleSuggestions(suggestions []models.CommitSuggestion) error {
+func (h *SuggestionHandler) HandleSuggestions(ctx context.Context, suggestions []models.CommitSuggestion) error {
 	h.displaySuggestions(suggestions)
-	return h.handleCommitSelection(suggestions)
+	return h.handleCommitSelection(ctx, suggestions)
 }
 
 func (h *SuggestionHandler) displaySuggestions(suggestions []models.CommitSuggestion) {
@@ -98,7 +101,7 @@ func (h *SuggestionHandler) getCriteriaStatusText(status models.CriteriaStatus) 
 	}
 }
 
-func (h *SuggestionHandler) handleCommitSelection(suggestions []models.CommitSuggestion) error {
+func (h *SuggestionHandler) handleCommitSelection(ctx context.Context, suggestions []models.CommitSuggestion) error {
 	var selection int
 	fmt.Print(h.t.GetMessage("commit.prompt_selection", 0, nil))
 	if _, err := fmt.Scan(&selection); err != nil {
@@ -116,14 +119,14 @@ func (h *SuggestionHandler) handleCommitSelection(suggestions []models.CommitSug
 		return fmt.Errorf("%s", msg)
 	}
 
-	return h.processCommit(suggestions[selection-1], h.gitService)
+	return h.processCommit(ctx, suggestions[selection-1], h.gitService)
 }
 
-func (h *SuggestionHandler) processCommit(suggestion models.CommitSuggestion, gitService ports.GitService) error {
+func (h *SuggestionHandler) processCommit(ctx context.Context, suggestion models.CommitSuggestion, gitService ports.GitService) error {
 	commitTitle := strings.TrimSpace(strings.TrimPrefix(suggestion.CommitTitle, "Commit: "))
 
 	for _, file := range suggestion.Files {
-		if err := gitService.AddFileToStaging(file); err != nil {
+		if err := gitService.AddFileToStaging(ctx, file); err != nil {
 			msg := h.t.GetMessage("commit.error_add_file_staging", 0, map[string]interface{}{
 				"File":  file,
 				"Error": err,
@@ -134,7 +137,7 @@ func (h *SuggestionHandler) processCommit(suggestion models.CommitSuggestion, gi
 		fmt.Printf("%s", msg)
 	}
 
-	if err := gitService.CreateCommit(commitTitle); err != nil {
+	if err := gitService.CreateCommit(ctx, commitTitle); err != nil {
 		msg := h.t.GetMessage("commit.error_creating_commit", 0, map[string]interface{}{
 			"Commit": commitTitle,
 			"Error":  err,
