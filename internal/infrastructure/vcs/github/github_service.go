@@ -7,10 +7,13 @@ import (
 	"strings"
 
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
+	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
-	"github.com/google/go-github/github"
+	"github.com/google/go-github/v80/github"
 	"golang.org/x/oauth2"
 )
+
+var _ ports.VCSClient = (*GitHubClient)(nil)
 
 type PullRequestsService interface {
 	Edit(ctx context.Context, owner, repo string, number int, pr *github.PullRequest) (*github.PullRequest, *github.Response, error)
@@ -26,16 +29,21 @@ type IssuesService interface {
 }
 
 type RepositoriesService interface {
-	GetCommit(ctx context.Context, owner, repo, sha string) (*github.RepositoryCommit, *github.Response, error)
+	GetCommit(ctx context.Context, owner, repo, sha string, opts *github.ListOptions) (*github.RepositoryCommit, *github.Response, error)
+}
+
+type ReleasesService interface {
+	CreateRelease(ctx context.Context, owner, repo string, release *github.RepositoryRelease) (*github.RepositoryRelease, *github.Response, error)
 }
 
 type GitHubClient struct {
-	prService     PullRequestsService
-	issuesService IssuesService
-	repoService   RepositoriesService
-	owner         string
-	repo          string
-	trans         *i18n.Translations
+	prService      PullRequestsService
+	issuesService  IssuesService
+	repoService    RepositoriesService
+	releaseService ReleasesService
+	owner          string
+	repo           string
+	trans          *i18n.Translations
 }
 
 var allowedLabels = map[string]struct {
@@ -59,12 +67,13 @@ func NewGitHubClient(owner, repo, token string, trans *i18n.Translations) *GitHu
 
 	client := github.NewClient(httpClient)
 	return &GitHubClient{
-		prService:     client.PullRequests,
-		issuesService: client.Issues,
-		repoService:   client.Repositories,
-		owner:         owner,
-		repo:          repo,
-		trans:         trans,
+		prService:      client.PullRequests,
+		issuesService:  client.Issues,
+		repoService:    client.Repositories,
+		releaseService: client.Repositories,
+		owner:          owner,
+		repo:           repo,
+		trans:          trans,
 	}
 }
 
@@ -72,30 +81,32 @@ func NewGitHubClientWithServices(
 	prService PullRequestsService,
 	issuesService IssuesService,
 	repoService RepositoriesService,
+	releaseService ReleasesService,
 	owner string,
 	repo string,
 	trans *i18n.Translations,
 ) *GitHubClient {
 	return &GitHubClient{
-		prService:     prService,
-		issuesService: issuesService,
-		repoService:   repoService,
-		owner:         owner,
-		repo:          repo,
-		trans:         trans,
+		prService:      prService,
+		issuesService:  issuesService,
+		repoService:    repoService,
+		releaseService: releaseService,
+		owner:          owner,
+		repo:           repo,
+		trans:          trans,
 	}
 }
 
 func (ghc *GitHubClient) UpdatePR(ctx context.Context, prNumber int, summary models.PRSummary) error {
 	pr := &github.PullRequest{
-		Title: github.String(summary.Title),
-		Body:  github.String(summary.Body),
+		Title: github.Ptr(summary.Title),
+		Body:  github.Ptr(summary.Body),
 	}
 
 	_, resp, err := ghc.prService.Edit(ctx, ghc.owner, ghc.repo, prNumber, pr)
 	if err != nil {
 		// Detectar error 403 de permisos insuficientes
-		if resp != nil && resp.Response != nil && resp.Response.StatusCode == http.StatusForbidden {
+		if resp != nil && resp.StatusCode == http.StatusForbidden {
 			return fmt.Errorf("%s\n\n%s",
 				ghc.trans.GetMessage("error.insufficient_permissions", 0, map[string]interface{}{
 					"pr_number": prNumber,
@@ -141,7 +152,7 @@ func (ghc *GitHubClient) GetPR(ctx context.Context, prNumber int) (models.PRData
 	diff, resp, err := ghc.prService.GetRaw(ctx, ghc.owner, ghc.repo, prNumber, github.RawOptions{Type: github.Diff})
 	if err != nil {
 		// Si es error 406 (diff demasiado grande), usar fallback commit por commit
-		if resp != nil && resp.Response != nil && resp.Response.StatusCode == http.StatusNotAcceptable {
+		if resp != nil && resp.StatusCode == http.StatusNotAcceptable {
 			fmt.Printf("%s\n", ghc.trans.GetMessage("warning.pr_too_large", 0, map[string]interface{}{
 				"pr_number": prNumber,
 			}))
@@ -164,6 +175,105 @@ func (ghc *GitHubClient) GetPR(ctx context.Context, prNumber int) (models.PRData
 	}, nil
 }
 
+func (ghc *GitHubClient) AddLabelsToPR(ctx context.Context, prNumber int, labels []string) error {
+	validLabels := ghc.validateAndFilterLabels(labels)
+	if len(validLabels) == 0 {
+		return nil
+	}
+
+	existingLabels, err := ghc.GetRepoLabels(ctx)
+	if err != nil {
+		return fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.get_labels", 0, nil), err)
+	}
+
+	if err := ghc.ensureLabelsExist(ctx, existingLabels, validLabels); err != nil {
+		return err
+	}
+
+	return ghc.addLabelsToIssue(ctx, prNumber, validLabels)
+}
+
+func (ghc *GitHubClient) GetRepoLabels(ctx context.Context) ([]string, error) {
+	labels, _, err := ghc.issuesService.ListLabels(ctx, ghc.owner, ghc.repo, &github.ListOptions{PerPage: 100})
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.get_repo_labels", 0, nil), err)
+	}
+
+	labelNames := make([]string, len(labels))
+	for i, label := range labels {
+		labelNames[i] = label.GetName()
+	}
+	return labelNames, nil
+}
+
+func (ghc *GitHubClient) CreateLabel(ctx context.Context, name, color, description string) error {
+	_, _, err := ghc.issuesService.CreateLabel(ctx, ghc.owner, ghc.repo, &github.Label{
+		Name:        github.Ptr(name),
+		Color:       github.Ptr(color),
+		Description: github.Ptr(description),
+	})
+	return err
+}
+
+func (ghc *GitHubClient) CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool) error {
+	releaseRequest := &github.RepositoryRelease{
+		TagName:    github.Ptr(release.Version),
+		Name:       github.Ptr(notes.Title),
+		Body:       github.Ptr(notes.Changelog),
+		Draft:      github.Ptr(draft),
+		Prerelease: github.Ptr(false),
+		MakeLatest: github.Ptr("true"),
+	}
+
+	_, resp, err := ghc.releaseService.CreateRelease(ctx, ghc.owner, ghc.repo, releaseRequest)
+	if err != nil {
+		if resp != nil {
+			if resp.StatusCode == http.StatusUnprocessableEntity {
+				return fmt.Errorf("%s", ghc.trans.GetMessage("error.release_already_exists", 0, map[string]interface{}{"Version": release.Version}))
+			}
+			if resp.StatusCode == http.StatusNotFound {
+				return fmt.Errorf("%s", ghc.trans.GetMessage("error.repo_or_tag_not_found", 0, map[string]interface{}{"Version": release.Version}))
+			}
+		}
+		return fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.create_release", 0, nil), err)
+	}
+	return nil
+}
+
+func (ghc *GitHubClient) labelExists(existingLabels []string, target string) bool {
+	for _, l := range existingLabels {
+		if strings.EqualFold(l, target) {
+			return true
+		}
+	}
+	return false
+}
+
+func (ghc *GitHubClient) addLabelsToIssue(ctx context.Context, prNumber int, labels []string) error {
+	_, _, err := ghc.issuesService.AddLabelsToIssue(ctx, ghc.owner, ghc.repo, prNumber, labels)
+	if err != nil {
+		return fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.add_labels", 0, map[string]interface{}{"pr_number": prNumber}), err)
+	}
+	return nil
+}
+
+func (ghc *GitHubClient) ensureLabelsExist(ctx context.Context, existingLabels []string, requiredLabels []string) error {
+	for _, label := range requiredLabels {
+		if !ghc.labelExists(existingLabels, label) {
+			meta := allowedLabels[label]
+
+			description := ghc.trans.GetMessage(meta.Key, 0, map[string]interface{}{"label": label})
+			if err := ghc.CreateLabel(ctx, label, meta.Color, description); err != nil {
+				if !strings.Contains(err.Error(), "already_exists") && !strings.Contains(err.Error(), "422") {
+					return fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.create_label", 0, map[string]interface{}{"label": label}), err)
+				}
+				fmt.Printf("Label '%s' already exists, continuing...\n", label)
+			}
+		}
+	}
+	return nil
+}
+
 // getDiffFromCommits obtiene el diff combinado de todos los commits cuando el diff completo del PR es demasiado grande
 func (ghc *GitHubClient) getDiffFromCommits(ctx context.Context, commits []*github.RepositoryCommit) (string, error) {
 	var combinedDiff strings.Builder
@@ -179,8 +289,7 @@ func (ghc *GitHubClient) getDiffFromCommits(ctx context.Context, commits []*gith
 			"total":   len(commits),
 			"sha":     sha[:8],
 		}), i+1, len(commits))
-
-		fullCommit, _, err := ghc.repoService.GetCommit(ctx, ghc.owner, ghc.repo, sha)
+		fullCommit, _, err := ghc.repoService.GetCommit(ctx, ghc.owner, ghc.repo, sha, nil)
 		if err != nil {
 			return "", fmt.Errorf("%s %s: %w", ghc.trans.GetMessage("error.get_commit_diff", 0, nil), sha[:8], err)
 		}
@@ -216,78 +325,4 @@ func (ghc *GitHubClient) validateAndFilterLabels(labels []string) []string {
 func (ghc *GitHubClient) isAllowedLabel(label string) bool {
 	_, exists := allowedLabels[label]
 	return exists
-}
-
-func (ghc *GitHubClient) AddLabelsToPR(ctx context.Context, prNumber int, labels []string) error {
-	validLabels := ghc.validateAndFilterLabels(labels)
-	if len(validLabels) == 0 {
-		return nil
-	}
-
-	existingLabels, err := ghc.GetRepoLabels(ctx)
-	if err != nil {
-		return fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.get_labels", 0, nil), err)
-	}
-
-	if err := ghc.ensureLabelsExist(ctx, existingLabels, validLabels); err != nil {
-		return err
-	}
-
-	return ghc.addLabelsToIssue(ctx, prNumber, validLabels)
-}
-
-func (ghc *GitHubClient) ensureLabelsExist(ctx context.Context, existingLabels []string, requiredLabels []string) error {
-	for _, label := range requiredLabels {
-		if !ghc.labelExists(existingLabels, label) {
-			meta := allowedLabels[label]
-
-			description := ghc.trans.GetMessage(meta.Key, 0, map[string]interface{}{"label": label})
-			if err := ghc.CreateLabel(ctx, label, meta.Color, description); err != nil {
-				if !strings.Contains(err.Error(), "already_exists") && !strings.Contains(err.Error(), "422") {
-					return fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.create_label", 0, map[string]interface{}{"label": label}), err)
-				}
-				fmt.Printf("Label '%s' already exists, continuing...\n", label)
-			}
-		}
-	}
-	return nil
-}
-
-func (ghc *GitHubClient) addLabelsToIssue(ctx context.Context, prNumber int, labels []string) error {
-	_, _, err := ghc.issuesService.AddLabelsToIssue(ctx, ghc.owner, ghc.repo, prNumber, labels)
-	if err != nil {
-		return fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.add_labels", 0, map[string]interface{}{"pr_number": prNumber}), err)
-	}
-	return nil
-}
-
-func (ghc *GitHubClient) GetRepoLabels(ctx context.Context) ([]string, error) {
-	labels, _, err := ghc.issuesService.ListLabels(ctx, ghc.owner, ghc.repo, &github.ListOptions{PerPage: 100})
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.get_repo_labels", 0, nil), err)
-	}
-
-	labelNames := make([]string, len(labels))
-	for i, label := range labels {
-		labelNames[i] = label.GetName()
-	}
-	return labelNames, nil
-}
-
-func (ghc *GitHubClient) CreateLabel(ctx context.Context, name, color, description string) error {
-	_, _, err := ghc.issuesService.CreateLabel(ctx, ghc.owner, ghc.repo, &github.Label{
-		Name:        github.String(name),
-		Color:       github.String(color),
-		Description: github.String(description),
-	})
-	return err
-}
-
-func (ghc *GitHubClient) labelExists(existingLabels []string, target string) bool {
-	for _, l := range existingLabels {
-		if strings.EqualFold(l, target) {
-			return true
-		}
-	}
-	return false
 }

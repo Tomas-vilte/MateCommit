@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -17,39 +18,67 @@ type mockGitService struct {
 	mock.Mock
 }
 
-func (m *mockGitService) GetChangedFiles() ([]models.GitChange, error) {
-	args := m.Called()
+func (m *mockGitService) GetChangedFiles(ctx context.Context) ([]models.GitChange, error) {
+	args := m.Called(ctx)
 	return args.Get(0).([]models.GitChange), args.Error(1)
 }
 
-func (m *mockGitService) GetDiff() (string, error) {
-	args := m.Called()
+func (m *mockGitService) GetDiff(ctx context.Context) (string, error) {
+	args := m.Called(ctx)
 	return args.String(0), args.Error(1)
 }
 
-func (m *mockGitService) HasStagedChanges() bool {
-	args := m.Called()
+func (m *mockGitService) HasStagedChanges(ctx context.Context) bool {
+	args := m.Called(ctx)
 	return args.Bool(0)
 }
 
-func (m *mockGitService) CreateCommit(message string) error {
-	args := m.Called(message)
+func (m *mockGitService) CreateCommit(ctx context.Context, message string) error {
+	args := m.Called(ctx, message)
 	return args.Error(0)
 }
 
-func (m *mockGitService) AddFileToStaging(file string) error {
-	args := m.Called(file)
+func (m *mockGitService) AddFileToStaging(ctx context.Context, file string) error {
+	args := m.Called(ctx, file)
 	return args.Error(0)
 }
 
-func (m *mockGitService) GetCurrentBranch() (string, error) {
-	args := m.Called()
+func (m *mockGitService) GetCurrentBranch(ctx context.Context) (string, error) {
+	args := m.Called(ctx)
 	return args.String(0), args.Error(1)
 }
 
-func (m *mockGitService) GetRepoInfo() (string, string, string, error) {
-	args := m.Called()
+func (m *mockGitService) GetRepoInfo(ctx context.Context) (string, string, string, error) {
+	args := m.Called(ctx)
 	return args.String(0), args.String(1), args.String(2), args.Error(3)
+}
+
+func (m *mockGitService) GetLastTag(ctx context.Context) (string, error) {
+	args := m.Called(ctx)
+	return args.String(0), args.Error(1)
+}
+
+func (m *mockGitService) GetCommitCount(ctx context.Context) (int, error) {
+	args := m.Called(ctx)
+	return args.Int(0), args.Error(1)
+}
+
+func (m *mockGitService) GetCommitsSinceTag(ctx context.Context, tag string) ([]models.Commit, error) {
+	args := m.Called(ctx, tag)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.Commit), args.Error(1)
+}
+
+func (m *mockGitService) CreateTag(ctx context.Context, version, message string) error {
+	args := m.Called(ctx, version, message)
+	return args.Error(0)
+}
+
+func (m *mockGitService) PushTag(ctx context.Context, version string) error {
+	args := m.Called(ctx, version)
+	return args.Error(0)
 }
 
 func captureOutput(f func()) string {
@@ -160,12 +189,12 @@ func TestSuggestionHandler_HandleCommitSelection(t *testing.T) {
 			},
 		}
 
-		mockGit.On("AddFileToStaging", "test.go").Return(nil)
-		mockGit.On("CreateCommit", "feat: test feature").Return(nil)
+		mockGit.On("AddFileToStaging", mock.Anything, "test.go").Return(nil)
+		mockGit.On("CreateCommit", mock.Anything, "feat: test feature").Return(nil)
 
 		// Act
 		simulateInput("1\n", func() {
-			err = handler.handleCommitSelection(suggestions)
+			err = handler.handleCommitSelection(context.Background(), suggestions)
 		})
 
 		// Assert
@@ -190,7 +219,7 @@ func TestSuggestionHandler_HandleCommitSelection(t *testing.T) {
 
 		// Act
 		simulateInput("0\n", func() {
-			err = handler.handleCommitSelection(suggestions)
+			err = handler.handleCommitSelection(context.Background(), suggestions)
 		})
 
 		// Assert
@@ -214,7 +243,7 @@ func TestSuggestionHandler_HandleCommitSelection(t *testing.T) {
 
 		// Act
 		simulateInput("999\n", func() {
-			err = handler.handleCommitSelection(suggestions)
+			err = handler.handleCommitSelection(context.Background(), suggestions)
 		})
 
 		// Assert
@@ -238,7 +267,7 @@ func TestSuggestionHandler_HandleCommitSelection(t *testing.T) {
 
 		// Act
 		simulateInput("invalid\n", func() {
-			err = handler.handleCommitSelection(suggestions)
+			err = handler.handleCommitSelection(context.Background(), suggestions)
 		})
 
 		// Assert
@@ -262,12 +291,12 @@ func TestSuggestionHandler_HandleSuggestions(t *testing.T) {
 			},
 		}
 
-		mockGit.On("AddFileToStaging", "file1.go").Return(nil)
-		mockGit.On("AddFileToStaging", "file2.go").Return(nil)
-		mockGit.On("CreateCommit", "feat: add new feature").Return(nil)
+		mockGit.On("AddFileToStaging", mock.Anything, "file1.go").Return(nil)
+		mockGit.On("AddFileToStaging", mock.Anything, "file2.go").Return(nil)
+		mockGit.On("CreateCommit", mock.Anything, "feat: add new feature").Return(nil)
 
 		// Act
-		err = handler.processCommit(suggestions[0], mockGit)
+		err = handler.processCommit(context.Background(), suggestions[0], mockGit)
 
 		// Assert
 		assert.NoError(t, err)
@@ -290,10 +319,10 @@ func TestSuggestionHandler_HandleSuggestions(t *testing.T) {
 		}
 
 		expectedErr := errors.New("staging error")
-		mockGit.On("AddFileToStaging", "file1.go").Return(expectedErr)
+		mockGit.On("AddFileToStaging", mock.Anything, "file1.go").Return(expectedErr)
 
 		// act
-		err = handler.processCommit(suggestions[0], mockGit)
+		err = handler.processCommit(context.Background(), suggestions[0], mockGit)
 
 		// assert
 		assert.Error(t, err)
@@ -314,12 +343,12 @@ func TestSuggestionHandler_HandleSuggestions(t *testing.T) {
 				Explanation: "Added new functionality",
 			},
 		}
-		mockGit.On("AddFileToStaging", "file1.go").Return(nil)
+		mockGit.On("AddFileToStaging", mock.Anything, "file1.go").Return(nil)
 		expectedErr := errors.New("commit error")
-		mockGit.On("CreateCommit", "feat: add new feature").Return(expectedErr)
+		mockGit.On("CreateCommit", mock.Anything, "feat: add new feature").Return(expectedErr)
 
 		// Act
-		err = handler.processCommit(suggestions[0], mockGit)
+		err = handler.processCommit(context.Background(), suggestions[0], mockGit)
 
 		// Assert
 		assert.Error(t, err)
@@ -343,7 +372,7 @@ func TestSuggestionHandler_HandleSuggestions(t *testing.T) {
 
 		// Act
 		simulateInput("0\n", func() {
-			err = handler.HandleSuggestions(suggestions)
+			err = handler.HandleSuggestions(context.Background(), suggestions)
 		})
 
 		// Assert
@@ -365,11 +394,11 @@ func TestSuggestionHandler_ProcessCommit(t *testing.T) {
 			Explanation: "Added new functionality",
 		}
 
-		mockGit.On("AddFileToStaging", "file1.go").Return(nil)
-		mockGit.On("CreateCommit", "feat: add new feature").Return(nil)
+		mockGit.On("AddFileToStaging", mock.Anything, "file1.go").Return(nil)
+		mockGit.On("CreateCommit", mock.Anything, "feat: add new feature").Return(nil)
 
 		// Act
-		err = handler.processCommit(suggestion, mockGit)
+		err = handler.processCommit(context.Background(), suggestion, mockGit)
 
 		// Assert
 		assert.NoError(t, err)
@@ -390,12 +419,12 @@ func TestSuggestionHandler_ProcessCommit(t *testing.T) {
 		}
 
 		for _, file := range suggestion.Files {
-			mockGit.On("AddFileToStaging", file).Return(nil)
+			mockGit.On("AddFileToStaging", mock.Anything, file).Return(nil)
 		}
-		mockGit.On("CreateCommit", "feat: multi-file change").Return(nil)
+		mockGit.On("CreateCommit", mock.Anything, "feat: multi-file change").Return(nil)
 
 		// Act
-		err = handler.processCommit(suggestion, mockGit)
+		err = handler.processCommit(context.Background(), suggestion, mockGit)
 
 		// Assert
 		assert.NoError(t, err)

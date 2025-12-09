@@ -1,8 +1,9 @@
 package ai
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetPRPromptTemplate(t *testing.T) {
@@ -55,10 +56,9 @@ func TestGetCommitPromptTemplate(t *testing.T) {
 	t.Run("returns English template with ticket", func(t *testing.T) {
 		// Arrange
 		lang := "en"
-		hasTicket := true
 
 		// Act
-		result := GetCommitPromptTemplate(lang, hasTicket)
+		result := GetCommitPromptTemplate(lang, true)
 
 		// Assert
 		assert.Equal(t, promptTemplateWithTicketEN, result)
@@ -67,10 +67,9 @@ func TestGetCommitPromptTemplate(t *testing.T) {
 	t.Run("returns English template without ticket", func(t *testing.T) {
 		// Arrange
 		lang := "en"
-		hasTicket := false
 
 		// Act
-		result := GetCommitPromptTemplate(lang, hasTicket)
+		result := GetCommitPromptTemplate(lang, false)
 
 		// Assert
 		assert.Equal(t, promptTemplateWithoutTicketEN, result)
@@ -79,10 +78,9 @@ func TestGetCommitPromptTemplate(t *testing.T) {
 	t.Run("returns Spanish template with ticket", func(t *testing.T) {
 		// Arrange
 		lang := "es"
-		hasTicket := true
 
 		// Act
-		result := GetCommitPromptTemplate(lang, hasTicket)
+		result := GetCommitPromptTemplate(lang, true)
 
 		// Assert
 		assert.Equal(t, promptTemplateWithTicketES, result)
@@ -91,10 +89,9 @@ func TestGetCommitPromptTemplate(t *testing.T) {
 	t.Run("returns Spanish template without ticket", func(t *testing.T) {
 		// Arrange
 		lang := "es"
-		hasTicket := false
 
 		// Act
-		result := GetCommitPromptTemplate(lang, hasTicket)
+		result := GetCommitPromptTemplate(lang, false)
 
 		// Assert
 		assert.Equal(t, promptTemplateWithoutTicketES, result)
@@ -103,10 +100,9 @@ func TestGetCommitPromptTemplate(t *testing.T) {
 	t.Run("defaults to English with ticket for unknown language", func(t *testing.T) {
 		// Arrange
 		lang := "fr"
-		hasTicket := true
 
 		// Act
-		result := GetCommitPromptTemplate(lang, hasTicket)
+		result := GetCommitPromptTemplate(lang, true)
 
 		// Assert
 		assert.Equal(t, promptTemplateWithTicketEN, result)
@@ -115,12 +111,37 @@ func TestGetCommitPromptTemplate(t *testing.T) {
 	t.Run("defaults to English without ticket for unknown language", func(t *testing.T) {
 		// Arrange
 		lang := "fr"
-		hasTicket := false
 
 		// Act
-		result := GetCommitPromptTemplate(lang, hasTicket)
+		result := GetCommitPromptTemplate(lang, false)
 
 		// Assert
 		assert.Equal(t, promptTemplateWithoutTicketEN, result)
+	})
+}
+
+func TestGetReleasePromptTemplate(t *testing.T) {
+	t.Run("returns English template for 'en'", func(t *testing.T) {
+		lang := "en"
+		result := GetReleasePromptTemplate(lang)
+		assert.Equal(t, releasePromptTemplateEN, result)
+	})
+
+	t.Run("returns Spanish template for 'es'", func(t *testing.T) {
+		lang := "es"
+		result := GetReleasePromptTemplate(lang)
+		assert.Equal(t, releasePromptTemplateES, result)
+	})
+
+	t.Run("defaults to English for unknown language", func(t *testing.T) {
+		lang := "fr"
+		result := GetReleasePromptTemplate(lang)
+		assert.Equal(t, releasePromptTemplateEN, result)
+	})
+
+	t.Run("defaults to English for empty language", func(t *testing.T) {
+		lang := ""
+		result := GetReleasePromptTemplate(lang)
+		assert.Equal(t, releasePromptTemplateEN, result)
 	})
 }

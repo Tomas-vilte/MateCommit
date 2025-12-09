@@ -180,6 +180,8 @@ error_gemini_client = "Error creating Gemini client: {{.Error}}"
 response_empty = "Empty AI response"
 title_not_found = "The title was not found in the answer"
 error_empty_prompt = "The prompt cannot be empty"
+error_generating_release_notes = "Error generating release notes: {{.Error}}"
+error_no_ai_response = "No response from AI"
 
 [suggestion_header]
 other = "=========[ Suggestion {{.Number}} ]========="
@@ -228,13 +230,16 @@ To update PRs in personal repositories, your token needs these scopes:
   3. Mark the scope 'repo' or 'public_repo'
   4. Update your configuration with: matecommit config set-vcs --provider github --token <new-token>
 
-Note: Organization tokens may have different permission requirements.
+Note: Organization tokens may have different permission requirements."""
 add_labels = "Error adding labels to PR #{{.pr_number}}"
 invalid_repo_format = "Invalid repository format"
 pr_summary_error = "Error generating PR summary"
 no_repo_configured = "No repository configured. Use --repo or configure an active VCS provider"
 vcs_provider_not_configured = "VCS provider '{{.Provider}}' is not configured"
 vcs_provider_auto_detected_not_configured = "VCS provider '%s' auto-detected but not configured. Use 'matecommit config set-vcs --provider %s --token <token>' to configure it"
+release_already_exists = "This release {{.Version}} already exists"
+repo_or_tag_not_found = "Repository or tag not found. Make sure tag {{.Version}} exists"
+create_release = "Error creating release"
 
 [warning]
 pr_too_large = "The PR #{{.pr_number}} is too large (>20,000 lines). We're getting diffs commit by commit..."
@@ -326,3 +331,87 @@ ai_missing_for_pr = "❌ AI is not configured. Set your Gemini API Key to use 's
 
 [help_command_usage]
 other = "Shows a list of commands or help for one command"
+
+[release]
+analyzing = "🔍 Analyzing commits for next release..."
+no_commits = "No new commits since {{.LastTag}}"
+no_commits_since = "No new commits since {{.Tag}}"
+no_tags = "No tags found in repository"
+no_repo_commits = "No commits in repository"
+error_last_tag = "Error getting last tag: {{.Error}}"
+error_commits_since = "Error getting commits: {{.Error}}"
+error_analyzing = "Error analyzing release: {{.Error}}"
+error_generating_notes = "Error generating notes: {{.Error}}"
+error_creating_tag = "Error creating tag: {{.Error}}"
+error_writing_file = "Error writing file: {{.Error}}"
+push_usage = "Push a tag to remote"
+output_flag = "Output file (default: RELEASE_NOTES.md)"
+auto_flag = "Skip confirmation"
+version_flag = "Override version manually (e.g., v1.2.3)"
+push_version_flag = "Version of tag to push"
+
+
+# Preview
+preview_usage = "Preview the next release without creating it"
+preview_title = "Release Preview"
+previous_version = "📦 Previous Version: {{.Version}}"
+next_version = "📦 Next Version: {{.Version}} ({{.Bump}} bump)"
+changes_summary = "📊 Changes Summary:"
+breaking_changes = "   ⚠️  Breaking Changes: {{.Count}}"
+new_features = "   ✨ New Features: {{.Count}}"
+bug_fixes = "   🐛 Bug Fixes: {{.Count}}"
+improvements = "   🔧 Improvements: {{.Count}}"
+documentation = "   📚 Documentation: {{.Count}}"
+total_commits = "   📝 Total Commits: {{.Count}}"
+separator = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+next_steps = "💡 To create this release, run:"
+next_steps_cmd = "   matecommit release create"
+
+# Generate
+generate_usage = "Generate release notes and save to a file"
+generating = "📝 Generating release notes..."
+notes_saved = "✅ Release notes saved to: {{.File}}"
+version_label = "📦 Version: {{.Version}}"
+
+# Create
+create_usage = "Create a new release (tag + notes)"
+creating = "🚀 Creating new release..."
+create_preview = "📦 Version: {{.Version}} ({{.Bump}})"
+create_title = "📝 Title: {{.Title}}"
+create_stats = "📊 Changes: {{.Features}} features, {{.Fixes}} fixes, {{.Breaking}} breaking"
+create_confirm = "Create this release? (y/N): "
+create_cancelled = "❌ Release creation cancelled"
+tag_created = "✅ Tag {{.Version}} created successfully"
+create_next_steps = "💡 Next steps:"
+create_review = "   1. Review the tag: git show {{.Version}}"
+create_push = "   2. Push the tag: git push origin {{.Version}}"
+create_push_help = "   3. Optional: matecommit release push"
+
+# Common
+version_calculated = "📦 New version calculated: {{.Version}}"
+highlights_section = "### Highlights"
+# Generate Markdown
+md_version = "Version"
+md_previous = "Previous Version"
+md_summary = "Summary"
+md_highlights = "Highlights"
+
+pushing_tag = "🚀 Pushing tag {{.Version}}..."
+error_pushing_tag = "Error pushing tag: {{.Error}}"
+push_success = "✅ Tag {{.Version}} pushed successfully"
+
+flag_publish_usage = "Publish release to VCS provider (e.g., GitHub)"
+flag_draft_usage = "Publish as draft (requires --publish)"
+publishing_release = "🚀 Publishing release..."
+release_published = "✅ Release published successfully"
+error_publishing_release = "Error publishing release: {{.Error}}"
+
+[git]
+no_staged_changes = "no staged changes found"
+get_repo_root = "error getting repository root: {{.Error}}"
+add_file = "error adding '{{.File}}': {{.Error}}"
+get_branch_name = "error getting branch name: {{.Error}}"
+branch_not_detected = "could not detect branch name"
+get_repo_url = "error getting repository URL: {{.Error}}"
+get_commits = "error getting commits: {{.Error}}"
+extract_repo_info = "could not extract owner and repo from URL: {{.Url}}"

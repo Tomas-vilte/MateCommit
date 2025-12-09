@@ -10,6 +10,7 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/config"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/handler"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/pr"
+	"github.com/Tomas-vilte/MateCommit/internal/cli/command/release"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/suggest"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/registry"
 	cfg "github.com/Tomas-vilte/MateCommit/internal/config"
@@ -54,7 +55,7 @@ func initializeApp() (*cli.Command, error) {
 		return nil, err
 	}
 
-	gitService := git.NewGitService()
+	gitService := git.NewGitService(translations)
 	aiProvider, err := gemini.NewGeminiService(context.Background(), cfgApp, translations)
 	if err != nil {
 		log.Printf("Warning: %v", err)
@@ -92,6 +93,11 @@ func initializeApp() (*cli.Command, error) {
 	if err := registerCommand.Register("summarize-pr", prCommand); err != nil {
 		log.Fatalf("Error al registrar el comando 'summarize-pr': %v", err)
 	}
+
+	if err := registerCommand.Register("release", release.NewReleaseCommandFactory(gitService, cfgApp)); err != nil {
+		log.Fatalf("Error al registrar el comando 'release': %v", err)
+	}
+
 	commands := registerCommand.CreateCommands()
 	helpCommand := &cli.Command{
 		Name:    "help",

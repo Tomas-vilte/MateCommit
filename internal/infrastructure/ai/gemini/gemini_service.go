@@ -3,19 +3,18 @@ package gemini
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
+
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/ai"
-	"github.com/google/generative-ai-go/genai"
-	"google.golang.org/api/option"
-	"regexp"
-	"strings"
+	"google.golang.org/genai"
 )
 
 type GeminiService struct {
 	client *genai.Client
-	model  *genai.GenerativeModel
 	config *config.Config
 	trans  *i18n.Translations
 }
@@ -25,7 +24,11 @@ func NewGeminiService(ctx context.Context, cfg *config.Config, trans *i18n.Trans
 		msg := trans.GetMessage("error_missing_api_key", 0, nil)
 		return nil, fmt.Errorf("%s", msg)
 	}
-	client, err := genai.NewClient(ctx, option.WithAPIKey(cfg.GeminiAPIKey))
+
+	client, err := genai.NewClient(ctx, &genai.ClientConfig{
+		APIKey:  cfg.GeminiAPIKey,
+		Backend: genai.BackendGeminiAPI,
+	})
 	if err != nil {
 		msg := trans.GetMessage("error_gemini_client", 0, map[string]interface{}{
 			"Error": err,
@@ -33,12 +36,8 @@ func NewGeminiService(ctx context.Context, cfg *config.Config, trans *i18n.Trans
 		return nil, fmt.Errorf("%s", msg)
 	}
 
-	modelName := string(cfg.AIConfig.Models[config.AIGemini])
-
-	model := client.GenerativeModel(modelName)
 	return &GeminiService{
 		client: client,
-		model:  model,
 		config: cfg,
 		trans:  trans,
 	}, nil
@@ -56,7 +55,9 @@ func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.Com
 	}
 
 	prompt := s.generatePrompt(s.config.Language, info, count)
-	resp, err := s.model.GenerateContent(ctx, genai.Text(prompt))
+	modelName := string(s.config.AIConfig.Models[config.AIGemini])
+
+	resp, err := s.client.Models.GenerateContent(ctx, modelName, genai.Text(prompt), nil)
 	if err != nil {
 		msg := s.trans.GetMessage("error_generating_content", 0, map[string]interface{}{
 			"Error": err.Error(),
@@ -105,11 +106,8 @@ func formatChanges(files []string) string {
 }
 
 // formatResponse formatea la respuesta de la API de Gemini en una cadena.
-//
-// Itera a través de los candidatos en la respuesta y agrega el contenido de cada parte a un generador de cadenas.
-// Devuelve una cadena vacía si la respuesta o sus candidatos son nulos.
 func formatResponse(resp *genai.GenerateContentResponse) string {
-	if resp == nil || resp.Candidates == nil {
+	if resp == nil || len(resp.Candidates) == 0 {
 		return ""
 	}
 
@@ -117,7 +115,9 @@ func formatResponse(resp *genai.GenerateContentResponse) string {
 	for _, cand := range resp.Candidates {
 		if cand.Content != nil {
 			for _, part := range cand.Content.Parts {
-				formattedContent.WriteString(fmt.Sprintf("%v", part))
+				if part.Text != "" {
+					formattedContent.WriteString(part.Text)
+				}
 			}
 		}
 	}

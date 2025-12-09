@@ -188,6 +188,8 @@ error_gemini_client = "Error al crear el cliente de Gemini: {{.Error}}"
 response_empty = "Respuesta de la IA vacia"
 title_not_found = "No se encontro el titulo en la respuesta"
 error_empty_prompt = "El prompt no puede estar vacio"
+error_generating_release_notes = "Error generando las notas de lanzamiento: {{.Error}}"
+error_no_ai_response = "No hubo respuesta de la IA"
 
 [suggestion_header]
 other = "=========[ Sugerencias {{.Number}} ]========="
@@ -243,6 +245,9 @@ pr_summary_error = "Error generando el resumen del PR"
 no_repo_configured = "No se ha configurado ningún repositorio. Usa --repo o configura un proveedor VCS activo"
 vcs_provider_not_configured = "El proveedor VCS '{{.Provider}}' no está configurado"
 vcs_provider_auto_detected_not_configured = "Proveedor de VCS '%s' detectado automáticamente pero no configurado. Use 'matecommit config set-vcs --provider %s --token <token>' para configurarlo"
+release_already_exists = "Esta release {{.Version}} ya existe"
+repo_or_tag_not_found = "No se encontró el repositorio o la etiqueta. Asegurate de que la etiqueta {{.Version}} exista"
+create_release = "Error creando release"
 
 [warning]
 pr_too_large = "El PR #{{.pr_number}} es demasiado grande (>20,000 líneas). Obteniendo diff commit por commit..."
@@ -332,7 +337,89 @@ ai_missing_for_suggest = "❌ La IA no está configurada. Configurá tu API Key 
 
 ai_missing_for_pr = "❌ La IA no está configurada. Configurá tu API Key de Gemini para usar 'summarize-pr'.\n   👉 matecommit config init"
 
-
-
 [help_command_usage]
 other = "Muestra una lista de comandos o ayuda para un comando"
+
+[release]
+analyzing = "🔍 Analizando commits para el siguiente release..."
+no_commits = "No hay commits nuevos desde {{.LastTag}}"
+no_commits_since = "No hay commits nuevos desde {{.Tag}}"
+no_tags = "No hay tags en el repositorio"
+no_repo_commits = "No hay commits en el repositorio"
+error_last_tag = "Error al obtener último tag: {{.Error}}"
+error_commits_since = "Error al obtener commits: {{.Error}}"
+error_analyzing = "Error al analizar release: {{.Error}}"
+error_generating_notes = "Error al generar notas: {{.Error}}"
+error_creating_tag = "Error al crear tag: {{.Error}}"
+error_writing_file = "Error al escribir archivo: {{.Error}}"
+push_usage = "Subir un tag al remoto"
+output_flag = "Archivo de salida (default: RELEASE_NOTES.md)"
+auto_flag = "Saltar confirmación"
+version_flag = "Especificar versión manualmente (ej: v1.2.3)"
+push_version_flag = "Versión del tag a subir"
+
+
+# Preview
+preview_usage = "Ver vista previa del siguiente release sin crearlo"
+preview_title = "Vista Previa del Release"
+previous_version = "📦 Versión Anterior: {{.Version}}"
+next_version = "📦 Próxima Versión: {{.Version}} ({{.Bump}} bump)"
+changes_summary = "📊 Resumen de Cambios:"
+breaking_changes = "   ⚠️  Breaking Changes: {{.Count}}"
+new_features = "   ✨ Nuevas Features: {{.Count}}"
+bug_fixes = "   🐛 Correcciones: {{.Count}}"
+improvements = "   🔧 Mejoras: {{.Count}}"
+documentation = "   📚 Documentación: {{.Count}}"
+total_commits = "   📝 Total Commits: {{.Count}}"
+separator = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+next_steps = "💡 Para crear este release, ejecutá:"
+next_steps_cmd = "   matecommit release create"
+
+# Generate
+generate_usage = "Generar release notes y guardarlas en un archivo"
+generating = "📝 Generando notas del release..."
+notes_saved = "✅ Release notes guardadas en: {{.File}}"
+version_label = "📦 Versión: {{.Version}}"
+
+# Create
+create_usage = "Crear un nuevo release (tag + notes)"
+creating = "🚀 Creando nuevo release..."
+create_preview = "📦 Versión: {{.Version}} ({{.Bump}})"
+create_title = "📝 Título: {{.Title}}"
+create_stats = "📊 Cambios: {{.Features}} features, {{.Fixes}} fixes, {{.Breaking}} breaking"
+create_confirm = "¿Crear este release? (y/N): "
+create_cancelled = "❌ Creación de release cancelada"
+tag_created = "✅ Tag {{.Version}} creado exitosamente"
+create_next_steps = "💡 Próximos pasos:"
+create_review = "   1. Revisar el tag: git show {{.Version}}"
+create_push = "   2. Subir el tag: git push origin {{.Version}}"
+create_push_help = "   3. Opcional: matecommit release push"
+
+# Common
+version_calculated = "📦 Nueva versión calculada: {{.Version}}"
+highlights_section = "### Highlights"
+# Generate Markdown
+md_version = "Versión"
+md_previous = "Versión Anterior"
+md_summary = "Resumen"
+md_highlights = "Destacado"
+
+pushing_tag = "🚀 Subiendo tag {{.Version}}..."
+error_pushing_tag = "Error subiendo tag: {{.Error}}"
+push_success = "✅ Tag {{.Version}} subido exitosamente"
+
+flag_publish_usage = "Publicar release en el proveedor VCS (ej: GitHub)"
+flag_draft_usage = "Publicar como borrador (requiere --publish)"
+publishing_release = "🚀 Publicando release..."
+release_published = "✅ Release publicado exitosamente"
+error_publishing_release = "Error al publicar la release: {{.Error}}"
+
+[git]
+no_staged_changes = "no hay cambios en el área de staging"
+get_repo_root = "error al obtener la raíz del repositorio: {{.Error}}"
+add_file = "error al agregar '{{.File}}': {{.Error}}"
+get_branch_name = "error al obtener el nombre de la branch: {{.Error}}"
+branch_not_detected = "no se pudo detectar el nombre de la branch"
+get_repo_url = "error al obtener la URL del repositorio: {{.Error}}"
+get_commits = "error al obtener commits: {{.Error}}"
+extract_repo_info = "no se pudo extraer el propietario y el repositorio de la URL: {{.Url}}"

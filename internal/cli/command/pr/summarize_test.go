@@ -27,8 +27,8 @@ type MockPRServiceFactory struct {
 	mock.Mock
 }
 
-func (m *MockPRServiceFactory) CreatePRService() (ports.PRService, error) {
-	args := m.Called()
+func (m *MockPRServiceFactory) CreatePRService(ctx context.Context) (ports.PRService, error) {
+	args := m.Called(ctx)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -57,7 +57,7 @@ func TestSummarizeCommand(t *testing.T) {
 			Title: "Test PR",
 		}
 
-		mockFactory.On("CreatePRService").Return(mockPRService, nil)
+		mockFactory.On("CreatePRService", mock.Anything).Return(mockPRService, nil)
 		mockPRService.On("SummarizePR", mock.Anything, prNumber).Return(summary, nil)
 
 		prCommand := NewSummarizeCommand(mockFactory)
@@ -77,7 +77,7 @@ func TestSummarizeCommand(t *testing.T) {
 		_, mockFactory, translations, cfg := setupSummarizeTest(t)
 
 		mockError := fmt.Errorf("factory error")
-		mockFactory.On("CreatePRService").Return(nil, mockError)
+		mockFactory.On("CreatePRService", mock.Anything).Return(nil, mockError)
 
 		prCommand := NewSummarizeCommand(mockFactory)
 		cmd := prCommand.CreateCommand(translations, cfg)
@@ -98,7 +98,7 @@ func TestSummarizeCommand(t *testing.T) {
 		prNumber := 123
 		mockError := fmt.Errorf("service error")
 
-		mockFactory.On("CreatePRService").Return(mockPRService, nil)
+		mockFactory.On("CreatePRService", mock.Anything).Return(mockPRService, nil)
 		mockPRService.On("SummarizePR", mock.Anything, prNumber).Return(models.PRSummary{}, mockError)
 
 		prCommand := NewSummarizeCommand(mockFactory)

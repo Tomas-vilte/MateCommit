@@ -3,7 +3,7 @@ package github
 import (
 	"context"
 
-	"github.com/google/go-github/github"
+	"github.com/google/go-github/v80/github"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -57,7 +57,16 @@ type MockRepoService struct {
 	mock.Mock
 }
 
-func (m *MockRepoService) GetCommit(ctx context.Context, owner, repo, sha string) (*github.RepositoryCommit, *github.Response, error) {
-	args := m.Called(ctx, owner, repo, sha)
+func (m *MockRepoService) GetCommit(ctx context.Context, owner, repo, sha string, opts *github.ListOptions) (*github.RepositoryCommit, *github.Response, error) {
+	args := m.Called(ctx, owner, repo, sha, opts)
 	return args.Get(0).(*github.RepositoryCommit), args.Get(1).(*github.Response), args.Error(2)
+}
+
+type MockReleaseService struct {
+	mock.Mock
+}
+
+func (m *MockReleaseService) CreateRelease(ctx context.Context, owner, repo string, release *github.RepositoryRelease) (*github.RepositoryRelease, *github.Response, error) {
+	args := m.Called(ctx, owner, repo, release)
+	return args.Get(0).(*github.RepositoryRelease), args.Get(1).(*github.Response), args.Error(2)
 }

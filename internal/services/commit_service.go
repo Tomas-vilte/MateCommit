@@ -11,6 +11,8 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 )
 
+var _ ports.CommitService = (*CommitService)(nil)
+
 type CommitService struct {
 	git           ports.GitService
 	ai            ports.CommitSummarizer
@@ -37,7 +39,7 @@ func (s *CommitService) GenerateSuggestions(ctx context.Context, count int) ([]m
 		return nil, fmt.Errorf("%s", msg)
 	}
 
-	changes, err := s.git.GetChangedFiles()
+	changes, err := s.git.GetChangedFiles(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +49,7 @@ func (s *CommitService) GenerateSuggestions(ctx context.Context, count int) ([]m
 		return nil, fmt.Errorf("%s", msg)
 	}
 
-	diff, err := s.git.GetDiff()
+	diff, err := s.git.GetDiff(ctx)
 	if err != nil {
 		msg := s.trans.GetMessage("commit_service.error_getting_diff", 0, map[string]interface{}{
 			"Error": err,
@@ -71,7 +73,7 @@ func (s *CommitService) GenerateSuggestions(ctx context.Context, count int) ([]m
 	}
 
 	if s.config.UseTicket {
-		ticketID, err := s.getTicketIDFromBranch()
+		ticketID, err := s.getTicketIDFromBranch(ctx)
 		if err != nil {
 			msg := s.trans.GetMessage("commit_service.error_get_id_ticket", 0, map[string]interface{}{
 				"Error": err,
@@ -93,8 +95,8 @@ func (s *CommitService) GenerateSuggestions(ctx context.Context, count int) ([]m
 	return s.ai.GenerateSuggestions(ctx, commitInfo, count)
 }
 
-func (s *CommitService) getTicketIDFromBranch() (string, error) {
-	branchName, err := s.git.GetCurrentBranch()
+func (s *CommitService) getTicketIDFromBranch(ctx context.Context) (string, error) {
+	branchName, err := s.git.GetCurrentBranch(ctx)
 	if err != nil {
 		msg := s.trans.GetMessage("commit_service.error_get_name_from_branch", 0, map[string]interface{}{
 			"Error": err,
