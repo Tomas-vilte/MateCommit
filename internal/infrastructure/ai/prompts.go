@@ -257,7 +257,8 @@ const (
 // Templates para Releases
 const (
 	releasePromptTemplateES = `
-  Sos un escritor técnico experto creando release notes para un proyecto de software.
+  Escribí las release notes de tu proyecto en primera persona, con un tono natural y cercano.
+  Explicá qué hiciste en esta versión como si le contaras a un colega desarrollador.
 
   Versión anterior: %s
   Nueva versión: %s
@@ -267,22 +268,27 @@ const (
 
   %s
 
-  Generá:
-  1. TÍTULO: Un título conciso y atractivo (máximo 60 caracteres)
-  2. RESUMEN: 2-3 oraciones destacando los cambios más importantes
-  3. HIGHLIGHTS: 3-5 puntos clave que los usuarios deben saber
+  Estilo de escritura:
+  - Primera persona: "Agregué", "Implementé", "Mejoré", "Arreglé"
+  - Tono casual pero profesional, sin forzar
+  - Explicá qué hiciste y por qué es útil
+  - Sé técnico pero accesible
+  - Usá un lenguaje natural, no corporativo
 
   Formato de respuesta:
-  TÍTULO: <título>
-  RESUMEN: <resumen>
+  TÍTULO: <título conciso y directo (máximo 60 caracteres)>
+  RESUMEN: <2-3 oraciones en primera persona contando los cambios más importantes>
   HIGHLIGHTS:
-  - <highlight 1>
-  - <highlight 2>
-  - <highlight 3>
+  - <highlight 1 en primera persona>
+  - <highlight 2 en primera persona>
+  - <highlight 3 en primera persona>
+  - <highlight 4 (opcional)>
+  - <highlight 5 (opcional)>
   `
 
 	releasePromptTemplateEN = `
-  You are an expert technical writer creating release notes for a software project.
+  You are a developer writing release notes for your project in first person.
+  Write in a friendly, casual tone explaining what you built in this version.
 
   Previous version: %s
   New version: %s
@@ -292,18 +298,21 @@ const (
 
   %s
 
-  Generate:
-  1. TITLE: A concise, engaging title (max 60 chars)
-  2. SUMMARY: 2-3 sentences highlighting the most important changes
-  3. HIGHLIGHTS: 3-5 key points that users should know about
+  Generate release notes with this style:
+  - First person: "I added", "I implemented", "I improved", "I fixed"
+  - Casual but technical tone
+  - Explain what you did and why, like you're telling a fellow developer
+  - Be technical but approachable
 
   Response format:
-  TITLE: <title>
-  SUMMARY: <summary>
+  TITLE: <concise, engaging title (max 60 chars)>
+  SUMMARY: <2-3 sentences in first person highlighting the most important changes>
   HIGHLIGHTS:
-  - <highlight 1>
-  - <highlight 2>
-  - <highlight 3>
+  - <highlight 1 in first person>
+  - <highlight 2 in first person>
+  - <highlight 3 in first person>
+  - <highlight 4 (optional)>
+  - <highlight 5 (optional)>
   `
 )
 
