@@ -404,7 +404,7 @@ func TestValidateConfig(t *testing.T) {
 			},
 			wantErr: false,
 		},
-		
+
 		{
 			name: "DefaultLang vacío",
 			config: &Config{

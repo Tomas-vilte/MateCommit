@@ -35,7 +35,7 @@ type (
 		ActiveAI AI           `json:"active_ai"`
 		Models   map[AI]Model `json:"models"`
 	}
-	
+
 	VCSConfig struct {
 		Provider string `json:"provider"` // github o gitlab lo que se te cante
 		Token    string `json:"token,omitempty"`
