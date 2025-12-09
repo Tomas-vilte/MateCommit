@@ -92,8 +92,18 @@ func (ghc *GitHubClient) UpdatePR(ctx context.Context, prNumber int, summary mod
 		Body:  github.String(summary.Body),
 	}
 
-	_, _, err := ghc.prService.Edit(ctx, ghc.owner, ghc.repo, prNumber, pr)
+	_, resp, err := ghc.prService.Edit(ctx, ghc.owner, ghc.repo, prNumber, pr)
 	if err != nil {
+		// Detectar error 403 de permisos insuficientes
+		if resp != nil && resp.Response != nil && resp.Response.StatusCode == http.StatusForbidden {
+			return fmt.Errorf("%s\n\n%s",
+				ghc.trans.GetMessage("error.insufficient_permissions", 0, map[string]interface{}{
+					"pr_number": prNumber,
+					"owner":     ghc.owner,
+					"repo":      ghc.repo,
+				}),
+				ghc.trans.GetMessage("error.token_scopes_help", 0, nil))
+		}
 		return fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.update_pr", 0, map[string]interface{}{
 			"pr_number": prNumber,
 		}), err)
@@ -131,7 +141,7 @@ func (ghc *GitHubClient) GetPR(ctx context.Context, prNumber int) (models.PRData
 	diff, resp, err := ghc.prService.GetRaw(ctx, ghc.owner, ghc.repo, prNumber, github.RawOptions{Type: github.Diff})
 	if err != nil {
 		// Si es error 406 (diff demasiado grande), usar fallback commit por commit
-		if resp != nil && resp.StatusCode == http.StatusNotAcceptable {
+		if resp != nil && resp.Response != nil && resp.Response.StatusCode == http.StatusNotAcceptable {
 			fmt.Printf("%s\n", ghc.trans.GetMessage("warning.pr_too_large", 0, map[string]interface{}{
 				"pr_number": prNumber,
 			}))
