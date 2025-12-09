@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"net/http"
 	"testing"
 
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
@@ -229,6 +230,36 @@ func TestGitHubClient_UpdatePR_ErrorCases(t *testing.T) {
 		assert.Error(t, err)
 		assert.ErrorContains(t, err, client.trans.GetMessage("error.add_labels", 0, map[string]interface{}{"pr_number": prNumber}))
 		mockIssues.AssertExpectations(t)
+	})
+
+	t.Run("should return helpful error message for 403 insufficient permissions", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		client := newTestClient(mockPR, mockIssues)
+
+		prNumber := 123
+		summary := models.PRSummary{Title: "Title", Body: "Body"}
+
+		// Simular un error 403
+		resp403 := &github.Response{
+			Response: &http.Response{
+				StatusCode: http.StatusForbidden,
+			},
+		}
+
+		mockPR.On("Edit", mock.Anything, "test-owner", "test-repo", prNumber, mock.Anything).
+			Return(&github.PullRequest{}, resp403, assert.AnError)
+
+		err := client.UpdatePR(context.Background(), prNumber, summary)
+
+		assert.Error(t, err)
+		assert.ErrorContains(t, err, client.trans.GetMessage("error.insufficient_permissions", 0, map[string]interface{}{
+			"pr_number": prNumber,
+			"owner":     "test-owner",
+			"repo":      "test-repo",
+		}))
+		assert.ErrorContains(t, err, client.trans.GetMessage("error.token_scopes_help", 0, nil))
+		mockPR.AssertExpectations(t)
 	})
 }
 
