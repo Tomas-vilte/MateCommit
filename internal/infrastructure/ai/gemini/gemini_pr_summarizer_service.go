@@ -11,13 +11,11 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/ai"
-	"github.com/google/generative-ai-go/genai"
-	"google.golang.org/api/option"
+	"google.golang.org/genai"
 )
 
 type GeminiPRSummarizer struct {
 	client *genai.Client
-	model  *genai.GenerativeModel
 	config *config.Config
 	trans  *i18n.Translations
 }
@@ -38,7 +36,10 @@ func NewGeminiPRSummarizer(ctx context.Context, cfg *config.Config, trans *i18n.
 		return nil, fmt.Errorf("%s", msg)
 	}
 
-	client, err := genai.NewClient(ctx, option.WithAPIKey(cfg.GeminiAPIKey))
+	client, err := genai.NewClient(ctx, &genai.ClientConfig{
+		APIKey:  cfg.GeminiAPIKey,
+		Backend: genai.BackendGeminiAPI,
+	})
 	if err != nil {
 		msg := trans.GetMessage("error_gemini_client", 0, map[string]interface{}{
 			"Error": err,
@@ -46,12 +47,8 @@ func NewGeminiPRSummarizer(ctx context.Context, cfg *config.Config, trans *i18n.
 		return nil, fmt.Errorf("%s", msg)
 	}
 
-	modelName := string(cfg.AIConfig.Models[config.AIGemini])
-	model := client.GenerativeModel(modelName)
-
 	return &GeminiPRSummarizer{
 		client: client,
-		model:  model,
 		config: cfg,
 		trans:  trans,
 	}, nil
@@ -64,8 +61,9 @@ func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prompt str
 	}
 
 	formattedPrompt := gps.generatePRPrompt(prompt)
+	modelName := string(gps.config.AIConfig.Models[config.AIGemini])
 
-	resp, err := gps.model.GenerateContent(ctx, genai.Text(formattedPrompt))
+	resp, err := gps.client.Models.GenerateContent(ctx, modelName, genai.Text(formattedPrompt), nil)
 	if err != nil {
 		return models.PRSummary{}, err
 	}

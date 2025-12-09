@@ -1,7 +1,11 @@
 package ports
 
-import "github.com/Tomas-vilte/MateCommit/internal/domain/models"
+import (
+	"context"
+
+	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
+)
 
 type CommitHandler interface {
-	HandleSuggestions(suggestions []models.CommitSuggestion) error
+	HandleSuggestions(ctx context.Context, suggestions []models.CommitSuggestion) error
 }

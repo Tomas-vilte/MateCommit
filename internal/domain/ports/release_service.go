@@ -1,0 +1,28 @@
+package ports
+
+import (
+	"context"
+
+	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
+)
+
+type ReleaseService interface {
+	// AnalyzeNextRelease analiza commits y determina la siguiente versión
+	AnalyzeNextRelease(ctx context.Context) (*models.Release, error)
+
+	// GenerateReleaseNotes genera las notas del release con IA
+	GenerateReleaseNotes(ctx context.Context, release *models.Release) (*models.ReleaseNotes, error)
+
+	// PublishRelease crea el release en el VCS (GitHub, GitLab, etc.)
+	PublishRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool) error
+
+	// CreateTag crea un tag git con la versión y mensaje especificados
+	CreateTag(ctx context.Context, version, message string) error
+
+	// PushTag sube el tag al repositorio remoto
+	PushTag(ctx context.Context, version string) error
+}
+
+type ReleaseNotesGenerator interface {
+	GenerateNotes(ctx context.Context, release *models.Release) (*models.ReleaseNotes, error)
+}

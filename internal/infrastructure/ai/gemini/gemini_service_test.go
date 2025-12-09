@@ -2,12 +2,13 @@ package gemini
 
 import (
 	"context"
+	"testing"
+
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
-	"github.com/google/generative-ai-go/genai"
 	"github.com/stretchr/testify/assert"
-	"testing"
+	"google.golang.org/genai"
 )
 
 const (
@@ -140,8 +141,8 @@ func TestGeminiService(t *testing.T) {
 			Candidates: []*genai.Candidate{
 				{
 					Content: &genai.Content{
-						Parts: []genai.Part{
-							genai.Text(responseText),
+						Parts: []*genai.Part{
+							{Text: responseText},
 						},
 					},
 				},
@@ -179,8 +180,8 @@ func TestGeminiService(t *testing.T) {
 			Candidates: []*genai.Candidate{
 				{
 					Content: &genai.Content{
-						Parts: []genai.Part{
-							genai.Text("test content"),
+						Parts: []*genai.Part{
+							{Text: "test content"},
 						},
 					},
 				},
