@@ -21,6 +21,12 @@ type ReleaseService interface {
 
 	// PushTag sube el tag al repositorio remoto
 	PushTag(ctx context.Context, version string) error
+
+	// GetRelease obtiene una release del repositorio
+	GetRelease(ctx context.Context, version string) (*models.VCSRelease, error)
+
+	// UpdateRelease actualiza una release del repositorio
+	UpdateRelease(ctx context.Context, version, body string) error
 }
 
 type ReleaseNotesGenerator interface {

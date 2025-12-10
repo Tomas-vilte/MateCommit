@@ -70,3 +70,13 @@ func (m *MockReleaseService) CreateRelease(ctx context.Context, owner, repo stri
 	args := m.Called(ctx, owner, repo, release)
 	return args.Get(0).(*github.RepositoryRelease), args.Get(1).(*github.Response), args.Error(2)
 }
+
+func (m *MockReleaseService) GetReleaseByTag(ctx context.Context, owner, repo, tag string) (*github.RepositoryRelease, *github.Response, error) {
+	args := m.Called(ctx, owner, repo, tag)
+	return args.Get(0).(*github.RepositoryRelease), args.Get(1).(*github.Response), args.Error(2)
+}
+
+func (m *MockReleaseService) EditRelease(ctx context.Context, owner, repo string, id int64, release *github.RepositoryRelease) (*github.RepositoryRelease, *github.Response, error) {
+	args := m.Called(ctx, owner, repo, id, release)
+	return args.Get(0).(*github.RepositoryRelease), args.Get(1).(*github.Response), args.Error(2)
+}

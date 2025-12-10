@@ -441,3 +441,133 @@ func TestGitHubClient_CreateRelease(t *testing.T) {
 		assert.Contains(t, err.Error(), client.trans.GetMessage("error.create_release", 0, nil))
 	})
 }
+
+func TestGitHubClient_GetRelease(t *testing.T) {
+	t.Run("should get release successfully", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+
+		expectedRelease := &github.RepositoryRelease{
+			TagName: github.Ptr("v1.0.0"),
+			Name:    github.Ptr("Release v1.0.0"),
+			Body:    github.Ptr("Release body"),
+			Draft:   github.Ptr(false),
+			HTMLURL: github.Ptr("https://github.com/test/repo/releases/v1.0.0"),
+		}
+
+		mockRelease.On("GetReleaseByTag", mock.Anything, "test-owner", "test-repo", "v1.0.0").
+			Return(expectedRelease, &github.Response{}, nil)
+
+		release, err := client.GetRelease(context.Background(), "v1.0.0")
+
+		assert.NoError(t, err)
+		assert.NotNil(t, release)
+		assert.Equal(t, "v1.0.0", release.TagName)
+		assert.Equal(t, "Release v1.0.0", release.Name)
+		assert.Equal(t, "Release body", release.Body)
+		assert.False(t, release.Draft)
+		assert.Equal(t, "https://github.com/test/repo/releases/v1.0.0", release.URL)
+		mockRelease.AssertExpectations(t)
+	})
+
+	t.Run("should return error if release not found (404)", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+
+		resp := &github.Response{Response: &http.Response{StatusCode: http.StatusNotFound}}
+		mockRelease.On("GetReleaseByTag", mock.Anything, "test-owner", "test-repo", "v1.0.0").
+			Return((*github.RepositoryRelease)(nil), resp, assert.AnError)
+
+		release, err := client.GetRelease(context.Background(), "v1.0.0")
+
+		assert.Error(t, err)
+		assert.Nil(t, release)
+		assert.Contains(t, err.Error(), client.trans.GetMessage("error.repo_or_tag_not_found", 0, map[string]interface{}{"Version": "v1.0.0"}))
+		mockRelease.AssertExpectations(t)
+	})
+
+	t.Run("should return generic error for other failures", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+
+		resp := &github.Response{Response: &http.Response{StatusCode: http.StatusInternalServerError}}
+		mockRelease.On("GetReleaseByTag", mock.Anything, "test-owner", "test-repo", "v1.0.0").
+			Return((*github.RepositoryRelease)(nil), resp, assert.AnError)
+
+		release, err := client.GetRelease(context.Background(), "v1.0.0")
+
+		assert.Error(t, err)
+		assert.Nil(t, release)
+		mockRelease.AssertExpectations(t)
+	})
+}
+
+func TestGitHubClient_UpdateRelease(t *testing.T) {
+	t.Run("should update release successfully", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+
+		existingRelease := &github.RepositoryRelease{
+			ID: github.Ptr(int64(123)),
+		}
+
+		mockRelease.On("GetReleaseByTag", mock.Anything, "test-owner", "test-repo", "v1.0.0").
+			Return(existingRelease, &github.Response{}, nil)
+
+		mockRelease.On("EditRelease", mock.Anything, "test-owner", "test-repo", int64(123), mock.MatchedBy(func(r *github.RepositoryRelease) bool {
+			return *r.Body == "Updated body"
+		})).Return(&github.RepositoryRelease{}, &github.Response{}, nil)
+
+		err := client.UpdateRelease(context.Background(), "v1.0.0", "Updated body")
+
+		assert.NoError(t, err)
+		mockRelease.AssertExpectations(t)
+	})
+
+	t.Run("should return error if release not found (404)", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+
+		resp := &github.Response{Response: &http.Response{StatusCode: http.StatusNotFound}}
+		mockRelease.On("GetReleaseByTag", mock.Anything, "test-owner", "test-repo", "v1.0.0").
+			Return((*github.RepositoryRelease)(nil), resp, assert.AnError)
+
+		err := client.UpdateRelease(context.Background(), "v1.0.0", "Updated body")
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), client.trans.GetMessage("error.repo_or_tag_not_found", 0, map[string]interface{}{"Version": "v1.0.0"}))
+		mockRelease.AssertExpectations(t)
+	})
+
+	t.Run("should return error if EditRelease fails", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+
+		existingRelease := &github.RepositoryRelease{
+			ID: github.Ptr(int64(123)),
+		}
+
+		mockRelease.On("GetReleaseByTag", mock.Anything, "test-owner", "test-repo", "v1.0.0").
+			Return(existingRelease, &github.Response{}, nil)
+
+		mockRelease.On("EditRelease", mock.Anything, "test-owner", "test-repo", int64(123), mock.Anything).
+			Return((*github.RepositoryRelease)(nil), &github.Response{}, assert.AnError)
+
+		err := client.UpdateRelease(context.Background(), "v1.0.0", "Updated body")
+
+		assert.Error(t, err)
+		mockRelease.AssertExpectations(t)
+	})
+}

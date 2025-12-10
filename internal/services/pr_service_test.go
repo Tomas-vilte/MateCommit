@@ -50,6 +50,16 @@ func (m *MockVCSClient) CreateRelease(ctx context.Context, release *models.Relea
 	return args.Error(0)
 }
 
+func (m *MockVCSClient) GetRelease(ctx context.Context, version string) (*models.VCSRelease, error) {
+	args := m.Called(ctx, version)
+	return args.Get(0).(*models.VCSRelease), args.Error(1)
+}
+
+func (m *MockVCSClient) UpdateRelease(ctx context.Context, version, body string) error {
+	args := m.Called(ctx, version, body)
+	return args.Error(0)
+}
+
 type MockPRSummarizer struct {
 	mock.Mock
 }

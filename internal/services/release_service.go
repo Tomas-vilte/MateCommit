@@ -95,6 +95,24 @@ func (s *ReleaseService) PushTag(ctx context.Context, version string) error {
 	return s.git.PushTag(ctx, version)
 }
 
+func (s *ReleaseService) GetRelease(ctx context.Context, version string) (*models.VCSRelease, error) {
+	if s.vcs == nil {
+		return nil, fmt.Errorf("%s", s.trans.GetMessage("error.vcs_provider_not_configured", 0, map[string]interface{}{
+			"Provider": "VCS",
+		}))
+	}
+	return s.vcs.GetRelease(ctx, version)
+}
+
+func (s *ReleaseService) UpdateRelease(ctx context.Context, version, body string) error {
+	if s.vcs == nil {
+		return fmt.Errorf("%s", s.trans.GetMessage("error.vcs_provider_not_configured", 0, map[string]interface{}{
+			"Provider": "VCS",
+		}))
+	}
+	return s.vcs.UpdateRelease(ctx, version, body)
+}
+
 // categorizeCommits categoriza los commits según conventional commits
 func (s *ReleaseService) categorizeCommits(release *models.Release) {
 	conventionalRegex := regexp.MustCompile(`^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(([^)]+)\))?(!)?:\s*(.+)`)

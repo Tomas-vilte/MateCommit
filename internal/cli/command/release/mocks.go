@@ -42,6 +42,19 @@ func (m *MockReleaseService) PushTag(ctx context.Context, version string) error 
 	return args.Error(0)
 }
 
+func (m *MockReleaseService) GetRelease(ctx context.Context, version string) (*models.VCSRelease, error) {
+	args := m.Called(ctx, version)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.VCSRelease), args.Error(1)
+}
+
+func (m *MockReleaseService) UpdateRelease(ctx context.Context, version, body string) error {
+	args := m.Called(ctx, version, body)
+	return args.Error(0)
+}
+
 type MockGitService struct {
 	mock.Mock
 }
