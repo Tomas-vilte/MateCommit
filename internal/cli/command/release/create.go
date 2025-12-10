@@ -110,6 +110,8 @@ func createReleaseAction(releaseService ports.ReleaseService, trans *i18n.Transl
 		}))
 
 		if cmd.Bool("publish") {
+			notes.Changelog = FormatReleaseMarkdown(release, notes, trans)
+
 			fmt.Println(trans.GetMessage("release.publishing_release", 0, nil))
 			err := releaseService.PublishRelease(ctx, release, notes, cmd.Bool("draft"))
 			if err != nil {

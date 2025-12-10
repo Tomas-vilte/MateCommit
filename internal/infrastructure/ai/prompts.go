@@ -257,9 +257,10 @@ const (
 // Templates para Releases
 const (
 	releasePromptTemplateES = `
-  Escribí las release notes de tu proyecto en primera persona, con un tono natural y cercano.
-  Explicá qué hiciste en esta versión como si le contaras a un colega desarrollador.
+  Sos un desarrollador escribiendo las release notes de tu proyecto en primera persona.
+  Usá un tono técnico pero cercano, explicando qué hiciste en esta versión.
 
+  Repositorio: %s/%s
   Versión anterior: %s
   Nueva versión: %s
   Tipo de bump: %s
@@ -268,28 +269,79 @@ const (
 
   %s
 
-  Estilo de escritura:
-  - Primera persona: "Agregué", "Implementé", "Mejoré", "Arreglé"
-  - Tono casual pero profesional, sin forzar
-  - Explicá qué hiciste y por qué es útil
-  - Sé técnico pero accesible
-  - Usá un lenguaje natural, no corporativo
+  REGLAS DE ESTILO:
+  - Primera persona: "Implementé", "Mejoré", "Arreglé", "Agregué"
+  - Voseo natural: "podés", "tenés", "querés" (en vez de "puedes", "tienes", "quieres")
+  - Expresiones naturales: "mucho más simple", "ahora funciona mejor", "sin vueltas"
+  - Tono profesional pero directo, como si le explicaras a un colega
+  - Sé técnico y preciso, pero accesible
+  - NO uses emojis en el contenido de las release notes
 
-  Formato de respuesta:
-  TÍTULO: <título conciso y directo (máximo 60 caracteres)>
-  RESUMEN: <2-3 oraciones en primera persona contando los cambios más importantes>
+  REGLAS CRÍTICAS - PREVENCIÓN DE ALUCINACIONES:
+  1. Basate EXCLUSIVAMENTE en los commits listados arriba en "Cambios en este release"
+  2. Si la sección de cambios está vacía o solo tiene cambios menores (ej: bump de versión), escribí un resumen breve y honesto
+  3. NO inventes features, comandos, flags, o funcionalidades que no aparezcan explícitamente en los commits
+  4. NO menciones "validadores", "linters", "nuevas opciones" u otras features a menos que estén en los commits
+  5. Si no hay suficiente información para un ejemplo específico, usá ejemplos genéricos del uso básico del proyecto
+  6. Para EXAMPLES, solo mostrá comandos que realmente existan según los commits. Si no hay cambios significativos, mostrá el uso básico existente
+  7. Para COMPARISONS, solo incluí comparaciones si hay cambios concretos que comparar. Si no hay, usá "N/A" o una comparación genérica de versiones
+  8. Si los cambios son principalmente internos o de mantenimiento, decilo claramente en vez de inventar features visibles al usuario
+
+  VALIDACIÓN DE CONTENIDO:
+  Antes de escribir cada sección, preguntate: "¿Este detalle específico está en los commits que me pasaron?"
+  Si la respuesta es NO, no lo incluyas.
+
+  Formato de respuesta (IMPORTANTE: Incluí TODAS las secciones):
+  
+  TÍTULO: <título conciso y descriptivo (máximo 60 caracteres)>
+  
+  RESUMEN: <2-3 oraciones en primera persona contando los cambios más importantes. Si no hay cambios significativos, sé honesto al respecto>
+  
   HIGHLIGHTS:
-  - <highlight 1 en primera persona>
-  - <highlight 2 en primera persona>
-  - <highlight 3 en primera persona>
-  - <highlight 4 (opcional)>
-  - <highlight 5 (opcional)>
+  - <highlight 1 en primera persona, basado en commits reales>
+  - <highlight 2 en primera persona, basado en commits reales>
+  - <highlight 3 en primera persona, basado en commits reales>
+  (Si no hay suficientes highlights reales, enfocate en mantenimiento, estabilidad o preparación para futuras features)
+  
+  QUICK_START:
+  <Instrucciones de instalación/actualización en 2-3 líneas. Usá el repositorio real: github.com/%s/%s>
+  IMPORTANTE: Este proyecto es un CLI de Go. Usá "go install github.com/%s/%s@<version>" para instalación.
+  No inventes flags o comandos que no existan.
+  
+  EXAMPLES:
+  EXAMPLE_1:
+  TITLE: <Título del ejemplo>
+  DESCRIPTION: <Breve descripción de qué hace>
+  LANGUAGE: bash
+  CODE: <código del ejemplo - debe ser un comando real que funcione>
+  
+  EXAMPLE_2:
+  TITLE: <Título del segundo ejemplo>
+  DESCRIPTION: <Breve descripción>
+  LANGUAGE: bash
+  CODE: <código del ejemplo - debe ser un comando real que funcione>
+  (Solo incluí ejemplos de funcionalidad que realmente exista. Si no hay nuevas features, mostrá el uso básico existente)
+  
+  BREAKING_CHANGES:
+  - <cambio breaking 1, o "Ninguno" si no hay>
+  (Solo listá breaking changes si están explícitamente mencionados en los commits)
+  
+  COMPARISONS:
+  COMPARISON_1:
+  FEATURE: <nombre de la feature que realmente cambió>
+  BEFORE: <estado anterior según los commits>
+  AFTER: <estado nuevo según los commits>
+  (Si no hay comparaciones concretas basadas en los commits, usá "N/A" o una comparación genérica de versiones)
+  
+  LINKS:
+  (Solo incluí links si son relevantes para esta release específica, como issues cerrados o PRs relacionados. Si no hay links relevantes, poné "N/A")
   `
 
 	releasePromptTemplateEN = `
   You are a developer writing release notes for your project in first person.
   Write in a friendly, casual tone explaining what you built in this version.
 
+  Repository: %s/%s
   Previous version: %s
   New version: %s
   Bump type: %s
@@ -298,21 +350,71 @@ const (
 
   %s
 
-  Generate release notes with this style:
+  STYLE RULES:
   - First person: "I added", "I implemented", "I improved", "I fixed"
-  - Casual but technical tone
-  - Explain what you did and why, like you're telling a fellow developer
-  - Be technical but approachable
+  - Professional but accessible tone (you can use expressions like "now", "simpler", "much better")
+  - Explain what you did and why it's useful
+  - Be technical and precise, but approachable
+  - DO NOT use emojis in the release notes content
 
-  Response format:
-  TITLE: <concise, engaging title (max 60 chars)>
-  SUMMARY: <2-3 sentences in first person highlighting the most important changes>
+  CRITICAL RULES - PREVENTING HALLUCINATIONS:
+  1. Base everything EXCLUSIVELY on the commits listed above in "Changes in this release"
+  2. If the changes section is empty or only has minor changes (e.g., version bump), write a brief and honest summary
+  3. DO NOT invent features, commands, flags, or functionality not explicitly present in the commits
+  4. DO NOT mention "validators", "linters", "new options" or other features unless they appear in the commits
+  5. If you don't have enough info for a specific example, use generic examples of basic project usage
+  6. For EXAMPLES, only show commands that actually exist according to the commits. If there are no significant changes, show existing basic usage
+  7. For COMPARISONS, only include comparisons if there are concrete changes to compare. If not, use "N/A" or a generic version comparison
+  8. If changes are primarily internal or maintenance-related, state that clearly instead of inventing user-visible features
+
+  CONTENT VALIDATION:
+  Before writing each section, ask yourself: "Is this specific detail in the commits I was given?"
+  If the answer is NO, don't include it.
+
+  Response format (IMPORTANT: Include ALL sections):
+  
+  TITLE: <concise, descriptive title (max 60 chars)>
+  
+  SUMMARY: <2-3 sentences in first person highlighting the most important changes. If there are no significant changes, be honest about it>
+  
   HIGHLIGHTS:
-  - <highlight 1 in first person>
-  - <highlight 2 in first person>
-  - <highlight 3 in first person>
-  - <highlight 4 (optional)>
-  - <highlight 5 (optional)>
+  - <highlight 1 in first person, based on actual commits>
+  - <highlight 2 in first person, based on actual commits>
+  - <highlight 3 in first person, based on actual commits>
+  (If there aren't enough real highlights, focus on maintenance, stability, or preparation for future features)
+  
+  QUICK_START:
+  <Installation/update instructions in 2-3 lines. Use the real repository: github.com/%s/%s>
+  IMPORTANT: This project is a Go CLI. Use "go install github.com/%s/%s@<version>" for installation.
+  Do not invent flags or commands that don't exist.
+  
+  EXAMPLES:
+  EXAMPLE_1:
+  TITLE: <Example title>
+  DESCRIPTION: <Brief description of what it does>
+  LANGUAGE: bash
+  CODE: <example code - must be a real command that works>
+  
+  EXAMPLE_2:
+  TITLE: <Second example title>
+  DESCRIPTION: <Brief description>
+  LANGUAGE: bash
+  CODE: <example code - must be a real command that works>
+  (Only include examples of functionality that actually exists. If there are no new features, show existing basic usage)
+  
+  BREAKING_CHANGES:
+  - <breaking change 1, or "None" if there are no breaking changes>
+  (Only list breaking changes if they are explicitly mentioned in the commits)
+  
+  COMPARISONS:
+  COMPARISON_1:
+  FEATURE: <name of feature that actually changed>
+  BEFORE: <previous state according to commits>
+  AFTER: <new state according to commits>
+  (If there are no concrete comparisons based on commits, use "N/A" or a generic version comparison)
+  
+  LINKS:
+  (Only include links if they are relevant to this specific release, such as closed issues or related PRs. If there are no relevant links, put "N/A")
   `
 )
 

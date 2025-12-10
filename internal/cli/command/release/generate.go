@@ -53,20 +53,7 @@ func generateReleaseAction(releaseService ports.ReleaseService, trans *i18n.Tran
 				}))
 		}
 
-		content := fmt.Sprintf("# %s\n\n", notes.Title)
-		content += fmt.Sprintf("**%s:** %s\n", trans.GetMessage("release.md_version", 0, nil), release.Version)
-		content += fmt.Sprintf("**%s:** %s\n\n", trans.GetMessage("release.md_previous", 0, nil), release.PreviousVersion)
-		content += fmt.Sprintf("## %s\n\n%s\n\n", trans.GetMessage("release.md_summary", 0, nil), notes.Summary)
-
-		if len(notes.Highlights) > 0 {
-			content += fmt.Sprintf("## %s\n\n", trans.GetMessage("release.md_highlights", 0, nil))
-			for _, h := range notes.Highlights {
-				content += fmt.Sprintf("- %s\n", h)
-			}
-			content += "\n"
-		}
-
-		content += notes.Changelog
+		content := FormatReleaseMarkdown(release, notes, trans)
 
 		outputFile := cmd.String("output")
 		err = os.WriteFile(outputFile, []byte(content), 0644)

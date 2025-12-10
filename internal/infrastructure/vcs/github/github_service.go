@@ -34,6 +34,8 @@ type RepositoriesService interface {
 
 type ReleasesService interface {
 	CreateRelease(ctx context.Context, owner, repo string, release *github.RepositoryRelease) (*github.RepositoryRelease, *github.Response, error)
+	GetReleaseByTag(ctx context.Context, owner, repo, tag string) (*github.RepositoryRelease, *github.Response, error)
+	EditRelease(ctx context.Context, owner, repo string, id int64, release *github.RepositoryRelease) (*github.RepositoryRelease, *github.Response, error)
 }
 
 type GitHubClient struct {
@@ -216,10 +218,21 @@ func (ghc *GitHubClient) CreateLabel(ctx context.Context, name, color, descripti
 }
 
 func (ghc *GitHubClient) CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool) error {
+	body := notes.Changelog
+	if body == "" {
+		body = fmt.Sprintf("# %s\n\n%s\n\n", notes.Title, notes.Summary)
+		if len(notes.Highlights) > 0 {
+			body += "## Highlights\n\n"
+			for _, h := range notes.Highlights {
+				body += fmt.Sprintf("- %s\n", h)
+			}
+		}
+	}
+
 	releaseRequest := &github.RepositoryRelease{
 		TagName:    github.Ptr(release.Version),
 		Name:       github.Ptr(notes.Title),
-		Body:       github.Ptr(notes.Changelog),
+		Body:       github.Ptr(body),
 		Draft:      github.Ptr(draft),
 		Prerelease: github.Ptr(false),
 		MakeLatest: github.Ptr("true"),
@@ -237,6 +250,50 @@ func (ghc *GitHubClient) CreateRelease(ctx context.Context, release *models.Rele
 		}
 		return fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.create_release", 0, nil), err)
 	}
+	return nil
+}
+
+func (ghc *GitHubClient) GetRelease(ctx context.Context, version string) (*models.VCSRelease, error) {
+	release, resp, err := ghc.releaseService.GetReleaseByTag(ctx, ghc.owner, ghc.repo, version)
+	if err != nil {
+		if resp != nil && resp.StatusCode == 404 {
+			return nil, fmt.Errorf("%s", ghc.trans.GetMessage("error.repo_or_tag_not_found", 0, map[string]interface{}{
+				"Version": version,
+			}))
+		}
+		return nil, err
+	}
+
+	return &models.VCSRelease{
+		TagName: release.GetTagName(),
+		Name:    release.GetName(),
+		Body:    release.GetBody(),
+		Draft:   release.GetDraft(),
+		URL:     release.GetHTMLURL(),
+	}, nil
+}
+
+func (ghc *GitHubClient) UpdateRelease(ctx context.Context, version, body string) error {
+	release, resp, err := ghc.releaseService.GetReleaseByTag(ctx, ghc.owner, ghc.repo, version)
+	if err != nil {
+		if resp != nil && resp.StatusCode == 404 {
+			return fmt.Errorf("%s", ghc.trans.GetMessage("error.repo_or_tag_not_found", 0, map[string]interface{}{
+				"Version": version,
+			}))
+		}
+		return err
+	}
+
+	releaseUpdate := &github.RepositoryRelease{
+		Body: github.Ptr(body),
+	}
+
+	_, _, err = ghc.releaseService.EditRelease(ctx, ghc.owner, ghc.repo, release.GetID(), releaseUpdate)
+	if err != nil {
+		fmt.Printf("DEBUG: Error updating release: %v\n", err)
+		return err
+	}
+	fmt.Printf("DEBUG: Release updated successfully\n")
 	return nil
 }
 
