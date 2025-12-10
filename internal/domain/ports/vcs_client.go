@@ -18,5 +18,10 @@ type VCSClient interface {
 	CreateLabel(ctx context.Context, name string, color string, description string) error
 	// AddLabelsToPR agrega labels específicas a un PR
 	AddLabelsToPR(ctx context.Context, prNumber int, labels []string) error
+	// CreateRelease crea una nueva release en el repositorio
 	CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool) error
+	// GetRelease obtiene la release del repositorio
+	GetRelease(ctx context.Context, version string) (*models.VCSRelease, error)
+	// UpdateRelease actualiza una release del repositorio
+	UpdateRelease(ctx context.Context, version, body string) error
 }

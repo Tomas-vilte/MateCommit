@@ -2,6 +2,7 @@ package release
 
 import (
 	"context"
+	"fmt"
 
 	cfg "github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
@@ -35,6 +36,7 @@ func (r *ReleaseCommandFactory) CreateCommand(t *i18n.Translations, _ *cfg.Confi
 			r.newCreateCommand(t),
 			r.newPushCommand(t),
 			r.newPublishCommand(t),
+			r.newEditCommand(t),
 		},
 	}
 }
@@ -52,10 +54,16 @@ func (r *ReleaseCommandFactory) createReleaseService(ctx context.Context, t *i18
 
 	var notesGen ports.ReleaseNotesGenerator
 	if r.config.GeminiAPIKey != "" {
-		generator, err := geminiAI.NewReleaseNotesGenerator(ctx, r.config, t)
-		if err == nil {
-			notesGen = generator
+		owner, repo, _, err := r.gitService.GetRepoInfo(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("error getting repo info: %w", err)
 		}
+
+		gen, err := geminiAI.NewReleaseNotesGenerator(ctx, r.config, t, owner, repo)
+		if err != nil {
+			return nil, err
+		}
+		notesGen = gen
 	}
 
 	return services.NewReleaseService(r.gitService, vcsClient, notesGen, t), nil

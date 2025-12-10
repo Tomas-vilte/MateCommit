@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
+	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -207,5 +208,95 @@ func TestReleaseService_GenerateReleaseNotes(t *testing.T) {
 		assert.Nil(t, notes)
 		assert.Equal(t, "ai error", err.Error())
 		mockNotesGen.AssertExpectations(t)
+	})
+}
+
+func TestReleaseService_GetRelease(t *testing.T) {
+	t.Run("should get release successfully", func(t *testing.T) {
+		mockVCS := new(MockVCSClient)
+		service := NewReleaseService(nil, mockVCS, nil, nil)
+
+		expectedRelease := &models.VCSRelease{
+			TagName: "v1.2.0",
+			Name:    "Release v1.2.0",
+			Body:    "Release notes content",
+		}
+
+		mockVCS.On("GetRelease", mock.Anything, "v1.2.0").Return(expectedRelease, nil)
+
+		release, err := service.GetRelease(context.Background(), "v1.2.0")
+
+		assert.NoError(t, err)
+		assert.NotNil(t, release)
+		assert.Equal(t, "v1.2.0", release.TagName)
+		assert.Equal(t, "Release v1.2.0", release.Name)
+		assert.Equal(t, "Release notes content", release.Body)
+		mockVCS.AssertExpectations(t)
+	})
+
+	t.Run("should return error if VCS client not configured", func(t *testing.T) {
+		trans, err := i18n.NewTranslations("en", "../i18n/locales")
+		if err != nil {
+			trans, _ = i18n.NewTranslations("en", "../../i18n/locales")
+		}
+		service := NewReleaseService(nil, nil, nil, trans)
+
+		release, err := service.GetRelease(context.Background(), "v1.2.0")
+
+		assert.Error(t, err)
+		assert.Nil(t, release)
+	})
+
+	t.Run("should propagate VCS client error", func(t *testing.T) {
+		mockVCS := new(MockVCSClient)
+		service := NewReleaseService(nil, mockVCS, nil, nil)
+
+		mockVCS.On("GetRelease", mock.Anything, "v1.2.0").Return((*models.VCSRelease)(nil), errors.New("release not found"))
+
+		release, err := service.GetRelease(context.Background(), "v1.2.0")
+
+		assert.Error(t, err)
+		assert.Nil(t, release)
+		assert.Contains(t, err.Error(), "release not found")
+		mockVCS.AssertExpectations(t)
+	})
+}
+
+func TestReleaseService_UpdateRelease(t *testing.T) {
+	t.Run("should update release successfully", func(t *testing.T) {
+		mockVCS := new(MockVCSClient)
+		service := NewReleaseService(nil, mockVCS, nil, nil)
+
+		mockVCS.On("UpdateRelease", mock.Anything, "v1.2.0", "Updated release notes").Return(nil)
+
+		err := service.UpdateRelease(context.Background(), "v1.2.0", "Updated release notes")
+
+		assert.NoError(t, err)
+		mockVCS.AssertExpectations(t)
+	})
+
+	t.Run("should return error if VCS client not configured", func(t *testing.T) {
+		trans, err := i18n.NewTranslations("en", "../i18n/locales")
+		if err != nil {
+			trans, _ = i18n.NewTranslations("en", "../../i18n/locales")
+		}
+		service := NewReleaseService(nil, nil, nil, trans)
+
+		err = service.UpdateRelease(context.Background(), "v1.2.0", "Updated notes")
+
+		assert.Error(t, err)
+	})
+
+	t.Run("should propagate VCS client error", func(t *testing.T) {
+		mockVCS := new(MockVCSClient)
+		service := NewReleaseService(nil, mockVCS, nil, nil)
+
+		mockVCS.On("UpdateRelease", mock.Anything, "v1.2.0", "Updated notes").Return(errors.New("update failed"))
+
+		err := service.UpdateRelease(context.Background(), "v1.2.0", "Updated notes")
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "update failed")
+		mockVCS.AssertExpectations(t)
 	})
 }
