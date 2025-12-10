@@ -35,11 +35,39 @@ type (
 
 	// ReleaseNotes es el resultado generado por la ia
 	ReleaseNotes struct {
-		Title       string
-		Summary     string
-		Highlights  []string
-		Changelog   string
-		Recommended VersionBump
+		Title           string
+		Summary         string
+		Highlights      []string
+		Changelog       string
+		Recommended     VersionBump
+		QuickStart      string
+		Examples        []CodeExample
+		BreakingChanges []string
+		Comparisons     []Comparison
+		Links           map[string]string
+	}
+
+	// CodeExample representa un ejemplo de código con descripción
+	CodeExample struct {
+		Title       string // Título del ejemplo
+		Description string // Descripción breve
+		Code        string // Código del ejemplo
+		Language    string // Lenguaje (bash, go, etc.)
+	}
+
+	// Comparison representa una comparación antes/después
+	Comparison struct {
+		Feature string // Nombre de la feature
+		Before  string // Estado anterior
+		After   string // Estado nuevo
+	}
+
+	VCSRelease struct {
+		TagName string
+		Name    string
+		Body    string
+		Draft   bool
+		URL     string
 	}
 )
 

@@ -27,7 +27,7 @@ func TestNewReleaseNotesGenerator(t *testing.T) {
 	trans, err := i18n.NewTranslations("en", "")
 	assert.NoError(t, err)
 
-	generator, err := NewReleaseNotesGenerator(ctx, cfg, trans)
+	generator, err := NewReleaseNotesGenerator(ctx, cfg, trans, "test-owner", "test-repo")
 
 	// Assert
 	assert.NoError(t, err)
@@ -46,12 +46,12 @@ func TestNewReleaseNotesGenerator_MissingKey(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Act
-	generator, err := NewReleaseNotesGenerator(ctx, cfg, trans)
+	generator, err := NewReleaseNotesGenerator(ctx, cfg, trans, "test-owner", "test-repo")
 
 	// Assert
 	assert.Error(t, err)
 	assert.Nil(t, generator)
-	assert.Contains(t, err.Error(), "The GEMINI_API_KEY is not configured") // Note: Actual message might be localized, but validation check might return error message directly or localized string.
+	assert.Contains(t, err.Error(), "The GEMINI_API_KEY is not configured")
 }
 
 func TestBuildPrompt(t *testing.T) {
@@ -97,7 +97,6 @@ func TestBuildPrompt(t *testing.T) {
 		// Act
 		prompt := generator.buildPrompt(release)
 
-		// Assert - Check basic template structure for Spanish
 		assert.Contains(t, prompt, "Versión anterior:")
 		assert.Contains(t, prompt, "Nueva versión:")
 		assert.Contains(t, prompt, "Tipo de bump:")

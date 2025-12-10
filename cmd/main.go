@@ -26,7 +26,7 @@ import (
 func main() {
 	app, err := initializeApp()
 	if err != nil {
-		log.Fatalf("Error initializing application: %v", err)
+		log.Fatalf("Error iniciando la cli: %v", err)
 	}
 
 	if err := app.Run(context.Background(), os.Args); err != nil {
@@ -47,7 +47,7 @@ func initializeApp() (*cli.Command, error) {
 
 	translations, err := i18n.NewTranslations(cfgApp.Language, "")
 	if err != nil {
-		log.Fatalf("Error loading translations: %v", err)
+		log.Fatalf("Error al cargar las traducciones: %v", err)
 	}
 
 	err = cfg.SaveConfig(cfgApp)
