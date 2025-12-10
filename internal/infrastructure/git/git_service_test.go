@@ -221,7 +221,7 @@ func TestGitService(t *testing.T) {
 		if err == nil {
 			t.Error("Se esperaba un error al crear commit sin cambios staged")
 		}
-		if err.Error() != "no staged changes found" {
+		if err.Error() != "No staged changes found" {
 			t.Errorf("Mensaje de error inesperado: %v", err)
 		}
 	})
