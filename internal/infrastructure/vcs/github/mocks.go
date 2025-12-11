@@ -77,6 +77,11 @@ func (m *MockRepoService) CompareCommits(ctx context.Context, owner, repo, base,
 	return args.Get(0).(*github.CommitsComparison), args.Get(1).(*github.Response), args.Error(2)
 }
 
+func (m *MockRepoService) GetContents(ctx context.Context, owner, repo, path string, opts *github.RepositoryContentGetOptions) (*github.RepositoryContent, []*github.RepositoryContent, *github.Response, error) {
+	args := m.Called(ctx, owner, repo, path, opts)
+	return args.Get(0).(*github.RepositoryContent), args.Get(1).([]*github.RepositoryContent), args.Get(2).(*github.Response), args.Error(3)
+}
+
 type MockReleaseService struct {
 	mock.Mock
 }
