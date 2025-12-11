@@ -55,6 +55,11 @@ func (m *MockReleaseService) UpdateRelease(ctx context.Context, version, body st
 	return args.Error(0)
 }
 
+func (m *MockReleaseService) EnrichReleaseContext(ctx context.Context, release *models.Release) error {
+	args := m.Called(ctx, release)
+	return args.Error(0)
+}
+
 type MockGitService struct {
 	mock.Mock
 }

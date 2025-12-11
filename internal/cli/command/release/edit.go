@@ -97,6 +97,12 @@ func editReleaseAction(releaseService ports.ReleaseService, gitService ports.Git
 						AllCommits:      commits,
 					}
 
+					if err := releaseService.EnrichReleaseContext(ctx, release); err != nil {
+						fmt.Printf("⚠️  %s\n", trans.GetMessage("release.warning_enrich_context", 0, map[string]interface{}{
+							"Error": err.Error(),
+						}))
+					}
+
 					notes, err := releaseService.GenerateReleaseNotes(ctx, release)
 					if err != nil {
 						fmt.Printf("⚠️  %s\n", trans.GetMessage("release.error_generating_for_regen", 0, map[string]interface{}{

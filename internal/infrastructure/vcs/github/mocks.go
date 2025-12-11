@@ -34,6 +34,11 @@ func (m *MockPRService) GetRaw(ctx context.Context, owner, repo string, number i
 	return args.String(0), args.Get(1).(*github.Response), args.Error(2)
 }
 
+func (m *MockPRService) List(ctx context.Context, owner, repo string, opts *github.PullRequestListOptions) ([]*github.PullRequest, *github.Response, error) {
+	args := m.Called(ctx, owner, repo, opts)
+	return args.Get(0).([]*github.PullRequest), args.Get(1).(*github.Response), args.Error(2)
+}
+
 type MockIssuesService struct {
 	mock.Mock
 }
@@ -53,6 +58,11 @@ func (m *MockIssuesService) AddLabelsToIssue(ctx context.Context, owner, repo st
 	return args.Get(0).([]*github.Label), args.Get(1).(*github.Response), args.Error(2)
 }
 
+func (m *MockIssuesService) ListByRepo(ctx context.Context, owner, repo string, opts *github.IssueListByRepoOptions) ([]*github.Issue, *github.Response, error) {
+	args := m.Called(ctx, owner, repo, opts)
+	return args.Get(0).([]*github.Issue), args.Get(1).(*github.Response), args.Error(2)
+}
+
 type MockRepoService struct {
 	mock.Mock
 }
@@ -60,6 +70,11 @@ type MockRepoService struct {
 func (m *MockRepoService) GetCommit(ctx context.Context, owner, repo, sha string, opts *github.ListOptions) (*github.RepositoryCommit, *github.Response, error) {
 	args := m.Called(ctx, owner, repo, sha, opts)
 	return args.Get(0).(*github.RepositoryCommit), args.Get(1).(*github.Response), args.Error(2)
+}
+
+func (m *MockRepoService) CompareCommits(ctx context.Context, owner, repo, base, head string, opts *github.ListOptions) (*github.CommitsComparison, *github.Response, error) {
+	args := m.Called(ctx, owner, repo, base, head, opts)
+	return args.Get(0).(*github.CommitsComparison), args.Get(1).(*github.Response), args.Error(2)
 }
 
 type MockReleaseService struct {

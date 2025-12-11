@@ -18,6 +18,49 @@ type (
 		Other           []ReleaseItem
 		AllCommits      []Commit
 		VersionBump     VersionBump
+		ClosedIssues    []Issue
+		MergedPRs       []PullRequest
+		Contributors    []string
+		NewContributors []string
+		Dependencies    []DependencyChange
+		FileStats       FileStatistics
+	}
+
+	Issue struct {
+		Number int
+		Title  string
+		Labels []string
+		Author string
+		URL    string
+	}
+
+	PullRequest struct {
+		Number      int
+		Title       string
+		Description string
+		Author      string
+		Labels      []string
+		URL         string
+	}
+
+	DependencyChange struct {
+		Name       string
+		OldVersion string
+		NewVersion string
+		Type       string
+	}
+
+	FileStatistics struct {
+		FilesChanged int
+		Insertions   int
+		Deletions    int
+		TopFiles     []FileChange
+	}
+
+	FileChange struct {
+		Path      string
+		Additions int
+		Deletions int
 	}
 
 	// ReleaseItem representa un item en el changelog
