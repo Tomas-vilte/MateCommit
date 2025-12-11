@@ -27,6 +27,9 @@ type ReleaseService interface {
 
 	// UpdateRelease actualiza una release del repositorio
 	UpdateRelease(ctx context.Context, version, body string) error
+
+	// EnrichReleaseContext enriquece el release con información adicional de GitHub (issues, PRs, contributors, etc.)
+	EnrichReleaseContext(ctx context.Context, release *models.Release) error
 }
 
 type ReleaseNotesGenerator interface {

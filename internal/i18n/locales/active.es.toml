@@ -368,7 +368,14 @@ empty_body_warning = "⚠️  Esta release no tiene descripción. Se usará un t
 template_warning = "Esta release no tiene descripción en GitHub"
 template_tip = "Tip: Podés regenerar las notas con 'matecommit release generate'"
 template_changes = "Cambios"
-
+md_contributors = "👥 Contributors"
+new_contributors = "¡Damos la bienvenida a {Count} nuevos contributors!"
+all_contributors = "Todos los contributors de este release:"
+md_stats = "📊 Estadísticas"
+files_changed = "Archivos modificados"
+insertions = "Líneas agregadas"
+deletions = "Líneas eliminadas"
+warning_enrich_context = "No se pudo enriquecer el contexto del release: {Error}"
 
 # Preview
 preview_usage = "Ver vista previa del siguiente release sin crearlo"

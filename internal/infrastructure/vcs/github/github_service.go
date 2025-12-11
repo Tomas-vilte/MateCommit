@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
@@ -17,6 +18,7 @@ var _ ports.VCSClient = (*GitHubClient)(nil)
 
 type PullRequestsService interface {
 	Edit(ctx context.Context, owner, repo string, number int, pr *github.PullRequest) (*github.PullRequest, *github.Response, error)
+	List(ctx context.Context, owner, repo string, opts *github.PullRequestListOptions) ([]*github.PullRequest, *github.Response, error)
 	Get(ctx context.Context, owner, repo string, number int) (*github.PullRequest, *github.Response, error)
 	ListCommits(ctx context.Context, owner, repo string, number int, opts *github.ListOptions) ([]*github.RepositoryCommit, *github.Response, error)
 	GetRaw(ctx context.Context, owner, repo string, number int, opts github.RawOptions) (string, *github.Response, error)
@@ -26,10 +28,12 @@ type IssuesService interface {
 	ListLabels(ctx context.Context, owner, repo string, opts *github.ListOptions) ([]*github.Label, *github.Response, error)
 	CreateLabel(ctx context.Context, owner, repo string, label *github.Label) (*github.Label, *github.Response, error)
 	AddLabelsToIssue(ctx context.Context, owner, repo string, number int, labels []string) ([]*github.Label, *github.Response, error)
+	ListByRepo(ctx context.Context, owner, repo string, opts *github.IssueListByRepoOptions) ([]*github.Issue, *github.Response, error)
 }
 
 type RepositoriesService interface {
 	GetCommit(ctx context.Context, owner, repo, sha string, opts *github.ListOptions) (*github.RepositoryCommit, *github.Response, error)
+	CompareCommits(ctx context.Context, owner, repo, base, head string, opts *github.ListOptions) (*github.CommitsComparison, *github.Response, error)
 }
 
 type ReleasesService interface {
@@ -290,11 +294,168 @@ func (ghc *GitHubClient) UpdateRelease(ctx context.Context, version, body string
 
 	_, _, err = ghc.releaseService.EditRelease(ctx, ghc.owner, ghc.repo, release.GetID(), releaseUpdate)
 	if err != nil {
-		fmt.Printf("DEBUG: Error updating release: %v\n", err)
 		return err
 	}
-	fmt.Printf("DEBUG: Release updated successfully\n")
 	return nil
+}
+
+func (ghc *GitHubClient) GetClosedIssuesBetweenTags(ctx context.Context, previousTag, currentTag string) ([]models.Issue, error) {
+	prevRelease, _, err := ghc.releaseService.GetReleaseByTag(ctx, ghc.owner, ghc.repo, previousTag)
+	if err != nil {
+		return nil, err
+	}
+
+	opts := &github.IssueListByRepoOptions{
+		State:     "closed",
+		Since:     prevRelease.GetCreatedAt().Time,
+		Sort:      "updated",
+		Direction: "desc",
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+		},
+	}
+
+	var allIssues []models.Issue
+	for {
+		issues, resp, err := ghc.issuesService.ListByRepo(ctx, ghc.owner, ghc.repo, opts)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, issue := range issues {
+			if issue.PullRequestLinks == nil {
+				labels := make([]string, 0, len(issue.Labels))
+				for _, label := range issue.Labels {
+					labels = append(labels, label.GetName())
+				}
+
+				allIssues = append(allIssues, models.Issue{
+					Number: issue.GetNumber(),
+					Title:  issue.GetTitle(),
+					Labels: labels,
+					Author: issue.GetUser().GetLogin(),
+					URL:    issue.GetHTMLURL(),
+				})
+			}
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.ListOptions.Page = resp.NextPage
+	}
+
+	return allIssues, nil
+}
+
+func (ghc *GitHubClient) GetMergedPRsBetweenTags(ctx context.Context, previousTag, currentTag string) ([]models.PullRequest, error) {
+	prevRelease, _, err := ghc.releaseService.GetReleaseByTag(ctx, ghc.owner, ghc.repo, previousTag)
+	if err != nil {
+		return nil, err
+	}
+
+	opts := &github.PullRequestListOptions{
+		State:     "closed",
+		Sort:      "updated",
+		Direction: "desc",
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+		},
+	}
+	var allPRs []models.PullRequest
+	for {
+		prs, resp, err := ghc.prService.List(ctx, ghc.owner, ghc.repo, opts)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, pr := range prs {
+			if pr.GetMerged() && pr.GetMergedAt().After(prevRelease.GetCreatedAt().Time) {
+				labels := make([]string, 0, len(pr.Labels))
+				for _, label := range pr.Labels {
+					labels = append(labels, label.GetName())
+				}
+
+				allPRs = append(allPRs, models.PullRequest{
+					Number:      pr.GetNumber(),
+					Title:       pr.GetTitle(),
+					Description: pr.GetBody(),
+					Author:      pr.GetUser().GetLogin(),
+					Labels:      labels,
+					URL:         pr.GetHTMLURL(),
+				})
+			}
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.ListOptions.Page = resp.NextPage
+	}
+	return allPRs, nil
+}
+
+func (ghc *GitHubClient) GetContributorsBetweenTags(ctx context.Context, previousTag, currentTag string) ([]string, error) {
+	comparison, _, err := ghc.repoService.CompareCommits(ctx, ghc.owner, ghc.repo, previousTag, currentTag, &github.ListOptions{
+		PerPage: 100,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	contributorsMap := make(map[string]struct{})
+	for _, commit := range comparison.Commits {
+		if author := commit.GetAuthor(); author != nil {
+			contributorsMap[author.GetLogin()] = struct{}{}
+		}
+	}
+
+	contributors := make([]string, 0, len(contributorsMap))
+	for contributor := range contributorsMap {
+		contributors = append(contributors, contributor)
+	}
+	return contributors, nil
+}
+
+func (ghc *GitHubClient) GetFileStatsBetweenTags(ctx context.Context, previousTag, currentTag string) (*models.FileStatistics, error) {
+	comparison, _, err := ghc.repoService.CompareCommits(ctx, ghc.owner, ghc.repo, previousTag, currentTag, &github.ListOptions{
+		PerPage: 100,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	stats := &models.FileStatistics{
+		FilesChanged: len(comparison.Files),
+		Insertions:   0,
+		Deletions:    0,
+		TopFiles:     make([]models.FileChange, 0),
+	}
+
+	fileChanges := make([]models.FileChange, 0, len(comparison.Files))
+	for _, file := range comparison.Files {
+		stats.Insertions += file.GetAdditions()
+		stats.Deletions += file.GetDeletions()
+
+		fileChanges = append(fileChanges, models.FileChange{
+			Path:      file.GetFilename(),
+			Additions: file.GetAdditions(),
+			Deletions: file.GetDeletions(),
+		})
+	}
+
+	sort.Slice(fileChanges, func(i, j int) bool {
+		totalI := fileChanges[i].Additions + fileChanges[i].Deletions
+		totalJ := fileChanges[j].Additions + fileChanges[j].Deletions
+		return totalI > totalJ
+	})
+
+	if len(fileChanges) > 5 {
+		stats.TopFiles = fileChanges[:5]
+	} else {
+		stats.TopFiles = fileChanges
+	}
+	return stats, nil
 }
 
 func (ghc *GitHubClient) labelExists(existingLabels []string, target string) bool {

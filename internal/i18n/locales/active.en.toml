@@ -360,6 +360,14 @@ empty_body_warning = "⚠️  This release has no description. Using a basic tem
 template_warning = "This release has no description in GitHub"
 template_tip = "Tip: You can regenerate notes with 'matecommit release generate'"
 template_changes = "Changes"
+md_contributors = "👥 Contributors"
+new_contributors = "Welcome {Count} new contributors!"
+all_contributors = "All contributors in this release:"
+md_stats = "📊 Statistics"
+files_changed = "Files changed"
+insertions = "Lines added"
+deletions = "Lines deleted"
+warning_enrich_context = "Could not enrich release context: {Error}"
 
 
 # Preview

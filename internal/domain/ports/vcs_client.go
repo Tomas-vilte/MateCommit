@@ -24,4 +24,8 @@ type VCSClient interface {
 	GetRelease(ctx context.Context, version string) (*models.VCSRelease, error)
 	// UpdateRelease actualiza una release del repositorio
 	UpdateRelease(ctx context.Context, version, body string) error
+	GetClosedIssuesBetweenTags(ctx context.Context, previousTag, currentTag string) ([]models.Issue, error)
+	GetMergedPRsBetweenTags(ctx context.Context, previousTag, currentTag string) ([]models.PullRequest, error)
+	GetContributorsBetweenTags(ctx context.Context, previousTag, currentTag string) ([]string, error)
+	GetFileStatsBetweenTags(ctx context.Context, previousTag, currentTag string) (*models.FileStatistics, error)
 }

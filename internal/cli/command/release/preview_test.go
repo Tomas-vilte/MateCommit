@@ -51,6 +51,7 @@ func TestPreviewCommand_Success(t *testing.T) {
 	}
 
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
+	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
 
 	err := runPreviewTest(t, []string{}, mockService)
@@ -62,6 +63,7 @@ func TestPreviewCommand_Success(t *testing.T) {
 func TestPreviewCommand_AnalyzeError(t *testing.T) {
 	mockService := new(MockReleaseService)
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return((*models.Release)(nil), errors.New("git error"))
+	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 
 	err := runPreviewTest(t, []string{}, mockService)
 	assert.Error(t, err)
@@ -74,6 +76,7 @@ func TestPreviewCommand_GenerateError(t *testing.T) {
 	mockService := new(MockReleaseService)
 	release := &models.Release{Version: "v1.0.0"}
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
+	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return((*models.ReleaseNotes)(nil), errors.New("ai error"))
 
 	err := runPreviewTest(t, []string{}, mockService)

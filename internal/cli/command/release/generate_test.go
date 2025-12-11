@@ -56,6 +56,7 @@ func TestGenerateCommand_Success(t *testing.T) {
 	}
 
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
+	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
 
 	err := runGenerateTest(t, []string{"--output", outputFile}, mockService)
@@ -75,6 +76,7 @@ func TestGenerateCommand_Success(t *testing.T) {
 func TestGenerateCommand_AnalyzeError(t *testing.T) {
 	mockService := new(MockReleaseService)
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return((*models.Release)(nil), errors.New("git error"))
+	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 
 	err := runGenerateTest(t, []string{}, mockService)
 	assert.Error(t, err)
@@ -87,6 +89,7 @@ func TestGenerateCommand_GenerateError(t *testing.T) {
 	mockService := new(MockReleaseService)
 	release := &models.Release{Version: "v1.0.0"}
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
+	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return((*models.ReleaseNotes)(nil), errors.New("ai error"))
 
 	err := runGenerateTest(t, []string{}, mockService)
@@ -102,6 +105,7 @@ func TestGenerateCommand_WriteError(t *testing.T) {
 	notes := &models.ReleaseNotes{Title: "Title"}
 
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
+	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
 
 	invalidPath := "/path/to/non/existent/dir/file.md"
