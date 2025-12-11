@@ -10,15 +10,17 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
+	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/dependency"
 )
 
 var _ ports.ReleaseService = (*ReleaseService)(nil)
 
 type ReleaseService struct {
-	git       ports.GitService
-	vcsClient ports.VCSClient
-	notesGen  ports.ReleaseNotesGenerator
-	trans     *i18n.Translations
+	git         ports.GitService
+	vcsClient   ports.VCSClient
+	notesGen    ports.ReleaseNotesGenerator
+	trans       *i18n.Translations
+	depAnalyzer *dependency.AnalyzerRegistry
 }
 
 func NewReleaseService(
@@ -28,10 +30,11 @@ func NewReleaseService(
 	trans *i18n.Translations,
 ) *ReleaseService {
 	return &ReleaseService{
-		git:       git,
-		vcsClient: vcsClient,
-		notesGen:  notesGen,
-		trans:     trans,
+		git:         git,
+		vcsClient:   vcsClient,
+		notesGen:    notesGen,
+		trans:       trans,
+		depAnalyzer: dependency.NewAnalyzerRegistry(),
 	}
 }
 
@@ -145,9 +148,10 @@ func (s *ReleaseService) EnrichReleaseContext(ctx context.Context, release *mode
 }
 
 func (s *ReleaseService) analyzeDependencyChanges(ctx context.Context, release *models.Release) ([]models.DependencyChange, error) {
-	// Esta función analizaría cambios en go.mod entre versiones
-	// Por ahora retornar vacío
-	return []models.DependencyChange{}, nil
+	if s.vcsClient == nil {
+		return []models.DependencyChange{}, nil
+	}
+	return s.depAnalyzer.AnalyzeAll(ctx, s.vcsClient, release.PreviousVersion, release.Version)
 }
 
 // categorizeCommits categoriza los commits según conventional commits
