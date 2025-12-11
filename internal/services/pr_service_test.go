@@ -80,6 +80,11 @@ func (m *MockVCSClient) GetFileStatsBetweenTags(ctx context.Context, previousTag
 	return args.Get(0).(*models.FileStatistics), args.Error(1)
 }
 
+func (m *MockVCSClient) GetFileAtTag(ctx context.Context, tag, filepath string) (string, error) {
+	args := m.Called(ctx, tag, filepath)
+	return args.String(0), args.Error(1)
+}
+
 type MockPRSummarizer struct {
 	mock.Mock
 }

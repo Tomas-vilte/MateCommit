@@ -34,6 +34,7 @@ type IssuesService interface {
 type RepositoriesService interface {
 	GetCommit(ctx context.Context, owner, repo, sha string, opts *github.ListOptions) (*github.RepositoryCommit, *github.Response, error)
 	CompareCommits(ctx context.Context, owner, repo, base, head string, opts *github.ListOptions) (*github.CommitsComparison, *github.Response, error)
+	GetContents(ctx context.Context, owner, repo, path string, opts *github.RepositoryContentGetOptions) (*github.RepositoryContent, []*github.RepositoryContent, *github.Response, error)
 }
 
 type ReleasesService interface {
@@ -456,6 +457,28 @@ func (ghc *GitHubClient) GetFileStatsBetweenTags(ctx context.Context, previousTa
 		stats.TopFiles = fileChanges
 	}
 	return stats, nil
+}
+
+func (ghc *GitHubClient) GetFileAtTag(ctx context.Context, tag, filepath string) (string, error) {
+	opts := &github.RepositoryContentGetOptions{
+		Ref: tag,
+	}
+
+	fileContent, _, _, err := ghc.repoService.GetContents(ctx, ghc.owner, ghc.repo, tag, opts)
+	if err != nil {
+		return "", err
+	}
+
+	if fileContent == nil {
+		return "", fmt.Errorf("archivo no encontrado: %s en %s", filepath, tag)
+	}
+
+	content, err := fileContent.GetContent()
+	if err != nil {
+		return "", fmt.Errorf("error decodificando contenido del archivo: %w", err)
+	}
+
+	return content, nil
 }
 
 func (ghc *GitHubClient) labelExists(existingLabels []string, target string) bool {
