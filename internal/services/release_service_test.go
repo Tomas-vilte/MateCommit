@@ -288,3 +288,178 @@ func TestReleaseService_UpdateRelease(t *testing.T) {
 		mockVCS.AssertExpectations(t)
 	})
 }
+
+func TestReleaseService_PublishRelease(t *testing.T) {
+	t.Run("should publish release successfully", func(t *testing.T) {
+		mockVCS := new(MockVCSClient)
+		service := NewReleaseService(nil, mockVCS, nil, nil)
+
+		release := &models.Release{Version: "v1.0.0"}
+		notes := &models.ReleaseNotes{Title: "Release v1.0.0"}
+
+		mockVCS.On("CreateRelease", mock.Anything, release, notes, false).Return(nil)
+
+		err := service.PublishRelease(context.Background(), release, notes, false)
+
+		assert.NoError(t, err)
+		mockVCS.AssertExpectations(t)
+	})
+
+	t.Run("should return error if VCS client not configured", func(t *testing.T) {
+		service := NewReleaseService(nil, nil, nil, nil)
+
+		release := &models.Release{Version: "v1.0.0"}
+		notes := &models.ReleaseNotes{}
+
+		err := service.PublishRelease(context.Background(), release, notes, false)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "cliente VCS no configurado")
+	})
+
+	t.Run("should propagate VCS client error", func(t *testing.T) {
+		mockVCS := new(MockVCSClient)
+		service := NewReleaseService(nil, mockVCS, nil, nil)
+
+		release := &models.Release{Version: "v1.0.0"}
+		notes := &models.ReleaseNotes{}
+
+		mockVCS.On("CreateRelease", mock.Anything, release, notes, true).Return(errors.New("publish failed"))
+
+		err := service.PublishRelease(context.Background(), release, notes, true)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "publish failed")
+		mockVCS.AssertExpectations(t)
+	})
+}
+
+func TestReleaseService_CreateTag(t *testing.T) {
+	t.Run("should create tag successfully", func(t *testing.T) {
+		mockGit := new(MockGitService)
+		service := NewReleaseService(mockGit, nil, nil, nil)
+
+		mockGit.On("CreateTag", mock.Anything, "v1.0.0", "Release v1.0.0").Return(nil)
+
+		err := service.CreateTag(context.Background(), "v1.0.0", "Release v1.0.0")
+
+		assert.NoError(t, err)
+		mockGit.AssertExpectations(t)
+	})
+
+	t.Run("should propagate git error", func(t *testing.T) {
+		mockGit := new(MockGitService)
+		service := NewReleaseService(mockGit, nil, nil, nil)
+
+		mockGit.On("CreateTag", mock.Anything, "v1.0.0", "Release v1.0.0").Return(errors.New("tag already exists"))
+
+		err := service.CreateTag(context.Background(), "v1.0.0", "Release v1.0.0")
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "tag already exists")
+		mockGit.AssertExpectations(t)
+	})
+}
+
+func TestReleaseService_PushTag(t *testing.T) {
+	t.Run("should push tag successfully", func(t *testing.T) {
+		mockGit := new(MockGitService)
+		service := NewReleaseService(mockGit, nil, nil, nil)
+
+		mockGit.On("PushTag", mock.Anything, "v1.0.0").Return(nil)
+
+		err := service.PushTag(context.Background(), "v1.0.0")
+
+		assert.NoError(t, err)
+		mockGit.AssertExpectations(t)
+	})
+
+	t.Run("should propagate git error", func(t *testing.T) {
+		mockGit := new(MockGitService)
+		service := NewReleaseService(mockGit, nil, nil, nil)
+
+		mockGit.On("PushTag", mock.Anything, "v1.0.0").Return(errors.New("push failed"))
+
+		err := service.PushTag(context.Background(), "v1.0.0")
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "push failed")
+		mockGit.AssertExpectations(t)
+	})
+}
+
+func TestReleaseService_EnrichReleaseContext(t *testing.T) {
+	t.Run("should enrich release context successfully", func(t *testing.T) {
+		mockVCS := new(MockVCSClient)
+		service := NewReleaseService(nil, mockVCS, nil, nil)
+
+		release := &models.Release{
+			PreviousVersion: "v1.0.0",
+			Version:         "v1.1.0",
+		}
+
+		mockVCS.On("GetClosedIssuesBetweenTags", mock.Anything, "v1.0.0", "v1.1.0").
+			Return([]models.Issue{{Number: 1, Title: "Issue 1"}}, nil)
+		mockVCS.On("GetMergedPRsBetweenTags", mock.Anything, "v1.0.0", "v1.1.0").
+			Return([]models.PullRequest{{Number: 2, Title: "PR 1"}}, nil)
+		mockVCS.On("GetContributorsBetweenTags", mock.Anything, "v1.0.0", "v1.1.0").
+			Return([]string{"user1", "user2"}, nil)
+		mockVCS.On("GetFileStatsBetweenTags", mock.Anything, "v1.0.0", "v1.1.0").
+			Return(&models.FileStatistics{FilesChanged: 5}, nil)
+		mockVCS.On("GetFileAtTag", mock.Anything, mock.Anything, mock.Anything).
+			Return("", errors.New("not found"))
+
+		err := service.EnrichReleaseContext(context.Background(), release)
+
+		assert.NoError(t, err)
+		assert.Len(t, release.ClosedIssues, 1)
+		assert.Len(t, release.MergedPRs, 1)
+		assert.Len(t, release.Contributors, 2)
+		assert.Equal(t, 5, release.FileStats.FilesChanged)
+		mockVCS.AssertExpectations(t)
+	})
+
+	t.Run("should return error if VCS client not configured", func(t *testing.T) {
+		trans, err := i18n.NewTranslations("en", "../i18n/locales")
+		if err != nil {
+			trans, _ = i18n.NewTranslations("en", "../../i18n/locales")
+		}
+		service := NewReleaseService(nil, nil, nil, trans)
+
+		release := &models.Release{}
+
+		err = service.EnrichReleaseContext(context.Background(), release)
+
+		assert.Error(t, err)
+	})
+
+	t.Run("should continue even if some enrichments fail", func(t *testing.T) {
+		mockVCS := new(MockVCSClient)
+		service := NewReleaseService(nil, mockVCS, nil, nil)
+
+		release := &models.Release{
+			PreviousVersion: "v1.0.0",
+			Version:         "v1.1.0",
+		}
+
+		mockVCS.On("GetClosedIssuesBetweenTags", mock.Anything, "v1.0.0", "v1.1.0").
+			Return([]models.Issue{}, errors.New("api error"))
+		mockVCS.On("GetMergedPRsBetweenTags", mock.Anything, "v1.0.0", "v1.1.0").
+			Return([]models.PullRequest{{Number: 1}}, nil)
+		mockVCS.On("GetContributorsBetweenTags", mock.Anything, "v1.0.0", "v1.1.0").
+			Return([]string{}, errors.New("api error"))
+		mockVCS.On("GetFileStatsBetweenTags", mock.Anything, "v1.0.0", "v1.1.0").
+			Return(&models.FileStatistics{FilesChanged: 3}, nil)
+		mockVCS.On("GetFileAtTag", mock.Anything, mock.Anything, mock.Anything).
+			Return("", errors.New("not found"))
+
+		err := service.EnrichReleaseContext(context.Background(), release)
+
+		assert.NoError(t, err)
+		assert.Len(t, release.ClosedIssues, 0)
+		assert.Len(t, release.MergedPRs, 1)
+		assert.Len(t, release.Contributors, 0)
+		assert.Equal(t, 3, release.FileStats.FilesChanged)
+		mockVCS.AssertExpectations(t)
+	})
+}
