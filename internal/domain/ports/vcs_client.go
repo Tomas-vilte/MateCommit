@@ -36,4 +36,6 @@ type VCSClient interface {
 	GetIssue(ctx context.Context, issueNumber int) (*models.Issue, error)
 	// GetFileAtTag obtiene el contenido de un archivo en un tag específico
 	GetFileAtTag(ctx context.Context, tag, filepath string) (string, error)
+	// GetPRIssues obtiene issues relacionadas con un PR basándose en branch name, commits y descripción
+	GetPRIssues(ctx context.Context, branchName string, commits []string, prDescription string) ([]models.Issue, error)
 }

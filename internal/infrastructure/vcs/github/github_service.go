@@ -4,12 +4,15 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
+	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/httpclient"
 	"github.com/google/go-github/v80/github"
 	"golang.org/x/oauth2"
 )
@@ -52,6 +55,8 @@ type GitHubClient struct {
 	owner          string
 	repo           string
 	trans          *i18n.Translations
+	token          string
+	httpClient     httpclient.HTTPClient
 }
 
 var allowedLabels = map[string]struct {
@@ -82,6 +87,8 @@ func NewGitHubClient(owner, repo, token string, trans *i18n.Translations) *GitHu
 		owner:          owner,
 		repo:           repo,
 		trans:          trans,
+		token:          token,
+		httpClient:     httpClient,
 	}
 }
 
@@ -102,6 +109,8 @@ func NewGitHubClientWithServices(
 		owner:          owner,
 		repo:           repo,
 		trans:          trans,
+		token:          "",
+		httpClient:     &http.Client{},
 	}
 }
 
@@ -176,10 +185,12 @@ func (ghc *GitHubClient) GetPR(ctx context.Context, prNumber int) (models.PRData
 	}
 
 	return models.PRData{
-		ID:      prNumber,
-		Creator: pr.GetUser().GetLogin(),
-		Commits: prCommits,
-		Diff:    diff,
+		ID:            prNumber,
+		Creator:       pr.GetUser().GetLogin(),
+		Commits:       prCommits,
+		Diff:          diff,
+		BranchName:    pr.GetHead().GetRef(),
+		PRDescription: pr.GetBody(),
 	}, nil
 }
 
@@ -525,6 +536,77 @@ func (ghc *GitHubClient) GetFileAtTag(ctx context.Context, tag, filepath string)
 	}
 
 	return content, nil
+}
+
+func (ghc *GitHubClient) GetPRIssues(ctx context.Context, branchName string, commits []string, prDescription string) ([]models.Issue, error) {
+	issueNumbers := make(map[int]bool)
+
+	branchPatterns := []string{
+		`#(\d+)`,
+		`issue[/-](\d+)`,
+		`^(\d+)-`,
+		`/(\d+)-`,
+		`-(\d+)-`,
+	}
+
+	for _, pattern := range branchPatterns {
+		re := regexp.MustCompile(pattern)
+		if matches := re.FindStringSubmatch(branchName); len(matches) > 1 {
+			if num, err := strconv.Atoi(matches[1]); err == nil {
+				issueNumbers[num] = true
+			}
+		}
+	}
+
+	if prDescription != "" {
+		descPatterns := []string{
+			`(?i)(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)`,
+			`#(\d+)`,
+		}
+
+		for _, pattern := range descPatterns {
+			re := regexp.MustCompile(pattern)
+			matches := re.FindAllStringSubmatch(prDescription, -1)
+			for _, match := range matches {
+				if len(match) > 1 {
+					if num, err := strconv.Atoi(match[1]); err == nil {
+						issueNumbers[num] = true
+					}
+				}
+			}
+		}
+	}
+
+	commitPatterns := []string{
+		`(?i)(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)`,
+		`\(#(\d+)\)`,
+		`#(\d+)`,
+	}
+
+	for _, commit := range commits {
+		for _, pattern := range commitPatterns {
+			re := regexp.MustCompile(pattern)
+			matches := re.FindAllStringSubmatch(commit, -1)
+			for _, match := range matches {
+				if len(match) > 1 {
+					if num, err := strconv.Atoi(match[1]); err == nil {
+						issueNumbers[num] = true
+					}
+				}
+			}
+		}
+	}
+
+	var issues []models.Issue
+	for issueNum := range issueNumbers {
+		issue, err := ghc.GetIssue(ctx, issueNum)
+		if err != nil {
+			continue
+		}
+		issues = append(issues, *issue)
+	}
+
+	return issues, nil
 }
 
 func (ghc *GitHubClient) labelExists(existingLabels []string, target string) bool {

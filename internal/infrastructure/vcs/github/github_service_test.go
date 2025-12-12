@@ -1149,3 +1149,122 @@ func TestGitHubClient_GetDiffFromCommits(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+func TestGitHubClient_GetPRIssues(t *testing.T) {
+	t.Run("should extract issues from branch name, commits and description", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+
+		branchName := "feature/123-new-feature"
+		prDescription := "Closes #456"
+		commits := []string{"Fix bug #789", "Update readme"}
+
+		mockIssues.On("Get", mock.Anything, "test-owner", "test-repo", 123).
+			Return(&github.Issue{
+				Number:  github.Ptr(123),
+				Title:   github.Ptr("Issue 123"),
+				State:   github.Ptr("open"),
+				User:    &github.User{Login: github.Ptr("user1")},
+				HTMLURL: github.Ptr("http://github.com/owner/repo/issues/123"),
+			}, &github.Response{}, nil)
+
+		mockIssues.On("Get", mock.Anything, "test-owner", "test-repo", 456).
+			Return(&github.Issue{
+				Number:  github.Ptr(456),
+				Title:   github.Ptr("Issue 456"),
+				State:   github.Ptr("closed"),
+				User:    &github.User{Login: github.Ptr("user2")},
+				HTMLURL: github.Ptr("http://github.com/owner/repo/issues/456"),
+			}, &github.Response{}, nil)
+
+		mockIssues.On("Get", mock.Anything, "test-owner", "test-repo", 789).
+			Return(&github.Issue{
+				Number:  github.Ptr(789),
+				Title:   github.Ptr("Issue 789"),
+				State:   github.Ptr("open"),
+				User:    &github.User{Login: github.Ptr("user3")},
+				HTMLURL: github.Ptr("http://github.com/owner/repo/issues/789"),
+			}, &github.Response{}, nil)
+
+		issues, err := client.GetPRIssues(context.Background(), branchName, commits, prDescription)
+
+		assert.NoError(t, err)
+		assert.Len(t, issues, 3)
+
+		issueMap := make(map[int]models.Issue)
+		for _, issue := range issues {
+			issueMap[issue.Number] = issue
+		}
+
+		assert.Contains(t, issueMap, 123)
+		assert.Contains(t, issueMap, 456)
+		assert.Contains(t, issueMap, 789)
+
+		mockIssues.AssertExpectations(t)
+	})
+
+	t.Run("should deduplicate issues", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+
+		branchName := "feature/123-fix"
+		prDescription := "Fixes #123"
+		commits := []string{"Fix #123"}
+
+		mockIssues.On("Get", mock.Anything, "test-owner", "test-repo", 123).
+			Return(&github.Issue{
+				Number: github.Ptr(123),
+				Title:  github.Ptr("Issue 123"),
+			}, &github.Response{}, nil).Once()
+
+		issues, err := client.GetPRIssues(context.Background(), branchName, commits, prDescription)
+
+		assert.NoError(t, err)
+		assert.Len(t, issues, 1)
+		assert.Equal(t, 123, issues[0].Number)
+		mockIssues.AssertExpectations(t)
+	})
+
+	t.Run("should ignore issues that fail to be retrieved", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+
+		branchName := ""
+		prDescription := "Closes #999"
+		commits := []string{}
+
+		mockIssues.On("Get", mock.Anything, "test-owner", "test-repo", 999).
+			Return((*github.Issue)(nil), &github.Response{}, assert.AnError)
+
+		issues, err := client.GetPRIssues(context.Background(), branchName, commits, prDescription)
+
+		assert.NoError(t, err)
+		assert.Empty(t, issues)
+		mockIssues.AssertExpectations(t)
+	})
+
+	t.Run("should support various patterns", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+
+		branchName := "issue/111"
+		commits := []string{"(#222)"}
+		prDescription := "resolve #333"
+
+		mockIssues.On("Get", mock.Anything, "test-owner", "test-repo", 111).Return(&github.Issue{Number: github.Ptr(111)}, &github.Response{}, nil)
+		mockIssues.On("Get", mock.Anything, "test-owner", "test-repo", 222).Return(&github.Issue{Number: github.Ptr(222)}, &github.Response{}, nil)
+		mockIssues.On("Get", mock.Anything, "test-owner", "test-repo", 333).Return(&github.Issue{Number: github.Ptr(333)}, &github.Response{}, nil)
+
+		issues, err := client.GetPRIssues(context.Background(), branchName, commits, prDescription)
+		assert.NoError(t, err)
+		assert.Len(t, issues, 3)
+	})
+}
