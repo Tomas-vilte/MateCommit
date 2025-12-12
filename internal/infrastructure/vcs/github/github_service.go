@@ -29,6 +29,7 @@ type IssuesService interface {
 	CreateLabel(ctx context.Context, owner, repo string, label *github.Label) (*github.Label, *github.Response, error)
 	AddLabelsToIssue(ctx context.Context, owner, repo string, number int, labels []string) ([]*github.Label, *github.Response, error)
 	ListByRepo(ctx context.Context, owner, repo string, opts *github.IssueListByRepoOptions) ([]*github.Issue, *github.Response, error)
+	Get(ctx context.Context, owner, repo string, number int) (*github.Issue, *github.Response, error)
 }
 
 type RepositoriesService interface {
@@ -456,6 +457,51 @@ func (ghc *GitHubClient) GetFileStatsBetweenTags(ctx context.Context, previousTa
 		stats.TopFiles = fileChanges
 	}
 	return stats, nil
+}
+
+func (ghc *GitHubClient) GetIssue(ctx context.Context, issueNumber int) (*models.Issue, error) {
+	issue, _, err := ghc.issuesService.Get(ctx, ghc.owner, ghc.repo, issueNumber)
+	if err != nil {
+		return nil, fmt.Errorf("error obteniendo issue #%d: %w", issueNumber, err)
+	}
+
+	labels := make([]string, 0, len(issue.Labels))
+	for _, label := range issue.Labels {
+		if label.Name != nil {
+			labels = append(labels, label.GetName())
+		}
+	}
+
+	var author string
+	if issue.User != nil && issue.User.Login != nil {
+		author = *issue.User.Login
+	}
+
+	var description string
+	if issue.Body != nil {
+		description = *issue.Body
+	}
+
+	var state string
+	if issue.State != nil {
+		state = *issue.State
+	}
+
+	var url string
+	if issue.HTMLURL != nil {
+		url = *issue.HTMLURL
+	}
+
+	return &models.Issue{
+		ID:          int(issue.GetID()),
+		Number:      issue.GetNumber(),
+		Title:       issue.GetTitle(),
+		Description: description,
+		State:       state,
+		Labels:      labels,
+		Author:      author,
+		URL:         url,
+	}, nil
 }
 
 func (ghc *GitHubClient) labelExists(existingLabels []string, target string) bool {

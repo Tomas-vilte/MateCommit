@@ -26,14 +26,6 @@ type (
 		FileStats       FileStatistics
 	}
 
-	Issue struct {
-		Number int
-		Title  string
-		Labels []string
-		Author string
-		URL    string
-	}
-
 	PullRequest struct {
 		Number      int
 		Title       string
