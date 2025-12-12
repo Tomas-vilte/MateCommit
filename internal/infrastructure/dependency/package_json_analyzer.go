@@ -19,7 +19,7 @@ func NewPackageJsonAnalyzer() *PackageJsonAnalyzer {
 	return &PackageJsonAnalyzer{}
 }
 
-func (p *PackageJsonAnalyzer) CanHandle(ctx context.Context, vcsClient ports.VCSClient, previousTag, currentTag string) bool {
+func (p *PackageJsonAnalyzer) CanHandle(ctx context.Context, vcsClient ports.VCSClient, _, currentTag string) bool {
 	content, err := p.getFileContent(ctx, vcsClient, currentTag, "package.json")
 	return err == nil && content != ""
 }

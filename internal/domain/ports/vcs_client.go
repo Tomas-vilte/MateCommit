@@ -34,4 +34,6 @@ type VCSClient interface {
 	GetFileStatsBetweenTags(ctx context.Context, previousTag, currentTag string) (*models.FileStatistics, error)
 	// GetIssue obtiene información de un issue/ticket por su número
 	GetIssue(ctx context.Context, issueNumber int) (*models.Issue, error)
+	// GetFileAtTag obtiene el contenido de un archivo en un tag específico
+	GetFileAtTag(ctx context.Context, tag, filepath string) (string, error)
 }

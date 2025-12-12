@@ -669,7 +669,7 @@ func TestGitHubClient_GetClosedIssuesBetweenTags(t *testing.T) {
 
 		prevTag := "v1.0.0"
 		currTag := "v1.1.0"
-		prevReleaseDate := github.Timestamp{Time: github.Timestamp{}.Time.Add(-24 * time.Hour)}
+		prevReleaseDate := github.Timestamp{Time: time.Now().Add(-24 * time.Hour)}
 
 		prevRelease := &github.RepositoryRelease{
 			CreatedAt: &prevReleaseDate,
@@ -685,7 +685,7 @@ func TestGitHubClient_GetClosedIssuesBetweenTags(t *testing.T) {
 			Return(prevRelease, &github.Response{}, nil)
 
 		mockIssues.On("ListByRepo", mock.Anything, "test-owner", "test-repo", mock.MatchedBy(func(opts *github.IssueListByRepoOptions) bool {
-			return opts.State == "closed" && opts.Since == prevReleaseDate.Time && opts.Sort == "updated" && opts.Direction == "desc"
+			return opts.State == "closed" && opts.Since.Equal(prevReleaseDate.Time) && opts.Sort == "updated" && opts.Direction == "desc"
 		})).Return(expectedIssues, &github.Response{}, nil)
 
 		issues, err := client.GetClosedIssuesBetweenTags(context.Background(), prevTag, currTag)
@@ -707,7 +707,7 @@ func TestGitHubClient_GetClosedIssuesBetweenTags(t *testing.T) {
 		client := newTestClient(mockPR, mockIssues, mockRelease)
 
 		prevTag := "v1.0.0"
-		prevReleaseDate := github.Timestamp{Time: github.Timestamp{}.Time.Add(-24 * time.Hour)}
+		prevReleaseDate := github.Timestamp{Time: time.Now().Add(-24 * time.Hour)}
 
 		prevRelease := &github.RepositoryRelease{
 			CreatedAt: &prevReleaseDate,
@@ -1009,6 +1009,142 @@ func TestGitHubClient_GetFileStatsBetweenTags(t *testing.T) {
 			Return((*github.CommitsComparison)(nil), &github.Response{}, assert.AnError)
 
 		_, err := client.GetFileStatsBetweenTags(context.Background(), "v1.0.0", "v1.1.0")
+
+		assert.Error(t, err)
+	})
+}
+
+func TestGitHubClient_GetFileAtTag(t *testing.T) {
+	t.Run("should get file content successfully", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockRepo := &MockRepoService{}
+		client.repoService = mockRepo
+
+		tag := "v1.0.0"
+		filepath := "test.txt"
+		expectedContent := "test content"
+		encodedContent := "dGVzdCBjb250ZW50"
+
+		mockRepo.On("GetContents", mock.Anything, "test-owner", "test-repo", tag, &github.RepositoryContentGetOptions{Ref: tag}).
+			Return(&github.RepositoryContent{
+				Content:  github.Ptr(encodedContent),
+				Encoding: github.Ptr("base64"),
+			}, []*github.RepositoryContent{}, &github.Response{}, nil)
+
+		content, err := client.GetFileAtTag(context.Background(), tag, filepath)
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedContent, content)
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("should return error if file not found", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockRepo := &MockRepoService{}
+		client.repoService = mockRepo
+
+		tag := "v1.0.0"
+		filepath := "test.txt"
+
+		mockRepo.On("GetContents", mock.Anything, "test-owner", "test-repo", tag, &github.RepositoryContentGetOptions{Ref: tag}).
+			Return((*github.RepositoryContent)(nil), []*github.RepositoryContent{}, &github.Response{}, nil)
+
+		_, err := client.GetFileAtTag(context.Background(), tag, filepath)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "archivo no encontrado")
+	})
+
+	t.Run("should return error if GetContents fails", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockRepo := &MockRepoService{}
+		client.repoService = mockRepo
+
+		tag := "v1.0.0"
+
+		mockRepo.On("GetContents", mock.Anything, "test-owner", "test-repo", tag, mock.Anything).
+			Return((*github.RepositoryContent)(nil), []*github.RepositoryContent{}, &github.Response{}, assert.AnError)
+
+		_, err := client.GetFileAtTag(context.Background(), tag, "test.txt")
+
+		assert.Error(t, err)
+	})
+}
+
+func TestGitHubClient_GetDiffFromCommits(t *testing.T) {
+	t.Run("should get diff from commits successfully", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockRepo := &MockRepoService{}
+		client.repoService = mockRepo
+
+		sha1 := "sha1123456789"
+		sha2 := "sha2123456789"
+		commits := []*github.RepositoryCommit{
+			{SHA: github.Ptr(sha1), Commit: &github.Commit{Message: github.Ptr("commit message 1")}},
+			{SHA: github.Ptr(sha2), Commit: &github.Commit{Message: github.Ptr("commit message 2")}},
+		}
+
+		mockRepo.On("GetCommit", mock.Anything, "test-owner", "test-repo", sha1, (*github.ListOptions)(nil)).
+			Return(&github.RepositoryCommit{
+				Stats:  &github.CommitStats{Total: github.Ptr(1)},
+				Commit: &github.Commit{Message: github.Ptr("commit message 1")},
+				Files: []*github.CommitFile{
+					{Filename: github.Ptr("file1.go"), Patch: github.Ptr("patch1")},
+				},
+			}, &github.Response{}, nil)
+
+		mockRepo.On("GetCommit", mock.Anything, "test-owner", "test-repo", sha2, (*github.ListOptions)(nil)).
+			Return(&github.RepositoryCommit{
+				Stats:  &github.CommitStats{Total: github.Ptr(1)},
+				Commit: &github.Commit{Message: github.Ptr("commit message 2")},
+				Files: []*github.CommitFile{
+					{Filename: github.Ptr("file2.go"), Patch: github.Ptr("patch2")},
+				},
+			}, &github.Response{}, nil)
+
+		diff, err := client.getDiffFromCommits(context.Background(), commits)
+
+		assert.NoError(t, err)
+		assert.Contains(t, diff, "# Commit: sha1")
+		assert.Contains(t, diff, "# Message: commit message 1")
+		assert.Contains(t, diff, "diff --git a/file1.go b/file1.go")
+		assert.Contains(t, diff, "patch1")
+		assert.Contains(t, diff, "# Commit: sha2")
+		assert.Contains(t, diff, "# Message: commit message 2")
+		assert.Contains(t, diff, "diff --git a/file2.go b/file2.go")
+		assert.Contains(t, diff, "patch2")
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("should return error if GetCommit fails", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockRepo := &MockRepoService{}
+		client.repoService = mockRepo
+
+		sha1 := "sha1123456789"
+		commits := []*github.RepositoryCommit{
+			{SHA: github.Ptr(sha1), Commit: &github.Commit{Message: github.Ptr("commit message 1")}},
+		}
+
+		mockRepo.On("GetCommit", mock.Anything, "test-owner", "test-repo", sha1, (*github.ListOptions)(nil)).
+			Return((*github.RepositoryCommit)(nil), &github.Response{}, assert.AnError)
+
+		_, err := client.getDiffFromCommits(context.Background(), commits)
 
 		assert.Error(t, err)
 	})
