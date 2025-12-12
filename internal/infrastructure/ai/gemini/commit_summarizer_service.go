@@ -2,6 +2,7 @@ package gemini
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -18,6 +19,28 @@ type GeminiService struct {
 	config *config.Config
 	trans  *i18n.Translations
 }
+
+type (
+	CommitSuggestionJSON struct {
+		Title        string            `json:"title"`
+		Desc         string            `json:"desc"`
+		Files        []string          `json:"files"`
+		Analysis     *CodeAnalysisJSON `json:"analysis,omitempty"`
+		Requirements *RequirementsJSON `json:"requirements,omitempty"`
+	}
+
+	CodeAnalysisJSON struct {
+		OverView string `json:"overview"`
+		Purpose  string `json:"purpose"`
+		Impact   string `json:"impact"`
+	}
+
+	RequirementsJSON struct {
+		Status      string   `json:"status"`
+		Missing     []string `json:"missing"`
+		Suggestions []string `json:"suggestions"`
+	}
+)
 
 func NewGeminiService(ctx context.Context, cfg *config.Config, trans *i18n.Translations) (*GeminiService, error) {
 	if cfg.GeminiAPIKey == "" {
@@ -57,7 +80,13 @@ func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.Com
 	prompt := s.generatePrompt(s.config.Language, info, count)
 	modelName := string(s.config.AIConfig.Models[config.AIGemini])
 
-	resp, err := s.client.Models.GenerateContent(ctx, modelName, genai.Text(prompt), nil)
+	genConfig := &genai.GenerateContentConfig{
+		Temperature:      float32Ptr(0.3),
+		MaxOutputTokens:  int32(2000),
+		ResponseMIMEType: "application/json",
+	}
+
+	resp, err := s.client.Models.GenerateContent(ctx, modelName, genai.Text(prompt), genConfig)
 	if err != nil {
 		msg := s.trans.GetMessage("error_generating_content", 0, map[string]interface{}{
 			"Error": err.Error(),
@@ -65,7 +94,11 @@ func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.Com
 		return nil, fmt.Errorf("%s", msg)
 	}
 
-	suggestions := s.parseSuggestions(resp)
+	suggestions, err := s.parseSuggestionsJSON(resp)
+	if err != nil {
+		suggestions = s.parseSuggestions(resp)
+	}
+
 	if len(suggestions) == 0 {
 		msg := s.trans.GetMessage("error_no_suggestions", 0, nil)
 		return nil, fmt.Errorf("%s", msg)
@@ -78,34 +111,127 @@ func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.Com
 	return suggestions, nil
 }
 
-func (s *GeminiService) generatePrompt(locale string, info models.CommitInfo, count int) string {
-	promptTemplate := ai.GetCommitPromptTemplate(locale, info.TicketInfo != nil && info.TicketInfo.TicketTitle != "")
-
-	ticketInfo := ""
-	if info.TicketInfo != nil && info.TicketInfo.TicketTitle != "" {
-		ticketInfo = fmt.Sprintf("\nTicket Title: %s\nTicket Description: %s\nAcceptance Criteria: %s",
-			info.TicketInfo.TicketTitle,
-			info.TicketInfo.TitleDesc,
-			strings.Join(info.TicketInfo.Criteria, ", "))
+func (s *GeminiService) parseSuggestionsJSON(resp *genai.GenerateContentResponse) ([]models.CommitSuggestion, error) {
+	if resp == nil || len(resp.Candidates) == 0 {
+		return nil, fmt.Errorf("empty response")
 	}
 
+	responseText := formatResponse(resp)
+	if responseText == "" {
+		return nil, fmt.Errorf("empty response text")
+	}
+
+	// Limpiar el texto (quitar markdown code blocks si hay)
+	responseText = strings.TrimSpace(responseText)
+	responseText = strings.TrimPrefix(responseText, "```json")
+	responseText = strings.TrimPrefix(responseText, "```")
+	responseText = strings.TrimSuffix(responseText, "```")
+	responseText = strings.TrimSpace(responseText)
+
+	var jsonSuggestions []CommitSuggestionJSON
+	if err := json.Unmarshal([]byte(responseText), &jsonSuggestions); err != nil {
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
+	}
+
+	suggestions := make([]models.CommitSuggestion, 0, len(jsonSuggestions))
+	for _, js := range jsonSuggestions {
+		suggestion := models.CommitSuggestion{
+			CommitTitle: js.Title,
+			Explanation: js.Desc,
+			Files:       js.Files,
+		}
+
+		if js.Analysis != nil {
+			suggestion.CodeAnalysis = models.CodeAnalysis{
+				ChangesOverview: js.Analysis.OverView,
+				PrimaryPurpose:  js.Analysis.Purpose,
+				TechnicalImpact: js.Analysis.Impact,
+			}
+		}
+
+		if js.Requirements != nil {
+			suggestion.RequirementsAnalysis = models.RequirementsAnalysis{
+				CriteriaStatus:         models.CriteriaStatus(js.Requirements.Status),
+				MissingCriteria:        js.Requirements.Missing,
+				ImprovementSuggestions: js.Requirements.Suggestions,
+			}
+		}
+
+		suggestions = append(suggestions, suggestion)
+	}
+
+	return suggestions, nil
+}
+
+func (s *GeminiService) generatePrompt(locale string, info models.CommitInfo, count int) string {
+	promptTemplate := ai.GetCommitPromptTemplate(locale, info.TicketInfo != nil &&
+		info.TicketInfo.TicketTitle != "")
+
+	// Formatear archivos modificados
+	filesFormatted := formatChanges(info.Files)
+
+	// Formatear diff como code block
+	diffFormatted := fmt.Sprintf("```diff\n%s\n```", info.Diff)
+
+	// Ticket info
+	ticketInfo := ""
+	if info.TicketInfo != nil && info.TicketInfo.TicketTitle != "" {
+		ticketInfo = fmt.Sprintf(`**Title:** %s
+  **Description:** %s
+  **Acceptance Criteria:**
+  %s`,
+			info.TicketInfo.TicketTitle,
+			info.TicketInfo.TitleDesc,
+			formatCriteria(info.TicketInfo.Criteria))
+	}
+
+	// Issue instructions
 	issueInstructions := ""
 	if info.IssueInfo != nil && info.IssueInfo.Number > 0 {
 		num := info.IssueInfo.Number
-		issueInstructions = fmt.Sprintf(ai.GetIssueReferenceInstructions(locale), num, num, num, num, num, num, num, num)
+		issueInstructions = fmt.Sprintf(ai.GetIssueReferenceInstructions(locale), num, num, num, num, num,
+			num, num, num)
 	} else {
-		issueInstructions = "No hay issue asociado, no incluyas referencias de issues en el título."
+		if locale == "es" {
+			issueInstructions = "No incluyas referencias de issues en el título."
+		} else {
+			issueInstructions = "Do not include issue references in the title."
+		}
 	}
 
-	return fmt.Sprintf(promptTemplate,
-		count,
-		count,
-		formatChanges(info.Files),
-		info.Diff,
-		ticketInfo,
-		issueInstructions,
-	)
+	// Technical analysis placeholder
+	technicalAnalysis := ""
+	if info.TicketInfo == nil || info.TicketInfo.TicketTitle == "" {
+		if locale == "es" {
+			technicalAnalysis = "Proporciona análisis técnico detallado incluyendo: mejores prácticas aplicadas, " +
+				"impacto en rendimiento/mantenibilidad, y consideraciones de seguridad si aplican."
+		} else {
+			technicalAnalysis = "Provide detailed technical analysis including: best practices applied, " +
+				"performance/maintainability impact, and security considerations if applicable."
+		}
+	}
+
+	if info.TicketInfo != nil && info.TicketInfo.TicketTitle != "" {
+		return fmt.Sprintf(promptTemplate,
+			count,
+			filesFormatted,
+			diffFormatted,
+			ticketInfo,
+			issueInstructions,
+			count,
+		)
+	} else {
+		return fmt.Sprintf(promptTemplate,
+			count,
+			filesFormatted,
+			diffFormatted,
+			issueInstructions,
+			technicalAnalysis,
+			count,
+		)
+	}
 }
+
 
 func formatChanges(files []string) string {
 	if len(files) == 0 {
@@ -116,6 +242,17 @@ func formatChanges(files []string) string {
 		formattedFiles[i] = fmt.Sprintf("- %s", file)
 	}
 	return strings.Join(formattedFiles, "\n")
+}
+
+func formatCriteria(criteria []string) string {
+	if len(criteria) == 0 {
+		return ""
+	}
+	formattedCriteria := make([]string, len(criteria))
+	for i, criterion := range criteria {
+		formattedCriteria[i] = fmt.Sprintf("  - %s", criterion)
+	}
+	return strings.Join(formattedCriteria, "\n")
 }
 
 // formatResponse formatea la respuesta de la API de Gemini en una cadena.
@@ -320,4 +457,15 @@ func (s *GeminiService) ensureIssueReference(suggestions []models.CommitSuggesti
 	}
 
 	return suggestions
+}
+func floatPtr(f float64) *float64 {
+	return &f
+}
+
+func float32Ptr(f float32) *float32 {
+	return &f
+}
+
+func intPtr(i int) *int {
+	return &i
 }
