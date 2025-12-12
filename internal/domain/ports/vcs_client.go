@@ -24,8 +24,14 @@ type VCSClient interface {
 	GetRelease(ctx context.Context, version string) (*models.VCSRelease, error)
 	// UpdateRelease actualiza una release del repositorio
 	UpdateRelease(ctx context.Context, version, body string) error
+	// GetClosedIssuesBetweenTags obtiene issues cerrados entre dos tags
 	GetClosedIssuesBetweenTags(ctx context.Context, previousTag, currentTag string) ([]models.Issue, error)
+	// GetMergedPRsBetweenTags obtiene PRs mergeados entre dos tags
 	GetMergedPRsBetweenTags(ctx context.Context, previousTag, currentTag string) ([]models.PullRequest, error)
+	// GetContributorsBetweenTags obtiene contributors entre dos tags
 	GetContributorsBetweenTags(ctx context.Context, previousTag, currentTag string) ([]string, error)
+	// GetFileStatsBetweenTags obtiene estadísticas de archivos entre dos tags
 	GetFileStatsBetweenTags(ctx context.Context, previousTag, currentTag string) (*models.FileStatistics, error)
+	// GetIssue obtiene información de un issue/ticket por su número
+	GetIssue(ctx context.Context, issueNumber int) (*models.Issue, error)
 }

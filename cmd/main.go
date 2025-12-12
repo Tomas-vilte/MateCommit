@@ -72,7 +72,9 @@ func initializeApp() (*cli.Command, error) {
 
 	ticketService := jira.NewJiraService(cfgApp, &http.Client{})
 
-	commitService := services.NewCommitService(gitService, aiProvider, ticketService, cfgApp, translations)
+	// VCSClient se inicializa de forma lazy cuando se necesita (por ejemplo, con --issue flag)
+	// Para evitar dependency injection compleja en main, se pasa nil y se resuelve dinámicamente
+	commitService := services.NewCommitService(gitService, aiProvider, ticketService, nil, cfgApp, translations)
 
 	commitHandler := handler.NewSuggestionHandler(gitService, translations)
 
