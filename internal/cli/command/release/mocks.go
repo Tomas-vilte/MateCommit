@@ -126,3 +126,8 @@ func (m *MockGitService) PushTag(ctx context.Context, version string) error {
 	args := m.Called(ctx, version)
 	return args.Error(0)
 }
+
+func (m *MockGitService) GetRecentCommitMessages(ctx context.Context, count int) (string, error) {
+	args := m.Called(ctx, count)
+	return args.String(0), args.Error(1)
+}
