@@ -86,6 +86,14 @@ func (m *MockVCSClient) GetFileStatsBetweenTags(ctx context.Context, previousTag
 	return args.Get(0).(*models.FileStatistics), args.Error(1)
 }
 
+func (m *MockVCSClient) GetIssue(ctx context.Context, issueNumber int) (*models.Issue, error) {
+	args := m.Called(ctx, issueNumber)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.Issue), args.Error(1)
+}
+
 func TestGoModAnalyzer_Name(t *testing.T) {
 	analyzer := NewGoModAnalyzer()
 	assert.Equal(t, "go.mod", analyzer.Name())
