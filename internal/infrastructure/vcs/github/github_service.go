@@ -29,12 +29,12 @@ type IssuesService interface {
 	CreateLabel(ctx context.Context, owner, repo string, label *github.Label) (*github.Label, *github.Response, error)
 	AddLabelsToIssue(ctx context.Context, owner, repo string, number int, labels []string) ([]*github.Label, *github.Response, error)
 	ListByRepo(ctx context.Context, owner, repo string, opts *github.IssueListByRepoOptions) ([]*github.Issue, *github.Response, error)
+	Get(ctx context.Context, owner, repo string, number int) (*github.Issue, *github.Response, error)
 }
 
 type RepositoriesService interface {
 	GetCommit(ctx context.Context, owner, repo, sha string, opts *github.ListOptions) (*github.RepositoryCommit, *github.Response, error)
 	CompareCommits(ctx context.Context, owner, repo, base, head string, opts *github.ListOptions) (*github.CommitsComparison, *github.Response, error)
-	GetContents(ctx context.Context, owner, repo, path string, opts *github.RepositoryContentGetOptions) (*github.RepositoryContent, []*github.RepositoryContent, *github.Response, error)
 }
 
 type ReleasesService interface {
@@ -459,26 +459,49 @@ func (ghc *GitHubClient) GetFileStatsBetweenTags(ctx context.Context, previousTa
 	return stats, nil
 }
 
-func (ghc *GitHubClient) GetFileAtTag(ctx context.Context, tag, filepath string) (string, error) {
-	opts := &github.RepositoryContentGetOptions{
-		Ref: tag,
-	}
-
-	fileContent, _, _, err := ghc.repoService.GetContents(ctx, ghc.owner, ghc.repo, tag, opts)
+func (ghc *GitHubClient) GetIssue(ctx context.Context, issueNumber int) (*models.Issue, error) {
+	issue, _, err := ghc.issuesService.Get(ctx, ghc.owner, ghc.repo, issueNumber)
 	if err != nil {
-		return "", err
+		return nil, fmt.Errorf("error obteniendo issue #%d: %w", issueNumber, err)
 	}
 
-	if fileContent == nil {
-		return "", fmt.Errorf("archivo no encontrado: %s en %s", filepath, tag)
+	labels := make([]string, 0, len(issue.Labels))
+	for _, label := range issue.Labels {
+		if label.Name != nil {
+			labels = append(labels, label.GetName())
+		}
 	}
 
-	content, err := fileContent.GetContent()
-	if err != nil {
-		return "", fmt.Errorf("error decodificando contenido del archivo: %w", err)
+	var author string
+	if issue.User != nil && issue.User.Login != nil {
+		author = *issue.User.Login
 	}
 
-	return content, nil
+	var description string
+	if issue.Body != nil {
+		description = *issue.Body
+	}
+
+	var state string
+	if issue.State != nil {
+		state = *issue.State
+	}
+
+	var url string
+	if issue.HTMLURL != nil {
+		url = *issue.HTMLURL
+	}
+
+	return &models.Issue{
+		ID:          int(issue.GetID()),
+		Number:      issue.GetNumber(),
+		Title:       issue.GetTitle(),
+		Description: description,
+		State:       state,
+		Labels:      labels,
+		Author:      author,
+		URL:         url,
+	}, nil
 }
 
 func (ghc *GitHubClient) labelExists(existingLabels []string, target string) bool {

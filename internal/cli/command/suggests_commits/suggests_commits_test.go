@@ -1,4 +1,4 @@
-package suggest
+package suggests_commits
 
 import (
 	"context"
@@ -14,13 +14,17 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// Mock para CommitService
 type MockCommitService struct {
 	mock.Mock
 }
 
 func (m *MockCommitService) GenerateSuggestions(ctx context.Context, count int) ([]models.CommitSuggestion, error) {
 	args := m.Called(ctx, count)
+	return args.Get(0).([]models.CommitSuggestion), args.Error(1)
+}
+
+func (m *MockCommitService) GenerateSuggestionsWithIssue(ctx context.Context, count int, issueNumber int) ([]models.CommitSuggestion, error) {
+	args := m.Called(ctx, count, issueNumber)
 	return args.Get(0).([]models.CommitSuggestion), args.Error(1)
 }
 
@@ -45,7 +49,7 @@ func setupTestEnv(t *testing.T) (*config.Config, *i18n.Translations, func()) {
 		PathFile:         tmpConfigPath,
 		Language:         "es",
 		UseEmoji:         true,
-		SuggestionsCount: 3, // Añadido el valor por defecto
+		SuggestionsCount: 3,
 	}
 
 	translations, err := i18n.NewTranslations("es", "../../../i18n/locales")
@@ -85,7 +89,7 @@ func TestSuggestCommand(t *testing.T) {
 		cmd := factory.CreateCommand(translations, cfg)
 
 		// Act
-		err := cmd.Run(ctx, []string{"suggest"}) // Sin especificar count, usa el valor por defecto
+		err := cmd.Run(ctx, []string{"suggest"})
 
 		// Assert
 		assert.NoError(t, err)

@@ -1,10 +1,11 @@
-package suggest
+package suggests_commits
 
 import (
 	"context"
 	"fmt"
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
+	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/urfave/cli/v3"
@@ -53,6 +54,12 @@ func (f *SuggestCommandFactory) createFlags(cfg *config.Config, t *i18n.Translat
 			Value:   cfg.UseEmoji,
 			Usage:   t.GetMessage("suggest_no_emoji_flag_usage", 0, nil),
 		},
+		&cli.IntFlag{
+			Name:    "issue",
+			Aliases: []string{"i"},
+			Usage:   t.GetMessage("suggest_issue_flag_usage", 0, nil),
+			Value:   0,
+		},
 	}
 }
 
@@ -60,9 +67,9 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 	return func(ctx context.Context, command *cli.Command) error {
 		emojiFlag := command.Bool("no-emoji")
 		if emojiFlag {
-			cfg.UseEmoji = false // Deshabilitar emojis si --no-emoji está presente
+			cfg.UseEmoji = false
 		} else {
-			cfg.UseEmoji = true // Habilitar emojis si --no-emoji no está presente
+			cfg.UseEmoji = true
 		}
 		count := command.Int("count")
 		if count < 1 || count > 10 {
@@ -80,7 +87,21 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 		}
 
 		fmt.Println(t.GetMessage("analyzing_changes", 0, nil))
-		suggestions, err := f.commitService.GenerateSuggestions(ctx, int(count))
+
+		issueNumber := command.Int("issue")
+		var suggestions []models.CommitSuggestion
+		var err error
+
+		if issueNumber > 0 {
+			msg := t.GetMessage("issue_including_context", 0, map[string]interface{}{
+				"Number": issueNumber,
+			})
+			fmt.Println(msg)
+			suggestions, err = f.commitService.GenerateSuggestionsWithIssue(ctx, count, issueNumber)
+		} else {
+			suggestions, err = f.commitService.GenerateSuggestions(ctx, count)
+		}
+
 		if err != nil {
 			msg := t.GetMessage("suggestion_generation_error", 0, map[string]interface{}{"Error": err})
 			return fmt.Errorf("%s", msg)

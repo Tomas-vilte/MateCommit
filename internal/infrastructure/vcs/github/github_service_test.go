@@ -2,9 +2,10 @@ package github
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
@@ -17,19 +18,6 @@ import (
 func newTestClient(pr *MockPRService, issues *MockIssuesService, release *MockReleaseService) *GitHubClient {
 	trans, _ := i18n.NewTranslations("es", "../../../i18n/locales/")
 	repo := &MockRepoService{}
-	return NewGitHubClientWithServices(
-		pr,
-		issues,
-		repo,
-		release,
-		"test-owner",
-		"test-repo",
-		trans,
-	)
-}
-
-func newTestClientWithRepo(pr *MockPRService, issues *MockIssuesService, repo *MockRepoService, release *MockReleaseService) *GitHubClient {
-	trans, _ := i18n.NewTranslations("es", "../../../i18n/locales/")
 	return NewGitHubClientWithServices(
 		pr,
 		issues,
@@ -586,61 +574,442 @@ func TestGitHubClient_UpdateRelease(t *testing.T) {
 	})
 }
 
-func TestGitHubClient_GetFileAtTag(t *testing.T) {
-	t.Run("should get file content successfully", func(t *testing.T) {
+func TestGitHubClient_GetIssue(t *testing.T) {
+	t.Run("should get issue successfully", func(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
-		mockRepo := &MockRepoService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClientWithRepo(mockPR, mockIssues, mockRepo, mockRelease)
+		client := newTestClient(mockPR, mockIssues, mockRelease)
 
-		fileContent := &github.RepositoryContent{
-			Content: github.Ptr("ZmlsZSBjb250ZW50IGhlcmU="), // base64 encoded
+		issueNumber := 123
+		expectedIssue := &github.Issue{
+			ID:      github.Ptr(int64(456)),
+			Number:  github.Ptr(issueNumber),
+			Title:   github.Ptr("Issue Title"),
+			Body:    github.Ptr("Issue Body"),
+			State:   github.Ptr("open"),
+			User:    &github.User{Login: github.Ptr("author-name")},
+			HTMLURL: github.Ptr("https://github.com/owner/repo/issues/123"),
+			Labels: []*github.Label{
+				{Name: github.Ptr("bug")},
+				{Name: github.Ptr("high-priority")},
+			},
 		}
 
-		mockRepo.On("GetContents", mock.Anything, "test-owner", "test-repo", "v1.0.0", mock.MatchedBy(func(opts *github.RepositoryContentGetOptions) bool {
-			return opts.Ref == "v1.0.0"
-		})).Return(fileContent, []*github.RepositoryContent{}, &github.Response{}, nil)
+		mockIssues.On("Get", mock.Anything, "test-owner", "test-repo", issueNumber).
+			Return(expectedIssue, &github.Response{}, nil)
 
-		content, err := client.GetFileAtTag(context.Background(), "v1.0.0", "go.mod")
+		result, err := client.GetIssue(context.Background(), issueNumber)
 
 		assert.NoError(t, err)
-		assert.NotEmpty(t, content)
+		assert.Equal(t, 456, result.ID)
+		assert.Equal(t, issueNumber, result.Number)
+		assert.Equal(t, "Issue Title", result.Title)
+		assert.Equal(t, "Issue Body", result.Description)
+		assert.Equal(t, "open", result.State)
+		assert.Equal(t, "author-name", result.Author)
+		assert.Equal(t, "https://github.com/owner/repo/issues/123", result.URL)
+		assert.Contains(t, result.Labels, "bug")
+		assert.Contains(t, result.Labels, "high-priority")
+		mockIssues.AssertExpectations(t)
+	})
+
+	t.Run("should handle nil fields in issue", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+
+		issueNumber := 123
+		expectedIssue := &github.Issue{
+			ID:     github.Ptr(int64(456)),
+			Number: github.Ptr(issueNumber),
+			Title:  github.Ptr("Issue Title"),
+		}
+
+		mockIssues.On("Get", mock.Anything, "test-owner", "test-repo", issueNumber).
+			Return(expectedIssue, &github.Response{}, nil)
+
+		result, err := client.GetIssue(context.Background(), issueNumber)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "Issue Title", result.Title)
+		assert.Empty(t, result.Description)
+		assert.Empty(t, result.State)
+		assert.Empty(t, result.Author)
+		assert.Empty(t, result.URL)
+		assert.Empty(t, result.Labels)
+	})
+
+	t.Run("should return error when Get fails", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+
+		issueNumber := 123
+
+		mockIssues.On("Get", mock.Anything, "test-owner", "test-repo", issueNumber).
+			Return((*github.Issue)(nil), &github.Response{}, assert.AnError)
+
+		_, err := client.GetIssue(context.Background(), issueNumber)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), fmt.Sprintf("error obteniendo issue #%d", issueNumber))
+		mockIssues.AssertExpectations(t)
+	})
+}
+
+func TestGitHubClient_GetClosedIssuesBetweenTags(t *testing.T) {
+	t.Run("should get closed issues between tags", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+
+		prevTag := "v1.0.0"
+		currTag := "v1.1.0"
+		prevReleaseDate := github.Timestamp{Time: github.Timestamp{}.Time.Add(-24 * time.Hour)}
+
+		prevRelease := &github.RepositoryRelease{
+			CreatedAt: &prevReleaseDate,
+		}
+
+		expectedIssues := []*github.Issue{
+			{Number: github.Ptr(1), Title: github.Ptr("Issue 1"), PullRequestLinks: nil, Labels: []*github.Label{{Name: github.Ptr("bug")}}},
+			{Number: github.Ptr(2), Title: github.Ptr("Issue 2"), PullRequestLinks: nil},
+			{Number: github.Ptr(3), Title: github.Ptr("PR 3"), PullRequestLinks: &github.PullRequestLinks{}},
+		}
+
+		mockRelease.On("GetReleaseByTag", mock.Anything, "test-owner", "test-repo", prevTag).
+			Return(prevRelease, &github.Response{}, nil)
+
+		mockIssues.On("ListByRepo", mock.Anything, "test-owner", "test-repo", mock.MatchedBy(func(opts *github.IssueListByRepoOptions) bool {
+			return opts.State == "closed" && opts.Since == prevReleaseDate.Time && opts.Sort == "updated" && opts.Direction == "desc"
+		})).Return(expectedIssues, &github.Response{}, nil)
+
+		issues, err := client.GetClosedIssuesBetweenTags(context.Background(), prevTag, currTag)
+
+		assert.NoError(t, err)
+		assert.Len(t, issues, 2)
+		assert.Equal(t, 1, issues[0].Number)
+		assert.Equal(t, "Issue 1", issues[0].Title)
+		assert.Equal(t, 2, issues[1].Number)
+		assert.Equal(t, "Issue 2", issues[1].Title)
+		mockRelease.AssertExpectations(t)
+		mockIssues.AssertExpectations(t)
+	})
+
+	t.Run("should handle pagination", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+
+		prevTag := "v1.0.0"
+		prevReleaseDate := github.Timestamp{Time: github.Timestamp{}.Time.Add(-24 * time.Hour)}
+
+		prevRelease := &github.RepositoryRelease{
+			CreatedAt: &prevReleaseDate,
+		}
+
+		page1Issues := []*github.Issue{
+			{Number: github.Ptr(1), PullRequestLinks: nil},
+		}
+		page2Issues := []*github.Issue{
+			{Number: github.Ptr(2), PullRequestLinks: nil},
+		}
+
+		mockRelease.On("GetReleaseByTag", mock.Anything, "test-owner", "test-repo", prevTag).
+			Return(prevRelease, &github.Response{}, nil)
+
+		mockIssues.On("ListByRepo", mock.Anything, "test-owner", "test-repo", mock.MatchedBy(func(opts *github.IssueListByRepoOptions) bool {
+			return opts.ListOptions.Page == 0
+		})).Return(page1Issues, &github.Response{NextPage: 2}, nil)
+
+		mockIssues.On("ListByRepo", mock.Anything, "test-owner", "test-repo", mock.MatchedBy(func(opts *github.IssueListByRepoOptions) bool {
+			return opts.ListOptions.Page == 2
+		})).Return(page2Issues, &github.Response{NextPage: 0}, nil)
+
+		issues, err := client.GetClosedIssuesBetweenTags(context.Background(), prevTag, "v1.1.0")
+
+		assert.NoError(t, err)
+		assert.Len(t, issues, 2)
+		assert.Equal(t, 1, issues[0].Number)
+		assert.Equal(t, 2, issues[1].Number)
+	})
+
+	t.Run("should return error if GetReleaseByTag fails", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+
+		mockRelease.On("GetReleaseByTag", mock.Anything, "test-owner", "test-repo", "v1.0.0").
+			Return((*github.RepositoryRelease)(nil), &github.Response{}, assert.AnError)
+
+		_, err := client.GetClosedIssuesBetweenTags(context.Background(), "v1.0.0", "v1.1.0")
+
+		assert.Error(t, err)
+	})
+
+	t.Run("should return error if ListByRepo fails", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+
+		prevRelease := &github.RepositoryRelease{
+			CreatedAt: &github.Timestamp{},
+		}
+
+		mockRelease.On("GetReleaseByTag", mock.Anything, "test-owner", "test-repo", "v1.0.0").
+			Return(prevRelease, &github.Response{}, nil)
+
+		mockIssues.On("ListByRepo", mock.Anything, "test-owner", "test-repo", mock.Anything).
+			Return([]*github.Issue{}, &github.Response{}, assert.AnError)
+
+		_, err := client.GetClosedIssuesBetweenTags(context.Background(), "v1.0.0", "v1.1.0")
+
+		assert.Error(t, err)
+	})
+}
+
+func TestGitHubClient_GetMergedPRsBetweenTags(t *testing.T) {
+	t.Run("should get merged PRs between tags", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+
+		prevTag := "v1.0.0"
+		currTag := "v1.1.0"
+
+		prevTime := time.Now().Add(-48 * time.Hour)
+		mergedTime1 := time.Now().Add(-24 * time.Hour)
+		mergedTime2 := time.Now().Add(-72 * time.Hour)
+
+		prevReleaseDate := github.Timestamp{Time: prevTime}
+
+		prevRelease := &github.RepositoryRelease{
+			CreatedAt: &prevReleaseDate,
+		}
+
+		pr1 := &github.PullRequest{
+			Number:   github.Ptr(1),
+			Title:    github.Ptr("PR 1"),
+			Body:     github.Ptr("Description 1"),
+			User:     &github.User{Login: github.Ptr("user1")},
+			Merged:   github.Ptr(true),
+			MergedAt: &github.Timestamp{Time: mergedTime1},
+			HTMLURL:  github.Ptr("url1"),
+			Labels:   []*github.Label{{Name: github.Ptr("bug")}},
+		}
+
+		pr2 := &github.PullRequest{
+			Number: github.Ptr(2),
+			Merged: github.Ptr(false),
+		}
+
+		pr3 := &github.PullRequest{
+			Number:   github.Ptr(3),
+			Merged:   github.Ptr(true),
+			MergedAt: &github.Timestamp{Time: mergedTime2},
+		}
+
+		mockRelease.On("GetReleaseByTag", mock.Anything, "test-owner", "test-repo", prevTag).
+			Return(prevRelease, &github.Response{}, nil)
+
+		mockPR.On("List", mock.Anything, "test-owner", "test-repo", mock.MatchedBy(func(opts *github.PullRequestListOptions) bool {
+			return opts.State == "closed" && opts.Sort == "updated" && opts.Direction == "desc"
+		})).Return([]*github.PullRequest{pr1, pr2, pr3}, &github.Response{}, nil)
+
+		prs, err := client.GetMergedPRsBetweenTags(context.Background(), prevTag, currTag)
+
+		assert.NoError(t, err)
+		assert.Len(t, prs, 1)
+		assert.Equal(t, 1, prs[0].Number)
+		assert.Equal(t, "PR 1", prs[0].Title)
+		assert.Equal(t, "Description 1", prs[0].Description)
+		assert.Equal(t, "user1", prs[0].Author)
+		assert.Contains(t, prs[0].Labels, "bug")
+		mockRelease.AssertExpectations(t)
+		mockPR.AssertExpectations(t)
+	})
+
+	t.Run("should handle pagination", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+
+		prevTag := "v1.0.0"
+		prevReleaseDate := github.Timestamp{Time: time.Now().Add(-24 * time.Hour)}
+
+		prevRelease := &github.RepositoryRelease{
+			CreatedAt: &prevReleaseDate,
+		}
+
+		mergedTime := time.Now()
+		pr1 := &github.PullRequest{
+			Number:   github.Ptr(1),
+			Merged:   github.Ptr(true),
+			MergedAt: &github.Timestamp{Time: mergedTime},
+		}
+
+		mockRelease.On("GetReleaseByTag", mock.Anything, "test-owner", "test-repo", prevTag).
+			Return(prevRelease, &github.Response{}, nil)
+
+		mockPR.On("List", mock.Anything, "test-owner", "test-repo", mock.MatchedBy(func(opts *github.PullRequestListOptions) bool {
+			return opts.ListOptions.Page == 0
+		})).Return([]*github.PullRequest{pr1}, &github.Response{NextPage: 2}, nil)
+
+		mockPR.On("List", mock.Anything, "test-owner", "test-repo", mock.MatchedBy(func(opts *github.PullRequestListOptions) bool {
+			return opts.ListOptions.Page == 2
+		})).Return([]*github.PullRequest{}, &github.Response{NextPage: 0}, nil)
+
+		prs, err := client.GetMergedPRsBetweenTags(context.Background(), prevTag, "v1.1.0")
+
+		assert.NoError(t, err)
+		assert.Len(t, prs, 1)
+	})
+
+	t.Run("should return error if GetReleaseByTag fails", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+
+		mockRelease.On("GetReleaseByTag", mock.Anything, "test-owner", "test-repo", "v1.0.0").
+			Return((*github.RepositoryRelease)(nil), &github.Response{}, assert.AnError)
+
+		_, err := client.GetMergedPRsBetweenTags(context.Background(), "v1.0.0", "v1.1.0")
+
+		assert.Error(t, err)
+	})
+
+	t.Run("should return error if List fails", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+
+		mockRelease.On("GetReleaseByTag", mock.Anything, "test-owner", "test-repo", "v1.0.0").
+			Return(&github.RepositoryRelease{CreatedAt: &github.Timestamp{}}, &github.Response{}, nil)
+
+		mockPR.On("List", mock.Anything, "test-owner", "test-repo", mock.Anything).
+			Return([]*github.PullRequest{}, &github.Response{}, assert.AnError)
+
+		_, err := client.GetMergedPRsBetweenTags(context.Background(), "v1.0.0", "v1.1.0")
+
+		assert.Error(t, err)
+	})
+}
+
+func TestGitHubClient_GetContributorsBetweenTags(t *testing.T) {
+	t.Run("should get distinct contributors between tags", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+
+		prevTag := "v1.0.0"
+		currTag := "v1.1.0"
+
+		comparison := &github.CommitsComparison{
+			Commits: []*github.RepositoryCommit{
+				{Author: &github.User{Login: github.Ptr("user1")}},
+				{Author: &github.User{Login: github.Ptr("user2")}},
+				{Author: &github.User{Login: github.Ptr("user1")}},
+			},
+		}
+
+		mockRepo := &MockRepoService{}
+		client.repoService = mockRepo
+
+		mockRepo.On("CompareCommits", mock.Anything, "test-owner", "test-repo", prevTag, currTag, mock.Anything).
+			Return(comparison, &github.Response{}, nil)
+
+		contributors, err := client.GetContributorsBetweenTags(context.Background(), prevTag, currTag)
+
+		assert.NoError(t, err)
+		assert.Len(t, contributors, 2)
+		assert.Contains(t, contributors, "user1")
+		assert.Contains(t, contributors, "user2")
 		mockRepo.AssertExpectations(t)
 	})
 
-	t.Run("should return error if file not found", func(t *testing.T) {
+	t.Run("should return error if CompareCommits fails", func(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
-		mockRepo := &MockRepoService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClientWithRepo(mockPR, mockIssues, mockRepo, mockRelease)
+		client := newTestClient(mockPR, mockIssues, mockRelease)
 
-		mockRepo.On("GetContents", mock.Anything, "test-owner", "test-repo", "v1.0.0", mock.Anything).
-			Return((*github.RepositoryContent)(nil), []*github.RepositoryContent{}, &github.Response{}, errors.New("file not found"))
+		mockRepo := &MockRepoService{}
+		client.repoService = mockRepo
 
-		content, err := client.GetFileAtTag(context.Background(), "v1.0.0", "go.mod")
+		mockRepo.On("CompareCommits", mock.Anything, "test-owner", "test-repo", "v1.0.0", "v1.1.0", mock.Anything).
+			Return((*github.CommitsComparison)(nil), &github.Response{}, assert.AnError)
+
+		_, err := client.GetContributorsBetweenTags(context.Background(), "v1.0.0", "v1.1.0")
 
 		assert.Error(t, err)
-		assert.Empty(t, content)
+	})
+}
+
+func TestGitHubClient_GetFileStatsBetweenTags(t *testing.T) {
+	t.Run("should get file stats successfully", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease)
+
+		prevTag := "v1.0.0"
+		currTag := "v1.1.0"
+
+		comparison := &github.CommitsComparison{
+			Files: []*github.CommitFile{
+				{Filename: github.Ptr("file1.go"), Additions: github.Ptr(10), Deletions: github.Ptr(5)},
+				{Filename: github.Ptr("file2.go"), Additions: github.Ptr(2), Deletions: github.Ptr(3)},
+				{Filename: github.Ptr("file3.go"), Additions: github.Ptr(100), Deletions: github.Ptr(0)}, // Top file
+			},
+		}
+
+		mockRepo := &MockRepoService{}
+		client.repoService = mockRepo
+
+		mockRepo.On("CompareCommits", mock.Anything, "test-owner", "test-repo", prevTag, currTag, mock.Anything).
+			Return(comparison, &github.Response{}, nil)
+
+		stats, err := client.GetFileStatsBetweenTags(context.Background(), prevTag, currTag)
+
+		assert.NoError(t, err)
+		assert.Equal(t, 3, stats.FilesChanged)
+		assert.Equal(t, 112, stats.Insertions)
+		assert.Equal(t, 8, stats.Deletions)
+
+		assert.Len(t, stats.TopFiles, 3)
+		assert.Equal(t, "file3.go", stats.TopFiles[0].Path)
+		assert.Equal(t, "file1.go", stats.TopFiles[1].Path)
+		assert.Equal(t, "file2.go", stats.TopFiles[2].Path)
+
 		mockRepo.AssertExpectations(t)
 	})
 
-	t.Run("should return error if file content is nil", func(t *testing.T) {
+	t.Run("should return error if CompareCommits fails", func(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
-		mockRepo := &MockRepoService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClientWithRepo(mockPR, mockIssues, mockRepo, mockRelease)
+		client := newTestClient(mockPR, mockIssues, mockRelease)
 
-		mockRepo.On("GetContents", mock.Anything, "test-owner", "test-repo", "v1.0.0", mock.Anything).
-			Return((*github.RepositoryContent)(nil), []*github.RepositoryContent{}, &github.Response{}, nil)
+		mockRepo := &MockRepoService{}
+		client.repoService = mockRepo
 
-		content, err := client.GetFileAtTag(context.Background(), "v1.0.0", "go.mod")
+		mockRepo.On("CompareCommits", mock.Anything, "test-owner", "test-repo", "v1.0.0", "v1.1.0", mock.Anything).
+			Return((*github.CommitsComparison)(nil), &github.Response{}, assert.AnError)
+
+		_, err := client.GetFileStatsBetweenTags(context.Background(), "v1.0.0", "v1.1.0")
 
 		assert.Error(t, err)
-		assert.Empty(t, content)
-		assert.Contains(t, err.Error(), "archivo no encontrado")
-		mockRepo.AssertExpectations(t)
 	})
 }

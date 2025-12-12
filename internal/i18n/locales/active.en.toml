@@ -25,6 +25,24 @@ other = "Language (en, es)"
 [suggest_no_emoji_flag_usage]
 other = "Disable emojis"
 
+[suggest_issue_flag_usage]
+other = "Issue/ticket number to include context in commit"
+
+[issue_detected_auto]
+other = "🔍 Detected issue #{{.Number}}: {{.Title}}"
+
+[issue_using_manual]
+other = "📋 Using issue #{{.Number}}: {{.Title}}"
+
+[issue_including_context]
+other = "📋 Including context from issue #{{.Number}}"
+
+[issue_vcs_init_error]
+other = "⚠️  Could not initialize VCS client: {{.Error}}"
+
+[issue_fetch_error]
+other = "⚠️  Could not fetch issue #{{.Number}} information: {{.Error}}"
+
 [no_staged_changes]
 other = "❌ No staged changes to commit.\nUse 'git add' to stage your changes first"
 

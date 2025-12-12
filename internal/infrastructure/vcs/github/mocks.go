@@ -63,6 +63,11 @@ func (m *MockIssuesService) ListByRepo(ctx context.Context, owner, repo string, 
 	return args.Get(0).([]*github.Issue), args.Get(1).(*github.Response), args.Error(2)
 }
 
+func (m *MockIssuesService) Get(ctx context.Context, owner, repo string, number int) (*github.Issue, *github.Response, error) {
+	args := m.Called(ctx, owner, repo, number)
+	return args.Get(0).(*github.Issue), args.Get(1).(*github.Response), args.Error(2)
+}
+
 type MockRepoService struct {
 	mock.Mock
 }
