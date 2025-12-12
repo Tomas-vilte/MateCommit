@@ -41,7 +41,7 @@ func (c *SummarizeCommand) CreateCommand(t *i18n.Translations, _ *cfg.Config) *c
 			}
 			prNumber := command.Int("pr-number")
 
-			summary, err := prService.SummarizePR(ctx, int(prNumber))
+			summary, err := prService.SummarizePR(ctx, prNumber)
 			if err != nil {
 				return fmt.Errorf(t.GetMessage("error.pr_summary_error", 0, nil)+": %w", err)
 			}
