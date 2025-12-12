@@ -1,4 +1,4 @@
-package suggest
+package suggests_commits
 
 import (
 	"context"
@@ -97,9 +97,9 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 				"Number": issueNumber,
 			})
 			fmt.Println(msg)
-			suggestions, err = f.commitService.GenerateSuggestionsWithIssue(ctx, int(count), issueNumber)
+			suggestions, err = f.commitService.GenerateSuggestionsWithIssue(ctx, count, issueNumber)
 		} else {
-			suggestions, err = f.commitService.GenerateSuggestions(ctx, int(count))
+			suggestions, err = f.commitService.GenerateSuggestions(ctx, count)
 		}
 
 		if err != nil {

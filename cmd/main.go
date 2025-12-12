@@ -9,9 +9,9 @@ import (
 
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/config"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/handler"
-	"github.com/Tomas-vilte/MateCommit/internal/cli/command/pr"
+	"github.com/Tomas-vilte/MateCommit/internal/cli/command/pull_requests"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/release"
-	"github.com/Tomas-vilte/MateCommit/internal/cli/command/suggest"
+	"github.com/Tomas-vilte/MateCommit/internal/cli/command/suggests_commits"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/registry"
 	cfg "github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
@@ -72,8 +72,6 @@ func initializeApp() (*cli.Command, error) {
 
 	ticketService := jira.NewJiraService(cfgApp, &http.Client{})
 
-	// VCSClient se inicializa de forma lazy cuando se necesita (por ejemplo, con --issue flag)
-	// Para evitar dependency injection compleja en main, se pasa nil y se resuelve dinámicamente
 	commitService := services.NewCommitService(gitService, aiProvider, ticketService, nil, cfgApp, translations)
 
 	commitHandler := handler.NewSuggestionHandler(gitService, translations)
@@ -82,9 +80,9 @@ func initializeApp() (*cli.Command, error) {
 
 	prServiceFactory := factory.NewPrServiceFactory(cfgApp, translations, aiSummarizer, gitService)
 
-	prCommand := pr.NewSummarizeCommand(prServiceFactory)
+	prCommand := pull_requests.NewSummarizeCommand(prServiceFactory)
 
-	if err := registerCommand.Register("suggest", suggest.NewSuggestCommandFactory(commitService, commitHandler)); err != nil {
+	if err := registerCommand.Register("suggest", suggests_commits.NewSuggestCommandFactory(commitService, commitHandler)); err != nil {
 		log.Fatalf("Error al registrar el comando 'suggest': %v", err)
 	}
 

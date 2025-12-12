@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"os/exec"
 	"regexp"
 	"strconv"
 
@@ -62,7 +61,7 @@ func (s *CommitService) buildCommitInfo(ctx context.Context, issueNumber int) (m
 	var commitInfo models.CommitInfo
 
 	if s.ai == nil {
-		msg := s.trans.GetMessage("ai_missing_for_suggest", 0, nil)
+		msg := s.trans.GetMessage("ai_missing.for_suggest", 0, nil)
 		return commitInfo, fmt.Errorf("%s", msg)
 	}
 
@@ -119,7 +118,6 @@ func (s *CommitService) buildCommitInfo(ctx context.Context, issueNumber int) (m
 		commitInfo.TicketInfo = ticketInfo
 	}
 
-	// Detección automática de issues (branch name o commits)
 	detectedIssue := issueNumber
 	if detectedIssue == 0 {
 		detectedIssue = s.detectIssueNumber(ctx)
@@ -141,7 +139,6 @@ func (s *CommitService) buildCommitInfo(ctx context.Context, issueNumber int) (m
 				})
 				fmt.Println(msg)
 			} else {
-				// Feedback al usuario sobre detección automática
 				var msg string
 				if issueNumber == 0 {
 					msg = s.trans.GetMessage("issue_detected_auto", 0, map[string]interface{}{
@@ -197,12 +194,10 @@ func (s *CommitService) getOrCreateVCSClient(ctx context.Context) (ports.VCSClie
 // detectIssueNumber intenta detectar automáticamente el número de issue
 // Prioridad: 1) Branch name, 2) Commits recientes
 func (s *CommitService) detectIssueNumber(ctx context.Context) int {
-	// Primero intentar desde branch name
 	if issueNum := s.detectIssueFromBranch(ctx); issueNum > 0 {
 		return issueNum
 	}
 
-	// Luego intentar desde commits recientes
 	if issueNum := s.detectIssueFromCommits(ctx); issueNum > 0 {
 		return issueNum
 	}
@@ -219,11 +214,11 @@ func (s *CommitService) detectIssueFromBranch(ctx context.Context) int {
 	}
 
 	patterns := []string{
-		`#(\d+)`,          // #123
-		`issue[/-](\d+)`,  // issue-123, issue/123
-		`^(\d+)-`,         // 123-feature
-		`/(\d+)-`,         // feature/123-desc
-		`-(\d+)-`,         // bugfix-123-description
+		`#(\d+)`,         // #123
+		`issue[/-](\d+)`, // issue-123, issue/123
+		`^(\d+)-`,        // 123-feature
+		`/(\d+)-`,        // feature/123-desc
+		`-(\d+)-`,        // bugfix-123-description
 	}
 
 	for _, pattern := range patterns {
@@ -241,16 +236,11 @@ func (s *CommitService) detectIssueFromBranch(ctx context.Context) int {
 // detectIssueFromCommits detecta issue number desde commits recientes
 // Busca keywords de GitHub: fixes, closes, resolves seguido de #123
 func (s *CommitService) detectIssueFromCommits(ctx context.Context) int {
-	// Obtener últimos 5 commits de la rama actual
-	cmd := exec.CommandContext(ctx, "git", "log", "-5", "--pretty=format:%s %b")
-	output, err := cmd.Output()
+	commitMessages, err := s.git.GetRecentCommitMessages(ctx, 5)
 	if err != nil {
 		return 0
 	}
 
-	commitMessages := string(output)
-
-	// Patrones de GitHub keywords
 	// https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue
 	keywords := []string{
 		"fix", "fixes", "fixed",
@@ -259,7 +249,6 @@ func (s *CommitService) detectIssueFromCommits(ctx context.Context) int {
 	}
 
 	for _, keyword := range keywords {
-		// Buscar "fixes #123", "closes #456", etc.
 		pattern := fmt.Sprintf(`(?i)\b%s\s+#(\d+)\b`, keyword)
 		re := regexp.MustCompile(pattern)
 		if match := re.FindStringSubmatch(commitMessages); len(match) > 1 {
@@ -269,7 +258,6 @@ func (s *CommitService) detectIssueFromCommits(ctx context.Context) int {
 		}
 	}
 
-	// También buscar referencias simples como "#123" en commits
 	simplePattern := regexp.MustCompile(`#(\d+)`)
 	matches := simplePattern.FindAllStringSubmatch(commitMessages, -1)
 	for _, match := range matches {
