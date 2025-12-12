@@ -177,11 +177,12 @@ func (g *ReleaseNotesGenerator) formatChangesForPrompt(release *models.Release) 
 	if len(release.Dependencies) > 0 {
 		sb.WriteString("DEPENDENCY UPDATES:\n")
 		for _, dep := range release.Dependencies {
-			if dep.Type == "updated" {
+			switch dep.Type {
+			case "updated":
 				sb.WriteString(fmt.Sprintf("- %s: %s → %s\n", dep.Name, dep.OldVersion, dep.NewVersion))
-			} else if dep.Type == "added" {
+			case "added":
 				sb.WriteString(fmt.Sprintf("- Added: %s %s\n", dep.Name, dep.NewVersion))
-			} else if dep.Type == "removed" {
+			case "removed":
 				sb.WriteString(fmt.Sprintf("- Removed: %s %s\n", dep.Name, dep.OldVersion))
 			}
 		}
