@@ -10,28 +10,31 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
+	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/dependency"
 )
 
 var _ ports.ReleaseService = (*ReleaseService)(nil)
 
 type ReleaseService struct {
-	git      ports.GitService
-	vcs      ports.VCSClient
-	notesGen ports.ReleaseNotesGenerator
-	trans    *i18n.Translations
+	git         ports.GitService
+	vcsClient   ports.VCSClient
+	notesGen    ports.ReleaseNotesGenerator
+	trans       *i18n.Translations
+	depAnalyzer *dependency.AnalyzerRegistry
 }
 
 func NewReleaseService(
 	git ports.GitService,
-	vcs ports.VCSClient,
+	vcsClient ports.VCSClient,
 	notesGen ports.ReleaseNotesGenerator,
 	trans *i18n.Translations,
 ) *ReleaseService {
 	return &ReleaseService{
-		git:      git,
-		vcs:      vcs,
-		notesGen: notesGen,
-		trans:    trans,
+		git:         git,
+		vcsClient:   vcsClient,
+		notesGen:    notesGen,
+		trans:       trans,
+		depAnalyzer: dependency.NewAnalyzerRegistry(),
 	}
 }
 
@@ -81,10 +84,10 @@ func (s *ReleaseService) GenerateReleaseNotes(ctx context.Context, release *mode
 }
 
 func (s *ReleaseService) PublishRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool) error {
-	if s.vcs == nil {
-		return fmt.Errorf("cliente VCS no configurado. Configura un proveedor VCS con 'matecommit config set-vcs'")
+	if s.vcsClient == nil {
+		return fmt.Errorf("cliente VCS no configurado. Configura un proveedor VCS con 'matecommit config set-vcsClient'")
 	}
-	return s.vcs.CreateRelease(ctx, release, notes, draft)
+	return s.vcsClient.CreateRelease(ctx, release, notes, draft)
 }
 
 func (s *ReleaseService) CreateTag(ctx context.Context, version, message string) error {
@@ -96,21 +99,59 @@ func (s *ReleaseService) PushTag(ctx context.Context, version string) error {
 }
 
 func (s *ReleaseService) GetRelease(ctx context.Context, version string) (*models.VCSRelease, error) {
-	if s.vcs == nil {
+	if s.vcsClient == nil {
 		return nil, fmt.Errorf("%s", s.trans.GetMessage("error.vcs_provider_not_configured", 0, map[string]interface{}{
 			"Provider": "VCS",
 		}))
 	}
-	return s.vcs.GetRelease(ctx, version)
+	return s.vcsClient.GetRelease(ctx, version)
 }
 
 func (s *ReleaseService) UpdateRelease(ctx context.Context, version, body string) error {
-	if s.vcs == nil {
+	if s.vcsClient == nil {
 		return fmt.Errorf("%s", s.trans.GetMessage("error.vcs_provider_not_configured", 0, map[string]interface{}{
 			"Provider": "VCS",
 		}))
 	}
-	return s.vcs.UpdateRelease(ctx, version, body)
+	return s.vcsClient.UpdateRelease(ctx, version, body)
+}
+
+func (s *ReleaseService) EnrichReleaseContext(ctx context.Context, release *models.Release) error {
+	if s.vcsClient == nil {
+		return fmt.Errorf("%s", s.trans.GetMessage("error.vcs_provider_not_configured", 0, map[string]interface{}{
+			"Provider": "VCS",
+		}))
+	}
+
+	if issues, err := s.vcsClient.GetClosedIssuesBetweenTags(ctx, release.PreviousVersion, release.Version); err == nil {
+		release.ClosedIssues = issues
+	}
+
+	if prs, err := s.vcsClient.GetMergedPRsBetweenTags(ctx, release.PreviousVersion, release.Version); err == nil {
+		release.MergedPRs = prs
+	}
+
+	if contributors, err := s.vcsClient.GetContributorsBetweenTags(ctx, release.PreviousVersion, release.Version); err == nil {
+		release.Contributors = contributors
+		release.NewContributors = contributors
+	}
+
+	if stats, err := s.vcsClient.GetFileStatsBetweenTags(ctx, release.PreviousVersion, release.Version); err == nil {
+		release.FileStats = *stats
+	}
+
+	if deps, err := s.analyzeDependencyChanges(ctx, release); err == nil {
+		release.Dependencies = deps
+	}
+
+	return nil
+}
+
+func (s *ReleaseService) analyzeDependencyChanges(ctx context.Context, release *models.Release) ([]models.DependencyChange, error) {
+	if s.vcsClient == nil {
+		return []models.DependencyChange{}, nil
+	}
+	return s.depAnalyzer.AnalyzeAll(ctx, s.vcsClient, release.PreviousVersion, release.Version)
 }
 
 // categorizeCommits categoriza los commits según conventional commits

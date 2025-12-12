@@ -258,84 +258,101 @@ const (
 const (
 	releasePromptTemplateES = `
   Sos un desarrollador escribiendo las release notes de tu proyecto en primera persona.
-  Usá un tono técnico pero cercano, explicando qué hiciste en esta versión.
+    Usá un tono técnico pero cercano, explicando qué hiciste en esta versión.
 
-  Repositorio: %s/%s
-  Versión anterior: %s
-  Nueva versión: %s
-  Tipo de bump: %s
+    Repositorio: %s/%s
+    Versión anterior: %s
+    Nueva versión: %s
+    Tipo de bump: %s
 
-  Cambios en este release:
+    Cambios en este release:
 
-  %s
+    %s
 
-  REGLAS DE ESTILO:
-  - Primera persona: "Implementé", "Mejoré", "Arreglé", "Agregué"
-  - Voseo natural: "podés", "tenés", "querés" (en vez de "puedes", "tienes", "quieres")
-  - Expresiones naturales: "mucho más simple", "ahora funciona mejor", "sin vueltas"
-  - Tono profesional pero directo, como si le explicaras a un colega
-  - Sé técnico y preciso, pero accesible
-  - NO uses emojis en el contenido de las release notes
+    IMPORTANTE - CONTEXTO ADICIONAL:
+    El listado anterior incluye no solo commits, sino también:
+    - Issues cerrados: Problemas reportados por usuarios que fueron resueltos
+    - Pull Requests mergeados: Contribuciones de la comunidad o del equipo
+    - Contributors: Personas que participaron en este release
+    - Estadísticas de archivos: Magnitud de los cambios
+    - Actualizaciones de dependencias: Librerías actualizadas
 
-  REGLAS CRÍTICAS - PREVENCIÓN DE ALUCINACIONES:
-  1. Basate EXCLUSIVAMENTE en los commits listados arriba en "Cambios en este release"
-  2. Si la sección de cambios está vacía o solo tiene cambios menores (ej: bump de versión), escribí un resumen breve y honesto
-  3. NO inventes features, comandos, flags, o funcionalidades que no aparezcan explícitamente en los commits
-  4. NO menciones "validadores", "linters", "nuevas opciones" u otras features a menos que estén en los commits
-  5. Si no hay suficiente información para un ejemplo específico, usá ejemplos genéricos del uso básico del proyecto
-  6. Para EXAMPLES, solo mostrá comandos que realmente existan según los commits. Si no hay cambios significativos, mostrá el uso básico existente
-  7. Para COMPARISONS, solo incluí comparaciones si hay cambios concretos que comparar. Si no hay, usá "N/A" o una comparación genérica de versiones
-  8. Si los cambios son principalmente internos o de mantenimiento, decilo claramente en vez de inventar features visibles al usuario
+    Usá esta información para:
+    1. Dar crédito a contributors mencionándolos por username (@usuario)
+    2. Referenciar issues/PRs específicos cuando sean relevantes (#123)
+    3. Mencionar áreas del código más afectadas según las estadísticas
+    4. Destacar contribuciones de la comunidad si hay nuevos contributors
+    5. Mencionar upgrades importantes de dependencias si afectan al usuario
 
-  VALIDACIÓN DE CONTENIDO:
-  Antes de escribir cada sección, preguntate: "¿Este detalle específico está en los commits que me pasaron?"
-  Si la respuesta es NO, no lo incluyas.
+    REGLAS DE ESTILO:
+    - Primera persona: "Implementé", "Mejoré", "Arreglé", "Agregué"
+    - Voseo natural: "podés", "tenés", "querés" (en vez de "puedes", "tienes", "quieres")
+    - Expresiones naturales: "mucho más simple", "ahora funciona mejor", "sin vueltas"
+    - Tono profesional pero directo, como si le explicaras a un colega
+    - Sé técnico y preciso, pero accesible
+    - NO uses emojis en el contenido de las release notes
+    - Dá crédito: "Gracias a @usuario por reportar/contribuir"
 
-  Formato de respuesta (IMPORTANTE: Incluí TODAS las secciones):
-  
-  TÍTULO: <título conciso y descriptivo (máximo 60 caracteres)>
-  
-  RESUMEN: <2-3 oraciones en primera persona contando los cambios más importantes. Si no hay cambios significativos, sé honesto al respecto>
-  
-  HIGHLIGHTS:
-  - <highlight 1 en primera persona, basado en commits reales>
-  - <highlight 2 en primera persona, basado en commits reales>
-  - <highlight 3 en primera persona, basado en commits reales>
-  (Si no hay suficientes highlights reales, enfocate en mantenimiento, estabilidad o preparación para futuras features)
-  
-  QUICK_START:
-  <Instrucciones de instalación/actualización en 2-3 líneas. Usá el repositorio real: github.com/%s/%s>
-  IMPORTANTE: Este proyecto es un CLI de Go. Usá "go install github.com/%s/%s@<version>" para instalación.
-  No inventes flags o comandos que no existan.
-  
-  EXAMPLES:
-  EXAMPLE_1:
-  TITLE: <Título del ejemplo>
-  DESCRIPTION: <Breve descripción de qué hace>
-  LANGUAGE: bash
-  CODE: <código del ejemplo - debe ser un comando real que funcione>
-  
-  EXAMPLE_2:
-  TITLE: <Título del segundo ejemplo>
-  DESCRIPTION: <Breve descripción>
-  LANGUAGE: bash
-  CODE: <código del ejemplo - debe ser un comando real que funcione>
-  (Solo incluí ejemplos de funcionalidad que realmente exista. Si no hay nuevas features, mostrá el uso básico existente)
-  
-  BREAKING_CHANGES:
-  - <cambio breaking 1, o "Ninguno" si no hay>
-  (Solo listá breaking changes si están explícitamente mencionados en los commits)
-  
-  COMPARISONS:
-  COMPARISON_1:
-  FEATURE: <nombre de la feature que realmente cambió>
-  BEFORE: <estado anterior según los commits>
-  AFTER: <estado nuevo según los commits>
-  (Si no hay comparaciones concretas basadas en los commits, usá "N/A" o una comparación genérica de versiones)
-  
-  LINKS:
-  (Solo incluí links si son relevantes para esta release específica, como issues cerrados o PRs relacionados. Si no hay links relevantes, poné "N/A")
-  `
+    REGLAS CRÍTICAS - PREVENCIÓN DE ALUCINACIONES:
+    1. Basate EXCLUSIVAMENTE en los commits, issues, PRs listados arriba
+    2. Si la sección de cambios está vacía o solo tiene cambios menores, escribí un resumen breve y honesto
+    3. NO inventes features, comandos, flags, o funcionalidades que no aparezcan explícitamente
+    4. Solo mencioná issues/PRs que estén en el listado
+    5. Solo mencioná contributors que estén en el listado
+    6. Si no hay suficiente información, sé honesto y simple
+    7. Para EXAMPLES, solo mostrá comandos que realmente existan
+    8. Si los cambios son principalmente internos, decilo claramente
+
+    VALIDACIÓN DE CONTENIDO:
+    Antes de escribir cada sección, preguntate: "¿Este detalle específico está en la información que me pasaron?"
+    Si la respuesta es NO, no lo incluyas.
+
+    Formato de respuesta (IMPORTANTE: Incluí TODAS las secciones):
+    
+    TÍTULO: <título conciso y descriptivo (máximo 60 caracteres)>
+    
+    RESUMEN: <2-3 oraciones en primera persona contando los cambios más importantes. Mencioná contributors clave si corresponde>
+    
+    HIGHLIGHTS:
+    - <highlight 1 en primera persona, basado en commits/PRs/issues reales>
+    - <highlight 2 en primera persona, basado en commits/PRs/issues reales>
+    - <highlight 3 en primera persona, basado en commits/PRs/issues reales>
+    (Si hay nuevos contributors o muchos issues cerrados, podés incluirlo como highlight)
+    
+    QUICK_START:
+    <Instrucciones de instalación/actualización en 2-3 líneas. Usá el repositorio real: github.com/%s/%s>
+    IMPORTANTE: Este proyecto es un CLI de Go. Usá "go install github.com/%s/%s@<version>" para instalación.
+    
+    EXAMPLES:
+    EXAMPLE_1:
+    TITLE: <Título del ejemplo>
+    DESCRIPTION: <Breve descripción de qué hace>
+    LANGUAGE: bash
+    CODE: <código del ejemplo - debe ser un comando real que funcione>
+    
+    EXAMPLE_2:
+    TITLE: <Título del segundo ejemplo>
+    DESCRIPTION: <Breve descripción>
+    LANGUAGE: bash
+    CODE: <código del ejemplo - debe ser un comando real que funcione>
+    
+    BREAKING_CHANGES:
+    - <cambio breaking 1, o "Ninguno" si no hay>
+    
+    COMPARISONS:
+    COMPARISON_1:
+    FEATURE: <nombre de la feature que realmente cambió>
+    BEFORE: <estado anterior según los commits>
+    AFTER: <estado nuevo según los commits>
+    
+    CONTRIBUTORS:
+    <Lista de contributors con agradecimiento. Formato: "Gracias a @user1, @user2 y @user3 por sus contribuciones. Damos la bienvenida a los nuevos contributors: @newuser1, @newuser2">
+    (Si hay contributors listados arriba, incluí esta sección. Si no, poné "N/A")
+    
+    LINKS:
+    - Closed Issues: <lista de links a issues cerrados si hay, o "N/A">
+    - Merged PRs: <lista de links a PRs mergeados si hay, o "N/A">
+	`
 
 	releasePromptTemplateEN = `
   You are a developer writing release notes for your project in first person.

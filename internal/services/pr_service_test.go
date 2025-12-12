@@ -60,6 +60,31 @@ func (m *MockVCSClient) UpdateRelease(ctx context.Context, version, body string)
 	return args.Error(0)
 }
 
+func (m *MockVCSClient) GetClosedIssuesBetweenTags(ctx context.Context, previousTag, currentTag string) ([]models.Issue, error) {
+	args := m.Called(ctx, previousTag, currentTag)
+	return args.Get(0).([]models.Issue), args.Error(1)
+}
+
+func (m *MockVCSClient) GetMergedPRsBetweenTags(ctx context.Context, previousTag, currentTag string) ([]models.PullRequest, error) {
+	args := m.Called(ctx, previousTag, currentTag)
+	return args.Get(0).([]models.PullRequest), args.Error(1)
+}
+
+func (m *MockVCSClient) GetContributorsBetweenTags(ctx context.Context, previousTag, currentTag string) ([]string, error) {
+	args := m.Called(ctx, previousTag, currentTag)
+	return args.Get(0).([]string), args.Error(1)
+}
+
+func (m *MockVCSClient) GetFileStatsBetweenTags(ctx context.Context, previousTag, currentTag string) (*models.FileStatistics, error) {
+	args := m.Called(ctx, previousTag, currentTag)
+	return args.Get(0).(*models.FileStatistics), args.Error(1)
+}
+
+func (m *MockVCSClient) GetFileAtTag(ctx context.Context, tag, filepath string) (string, error) {
+	args := m.Called(ctx, tag, filepath)
+	return args.String(0), args.Error(1)
+}
+
 type MockPRSummarizer struct {
 	mock.Mock
 }
