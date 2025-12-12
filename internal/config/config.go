@@ -20,6 +20,7 @@ type (
 		JiraConfig          JiraConfig `json:"jira_config"`
 		UseTicket           bool       `json:"use_ticket,omitempty"`
 		AIConfig            AIConfig   `json:"ai_config"`
+		CheckForUpdates     bool       `json:"check_for_updates"`
 
 		VCSConfigs        map[string]VCSConfig `json:"vcs_configs"`
 		ActiveVCSProvider string               `json:"active_vcs_provider,omitempty"`
@@ -105,6 +106,7 @@ func createDefaultConfig(path string) (*Config, error) {
 		},
 		ActiveTicketService: "",
 		UseTicket:           false,
+		CheckForUpdates:     true,
 	}
 
 	dir := filepath.Dir(path)

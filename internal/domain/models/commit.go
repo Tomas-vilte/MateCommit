@@ -22,22 +22,22 @@ type (
 	}
 
 	CommitSuggestion struct {
-		CommitTitle          string
-		Explanation          string
-		Files                []string
-		CodeAnalysis         CodeAnalysis
-		RequirementsAnalysis RequirementsAnalysis
+		CommitTitle          string               `json:"commit_title"`
+		Explanation          string               `json:"explanation"`
+		Files                []string             `json:"files"`
+		CodeAnalysis         CodeAnalysis         `json:"code_analysis"`
+		RequirementsAnalysis RequirementsAnalysis `json:"requirements_analysis"`
 	}
 
 	CodeAnalysis struct {
-		ChangesOverview string
-		PrimaryPurpose  string
-		TechnicalImpact string
+		ChangesOverview string `json:"changes_overview"`
+		PrimaryPurpose  string `json:"primary_purpose"`
+		TechnicalImpact string `json:"technical_impact"`
 	}
 
 	RequirementsAnalysis struct {
-		CriteriaStatus         CriteriaStatus
-		MissingCriteria        []string
-		ImprovementSuggestions []string
+		CriteriaStatus         CriteriaStatus `json:"criteria_status"`
+		MissingCriteria        []string       `json:"missing_criteria"`
+		ImprovementSuggestions []string       `json:"improvement_suggestions"`
 	}
 )

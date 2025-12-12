@@ -8,6 +8,9 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
+	"github.com/charmbracelet/bubbles/spinner"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/urfave/cli/v3"
 )
 
@@ -86,27 +89,118 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 			return fmt.Errorf("error al guardar la configuración: %w", err)
 		}
 
-		fmt.Println(t.GetMessage("analyzing_changes", 0, nil))
-
 		issueNumber := command.Int("issue")
-		var suggestions []models.CommitSuggestion
-		var err error
 
-		if issueNumber > 0 {
-			msg := t.GetMessage("issue_including_context", 0, map[string]interface{}{
-				"Number": issueNumber,
-			})
-			fmt.Println(msg)
-			suggestions, err = f.commitService.GenerateSuggestionsWithIssue(ctx, count, issueNumber)
-		} else {
-			suggestions, err = f.commitService.GenerateSuggestions(ctx, count)
+		p := tea.NewProgram(initialModel(f.commitService, ctx, count, issueNumber, t))
+		m, err := p.Run()
+		if err != nil {
+			return fmt.Errorf("error running spinner: %w", err)
 		}
 
-		if err != nil {
-			msg := t.GetMessage("suggestion_generation_error", 0, map[string]interface{}{"Error": err})
+		model := m.(model)
+		if model.err != nil {
+			msg := t.GetMessage("suggestion_generation_error", 0, map[string]interface{}{"Error": model.err})
 			return fmt.Errorf("%s", msg)
 		}
 
-		return f.commitHandler.HandleSuggestions(ctx, suggestions)
+		if len(model.suggestions) == 0 {
+			// Should verify if error was nil but suggestions empty (handled by service usually returning error if empty?)
+			// Service returns error "no suggestions" if empty.
+			return nil
+		}
+
+		return f.commitHandler.HandleSuggestions(ctx, model.suggestions)
 	}
+}
+
+// Bubble Tea Model for Spinner
+
+type model struct {
+	commitService ports.CommitService
+	ctx           context.Context
+	count         int
+	issueNumber   int
+	trans         *i18n.Translations
+
+	spinner     spinner.Model
+	loading     bool
+	suggestions []models.CommitSuggestion
+	err         error
+}
+
+type suggestionsMsg []models.CommitSuggestion
+type errMsg error
+
+func initialModel(cs ports.CommitService, ctx context.Context, count, issue int, t *i18n.Translations) model {
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+	return model{
+		commitService: cs,
+		ctx:           ctx,
+		count:         count,
+		issueNumber:   issue,
+		trans:         t,
+		spinner:       s,
+		loading:       true,
+	}
+}
+
+func (m model) Init() tea.Cmd {
+	return tea.Batch(m.spinner.Tick, m.fetchSuggestions)
+}
+
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
+	case suggestionsMsg:
+		m.suggestions = msg
+		m.loading = false
+		return m, tea.Quit
+	case errMsg:
+		m.err = msg
+		m.loading = false
+		return m, tea.Quit
+	case tea.KeyMsg:
+		if msg.String() == "ctrl+c" {
+			m.err = fmt.Errorf("cancelled by user")
+			return m, tea.Quit
+		}
+	}
+	return m, nil
+}
+
+func (m model) View() string {
+	if m.err != nil {
+		return ""
+	}
+	if m.loading {
+		msg := m.trans.GetMessage("analyzing_changes", 0, nil)
+		if m.issueNumber > 0 {
+			msg = m.trans.GetMessage("issue_including_context", 0, map[string]interface{}{
+				"Number": m.issueNumber,
+			})
+		}
+		return fmt.Sprintf("\n %s %s\n\n", m.spinner.View(), msg)
+	}
+	return ""
+}
+
+func (m model) fetchSuggestions() tea.Msg {
+	var suggestions []models.CommitSuggestion
+	var err error
+
+	if m.issueNumber > 0 {
+		suggestions, err = m.commitService.GenerateSuggestionsWithIssue(m.ctx, m.count, m.issueNumber)
+	} else {
+		suggestions, err = m.commitService.GenerateSuggestions(m.ctx, m.count)
+	}
+
+	if err != nil {
+		return errMsg(err)
+	}
+	return suggestionsMsg(suggestions)
 }

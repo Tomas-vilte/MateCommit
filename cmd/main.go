@@ -19,14 +19,27 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/factory"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/git"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/tickets/jira"
+	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/update"
 	"github.com/Tomas-vilte/MateCommit/internal/services"
 	"github.com/urfave/cli/v3"
 )
 
 func main() {
-	app, err := initializeApp()
+	app, cfgApp, err := initializeApp()
 	if err != nil {
 		log.Fatalf("Error iniciando la cli: %v", err)
+	}
+
+	if cfgApp.CheckForUpdates {
+		go func() {
+			updateService := update.NewUpdateService()
+			// TODO: Get actual version from app or variable
+			release, err := updateService.CheckForUpdates("1.4.0")
+			if err == nil && release != nil {
+				fmt.Printf("\n\n🚀 A new version of MateCommit is available: %s\n", release.TagName)
+				fmt.Printf("🔗 Download it here: %s\n\n", release.HTMLURL)
+			}
+		}()
 	}
 
 	if err := app.Run(context.Background(), os.Args); err != nil {
@@ -34,15 +47,15 @@ func main() {
 	}
 }
 
-func initializeApp() (*cli.Command, error) {
+func initializeApp() (*cli.Command, *cfg.Config, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return nil, fmt.Errorf("no se pudo obtener el directorio del usuario: %w", err)
+		return nil, nil, fmt.Errorf("no se pudo obtener el directorio del usuario: %w", err)
 	}
 
 	cfgApp, err := cfg.LoadConfig(homeDir)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	translations, err := i18n.NewTranslations(cfgApp.Language, "")
@@ -52,7 +65,7 @@ func initializeApp() (*cli.Command, error) {
 
 	err = cfg.SaveConfig(cfgApp)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	gitService := git.NewGitService(translations)
@@ -115,5 +128,5 @@ func initializeApp() (*cli.Command, error) {
 		Version:     "1.4.0",
 		Description: translations.GetMessage("app_description", 0, nil),
 		Commands:    commands,
-	}, nil
+	}, cfgApp, nil
 }
