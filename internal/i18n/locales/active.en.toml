@@ -485,3 +485,16 @@ branch_not_detected = "Could not detect branch name"
 get_repo_url = "Error getting repository URL: {{.Error}}"
 get_commits = "Error getting commits: {{.Error}}"
 extract_repo_info = "Could not extract owner and repo from URL: {{.Url}}"
+
+# PR Service - Issue linking
+[pr_detected_issues]
+other = "🔍 Issues detected in PR #{{.Number}}: {{.Issues}}"
+
+[pr_issues_will_close_on_merge]
+other = "✅ {{.Count}} issue(s) will close automatically when PR is merged"
+
+[pr_breaking_changes_detected]
+other = "⚠️  Breaking changes detected in {{.Count}} commits"
+
+[pr_test_plan_generated]
+other = "📋 Test plan generated automatically"

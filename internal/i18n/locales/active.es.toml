@@ -492,3 +492,16 @@ branch_not_detected = "No se pudo detectar el nombre de la branch"
 get_repo_url = "Error al obtener la URL del repositorio: {{.Error}}"
 get_commits = "Error al obtener commits: {{.Error}}"
 extract_repo_info = "No se pudo extraer el propietario y el repositorio de la URL: {{.Url}}"
+
+# PR Service - Issue linking
+[pr_detected_issues]
+other = "🔍 Issues detectadas en PR #{{.Number}}: {{.Issues}}"
+
+[pr_issues_will_close_on_merge]
+other = "✅ {{.Count}} issue(s) se cerrarán automáticamente al mergear el PR"
+
+[pr_breaking_changes_detected]
+other = "⚠️  Breaking changes detectados en {{.Count}} commits"
+
+[pr_test_plan_generated]
+other = "📋 Test plan generado automáticamente"

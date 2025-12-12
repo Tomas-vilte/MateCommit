@@ -1,5 +1,12 @@
 package ai
 
+import (
+	"fmt"
+	"strings"
+
+	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
+)
+
 // Issue reference instructions
 const (
 	issueReferenceInstructionsES = `Si hay un issue asociado (#%d), DEBES incluir la referencia en el título del commit:
@@ -502,4 +509,94 @@ func GetIssueReferenceInstructions(lang string) string {
 	default:
 		return issueReferenceInstructionsEN
 	}
+}
+
+const (
+	prIssueContextInstructionsES = `
+  **IMPORTANTE - Contexto de Issues/Tickets:**
+  Este PR está relacionado con los siguientes issues:
+  %s
+
+  **INSTRUCCIONES OBLIGATORIAS:**
+  1. DEBES incluir AL INICIO del resumen (primeras líneas) las referencias de cierre:
+     - Si resuelve bugs: "Fixes #N"
+     - Si implementa features: "Closes #N"
+     - Si solo relaciona: "Relates to #N"
+     - Formato: "Closes #39, Fixes #41" (separados por comas)
+
+  2. En la sección de cambios clave, menciona explícitamente cómo cada cambio aborda el issue
+
+  3. Usa el formato correcto para que GitHub auto-enlace los issues en la sección "Development"
+
+  **Ejemplo de formato correcto:**
+  Closes #39
+
+  - **Primer cambio clave:**
+    - Propósito: Resolver el problema reportado en #39...
+    - Impacto técnico: ...
+  `
+
+	prIssueContextInstructionsEN = `
+  **IMPORTANT - Issue/Ticket Context:**
+  This PR is related to the following issues:
+  %s
+
+  **MANDATORY INSTRUCTIONS:**
+  1. You MUST include at the BEGINNING of the summary (first lines) the closing references:
+     - If fixing bugs: "Fixes #N"
+     - If implementing features: "Closes #N"
+     - If just relating: "Relates to #N"
+     - Format: "Closes #39, Fixes #41" (comma separated)
+
+  2. In the key changes section, explicitly mention how each change addresses the issue
+
+  3. Use the correct format so GitHub auto-links the issues in the "Development" section
+
+  **Example of correct format:**
+  Closes #39
+
+  - **First key change:**
+    - Purpose: Resolve the problem reported in #39...
+    - Technical impact: ...
+  `
+)
+
+// GetPRIssueContextInstructions devuelve las instrucciones de contexto de issues para PRs
+func GetPRIssueContextInstructions(locale string) string {
+	if locale == "es" {
+		return prIssueContextInstructionsES
+	}
+	return prIssueContextInstructionsEN
+}
+
+// FormatIssuesForPrompt formatea la lista de issues para incluir en el prompt
+func FormatIssuesForPrompt(issues []models.Issue, locale string) string {
+	if len(issues) == 0 {
+		return ""
+	}
+
+	var result strings.Builder
+	for _, issue := range issues {
+		if locale == "es" {
+			result.WriteString(fmt.Sprintf("- Issue #%d: %s\n", issue.Number, issue.Title))
+			if issue.Description != "" {
+				desc := issue.Description
+				if len(desc) > 200 {
+					desc = desc[:200] + "..."
+				}
+				result.WriteString(fmt.Sprintf("  Descripción: %s\n", desc))
+			}
+		} else {
+			result.WriteString(fmt.Sprintf("- Issue #%d: %s\n", issue.Number, issue.Title))
+			if issue.Description != "" {
+				desc := issue.Description
+				if len(desc) > 200 {
+					desc = desc[:200] + "..."
+				}
+				result.WriteString(fmt.Sprintf("  Description: %s\n", desc))
+			}
+		}
+	}
+
+	return result.String()
 }
