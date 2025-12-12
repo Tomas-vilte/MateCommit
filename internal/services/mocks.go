@@ -180,6 +180,11 @@ func (m *MockVCSClient) GetIssue(ctx context.Context, issueNumber int) (*models.
 	return args.Get(0).(*models.Issue), args.Error(1)
 }
 
+func (m *MockVCSClient) GetFileAtTag(ctx context.Context, tag, filepath string) (string, error) {
+	args := m.Called(ctx, tag, filepath)
+	return args.String(0), args.Error(1)
+}
+
 func (m *MockPRSummarizer) GeneratePRSummary(ctx context.Context, prompt string) (models.PRSummary, error) {
 	args := m.Called(ctx, prompt)
 	return args.Get(0).(models.PRSummary), args.Error(1)

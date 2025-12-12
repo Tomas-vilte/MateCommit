@@ -35,6 +35,7 @@ type IssuesService interface {
 type RepositoriesService interface {
 	GetCommit(ctx context.Context, owner, repo, sha string, opts *github.ListOptions) (*github.RepositoryCommit, *github.Response, error)
 	CompareCommits(ctx context.Context, owner, repo, base, head string, opts *github.ListOptions) (*github.CommitsComparison, *github.Response, error)
+	GetContents(ctx context.Context, owner, repo, path string, opts *github.RepositoryContentGetOptions) (*github.RepositoryContent, []*github.RepositoryContent, *github.Response, error)
 }
 
 type ReleasesService interface {
@@ -300,7 +301,7 @@ func (ghc *GitHubClient) UpdateRelease(ctx context.Context, version, body string
 	return nil
 }
 
-func (ghc *GitHubClient) GetClosedIssuesBetweenTags(ctx context.Context, previousTag, currentTag string) ([]models.Issue, error) {
+func (ghc *GitHubClient) GetClosedIssuesBetweenTags(ctx context.Context, previousTag, _ string) ([]models.Issue, error) {
 	prevRelease, _, err := ghc.releaseService.GetReleaseByTag(ctx, ghc.owner, ghc.repo, previousTag)
 	if err != nil {
 		return nil, err
@@ -349,7 +350,7 @@ func (ghc *GitHubClient) GetClosedIssuesBetweenTags(ctx context.Context, previou
 	return allIssues, nil
 }
 
-func (ghc *GitHubClient) GetMergedPRsBetweenTags(ctx context.Context, previousTag, currentTag string) ([]models.PullRequest, error) {
+func (ghc *GitHubClient) GetMergedPRsBetweenTags(ctx context.Context, previousTag, _ string) ([]models.PullRequest, error) {
 	prevRelease, _, err := ghc.releaseService.GetReleaseByTag(ctx, ghc.owner, ghc.repo, previousTag)
 	if err != nil {
 		return nil, err
@@ -391,7 +392,7 @@ func (ghc *GitHubClient) GetMergedPRsBetweenTags(ctx context.Context, previousTa
 		if resp.NextPage == 0 {
 			break
 		}
-		opts.ListOptions.Page = resp.NextPage
+		opts.Page = resp.NextPage
 	}
 	return allPRs, nil
 }
@@ -502,6 +503,28 @@ func (ghc *GitHubClient) GetIssue(ctx context.Context, issueNumber int) (*models
 		Author:      author,
 		URL:         url,
 	}, nil
+}
+
+func (ghc *GitHubClient) GetFileAtTag(ctx context.Context, tag, filepath string) (string, error) {
+	opts := &github.RepositoryContentGetOptions{
+		Ref: tag,
+	}
+
+	fileContent, _, _, err := ghc.repoService.GetContents(ctx, ghc.owner, ghc.repo, tag, opts)
+	if err != nil {
+		return "", err
+	}
+
+	if fileContent == nil {
+		return "", fmt.Errorf("archivo no encontrado: %s en %s", filepath, tag)
+	}
+
+	content, err := fileContent.GetContent()
+	if err != nil {
+		return "", fmt.Errorf("error decodificando contenido del archivo: %w", err)
+	}
+
+	return content, nil
 }
 
 func (ghc *GitHubClient) labelExists(existingLabels []string, target string) bool {
