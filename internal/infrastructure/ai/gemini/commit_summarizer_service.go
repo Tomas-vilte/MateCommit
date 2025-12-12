@@ -71,7 +71,6 @@ func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.Com
 		return nil, fmt.Errorf("%s", msg)
 	}
 
-	// Post-procesamiento: asegurar que las referencias de issues estén incluidas
 	if info.IssueInfo != nil && info.IssueInfo.Number > 0 {
 		suggestions = s.ensureIssueReference(suggestions, info.IssueInfo.Number)
 	}
@@ -90,7 +89,6 @@ func (s *GeminiService) generatePrompt(locale string, info models.CommitInfo, co
 			strings.Join(info.TicketInfo.Criteria, ", "))
 	}
 
-	// Agregar instrucciones de issue reference si hay un issue
 	issueInstructions := ""
 	if info.IssueInfo != nil && info.IssueInfo.Number > 0 {
 		num := info.IssueInfo.Number
@@ -203,6 +201,12 @@ func (s *GeminiService) parseSuggestionPart(part string) *models.CommitSuggestio
 		if collectingFiles {
 			if strings.HasPrefix(trimmedLine, "-") {
 				file := strings.TrimSpace(strings.TrimPrefix(trimmedLine, "-"))
+				if strings.Contains(file, "->") {
+					parts := strings.Split(file, "->")
+					if len(parts) > 1 {
+						file = strings.TrimSpace(parts[len(parts)-1])
+					}
+				}
 				suggestion.Files = append(suggestion.Files, file)
 			} else if trimmedLine == "" || strings.HasPrefix(trimmedLine, s.trans.GetMessage("gemini_service.explanation_prefix", 0, nil)) {
 				collectingFiles = false
@@ -300,21 +304,18 @@ func (s *GeminiService) ensureIssueReference(suggestions []models.CommitSuggesti
 		title := suggestions[i].CommitTitle
 		title = strings.TrimSpace(title)
 
-		// Si ya tiene la referencia correcta, continuar
 		if strings.Contains(title, fmt.Sprintf("(#%d)", issueNumber)) ||
-		   strings.Contains(title, fmt.Sprintf("fixes #%d", issueNumber)) ||
-		   strings.Contains(title, fmt.Sprintf("closes #%d", issueNumber)) {
+			strings.Contains(title, fmt.Sprintf("fixes #%d", issueNumber)) ||
+			strings.Contains(title, fmt.Sprintf("closes #%d", issueNumber)) {
 			continue
 		}
 
-		// Si tiene otra referencia incorrecta, reemplazarla
 		if issuePattern.MatchString(title) {
 			title = issuePattern.ReplaceAllString(title, fmt.Sprintf("(#%d)", issueNumber))
 			suggestions[i].CommitTitle = title
 			continue
 		}
 
-		// Si no tiene referencia, agregarla al final
 		suggestions[i].CommitTitle = fmt.Sprintf("%s (#%d)", title, issueNumber)
 	}
 

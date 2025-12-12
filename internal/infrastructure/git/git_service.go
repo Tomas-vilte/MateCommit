@@ -95,13 +95,11 @@ func (s *GitService) GetDiff(ctx context.Context) (string, error) {
 }
 
 func (s *GitService) CreateCommit(ctx context.Context, message string) error {
-	// Primero verificamos si hay cambios staged
 	if !s.HasStagedChanges(ctx) {
 		msg := s.trans.GetMessage("git.no_staged_changes", 0, nil)
 		return fmt.Errorf("%s", msg)
 	}
 
-	// Creamos el commit
 	cmd := exec.CommandContext(ctx, "git", "commit", "-m", message)
 	return cmd.Run()
 }
@@ -215,6 +213,15 @@ func (s *GitService) GetCommitsSinceTag(ctx context.Context, tag string) ([]mode
 		}
 	}
 	return commits, nil
+}
+
+func (s *GitService) GetRecentCommitMessages(ctx context.Context, count int) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", "log", fmt.Sprintf("-%d", count), "--pretty=format:%s %b")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return string(output), nil
 }
 
 func (s *GitService) CreateTag(ctx context.Context, version, message string) error {
