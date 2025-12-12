@@ -13,6 +13,7 @@ type (
 		Files      []string
 		Diff       string
 		TicketInfo *TicketInfo
+		IssueInfo  *Issue
 	}
 
 	GitChange struct {

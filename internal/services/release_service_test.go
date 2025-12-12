@@ -11,18 +11,6 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-type MockReleaseNotesGenerator struct {
-	mock.Mock
-}
-
-func (m *MockReleaseNotesGenerator) GenerateNotes(ctx context.Context, release *models.Release) (*models.ReleaseNotes, error) {
-	args := m.Called(ctx, release)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*models.ReleaseNotes), args.Error(1)
-}
-
 func TestReleaseService_AnalyzeNextRelease(t *testing.T) {
 	t.Run("Success with existing tag and feature commits", func(t *testing.T) {
 		mockGit := new(MockGitService)

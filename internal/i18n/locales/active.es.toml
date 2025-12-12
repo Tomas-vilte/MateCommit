@@ -25,6 +25,24 @@ other = "Idioma (en, es)"
 [suggest_no_emoji_flag_usage]
 other = "Desactivar emojis"
 
+[suggest_issue_flag_usage]
+other = "Número de issue/ticket para incluir contexto en el commit"
+
+[issue_detected_auto]
+other = "🔍 Detectado issue #{{.Number}}: {{.Title}}"
+
+[issue_using_manual]
+other = "📋 Usando issue #{{.Number}}: {{.Title}}"
+
+[issue_including_context]
+other = "📋 Incluyendo contexto del issue #{{.Number}}"
+
+[issue_vcs_init_error]
+other = "⚠️  No se pudo inicializar el cliente VCS: {{.Error}}"
+
+[issue_fetch_error]
+other = "⚠️  No se pudo obtener información del issue #{{.Number}}: {{.Error}}"
+
 [no_staged_changes]
 other = "❌ No hay cambios preparados para commitear.\nUsá 'git add' para preparar tus cambios primero"
 

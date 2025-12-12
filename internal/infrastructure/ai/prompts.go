@@ -1,5 +1,26 @@
 package ai
 
+// Issue reference instructions
+const (
+	issueReferenceInstructionsES = `Si hay un issue asociado (#%d), DEBES incluir la referencia en el título del commit:
+       - Para features/mejoras: "tipo: mensaje (#%d)"
+       - Para bugs: "fix: mensaje (#%d)" o "fix(scope): mensaje (fixes #%d)"
+       - Ejemplos válidos:
+         ✅ feat: add dark mode support (#%d)
+         ✅ fix: resolve authentication error (fixes #%d)
+         ✅ feat(api): implement caching layer (#%d)
+       - NUNCA omitas la referencia del issue #%d.`
+
+	issueReferenceInstructionsEN = `There is an associated issue (#%d), you MUST include the reference in the commit title:
+       - For features/improvements: "type: message (#%d)"
+       - For bugs: "fix: message (#%d)" or "fix(scope): message (fixes #%d)"
+       - Valid examples:
+         ✅ feat: add dark mode support (#%d)
+         ✅ fix: resolve authentication error (fixes #%d)
+         ✅ feat(api): implement caching layer (#%d)
+       - NEVER omit the reference to issue #%d.`
+)
+
 // Templates para Pull Requests
 const (
 	prPromptTemplateEN = `Hey, could you whip up a summary for this PR with:
@@ -57,6 +78,7 @@ const (
         - chore: Maintenance tasks
     7. Keep commit messages under 100 characters.
     8. Provide specific, actionable improvement suggestions, especially related to meeting acceptance criteria.
+    9. **IMPORTANT - Issue/Ticket References:** %s
 
     Suggestion Format:
     =========[ Suggestion ]=========
@@ -115,6 +137,7 @@ const (
         - chore: Tareas de mantenimiento
     7. Mantené los mensajes de commit en menos de 100 caracteres.
     8. Proporcioná sugerencias de mejora específicas y accionables, especialmente relacionadas con el cumplimiento de los criterios de aceptación.
+    9. **IMPORTANTE - Referencias de Issues/Tickets:** %s
 
     Formato de Sugerencia:
     =========[ Sugerencia ]=========
@@ -176,6 +199,7 @@ const (
         - chore: Tareas de mantenimiento
     6. Mantené los mensajes de commit en menos de 100 caracteres.
     7. Proporcioná sugerencias de mejora específicas y accionables.
+    8. **IMPORTANTE - Referencias de Issues:** %s
 
     Formato de Sugerencia:
     =========[ Sugerencia ]=========
@@ -222,6 +246,7 @@ const (
         - chore: Maintenance tasks
     6. Keep commit messages under 100 characters.
     7. Provide specific, actionable improvement suggestions.
+    8. **IMPORTANT - Issue References:** %s
 
     Suggestion Format:
     =========[ Suggestion ]=========
@@ -466,5 +491,15 @@ func GetReleasePromptTemplate(lang string) string {
 		return releasePromptTemplateES
 	default:
 		return releasePromptTemplateEN
+	}
+}
+
+// GetIssueReferenceInstructions devuelve las instrucciones de referencias de issues según el idioma
+func GetIssueReferenceInstructions(lang string) string {
+	switch lang {
+	case "es":
+		return issueReferenceInstructionsES
+	default:
+		return issueReferenceInstructionsEN
 	}
 }

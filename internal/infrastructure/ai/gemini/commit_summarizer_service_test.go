@@ -162,12 +162,10 @@ func TestGeminiService(t *testing.T) {
 			assert.Contains(t, suggestion.Files, "internal/cli/command/config/set_jira_config.go")
 			assert.Equal(t, "Se mejoró la salida de sugerencias y el manejo de errores en la configuración de Jira.", suggestion.Explanation)
 
-			// Verificar análisis de código
 			assert.Contains(t, suggestion.CodeAnalysis.ChangesOverview, "Mejora en el manejo de la configuración de Jira")
 			assert.Contains(t, suggestion.CodeAnalysis.PrimaryPurpose, "Mejorar la experiencia del usuario")
 			assert.Contains(t, suggestion.CodeAnalysis.TechnicalImpact, "Se modifican varias partes del código")
 
-			// Verificar análisis de requisitos
 			assert.Equal(t, models.CriteriaPartiallyMet, suggestion.RequirementsAnalysis.CriteriaStatus)
 			assert.Equal(t, 2, len(suggestion.RequirementsAnalysis.MissingCriteria))
 			assert.Equal(t, 2, len(suggestion.RequirementsAnalysis.ImprovementSuggestions))
@@ -267,7 +265,7 @@ func TestGeminiService(t *testing.T) {
 		ctx := context.Background()
 		cfg := &config.Config{
 			Language:     "en",
-			UseEmoji:     true, // Emoji activado, pero opcional en inglés
+			UseEmoji:     true,
 			GeminiAPIKey: "test-api-key",
 		}
 
@@ -284,7 +282,6 @@ func TestGeminiService(t *testing.T) {
 		// act
 		prompt := service.generatePrompt(cfg.Language, info, 3)
 
-		// Imprimir el prompt generado para depuración
 		t.Logf("Prompt generado:\n%s", prompt)
 
 		// assert
@@ -293,7 +290,6 @@ func TestGeminiService(t *testing.T) {
 		assert.Contains(t, prompt, "Diff:", "Debe incluir la sección de diff")
 		assert.Contains(t, prompt, "Technical Analysis:", "Debe incluir la sección de análisis técnico")
 
-		// Verificación opcional de emojis
 		if cfg.UseEmoji {
 			assert.Contains(t, prompt, "🔍", "El prompt debería contener el emoji de análisis si está activado")
 		}
@@ -325,6 +321,43 @@ func TestGeminiService(t *testing.T) {
 		// assert
 		if suggestions != nil {
 			t.Errorf("Expected nil, got: %v", suggestions)
+		}
+	})
+	t.Run("ParseSuggestions with rename format", func(t *testing.T) {
+		// arrange
+		ctx := context.Background()
+		cfg := &config.Config{
+			GeminiAPIKey: "test-api-key",
+		}
+		trans, _ := i18n.NewTranslations("es", "../../../i18n/locales/")
+		service, _ := NewGeminiService(ctx, cfg, trans)
+
+		responseTextWithRename := `📊 Análisis:
+- Resumen: Renamed file.
+- Propósito: Test rename.
+- Impacto: Low.
+
+📝 Sugerencias:
+Commit: refactor: Rename file
+📄 Archivos modificados:
+   - old/path/file.go -> new/path/file.go
+Explicación: Renaming file.
+`
+
+		resp := &genai.GenerateContentResponse{
+			Candidates: []*genai.Candidate{
+				{Content: &genai.Content{Parts: []*genai.Part{{Text: responseTextWithRename}}}},
+			},
+		}
+
+		// act
+		suggestions := service.parseSuggestions(resp)
+
+		// assert
+		assert.Equal(t, 1, len(suggestions))
+		if len(suggestions) > 0 {
+			assert.Contains(t, suggestions[0].Files, "new/path/file.go")
+			assert.NotContains(t, suggestions[0].Files, "old/path/file.go -> new/path/file.go")
 		}
 	})
 }
