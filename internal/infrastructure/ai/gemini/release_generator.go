@@ -127,6 +127,68 @@ func (g *ReleaseNotesGenerator) formatChangesForPrompt(release *models.Release) 
 		sb.WriteString("\n")
 	}
 
+	if len(release.ClosedIssues) > 0 {
+		sb.WriteString("CLOSED ISSUES:\n")
+		for _, issue := range release.ClosedIssues {
+			sb.WriteString(fmt.Sprintf("- #%d: %s (by @%s)\n", issue.Number, issue.Title, issue.Author))
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(release.MergedPRs) > 0 {
+		sb.WriteString("MERGED PULL REQUESTS:\n")
+		for _, pr := range release.MergedPRs {
+			sb.WriteString(fmt.Sprintf("- #%d: %s (by @%s)\n", pr.Number, pr.Title, pr.Author))
+			if pr.Description != "" {
+				lines := strings.Split(pr.Description, "\n")
+				if len(lines) > 0 && lines[0] != "" {
+					sb.WriteString(fmt.Sprintf("  Description: %s\n", lines[0]))
+				}
+			}
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(release.Contributors) > 0 {
+		sb.WriteString(fmt.Sprintf("CONTRIBUTORS (%d total):\n", len(release.Contributors)))
+		for _, contributor := range release.Contributors {
+			sb.WriteString(fmt.Sprintf("- @%s\n", contributor))
+		}
+		if len(release.NewContributors) > 0 {
+			sb.WriteString(fmt.Sprintf("New contributors: %s\n", strings.Join(release.NewContributors, ", ")))
+		}
+		sb.WriteString("\n")
+	}
+
+	if release.FileStats.FilesChanged > 0 {
+		sb.WriteString("FILE STATISTICS:\n")
+		sb.WriteString(fmt.Sprintf("- Files changed: %d\n", release.FileStats.FilesChanged))
+		sb.WriteString(fmt.Sprintf("- Insertions: +%d\n", release.FileStats.Insertions))
+		sb.WriteString(fmt.Sprintf("- Deletions: -%d\n", release.FileStats.Deletions))
+		if len(release.FileStats.TopFiles) > 0 {
+			sb.WriteString("Top modified files:\n")
+			for _, file := range release.FileStats.TopFiles {
+				sb.WriteString(fmt.Sprintf("  - %s (+%d/-%d)\n", file.Path, file.Additions, file.Deletions))
+			}
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(release.Dependencies) > 0 {
+		sb.WriteString("DEPENDENCY UPDATES:\n")
+		for _, dep := range release.Dependencies {
+			switch dep.Type {
+			case "updated":
+				sb.WriteString(fmt.Sprintf("- %s: %s → %s\n", dep.Name, dep.OldVersion, dep.NewVersion))
+			case "added":
+				sb.WriteString(fmt.Sprintf("- Added: %s %s\n", dep.Name, dep.NewVersion))
+			case "removed":
+				sb.WriteString(fmt.Sprintf("- Removed: %s %s\n", dep.Name, dep.OldVersion))
+			}
+		}
+		sb.WriteString("\n")
+	}
+
 	return sb.String()
 }
 
@@ -213,17 +275,13 @@ func (g *ReleaseNotesGenerator) parseResponse(content string, release *models.Re
 				} else if strings.HasPrefix(trimmed, "LANGUAGE:") {
 					currentExample.Language = strings.TrimSpace(strings.TrimPrefix(trimmed, "LANGUAGE:"))
 				} else if strings.HasPrefix(trimmed, "CODE:") {
-					// Capturar el contenido después de CODE: (puede estar vacío)
 					codeContent := strings.TrimSpace(strings.TrimPrefix(trimmed, "CODE:"))
-					// Limpiar backticks de markdown si los hay
 					if strings.HasPrefix(codeContent, "```") {
 						codeContent = ""
 					}
 					currentExample.Code = codeContent
 				} else if trimmed != "" && !strings.HasPrefix(trimmed, "EXAMPLE_") && !strings.HasPrefix(trimmed, "BREAKING_") && !strings.HasPrefix(trimmed, "COMPARISONS:") && !strings.HasPrefix(trimmed, "LINKS:") {
-					// Capturar líneas adicionales de código (saltar backticks de markdown)
 					if trimmed == "```" || strings.HasPrefix(trimmed, "```") {
-						// Ignorar líneas de backticks
 					} else if currentExample.Code == "" {
 						currentExample.Code = line
 					} else {

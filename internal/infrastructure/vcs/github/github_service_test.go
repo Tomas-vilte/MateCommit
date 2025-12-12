@@ -2,6 +2,7 @@ package github
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"testing"
 
@@ -16,6 +17,19 @@ import (
 func newTestClient(pr *MockPRService, issues *MockIssuesService, release *MockReleaseService) *GitHubClient {
 	trans, _ := i18n.NewTranslations("es", "../../../i18n/locales/")
 	repo := &MockRepoService{}
+	return NewGitHubClientWithServices(
+		pr,
+		issues,
+		repo,
+		release,
+		"test-owner",
+		"test-repo",
+		trans,
+	)
+}
+
+func newTestClientWithRepo(pr *MockPRService, issues *MockIssuesService, repo *MockRepoService, release *MockReleaseService) *GitHubClient {
+	trans, _ := i18n.NewTranslations("es", "../../../i18n/locales/")
 	return NewGitHubClientWithServices(
 		pr,
 		issues,
@@ -569,5 +583,64 @@ func TestGitHubClient_UpdateRelease(t *testing.T) {
 
 		assert.Error(t, err)
 		mockRelease.AssertExpectations(t)
+	})
+}
+
+func TestGitHubClient_GetFileAtTag(t *testing.T) {
+	t.Run("should get file content successfully", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRepo := &MockRepoService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClientWithRepo(mockPR, mockIssues, mockRepo, mockRelease)
+
+		fileContent := &github.RepositoryContent{
+			Content: github.Ptr("ZmlsZSBjb250ZW50IGhlcmU="), // base64 encoded
+		}
+
+		mockRepo.On("GetContents", mock.Anything, "test-owner", "test-repo", "v1.0.0", mock.MatchedBy(func(opts *github.RepositoryContentGetOptions) bool {
+			return opts.Ref == "v1.0.0"
+		})).Return(fileContent, []*github.RepositoryContent{}, &github.Response{}, nil)
+
+		content, err := client.GetFileAtTag(context.Background(), "v1.0.0", "go.mod")
+
+		assert.NoError(t, err)
+		assert.NotEmpty(t, content)
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("should return error if file not found", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRepo := &MockRepoService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClientWithRepo(mockPR, mockIssues, mockRepo, mockRelease)
+
+		mockRepo.On("GetContents", mock.Anything, "test-owner", "test-repo", "v1.0.0", mock.Anything).
+			Return((*github.RepositoryContent)(nil), []*github.RepositoryContent{}, &github.Response{}, errors.New("file not found"))
+
+		content, err := client.GetFileAtTag(context.Background(), "v1.0.0", "go.mod")
+
+		assert.Error(t, err)
+		assert.Empty(t, content)
+		mockRepo.AssertExpectations(t)
+	})
+
+	t.Run("should return error if file content is nil", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRepo := &MockRepoService{}
+		mockRelease := &MockReleaseService{}
+		client := newTestClientWithRepo(mockPR, mockIssues, mockRepo, mockRelease)
+
+		mockRepo.On("GetContents", mock.Anything, "test-owner", "test-repo", "v1.0.0", mock.Anything).
+			Return((*github.RepositoryContent)(nil), []*github.RepositoryContent{}, &github.Response{}, nil)
+
+		content, err := client.GetFileAtTag(context.Background(), "v1.0.0", "go.mod")
+
+		assert.Error(t, err)
+		assert.Empty(t, content)
+		assert.Contains(t, err.Error(), "archivo no encontrado")
+		mockRepo.AssertExpectations(t)
 	})
 }

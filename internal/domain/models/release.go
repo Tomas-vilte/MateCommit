@@ -18,6 +18,57 @@ type (
 		Other           []ReleaseItem
 		AllCommits      []Commit
 		VersionBump     VersionBump
+		ClosedIssues    []Issue
+		MergedPRs       []PullRequest
+		Contributors    []string
+		NewContributors []string
+		Dependencies    []DependencyChange
+		FileStats       FileStatistics
+	}
+
+	Issue struct {
+		Number int
+		Title  string
+		Labels []string
+		Author string
+		URL    string
+	}
+
+	PullRequest struct {
+		Number      int
+		Title       string
+		Description string
+		Author      string
+		Labels      []string
+		URL         string
+	}
+
+	// DependencyChange representa un cambio en una dependencia del proyecto
+	DependencyChange struct {
+		Name       string               // Nombre del paquete (ej: "github.com/user/repo", "react")
+		OldVersion string               // Versión anterior (vacío si Type == DependencyAdded)
+		NewVersion string               // Versión nueva (vacío si Type == DependencyRemoved)
+		Type       DependencyChangeType // Tipo de cambio
+		Manager    string               // Gestor: "go.mod", "package.json", "Cargo.toml", etc.
+		Severity   ChangeSeverity       // Severidad: major/minor/patch para detectar breaking changes
+		IsDirect   bool                 // true = dependencia directa, false = dev/indirect
+	}
+
+	DependencyChangeType string
+
+	ChangeSeverity string
+
+	FileStatistics struct {
+		FilesChanged int
+		Insertions   int
+		Deletions    int
+		TopFiles     []FileChange
+	}
+
+	FileChange struct {
+		Path      string
+		Additions int
+		Deletions int
 	}
 
 	// ReleaseItem representa un item en el changelog
@@ -76,4 +127,17 @@ const (
 	MinorBump VersionBump = "minor"
 	PatchBump VersionBump = "patch"
 	NoBump    VersionBump = "none"
+)
+
+const (
+	DependencyAdded   DependencyChangeType = "added"
+	DependencyUpdated DependencyChangeType = "updated"
+	DependencyRemoved DependencyChangeType = "removed"
+)
+
+const (
+	MajorChange   ChangeSeverity = "major"
+	MinorChange   ChangeSeverity = "minor"
+	PatchChange   ChangeSeverity = "patch"
+	UnknownChange ChangeSeverity = "unknown"
 )

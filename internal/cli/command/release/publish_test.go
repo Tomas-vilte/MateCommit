@@ -53,6 +53,7 @@ func TestPublishCommand_Success(t *testing.T) {
 	}
 
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
+	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
 	mockService.On("PublishRelease", mock.Anything, release, notes, false).Return(nil)
 
@@ -77,6 +78,7 @@ func TestPublishCommand_WithDraftFlag(t *testing.T) {
 	}
 
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
+	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
 	mockService.On("PublishRelease", mock.Anything, release, notes, true).Return(nil)
 
@@ -101,6 +103,7 @@ func TestPublishCommand_WithVersionOverride(t *testing.T) {
 	}
 
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
+	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, mock.MatchedBy(func(r *models.Release) bool {
 		return r.Version == "v2.0.0"
 	})).Return(notes, nil)
@@ -136,6 +139,7 @@ func TestPublishCommand_GenerateNotesError(t *testing.T) {
 	}
 
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
+	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return((*models.ReleaseNotes)(nil), errors.New("generate failed"))
 
 	err := runPublishTest(t, []string{}, mockService)
@@ -160,6 +164,7 @@ func TestPublishCommand_PublishError(t *testing.T) {
 	}
 
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
+	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
 	mockService.On("PublishRelease", mock.Anything, release, notes, false).Return(errors.New("publish failed"))
 

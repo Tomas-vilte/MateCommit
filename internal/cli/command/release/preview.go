@@ -68,6 +68,12 @@ func previewReleaseAction(releaseService ports.ReleaseService, trans *i18n.Trans
 		}))
 		fmt.Println()
 
+		if err := releaseService.EnrichReleaseContext(ctx, release); err != nil {
+			fmt.Printf("⚠️  %s\n", trans.GetMessage("release.warning_enrich_context", 0, map[string]interface{}{
+				"Error": err.Error(),
+			}))
+		}
+
 		notes, err := releaseService.GenerateReleaseNotes(ctx, release)
 		if err != nil {
 			return fmt.Errorf("%s", trans.GetMessage("release.error_generating_notes", 0,

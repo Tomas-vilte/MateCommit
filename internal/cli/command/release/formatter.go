@@ -2,6 +2,7 @@ package release
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
@@ -10,6 +11,7 @@ import (
 // FormatReleaseMarkdown genera el markdown completo de una release con todas las secciones
 func FormatReleaseMarkdown(release *models.Release, notes *models.ReleaseNotes, trans *i18n.Translations) string {
 	content := fmt.Sprintf("# %s\n\n", notes.Title)
+	var md strings.Builder
 
 	content += "![Version](https://img.shields.io/badge/version-" + release.Version + "-blue)\n"
 	content += "![Status](https://img.shields.io/badge/status-released-success)\n\n"
@@ -94,5 +96,47 @@ func FormatReleaseMarkdown(release *models.Release, notes *models.ReleaseNotes, 
 		}
 	}
 
-	return content
+	if len(release.Contributors) > 0 {
+		md.WriteString("## ")
+		md.WriteString(trans.GetMessage("release.md_contributors", 0, nil))
+		md.WriteString("\n\n")
+
+		if len(release.NewContributors) > 0 {
+			md.WriteString(trans.GetMessage("release.new_contributors", 0, map[string]interface{}{
+				"Count": len(release.NewContributors),
+			}))
+			md.WriteString(" ")
+			for i, contributor := range release.NewContributors {
+				md.WriteString(fmt.Sprintf("@%s", contributor))
+				if i < len(release.NewContributors)-1 {
+					md.WriteString(", ")
+				}
+			}
+			md.WriteString("\n\n")
+		}
+
+		md.WriteString(trans.GetMessage("release.all_contributors", 0, nil))
+		md.WriteString("\n")
+		for _, contributor := range release.Contributors {
+			md.WriteString(fmt.Sprintf("- @%s\n", contributor))
+		}
+		md.WriteString("\n")
+	}
+
+	if release.FileStats.FilesChanged > 0 {
+		md.WriteString("## ")
+		md.WriteString(trans.GetMessage("release.md_stats", 0, nil))
+		md.WriteString("\n\n")
+		md.WriteString(fmt.Sprintf("- %s: **%d**\n",
+			trans.GetMessage("release.files_changed", 0, nil),
+			release.FileStats.FilesChanged))
+		md.WriteString(fmt.Sprintf("- %s: **+%d**\n",
+			trans.GetMessage("release.insertions", 0, nil),
+			release.FileStats.Insertions))
+		md.WriteString(fmt.Sprintf("- %s: **-%d**\n",
+			trans.GetMessage("release.deletions", 0, nil),
+			release.FileStats.Deletions))
+		md.WriteString("\n")
+	}
+	return content + md.String()
 }
