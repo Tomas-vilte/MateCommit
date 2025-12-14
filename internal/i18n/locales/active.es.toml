@@ -266,6 +266,7 @@ vcs_provider_auto_detected_not_configured = "Proveedor de VCS '%s' detectado aut
 release_already_exists = "Esta release {{.Version}} ya existe"
 repo_or_tag_not_found = "No se encontró el repositorio o la etiqueta. Asegurate de que la etiqueta {{.Version}} exista"
 create_release = "Error creando release"
+pr_number_required = "Debes especificar el número del PR con -n o --number"
 
 [warning]
 pr_too_large = "El PR #{{.pr_number}} es demasiado grande (>20,000 líneas). Obteniendo diff commit por commit..."
@@ -505,3 +506,45 @@ other = "⚠️  Breaking changes detectados en {{.Count}} commits"
 
 [pr_test_plan_generated]
 other = "📋 Test plan generado automáticamente"
+# UI - Spinners y Feedback
+[ui]
+generating_suggestions_banner = "Generando Sugerencias de Commit"
+generating_with_ai = "Generando sugerencias con IA..."
+including_issue_context = "Incluyendo contexto del issue #{{.Number}}..."
+generating_with_issue = "Generando sugerencias con contexto del issue..."
+adding_to_staging = "Agregando archivos al staging..."
+creating_commit = "Creando commit..."
+files_added_to_staging = "{{.Count}} archivos agregados al staging"
+commit_created_successfully = "Commit creado exitosamente"
+suggestions_generated = "{{.Count}} sugerencias generadas"
+error_generating_suggestions = "Error al generar sugerencias"
+detected_issue = "Detectado issue #{{.Number}}"
+fetching_pr_info = "Obteniendo información del PR #{{.Number}}..."
+error_generating_pr_summary = "Error al generar resumen del PR"
+pr_updated_successfully = "PR #{{.Number}} actualizado: {{.Title}}"
+
+# UI - Errors con sugerencias
+[ui_error]
+gemini_api_key_missing = "API key de Gemini no configurado"
+github_token_missing = "Token de GitHub no configurado"
+no_changes_detected = "No se detectaron cambios en el repositorio"
+ensure_modified_files = "Asegúrate de tener archivos modificados antes de generar sugerencias"
+run_config_init = "Ejecuta: matecommit config init"
+error_saving_config = "Error al guardar la configuración"
+
+# UI - Preview y confirmaciones
+[ui_preview]
+commit_selected = "Commit seleccionado: {{.Title}}"
+files_count = "Archivos: {{.Count}}"
+ask_show_diff = "¿Ver cambios antes de commitear?"
+ask_confirm_commit = "¿Confirmar commit?"
+commit_cancelled = "Commit cancelado"
+no_changes_to_show = "No hay cambios para mostrar"
+error_showing_diff = "No se pudo mostrar el diff: {{.Error}}"
+
+# UI - Selection
+[ui_selection]
+select_option = "Selecciona una opción:"
+select_suggestion_range = "Seleccionar sugerencia"
+cancel_operation = "Cancelar"
+

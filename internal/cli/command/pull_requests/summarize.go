@@ -6,6 +6,7 @@ import (
 
 	cfg "github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/factory"
+	"github.com/Tomas-vilte/MateCommit/internal/ui"
 
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/urfave/cli/v3"
@@ -34,21 +35,30 @@ func (c *SummarizeCommand) CreateCommand(t *i18n.Translations, _ *cfg.Config) *c
 				Required: true,
 			},
 		},
-		Action: func(ctx context.Context, command *cli.Command) error {
+		Action: func(ctx context.Context, cmd *cli.Command) error {
 			prService, err := c.prFactory.CreatePRService(ctx)
 			if err != nil {
 				return fmt.Errorf(t.GetMessage("error.pr_service_creation_error", 0, nil)+": %w", err)
 			}
-			prNumber := command.Int("pr-number")
+			prNumber := cmd.Int("pr-number")
+			if prNumber == 0 {
+				return fmt.Errorf("%s", t.GetMessage("error.pr_number_required", 0, nil))
+			}
+
+			spinner := ui.NewSmartSpinner(t.GetMessage("ui.fetching_pr_info", 0, map[string]interface{}{
+				"Number": prNumber,
+			}))
+			spinner.Start()
 
 			summary, err := prService.SummarizePR(ctx, prNumber)
 			if err != nil {
+				spinner.Error(t.GetMessage("ui.error_generating_pr_summary", 0, nil))
 				return fmt.Errorf(t.GetMessage("error.pr_summary_error", 0, nil)+": %w", err)
 			}
 
-			fmt.Println(t.GetMessage("vcs_summary.pr_summary_success", 0, map[string]interface{}{
-				"PRNumber": prNumber,
-				"Title":    summary.Title,
+			spinner.Success(t.GetMessage("ui.pr_updated_successfully", 0, map[string]interface{}{
+				"Number": prNumber,
+				"Title":  summary.Title,
 			}))
 			return nil
 		},
