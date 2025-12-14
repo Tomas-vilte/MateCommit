@@ -132,12 +132,13 @@ func TestNewSuggestionHandler(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Act
-		handler := NewSuggestionHandler(mockGit, translations)
+		handler := NewSuggestionHandler(mockGit, nil, translations)
 
 		// Assert
 		assert.NotNil(t, handler)
 		assert.Equal(t, mockGit, handler.gitService)
 		assert.Equal(t, translations, handler.t)
+		assert.Nil(t, handler.vcsClient)
 	})
 }
 
@@ -147,7 +148,7 @@ func TestSuggestionHandler_DisplaySuggestions(t *testing.T) {
 		mockGit := new(mockGitService)
 		translations, err := i18n.NewTranslations("en", "../../../../internal/i18n/locales")
 		assert.NoError(t, err)
-		handler := NewSuggestionHandler(mockGit, translations)
+		handler := NewSuggestionHandler(mockGit, nil, translations)
 
 		suggestions := []models.CommitSuggestion{
 			{
@@ -184,7 +185,7 @@ func TestSuggestionHandler_HandleCommitSelection(t *testing.T) {
 		mockGit := new(mockGitService)
 		translations, err := i18n.NewTranslations("en", "../../../../internal/i18n/locales")
 		assert.NoError(t, err)
-		handler := NewSuggestionHandler(mockGit, translations)
+		handler := NewSuggestionHandler(mockGit, nil, translations)
 
 		suggestions := []models.CommitSuggestion{
 			{
@@ -212,7 +213,7 @@ func TestSuggestionHandler_HandleCommitSelection(t *testing.T) {
 		mockGit := new(mockGitService)
 		translations, err := i18n.NewTranslations("en", "../../../../internal/i18n/locales")
 		assert.NoError(t, err)
-		handler := NewSuggestionHandler(mockGit, translations)
+		handler := NewSuggestionHandler(mockGit, nil, translations)
 
 		suggestions := []models.CommitSuggestion{
 			{
@@ -236,7 +237,7 @@ func TestSuggestionHandler_HandleCommitSelection(t *testing.T) {
 		mockGit := new(mockGitService)
 		translations, err := i18n.NewTranslations("en", "../../../../internal/i18n/locales")
 		assert.NoError(t, err)
-		handler := NewSuggestionHandler(mockGit, translations)
+		handler := NewSuggestionHandler(mockGit, nil, translations)
 
 		suggestions := []models.CommitSuggestion{
 			{
@@ -260,7 +261,7 @@ func TestSuggestionHandler_HandleCommitSelection(t *testing.T) {
 		mockGit := new(mockGitService)
 		translations, err := i18n.NewTranslations("en", "../../../../internal/i18n/locales")
 		assert.NoError(t, err)
-		handler := NewSuggestionHandler(mockGit, translations)
+		handler := NewSuggestionHandler(mockGit, nil, translations)
 
 		suggestions := []models.CommitSuggestion{
 			{
@@ -286,7 +287,7 @@ func TestSuggestionHandler_HandleSuggestions(t *testing.T) {
 		mockGit := new(mockGitService)
 		translations, err := i18n.NewTranslations("en", "../../../../internal/i18n/locales")
 		assert.NoError(t, err)
-		handler := NewSuggestionHandler(mockGit, translations)
+		handler := NewSuggestionHandler(mockGit, nil, translations)
 
 		suggestions := []models.CommitSuggestion{
 			{
@@ -315,7 +316,7 @@ func TestSuggestionHandler_HandleSuggestions(t *testing.T) {
 		mockGit := new(mockGitService)
 		translations, err := i18n.NewTranslations("en", "../../../../internal/i18n/locales")
 		assert.NoError(t, err)
-		handler := NewSuggestionHandler(mockGit, translations)
+		handler := NewSuggestionHandler(mockGit, nil, translations)
 
 		suggestions := []models.CommitSuggestion{
 			{
@@ -343,7 +344,7 @@ func TestSuggestionHandler_HandleSuggestions(t *testing.T) {
 		mockGit := new(mockGitService)
 		translations, err := i18n.NewTranslations("en", "../../../../internal/i18n/locales")
 		assert.NoError(t, err)
-		handler := NewSuggestionHandler(mockGit, translations)
+		handler := NewSuggestionHandler(mockGit, nil, translations)
 
 		suggestions := []models.CommitSuggestion{
 			{
@@ -371,7 +372,7 @@ func TestSuggestionHandler_HandleSuggestions(t *testing.T) {
 		mockGit := new(mockGitService)
 		translations, err := i18n.NewTranslations("en", "../../../../internal/i18n/locales")
 		assert.NoError(t, err)
-		handler := NewSuggestionHandler(mockGit, translations)
+		handler := NewSuggestionHandler(mockGit, nil, translations)
 
 		suggestions := []models.CommitSuggestion{
 			{
@@ -397,7 +398,7 @@ func TestSuggestionHandler_ProcessCommit(t *testing.T) {
 		mockGit := new(mockGitService)
 		translations, err := i18n.NewTranslations("en", "../../../../internal/i18n/locales")
 		assert.NoError(t, err)
-		handler := NewSuggestionHandler(mockGit, translations)
+		handler := NewSuggestionHandler(mockGit, nil, translations)
 
 		suggestion := models.CommitSuggestion{
 			CommitTitle: "Commit: feat: add new feature",
@@ -423,7 +424,7 @@ func TestSuggestionHandler_ProcessCommit(t *testing.T) {
 		mockGit := new(mockGitService)
 		translations, err := i18n.NewTranslations("en", "../../../../internal/i18n/locales")
 		assert.NoError(t, err)
-		handler := NewSuggestionHandler(mockGit, translations)
+		handler := NewSuggestionHandler(mockGit, nil, translations)
 
 		suggestion := models.CommitSuggestion{
 			CommitTitle: "feat: multi-file change",

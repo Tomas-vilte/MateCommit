@@ -113,7 +113,7 @@ func PrintKeyValue(key, value string) {
 func AskConfirmation(question string) bool {
 	fmt.Printf("\n%s (y/n): ", Info.Sprint(question))
 	var response string
-	fmt.Scanln(&response)
+	_, _ = fmt.Scanln(&response)
 	response = strings.ToLower(strings.TrimSpace(response))
 	return response == "y" || response == "yes" || response == "s" || response == "si"
 }
@@ -137,8 +137,6 @@ func ShowDiff(files []string) error {
 
 	if len(output) > 0 {
 		fmt.Println(string(output))
-	} else {
-		PrintWarning("No hay cambios para mostrar")
 	}
 
 	return nil
@@ -155,7 +153,7 @@ func WithSpinner(message string, fn func() error) error {
 		return err
 	}
 
-	s.Success("Completado")
+	s.Success("Done")
 	return nil
 }
 
@@ -173,6 +171,6 @@ func WithSpinnerAndDuration(message string, fn func() error) error {
 	}
 
 	s.Stop()
-	PrintDuration(message+" completado", duration)
+	PrintDuration(message+" completed", duration)
 	return nil
 }

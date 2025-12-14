@@ -93,9 +93,12 @@ func (s *CommitService) buildCommitInfo(ctx context.Context, issueNumber int) (m
 		files = append(files, change.Path)
 	}
 
+	recentHistory, _ := s.git.GetRecentCommitMessages(ctx, 10)
+
 	commitInfo = models.CommitInfo{
-		Files: files,
-		Diff:  diff,
+		Files:         files,
+		Diff:          diff,
+		RecentHistory: recentHistory,
 	}
 
 	if s.config.UseTicket {

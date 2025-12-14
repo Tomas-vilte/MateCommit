@@ -68,6 +68,11 @@ func (m *MockIssuesService) Get(ctx context.Context, owner, repo string, number 
 	return args.Get(0).(*github.Issue), args.Get(1).(*github.Response), args.Error(2)
 }
 
+func (m *MockIssuesService) Edit(ctx context.Context, owner, repo string, number int, issue *github.IssueRequest) (*github.Issue, *github.Response, error) {
+	args := m.Called(ctx, owner, repo, number, issue)
+	return args.Get(0).(*github.Issue), args.Get(1).(*github.Response), args.Error(2)
+}
+
 type MockRepoService struct {
 	mock.Mock
 }
