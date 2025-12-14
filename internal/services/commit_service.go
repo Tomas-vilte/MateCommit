@@ -153,6 +153,15 @@ func (s *CommitService) buildCommitInfo(ctx context.Context, issueNumber int) (m
 				}
 				fmt.Println(msg)
 				commitInfo.IssueInfo = issueInfo
+
+				if len(issueInfo.Criteria) > 0 && commitInfo.TicketInfo == nil {
+					commitInfo.TicketInfo = &models.TicketInfo{
+						TicketID:    fmt.Sprintf("#%d", issueInfo.Number),
+						TicketTitle: issueInfo.Title,
+						TitleDesc:   issueInfo.Description,
+						Criteria:    issueInfo.Criteria,
+					}
+				}
 			}
 		}
 	}

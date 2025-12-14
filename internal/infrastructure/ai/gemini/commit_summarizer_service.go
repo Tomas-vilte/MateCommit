@@ -2,6 +2,7 @@ package gemini
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -18,6 +19,28 @@ type GeminiService struct {
 	config *config.Config
 	trans  *i18n.Translations
 }
+
+type (
+	CommitSuggestionJSON struct {
+		Title        string            `json:"title"`
+		Desc         string            `json:"desc"`
+		Files        []string          `json:"files"`
+		Analysis     *CodeAnalysisJSON `json:"analysis,omitempty"`
+		Requirements *RequirementsJSON `json:"requirements,omitempty"`
+	}
+
+	CodeAnalysisJSON struct {
+		OverView string `json:"overview"`
+		Purpose  string `json:"purpose"`
+		Impact   string `json:"impact"`
+	}
+
+	RequirementsJSON struct {
+		Status      string   `json:"status"`
+		Missing     []string `json:"missing"`
+		Suggestions []string `json:"suggestions"`
+	}
+)
 
 func NewGeminiService(ctx context.Context, cfg *config.Config, trans *i18n.Translations) (*GeminiService, error) {
 	if cfg.GeminiAPIKey == "" {
@@ -57,7 +80,13 @@ func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.Com
 	prompt := s.generatePrompt(s.config.Language, info, count)
 	modelName := string(s.config.AIConfig.Models[config.AIGemini])
 
-	resp, err := s.client.Models.GenerateContent(ctx, modelName, genai.Text(prompt), nil)
+	genConfig := &genai.GenerateContentConfig{
+		Temperature:      float32Ptr(0.3),
+		MaxOutputTokens:  int32(10000),
+		ResponseMIMEType: "application/json",
+	}
+
+	resp, err := s.client.Models.GenerateContent(ctx, modelName, genai.Text(prompt), genConfig)
 	if err != nil {
 		msg := s.trans.GetMessage("error_generating_content", 0, map[string]interface{}{
 			"Error": err.Error(),
@@ -65,10 +94,20 @@ func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.Com
 		return nil, fmt.Errorf("%s", msg)
 	}
 
-	suggestions := s.parseSuggestions(resp)
+	suggestions, err := s.parseSuggestionsJSON(resp)
+	if err != nil {
+		rawResp := formatResponse(resp)
+		respLen := len(rawResp)
+		preview := rawResp
+		if respLen > 500 {
+			preview = rawResp[:500] + "..."
+		}
+		return nil, fmt.Errorf("error al parsear respuesta JSON de la IA (longitud: %d caracteres): %w\nPrimeros caracteres: %s",
+			respLen, err, preview)
+	}
+
 	if len(suggestions) == 0 {
-		msg := s.trans.GetMessage("error_no_suggestions", 0, nil)
-		return nil, fmt.Errorf("%s", msg)
+		return nil, fmt.Errorf("la IA no generó ninguna sugerencia")
 	}
 
 	if info.IssueInfo != nil && info.IssueInfo.Number > 0 {
@@ -78,32 +117,120 @@ func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.Com
 	return suggestions, nil
 }
 
+func (s *GeminiService) parseSuggestionsJSON(resp *genai.GenerateContentResponse) ([]models.CommitSuggestion, error) {
+	if resp == nil || len(resp.Candidates) == 0 {
+		return nil, fmt.Errorf("respuesta vacía de la IA")
+	}
+
+	responseText := formatResponse(resp)
+	if responseText == "" {
+		return nil, fmt.Errorf("texto de respuesta vacío de la IA")
+	}
+
+	responseText = strings.TrimSpace(responseText)
+	responseText = strings.TrimPrefix(responseText, "```json")
+	responseText = strings.TrimPrefix(responseText, "```")
+	responseText = strings.TrimSuffix(responseText, "```")
+	responseText = strings.TrimSpace(responseText)
+
+	var jsonSuggestions []CommitSuggestionJSON
+	if err := json.Unmarshal([]byte(responseText), &jsonSuggestions); err != nil {
+		return nil, fmt.Errorf("error al parsear JSON: %w", err)
+	}
+
+	suggestions := make([]models.CommitSuggestion, 0, len(jsonSuggestions))
+	for _, js := range jsonSuggestions {
+		suggestion := models.CommitSuggestion{
+			CommitTitle: js.Title,
+			Explanation: js.Desc,
+			Files:       js.Files,
+		}
+
+		if js.Analysis != nil {
+			suggestion.CodeAnalysis = models.CodeAnalysis{
+				ChangesOverview: js.Analysis.OverView,
+				PrimaryPurpose:  js.Analysis.Purpose,
+				TechnicalImpact: js.Analysis.Impact,
+			}
+		}
+
+		if js.Requirements != nil {
+			suggestion.RequirementsAnalysis = models.RequirementsAnalysis{
+				CriteriaStatus:         models.CriteriaStatus(js.Requirements.Status),
+				MissingCriteria:        js.Requirements.Missing,
+				ImprovementSuggestions: js.Requirements.Suggestions,
+			}
+		}
+
+		suggestions = append(suggestions, suggestion)
+	}
+
+	return suggestions, nil
+}
+
 func (s *GeminiService) generatePrompt(locale string, info models.CommitInfo, count int) string {
-	promptTemplate := ai.GetCommitPromptTemplate(locale, info.TicketInfo != nil && info.TicketInfo.TicketTitle != "")
+	promptTemplate := ai.GetCommitPromptTemplate(locale, info.TicketInfo != nil &&
+		info.TicketInfo.TicketTitle != "")
+
+	filesFormatted := formatChanges(info.Files)
+
+	diffFormatted := fmt.Sprintf("```diff\n%s\n```", info.Diff)
 
 	ticketInfo := ""
 	if info.TicketInfo != nil && info.TicketInfo.TicketTitle != "" {
-		ticketInfo = fmt.Sprintf("\nTicket Title: %s\nTicket Description: %s\nAcceptance Criteria: %s",
-			info.TicketInfo.TicketTitle,
-			info.TicketInfo.TitleDesc,
-			strings.Join(info.TicketInfo.Criteria, ", "))
+		var titleLabel, descLabel, criteriaLabel string
+		if locale == "es" {
+			titleLabel = "**Título:**"
+			descLabel = "**Descripción:**"
+			criteriaLabel = "**Criterios de Aceptación:**"
+		} else {
+			titleLabel = "**Title:**"
+			descLabel = "**Description:**"
+			criteriaLabel = "**Acceptance Criteria:**"
+		}
+
+		ticketInfo = fmt.Sprintf(`%s %s
+    %s %s
+    %s
+    %s`,
+			titleLabel, info.TicketInfo.TicketTitle,
+			descLabel, info.TicketInfo.TitleDesc,
+			criteriaLabel,
+			formatCriteria(info.TicketInfo.Criteria))
 	}
 
 	issueInstructions := ""
 	if info.IssueInfo != nil && info.IssueInfo.Number > 0 {
 		num := info.IssueInfo.Number
-		issueInstructions = fmt.Sprintf(ai.GetIssueReferenceInstructions(locale), num, num, num, num, num, num, num, num)
+		issueInstructions = fmt.Sprintf(ai.GetIssueReferenceInstructions(locale), num, num, num, num, num,
+			num, num, num)
 	} else {
-		issueInstructions = "No hay issue asociado, no incluyas referencias de issues en el título."
+		issueInstructions = ai.GetNoIssueReferenceInstruction(locale)
+	}
+
+	technicalAnalysis := ""
+	if info.TicketInfo == nil || info.TicketInfo.TicketTitle == "" {
+		technicalAnalysis = ai.GetTechnicalAnalysisInstruction(locale)
+	}
+
+	if info.TicketInfo != nil && info.TicketInfo.TicketTitle != "" {
+		return fmt.Sprintf(promptTemplate,
+			count,
+			filesFormatted,
+			diffFormatted,
+			ticketInfo,
+			issueInstructions,
+			count,
+		)
 	}
 
 	return fmt.Sprintf(promptTemplate,
 		count,
-		count,
-		formatChanges(info.Files),
-		info.Diff,
-		ticketInfo,
+		filesFormatted,
+		diffFormatted,
 		issueInstructions,
+		technicalAnalysis,
+		count,
 	)
 }
 
@@ -116,6 +243,17 @@ func formatChanges(files []string) string {
 		formattedFiles[i] = fmt.Sprintf("- %s", file)
 	}
 	return strings.Join(formattedFiles, "\n")
+}
+
+func formatCriteria(criteria []string) string {
+	if len(criteria) == 0 {
+		return ""
+	}
+	formattedCriteria := make([]string, len(criteria))
+	for i, criterion := range criteria {
+		formattedCriteria[i] = fmt.Sprintf("  - %s", criterion)
+	}
+	return strings.Join(formattedCriteria, "\n")
 }
 
 // formatResponse formatea la respuesta de la API de Gemini en una cadena.
@@ -135,165 +273,6 @@ func formatResponse(resp *genai.GenerateContentResponse) string {
 		}
 	}
 	return formattedContent.String()
-}
-
-func (s *GeminiService) getSuggestionDelimiter() string {
-	return s.trans.GetMessage("gemini_service.suggestion_prefix", 0, nil)
-}
-
-func (s *GeminiService) parseSuggestions(resp *genai.GenerateContentResponse) []models.CommitSuggestion {
-	if resp == nil || len(resp.Candidates) == 0 {
-		return nil
-	}
-
-	responseText := formatResponse(resp)
-	if responseText == "" {
-		return nil
-	}
-
-	delimiter := s.getSuggestionDelimiter()
-	re := regexp.MustCompile(delimiter)
-	parts := re.Split(responseText, -1)
-	suggestions := make([]models.CommitSuggestion, 0)
-
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part == "" {
-			continue
-		}
-
-		suggestion := s.parseSuggestionPart(part)
-		if suggestion != nil {
-			suggestions = append(suggestions, *suggestion)
-		}
-	}
-
-	return suggestions
-}
-
-func (s *GeminiService) parseSuggestionPart(part string) *models.CommitSuggestion {
-	lines := strings.Split(strings.TrimSpace(part), "\n")
-	if len(lines) < 3 {
-		return nil
-	}
-
-	suggestion := &models.CommitSuggestion{
-		CodeAnalysis:         models.CodeAnalysis{},
-		RequirementsAnalysis: models.RequirementsAnalysis{},
-	}
-
-	for _, line := range lines {
-		if strings.HasPrefix(line, "Commit:") {
-			suggestion.CommitTitle = strings.TrimSpace(strings.TrimPrefix(line, "Commit:"))
-			break
-		}
-	}
-
-	var collectingFiles bool
-	for _, line := range lines {
-		trimmedLine := strings.TrimSpace(line)
-
-		if strings.HasPrefix(trimmedLine, "📄") {
-			collectingFiles = true
-			continue
-		}
-
-		if collectingFiles {
-			if strings.HasPrefix(trimmedLine, "-") {
-				file := strings.TrimSpace(strings.TrimPrefix(trimmedLine, "-"))
-				if strings.Contains(file, "->") {
-					parts := strings.Split(file, "->")
-					if len(parts) > 1 {
-						file = strings.TrimSpace(parts[len(parts)-1])
-					}
-				}
-				suggestion.Files = append(suggestion.Files, file)
-			} else if trimmedLine == "" || strings.HasPrefix(trimmedLine, s.trans.GetMessage("gemini_service.explanation_prefix", 0, nil)) {
-				collectingFiles = false
-			}
-		}
-	}
-
-	var explanation strings.Builder
-	for _, line := range lines {
-		if strings.HasPrefix(line, s.trans.GetMessage("gemini_service.explanation_prefix", 0, nil)) {
-			explanation.WriteString(strings.TrimSpace(strings.TrimPrefix(line, s.trans.GetMessage("gemini_service.explanation_prefix", 0, nil))))
-			explanation.WriteString("\n")
-		}
-	}
-	suggestion.Explanation = strings.TrimSpace(explanation.String())
-
-	for i, line := range lines {
-		if strings.HasPrefix(line, s.trans.GetMessage("gemini_service.code_analysis_prefix", 0, nil)) {
-			if i+1 < len(lines) && strings.HasPrefix(lines[i+1], s.trans.GetMessage("gemini_service.changes_overview_prefix", 0, nil)) {
-				suggestion.CodeAnalysis.ChangesOverview = strings.TrimSpace(strings.TrimPrefix(lines[i+1], s.trans.GetMessage("gemini_service.changes_overview_prefix", 0, nil)))
-			}
-			if i+2 < len(lines) && strings.HasPrefix(lines[i+2], s.trans.GetMessage("gemini_service.primary_purpose_prefix", 0, nil)) {
-				suggestion.CodeAnalysis.PrimaryPurpose = strings.TrimSpace(strings.TrimPrefix(lines[i+2], s.trans.GetMessage("gemini_service.primary_purpose_prefix", 0, nil)))
-			}
-			if i+3 < len(lines) && strings.HasPrefix(lines[i+3], s.trans.GetMessage("gemini_service.technical_impact_prefix", 0, nil)) {
-				suggestion.CodeAnalysis.TechnicalImpact = strings.TrimSpace(strings.TrimPrefix(lines[i+3], s.trans.GetMessage("gemini_service.technical_impact_prefix", 0, nil)))
-			}
-			break
-		}
-	}
-
-	var (
-		collectingMissingCriteria bool
-		collectingImprovements    bool
-	)
-
-	for _, line := range lines {
-		trimmedLine := strings.TrimSpace(line)
-
-		if strings.HasPrefix(trimmedLine, "⚠️") {
-			switch {
-			case strings.Contains(trimmedLine, s.trans.GetMessage("gemini_service.criteria_fully_met_prefix", 0, nil)):
-				suggestion.RequirementsAnalysis.CriteriaStatus = models.CriteriaFullyMet
-			case strings.Contains(trimmedLine, s.trans.GetMessage("gemini_service.criteria_partially_met_prefix", 0, nil)):
-				suggestion.RequirementsAnalysis.CriteriaStatus = models.CriteriaPartiallyMet
-			default:
-				suggestion.RequirementsAnalysis.CriteriaStatus = models.CriteriaNotMet
-			}
-			continue
-		}
-
-		if strings.HasPrefix(trimmedLine, "❌") {
-			collectingMissingCriteria = true
-			collectingImprovements = false
-			continue
-		}
-
-		if strings.HasPrefix(trimmedLine, "💡") {
-			collectingMissingCriteria = false
-			collectingImprovements = true
-			continue
-		}
-
-		if collectingMissingCriteria && strings.HasPrefix(trimmedLine, "-") {
-			criteria := strings.TrimSpace(strings.TrimPrefix(trimmedLine, "-"))
-			suggestion.RequirementsAnalysis.MissingCriteria = append(
-				suggestion.RequirementsAnalysis.MissingCriteria,
-				criteria,
-			)
-		}
-
-		if collectingImprovements && strings.HasPrefix(trimmedLine, "-") {
-			improvement := strings.TrimSpace(strings.TrimPrefix(trimmedLine, "-"))
-			suggestion.RequirementsAnalysis.ImprovementSuggestions = append(
-				suggestion.RequirementsAnalysis.ImprovementSuggestions,
-				improvement,
-			)
-		}
-
-		if trimmedLine == "" || strings.HasPrefix(trimmedLine, "📊") ||
-			strings.HasPrefix(trimmedLine, "📝") {
-			collectingMissingCriteria = false
-			collectingImprovements = false
-		}
-	}
-
-	return suggestion
 }
 
 // ensureIssueReference asegura que todas las sugerencias incluyan la referencia al issue correcta
@@ -320,4 +299,8 @@ func (s *GeminiService) ensureIssueReference(suggestions []models.CommitSuggesti
 	}
 
 	return suggestions
+}
+
+func float32Ptr(f float32) *float32 {
+	return &f
 }

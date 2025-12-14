@@ -9,4 +9,5 @@ type Issue struct {
 	Labels      []string
 	Author      string
 	URL         string
+	Criteria    []string
 }
