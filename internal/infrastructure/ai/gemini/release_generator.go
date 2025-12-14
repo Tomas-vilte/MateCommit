@@ -2,6 +2,7 @@ package gemini
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -22,6 +23,14 @@ type ReleaseNotesGenerator struct {
 	lang   string
 	owner  string
 	repo   string
+}
+
+type ReleaseNotesJSON struct {
+	Title           string   `json:"title"`
+	Summary         string   `json:"summary"`
+	Highlights      []string `json:"highlights"`
+	BreakingChanges []string `json:"breaking_changes"`
+	Contributors    string   `json:"contributors"`
 }
 
 func NewReleaseNotesGenerator(ctx context.Context, cfg *config.Config, trans *i18n.Translations, owner, repo string) (*ReleaseNotesGenerator, error) {
@@ -55,7 +64,13 @@ func NewReleaseNotesGenerator(ctx context.Context, cfg *config.Config, trans *i1
 func (g *ReleaseNotesGenerator) GenerateNotes(ctx context.Context, release *models.Release) (*models.ReleaseNotes, error) {
 	prompt := g.buildPrompt(release)
 
-	resp, err := g.client.Models.GenerateContent(ctx, g.model, genai.Text(prompt), nil)
+	genConfig := &genai.GenerateContentConfig{
+		Temperature:      float32Ptr(0.3),
+		MaxOutputTokens:  int32(10000),
+		ResponseMIMEType: "application/json",
+	}
+
+	resp, err := g.client.Models.GenerateContent(ctx, g.model, genai.Text(prompt), genConfig)
 	if err != nil {
 		msg := g.trans.GetMessage("error_generating_release_notes", 0, map[string]interface{}{
 			"Error": err,
@@ -72,9 +87,13 @@ func (g *ReleaseNotesGenerator) GenerateNotes(ctx context.Context, release *mode
 	for _, part := range resp.Candidates[0].Content.Parts {
 		content += part.Text
 	}
-	parseResponse, _ := g.parseResponse(content, release)
 
-	return parseResponse, nil
+	notes, err := g.parseJSONResponse(content, release)
+	if err != nil {
+		return nil, fmt.Errorf("error al parsear respuesta JSON de release notes: %w", err)
+	}
+
+	return notes, nil
 }
 
 func (g *ReleaseNotesGenerator) buildPrompt(release *models.Release) string {
@@ -95,8 +114,10 @@ func (g *ReleaseNotesGenerator) buildPrompt(release *models.Release) string {
 func (g *ReleaseNotesGenerator) formatChangesForPrompt(release *models.Release) string {
 	var sb strings.Builder
 
+	headers := ai.GetReleaseNotesSectionHeaders(g.lang)
+
 	if len(release.Breaking) > 0 {
-		sb.WriteString("BREAKING CHANGES:\n")
+		sb.WriteString(fmt.Sprintf("%s\n", headers["breaking"]))
 		for _, item := range release.Breaking {
 			sb.WriteString(fmt.Sprintf("- %s: %s\n", item.Type, item.Description))
 		}
@@ -104,7 +125,7 @@ func (g *ReleaseNotesGenerator) formatChangesForPrompt(release *models.Release) 
 	}
 
 	if len(release.Features) > 0 {
-		sb.WriteString("NEW FEATURES:\n")
+		sb.WriteString(fmt.Sprintf("%s\n", headers["features"]))
 		for _, item := range release.Features {
 			sb.WriteString(fmt.Sprintf("- %s: %s\n", item.Type, item.Description))
 		}
@@ -112,7 +133,7 @@ func (g *ReleaseNotesGenerator) formatChangesForPrompt(release *models.Release) 
 	}
 
 	if len(release.BugFixes) > 0 {
-		sb.WriteString("BUG FIXES:\n")
+		sb.WriteString(fmt.Sprintf("%s\n", headers["fixes"]))
 		for _, item := range release.BugFixes {
 			sb.WriteString(fmt.Sprintf("- %s: %s\n", item.Type, item.Description))
 		}
@@ -120,7 +141,7 @@ func (g *ReleaseNotesGenerator) formatChangesForPrompt(release *models.Release) 
 	}
 
 	if len(release.Improvements) > 0 {
-		sb.WriteString("IMPROVEMENTS:\n")
+		sb.WriteString(fmt.Sprintf("%s\n", headers["improvements"]))
 		for _, item := range release.Improvements {
 			sb.WriteString(fmt.Sprintf("- %s: %s\n", item.Type, item.Description))
 		}
@@ -128,7 +149,7 @@ func (g *ReleaseNotesGenerator) formatChangesForPrompt(release *models.Release) 
 	}
 
 	if len(release.ClosedIssues) > 0 {
-		sb.WriteString("CLOSED ISSUES:\n")
+		sb.WriteString(fmt.Sprintf("%s\n", headers["closed_issues"]))
 		for _, issue := range release.ClosedIssues {
 			sb.WriteString(fmt.Sprintf("- #%d: %s (by @%s)\n", issue.Number, issue.Title, issue.Author))
 		}
@@ -136,7 +157,7 @@ func (g *ReleaseNotesGenerator) formatChangesForPrompt(release *models.Release) 
 	}
 
 	if len(release.MergedPRs) > 0 {
-		sb.WriteString("MERGED PULL REQUESTS:\n")
+		sb.WriteString(fmt.Sprintf("%s\n", headers["merged_prs"]))
 		for _, pr := range release.MergedPRs {
 			sb.WriteString(fmt.Sprintf("- #%d: %s (by @%s)\n", pr.Number, pr.Title, pr.Author))
 			if pr.Description != "" {
@@ -150,7 +171,7 @@ func (g *ReleaseNotesGenerator) formatChangesForPrompt(release *models.Release) 
 	}
 
 	if len(release.Contributors) > 0 {
-		sb.WriteString(fmt.Sprintf("CONTRIBUTORS (%d total):\n", len(release.Contributors)))
+		sb.WriteString(fmt.Sprintf("%s (%d total):\n", headers["contributors"], len(release.Contributors)))
 		for _, contributor := range release.Contributors {
 			sb.WriteString(fmt.Sprintf("- @%s\n", contributor))
 		}
@@ -161,7 +182,7 @@ func (g *ReleaseNotesGenerator) formatChangesForPrompt(release *models.Release) 
 	}
 
 	if release.FileStats.FilesChanged > 0 {
-		sb.WriteString("FILE STATISTICS:\n")
+		sb.WriteString(fmt.Sprintf("%s\n", headers["file_stats"]))
 		sb.WriteString(fmt.Sprintf("- Files changed: %d\n", release.FileStats.FilesChanged))
 		sb.WriteString(fmt.Sprintf("- Insertions: +%d\n", release.FileStats.Insertions))
 		sb.WriteString(fmt.Sprintf("- Deletions: -%d\n", release.FileStats.Deletions))
@@ -175,7 +196,7 @@ func (g *ReleaseNotesGenerator) formatChangesForPrompt(release *models.Release) 
 	}
 
 	if len(release.Dependencies) > 0 {
-		sb.WriteString("DEPENDENCY UPDATES:\n")
+		sb.WriteString(fmt.Sprintf("%s\n", headers["deps"]))
 		for _, dep := range release.Dependencies {
 			switch dep.Type {
 			case "updated":
@@ -192,147 +213,29 @@ func (g *ReleaseNotesGenerator) formatChangesForPrompt(release *models.Release) 
 	return sb.String()
 }
 
-func (g *ReleaseNotesGenerator) parseResponse(content string, release *models.Release) (*models.ReleaseNotes, error) {
-	lines := strings.Split(content, "\n")
+func (g *ReleaseNotesGenerator) parseJSONResponse(content string, release *models.Release) (*models.ReleaseNotes, error) {
+	content = strings.TrimSpace(content)
+	content = strings.TrimPrefix(content, "```json")
+	content = strings.TrimPrefix(content, "```")
+	content = strings.TrimSuffix(content, "```")
+	content = strings.TrimSpace(content)
+
+	var jsonNotes ReleaseNotesJSON
+	if err := json.Unmarshal([]byte(content), &jsonNotes); err != nil {
+		return nil, fmt.Errorf("error al parsear JSON de release notes: %w", err)
+	}
 
 	notes := &models.ReleaseNotes{
-		Recommended: release.VersionBump,
-		Links:       make(map[string]string),
+		Title:           jsonNotes.Title,
+		Summary:         jsonNotes.Summary,
+		Highlights:      jsonNotes.Highlights,
+		BreakingChanges: jsonNotes.BreakingChanges,
+		Recommended:     release.VersionBump,
+		Links:           make(map[string]string),
 	}
 
-	var (
-		inHighlights      bool
-		inSummary         bool
-		inQuickStart      bool
-		inBreakingChanges bool
-		inExample         bool
-		inComparison      bool
-		inLinks           bool
-		currentExample    *models.CodeExample
-		currentComparison *models.Comparison
-		quickStartLines   []string
-		summaryLines      []string
-	)
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-
-		if !inExample && (strings.HasPrefix(trimmed, "TITLE:") || strings.HasPrefix(trimmed, "TÍTULO:")) {
-			notes.Title = strings.TrimSpace(strings.TrimPrefix(trimmed, "TITLE:"))
-			notes.Title = strings.TrimSpace(strings.TrimPrefix(notes.Title, "TÍTULO:"))
-			inHighlights, inSummary, inQuickStart, inBreakingChanges, inExample, inComparison, inLinks = false, false, false, false, false, false, false
-		} else if strings.HasPrefix(trimmed, "SUMMARY:") || strings.HasPrefix(trimmed, "RESUMEN:") {
-			inSummary = true
-			inHighlights, inQuickStart, inBreakingChanges, inExample, inComparison, inLinks = false, false, false, false, false, false
-			content := strings.TrimSpace(strings.TrimPrefix(trimmed, "SUMMARY:"))
-			content = strings.TrimSpace(strings.TrimPrefix(content, "RESUMEN:"))
-			if content != "" {
-				summaryLines = append(summaryLines, content)
-			}
-		} else if strings.HasPrefix(trimmed, "HIGHLIGHTS:") {
-			inHighlights = true
-			inSummary, inQuickStart, inBreakingChanges, inExample, inComparison, inLinks = false, false, false, false, false, false
-		} else if strings.HasPrefix(trimmed, "QUICK_START:") {
-			inQuickStart = true
-			inHighlights, inSummary, inBreakingChanges, inExample, inComparison, inLinks = false, false, false, false, false, false
-		} else if strings.HasPrefix(trimmed, "EXAMPLES:") {
-			inExample = true
-			inHighlights, inSummary, inQuickStart, inBreakingChanges, inComparison, inLinks = false, false, false, false, false, false
-		} else if strings.HasPrefix(trimmed, "BREAKING_CHANGES:") {
-			inBreakingChanges = true
-			inHighlights, inSummary, inQuickStart, inExample, inComparison, inLinks = false, false, false, false, false, false
-		} else if strings.HasPrefix(trimmed, "COMPARISONS:") {
-			inComparison = true
-			inHighlights, inSummary, inQuickStart, inBreakingChanges, inExample, inLinks = false, false, false, false, false, false
-		} else if strings.HasPrefix(trimmed, "LINKS:") {
-			inLinks = true
-			inHighlights, inSummary, inQuickStart, inBreakingChanges, inExample, inComparison = false, false, false, false, false, false
-		} else if inSummary && trimmed != "" {
-			summaryLines = append(summaryLines, trimmed)
-		} else if inHighlights && strings.HasPrefix(trimmed, "-") {
-			highlight := strings.TrimSpace(strings.TrimPrefix(trimmed, "-"))
-			if highlight != "" {
-				notes.Highlights = append(notes.Highlights, highlight)
-			}
-		} else if inQuickStart && trimmed != "" {
-			quickStartLines = append(quickStartLines, line)
-		} else if inBreakingChanges && strings.HasPrefix(trimmed, "-") {
-			bc := strings.TrimSpace(strings.TrimPrefix(trimmed, "-"))
-			if bc != "" && !strings.EqualFold(bc, "ninguno") && !strings.EqualFold(bc, "none") {
-				notes.BreakingChanges = append(notes.BreakingChanges, bc)
-			}
-		} else if inExample {
-			if strings.HasPrefix(trimmed, "EXAMPLE_") {
-				if currentExample != nil {
-					notes.Examples = append(notes.Examples, *currentExample)
-				}
-				currentExample = &models.CodeExample{}
-			} else if currentExample != nil {
-				if strings.HasPrefix(trimmed, "TITLE:") {
-					currentExample.Title = strings.TrimSpace(strings.TrimPrefix(trimmed, "TITLE:"))
-				} else if strings.HasPrefix(trimmed, "DESCRIPTION:") {
-					currentExample.Description = strings.TrimSpace(strings.TrimPrefix(trimmed, "DESCRIPTION:"))
-				} else if strings.HasPrefix(trimmed, "LANGUAGE:") {
-					currentExample.Language = strings.TrimSpace(strings.TrimPrefix(trimmed, "LANGUAGE:"))
-				} else if strings.HasPrefix(trimmed, "CODE:") {
-					codeContent := strings.TrimSpace(strings.TrimPrefix(trimmed, "CODE:"))
-					if strings.HasPrefix(codeContent, "```") {
-						codeContent = ""
-					}
-					currentExample.Code = codeContent
-				} else if trimmed != "" && !strings.HasPrefix(trimmed, "EXAMPLE_") && !strings.HasPrefix(trimmed, "BREAKING_") && !strings.HasPrefix(trimmed, "COMPARISONS:") && !strings.HasPrefix(trimmed, "LINKS:") {
-					if trimmed == "```" || strings.HasPrefix(trimmed, "```") {
-					} else if currentExample.Code == "" {
-						currentExample.Code = line
-					} else {
-						currentExample.Code += "\n" + line
-					}
-				}
-			}
-		} else if inComparison {
-			if strings.HasPrefix(trimmed, "COMPARISON_") {
-				if currentComparison != nil {
-					notes.Comparisons = append(notes.Comparisons, *currentComparison)
-				}
-				currentComparison = &models.Comparison{}
-			} else if currentComparison != nil {
-				if strings.HasPrefix(trimmed, "FEATURE:") {
-					currentComparison.Feature = strings.TrimSpace(strings.TrimPrefix(trimmed, "FEATURE:"))
-				} else if strings.HasPrefix(trimmed, "BEFORE:") {
-					currentComparison.Before = strings.TrimSpace(strings.TrimPrefix(trimmed, "BEFORE:"))
-				} else if strings.HasPrefix(trimmed, "AFTER:") {
-					currentComparison.After = strings.TrimSpace(strings.TrimPrefix(trimmed, "AFTER:"))
-				}
-			}
-		} else if inLinks {
-			parts := strings.SplitN(trimmed, ":", 2)
-			if len(parts) == 2 {
-				key := strings.TrimSpace(parts[0])
-				value := strings.TrimSpace(parts[1])
-				if key != "" && value != "" {
-					notes.Links[key] = value
-				}
-			}
-		}
-	}
-
-	if currentExample != nil {
-		notes.Examples = append(notes.Examples, *currentExample)
-	}
-	if currentComparison != nil {
-		notes.Comparisons = append(notes.Comparisons, *currentComparison)
-	}
-
-	if len(quickStartLines) > 0 {
-		notes.QuickStart = strings.Join(quickStartLines, "\n")
-	}
-
-	if len(summaryLines) > 0 {
-		notes.Summary = strings.Join(summaryLines, " ")
-	}
-
-	if notes.Title == "" {
-		notes.Title = fmt.Sprintf("Version %s", release.Version)
+	if jsonNotes.Contributors != "" && jsonNotes.Contributors != "N/A" {
+		notes.Links["Contributors"] = jsonNotes.Contributors
 	}
 
 	return notes, nil

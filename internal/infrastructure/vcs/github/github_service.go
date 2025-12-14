@@ -504,6 +504,9 @@ func (ghc *GitHubClient) GetIssue(ctx context.Context, issueNumber int) (*models
 		url = *issue.HTMLURL
 	}
 
+	// Extract acceptance criteria from body markdown
+	criteria := extractAcceptanceCriteria(description)
+
 	return &models.Issue{
 		ID:          int(issue.GetID()),
 		Number:      issue.GetNumber(),
@@ -513,7 +516,26 @@ func (ghc *GitHubClient) GetIssue(ctx context.Context, issueNumber int) (*models
 		Labels:      labels,
 		Author:      author,
 		URL:         url,
+		Criteria:    criteria,
 	}, nil
+}
+
+func extractAcceptanceCriteria(body string) []string {
+	var criteria []string
+	lines := strings.Split(body, "\n")
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		if strings.HasPrefix(trimmed, "- [ ]") || strings.HasPrefix(trimmed, "- [x]") {
+			criterion := strings.TrimSpace(trimmed[5:])
+			if criterion != "" {
+				criteria = append(criteria, criterion)
+			}
+		}
+	}
+
+	return criteria
 }
 
 func (ghc *GitHubClient) GetFileAtTag(ctx context.Context, tag, filepath string) (string, error) {
