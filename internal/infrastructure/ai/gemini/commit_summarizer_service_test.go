@@ -2,6 +2,7 @@ package gemini
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
@@ -12,26 +13,32 @@ import (
 )
 
 const (
-	responseText = `📊 Análisis de Código:
-- Resumen de Cambios: Mejora en el manejo de la configuración de Jira y la presentación de sugerencias de commit.
-- Propósito Principal: Mejorar la experiencia del usuario al mostrar información más detallada.
-- Impacto Técnico: Se modifican varias partes del código para mejorar la estructura.
-
-📝 Sugerencias:
-Commit: refactor: Mejoras en la presentación de sugerencias y configuración de Jira
-📄 Archivos modificados:
-   - cmd/main.go
-   - internal/cli/command/config/set_jira_config.go
-Explicación: Se mejoró la salida de sugerencias y el manejo de errores en la configuración de Jira.
-
-🎯 Análisis de Criterios de Aceptación:
-⚠️ Estado de los Criterios: Cumplimiento Parcial
-❌ Criterios Faltantes:
-   - Conexión a la API de Jira
-   - Extracción de Tickets
-💡 Sugerencias de Mejora:
-   - Implementar manejo de errores para token expirado
-   - Agregar retry mechanism para API no disponible`
+	responseJSON = `[
+	{
+		"title": "refactor: Mejoras en la presentación de sugerencias y configuración de Jira",
+		"desc": "Se mejoró la salida de sugerencias y el manejo de errores en la configuración de Jira.",
+		"files": [
+			"cmd/main.go",
+			"internal/cli/command/config/set_jira_config.go"
+		],
+		"analysis": {
+			"overview": "Mejora en el manejo de la configuración de Jira y la presentación de sugerencias de commit.",
+			"purpose": "Mejorar la experiencia del usuario al mostrar información más detallada.",
+			"impact": "Se modifican varias partes del código para mejorar la estructura."
+		},
+		"requirements": {
+			"status": "partially_met",
+			"missing": [
+				"Conexión a la API de Jira",
+				"Extracción de Tickets"
+			],
+			"suggestions": [
+				"Implementar manejo de errores para token expirado",
+				"Agregar retry mechanism para API no disponible"
+			]
+		}
+	}
+]`
 )
 
 func TestGeminiService(t *testing.T) {
@@ -125,7 +132,7 @@ func TestGeminiService(t *testing.T) {
 		}
 	})
 
-	t.Run("ParseSuggestions correct format", func(t *testing.T) {
+	t.Run("ParseSuggestionsJSON correct format", func(t *testing.T) {
 		// arrange
 		ctx := context.Background()
 		cfg := &config.Config{
@@ -142,7 +149,7 @@ func TestGeminiService(t *testing.T) {
 				{
 					Content: &genai.Content{
 						Parts: []*genai.Part{
-							{Text: responseText},
+							{Text: responseJSON},
 						},
 					},
 				},
@@ -150,9 +157,10 @@ func TestGeminiService(t *testing.T) {
 		}
 
 		// act
-		suggestions := service.parseSuggestions(resp)
+		suggestions, err := service.parseSuggestionsJSON(resp)
 
 		// assert
+		assert.NoError(t, err)
 		assert.Equal(t, 1, len(suggestions), "Se esperaba 1 sugerencia")
 		if len(suggestions) > 0 {
 			suggestion := suggestions[0]
@@ -220,12 +228,11 @@ func TestGeminiService(t *testing.T) {
 
 		// assert
 		assert.Contains(t, prompt, "commit", "El prompt debería contener 'commit'")
-		assert.Contains(t, prompt, "Archivos modificados", "El prompt debería contener 'Archivos modificados'")
-		assert.Contains(t, prompt, "Explicación", "El prompt debería contener 'Explicación'")
-		assert.Contains(t, prompt, "🔍", "El prompt debería contener el emoji de análisis")
-		assert.Contains(t, prompt, "feat:", "El prompt debería contener tipos de commit")
-		assert.Contains(t, prompt, "fix:", "El prompt debería contener tipos de commit")
-		assert.Contains(t, prompt, "refactor:", "El prompt debería contener tipos de commit")
+		assert.Contains(t, prompt, "Archivos Modificados", "El prompt debería contener 'Archivos modificados'")
+		assert.Contains(t, prompt, "explicación", "El prompt debería contener 'Explicación'")
+		assert.Contains(t, prompt, "feat", "El prompt debería contener tipos de commit")
+		assert.Contains(t, prompt, "fix", "El prompt debería contener tipos de commit")
+		assert.Contains(t, prompt, "refactor", "El prompt debería contener tipos de commit")
 	})
 
 	t.Run("generatePrompt with en locale", func(t *testing.T) {
@@ -252,12 +259,11 @@ func TestGeminiService(t *testing.T) {
 
 		// assert
 		assert.Contains(t, prompt, "commit", "The prompt should contain 'commit'")
-		assert.Contains(t, prompt, "Modified files", "The prompt should contain 'Modified files'")
-		assert.Contains(t, prompt, "Explanation", "The prompt should contain 'Explanation'")
-		assert.Contains(t, prompt, "🔍", "The prompt should contain the analysis emoji")
-		assert.Contains(t, prompt, "feat:", "The prompt should contain commit types")
-		assert.Contains(t, prompt, "fix:", "The prompt should contain commit types")
-		assert.Contains(t, prompt, "refactor:", "The prompt should contain commit types")
+		assert.Contains(t, prompt, "Modified Files", "The prompt should contain 'Modified files'")
+		assert.Contains(t, prompt, "explanation", "The prompt should contain 'Explanation'")
+		assert.Contains(t, prompt, "feat", "The prompt should contain commit types")
+		assert.Contains(t, prompt, "fix", "The prompt should contain commit types")
+		assert.Contains(t, prompt, "refactor", "The prompt should contain commit types")
 	})
 
 	t.Run("generatePrompt with en locale", func(t *testing.T) {
@@ -286,30 +292,26 @@ func TestGeminiService(t *testing.T) {
 
 		// assert
 		assert.Contains(t, prompt, "Generate 3 commit message suggestions", "El prompt debe incluir la instrucción de generación")
-		assert.Contains(t, prompt, "Modified files:", "Debe incluir la sección de archivos modificados")
-		assert.Contains(t, prompt, "Diff:", "Debe incluir la sección de diff")
-		assert.Contains(t, prompt, "Technical Analysis:", "Debe incluir la sección de análisis técnico")
-
-		if cfg.UseEmoji {
-			assert.Contains(t, prompt, "🔍", "El prompt debería contener el emoji de análisis si está activado")
-		}
+		assert.Contains(t, prompt, "Modified Files", "Debe incluir la sección de archivos modificados")
+		assert.Contains(t, prompt, "Code Changes", "Debe incluir la sección de diff")
+		assert.Contains(t, prompt, "technical analysis", "Debe incluir la sección de análisis técnico")
 	})
 
-	t.Run("parseSuggestions with nil response", func(t *testing.T) {
+	t.Run("parseSuggestionsJSON with nil response", func(t *testing.T) {
 		// arrange
 		service := &GeminiService{}
 		resp := (*genai.GenerateContentResponse)(nil)
 
 		// act
-		suggestions := service.parseSuggestions(resp)
+		suggestions, err := service.parseSuggestionsJSON(resp)
 
 		// assert
-		if suggestions != nil {
-			t.Errorf("Expected nil, got: %v", suggestions)
-		}
+		assert.Error(t, err)
+		assert.Nil(t, suggestions)
+		assert.Contains(t, err.Error(), "respuesta vacía")
 	})
 
-	t.Run("parseSuggestions with empty candidates", func(t *testing.T) {
+	t.Run("parseSuggestionsJSON with empty candidates", func(t *testing.T) {
 		// arrange
 		service := &GeminiService{}
 		resp := &genai.GenerateContentResponse{
@@ -317,13 +319,15 @@ func TestGeminiService(t *testing.T) {
 		}
 
 		// act
-		suggestions := service.parseSuggestions(resp)
+		suggestions, err := service.parseSuggestionsJSON(resp)
+
 		// assert
-		if suggestions != nil {
-			t.Errorf("Expected nil, got: %v", suggestions)
-		}
+		assert.Error(t, err)
+		assert.Nil(t, suggestions)
+		assert.Contains(t, err.Error(), "respuesta vacía")
 	})
-	t.Run("ParseSuggestions with rename format", func(t *testing.T) {
+
+	t.Run("parseSuggestionsJSON with invalid JSON", func(t *testing.T) {
 		// arrange
 		ctx := context.Background()
 		cfg := &config.Config{
@@ -332,32 +336,63 @@ func TestGeminiService(t *testing.T) {
 		trans, _ := i18n.NewTranslations("es", "../../../i18n/locales/")
 		service, _ := NewGeminiService(ctx, cfg, trans)
 
-		responseTextWithRename := `📊 Análisis:
-- Resumen: Renamed file.
-- Propósito: Test rename.
-- Impacto: Low.
-
-📝 Sugerencias:
-Commit: refactor: Rename file
-📄 Archivos modificados:
-   - old/path/file.go -> new/path/file.go
-Explicación: Renaming file.
-`
-
 		resp := &genai.GenerateContentResponse{
 			Candidates: []*genai.Candidate{
-				{Content: &genai.Content{Parts: []*genai.Part{{Text: responseTextWithRename}}}},
+				{Content: &genai.Content{Parts: []*genai.Part{{Text: "invalid json"}}}},
 			},
 		}
 
 		// act
-		suggestions := service.parseSuggestions(resp)
+		suggestions, err := service.parseSuggestionsJSON(resp)
 
 		// assert
-		assert.Equal(t, 1, len(suggestions))
-		if len(suggestions) > 0 {
-			assert.Contains(t, suggestions[0].Files, "new/path/file.go")
-			assert.NotContains(t, suggestions[0].Files, "old/path/file.go -> new/path/file.go")
+		assert.Error(t, err)
+		assert.Nil(t, suggestions)
+		assert.Contains(t, err.Error(), "parsear JSON")
+	})
+
+	t.Run("parseSuggestionsJSON status passthrough", func(t *testing.T) {
+		// arrange
+		ctx := context.Background()
+		cfg := &config.Config{GeminiAPIKey: "test-api-key"}
+		trans, _ := i18n.NewTranslations("es", "../../../i18n/locales/")
+		service, _ := NewGeminiService(ctx, cfg, trans)
+
+		testCases := []struct {
+			inputStatus    string
+			expectedStatus models.CriteriaStatus
+		}{
+			{"full_met", models.CriteriaFullyMet},
+			{"partially_met", models.CriteriaPartiallyMet},
+			{"not_met", models.CriteriaNotMet},
+			{"unknown_status", models.CriteriaStatus("unknown_status")},
+		}
+
+		for _, tc := range testCases {
+			jsonStr := fmt.Sprintf(`[{
+				"title": "test",
+				"desc": "test",
+				"files": ["test.go"],
+				"requirements": {
+					"status": "%s",
+					"missing": [],
+					"suggestions": []
+				}
+			}]`, tc.inputStatus)
+
+			resp := &genai.GenerateContentResponse{
+				Candidates: []*genai.Candidate{
+					{Content: &genai.Content{Parts: []*genai.Part{{Text: jsonStr}}}},
+				},
+			}
+
+			// act
+			suggestions, err := service.parseSuggestionsJSON(resp)
+
+			// assert
+			assert.NoError(t, err)
+			assert.NotEmpty(t, suggestions)
+			assert.Equal(t, tc.expectedStatus, suggestions[0].RequirementsAnalysis.CriteriaStatus, "Fallo passthrough para: %s", tc.inputStatus)
 		}
 	})
 }

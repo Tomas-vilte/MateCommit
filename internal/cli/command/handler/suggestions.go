@@ -49,24 +49,32 @@ func (h *SuggestionHandler) displaySuggestions(suggestions []models.CommitSugges
 			fmt.Printf("   - %s\n", file)
 		}
 		fmt.Printf("%s %s\n", h.t.GetMessage("gemini_service.explanation_prefix", 0, nil), suggestion.Explanation)
+		fmt.Println()
 
 		if suggestion.RequirementsAnalysis.CriteriaStatus != "" {
-			fmt.Printf("\n%s\n", h.t.GetMessage("gemini_service.requirements_analysis_prefix", 0, nil))
+			fmt.Printf("%s\n", h.t.GetMessage("gemini_service.requirements_analysis_prefix", 0, nil))
 			statusMsg := h.t.GetMessage("gemini_service.criteria_status_full", 0, map[string]interface{}{
 				"Status": h.getCriteriaStatusText(suggestion.RequirementsAnalysis.CriteriaStatus),
 			})
-			fmt.Printf("%s", statusMsg)
+			fmt.Printf("%s\n", statusMsg)
+			fmt.Println()
 
 			if len(suggestion.RequirementsAnalysis.MissingCriteria) > 0 {
 				fmt.Printf("\n%s", h.t.GetMessage("gemini_service.missing_criteria_prefix", 0, nil))
 				for _, criteria := range suggestion.RequirementsAnalysis.MissingCriteria {
 					fmt.Printf("\n   - %s\n", criteria)
 				}
-			} else {
-				fmt.Println(h.t.GetMessage("gemini_service.missing_criteria_none", 0, nil))
+			}
+
+			if len(suggestion.RequirementsAnalysis.ImprovementSuggestions) > 0 {
+				fmt.Printf("\n%s", h.t.GetMessage("gemini_service.improvement_suggestions_prefix", 0, nil))
+				for _, improvement := range suggestion.RequirementsAnalysis.ImprovementSuggestions {
+					fmt.Printf("\n   - %s", improvement)
+				}
+				fmt.Println()
 			}
 		} else {
-			fmt.Printf("\n%s\n", h.t.GetMessage("gemini_service.technical_analysis_section", 0, nil))
+			fmt.Printf("%s\n", h.t.GetMessage("gemini_service.technical_analysis_section", 0, nil))
 			if len(suggestion.RequirementsAnalysis.ImprovementSuggestions) > 0 {
 				fmt.Println(h.t.GetMessage("gemini_service.improvement_suggestions_label", 0, nil))
 				for _, improvement := range suggestion.RequirementsAnalysis.ImprovementSuggestions {
