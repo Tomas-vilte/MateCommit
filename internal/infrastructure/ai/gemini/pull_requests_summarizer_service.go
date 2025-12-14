@@ -55,7 +55,6 @@ func NewGeminiPRSummarizer(ctx context.Context, cfg *config.Config, trans *i18n.
 func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prContent string) (models.PRSummary, error) {
 	modelName := string(gps.config.AIConfig.Models[config.AIGemini])
 
-	// Envolver el contenido del PR en el template con instrucciones de formato JSON
 	prompt := gps.generatePRPrompt(prContent)
 
 	genConfig := &genai.GenerateContentConfig{
@@ -85,7 +84,6 @@ func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prContent 
 		return models.PRSummary{}, fmt.Errorf("error al parsear JSON de PR: %w", err)
 	}
 
-	// Validar que el título no esté vacío
 	if strings.TrimSpace(jsonSummary.Title) == "" {
 		respLen := len(responseText)
 		preview := responseText
