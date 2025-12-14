@@ -30,441 +30,282 @@ const (
 
 // Templates para Pull Requests
 const (
-	prPromptTemplateEN = `Hey, could you whip up a summary for this PR with:
+	prPromptTemplateEN = `# Task
+  Generate a comprehensive Pull Request summary.
 
-	## PR Title
-	A short title (max 80 chars). Example: "fix: Image loading error"
-	
-	## Key Changes
-	- The 3 main changes
-	- Purpose of each one
-	- Technical impact if applicable
-	
-	## Suggested Tags
-	Comma-separated. Options: feature, fix, refactor, docs, infra, test. Example: fix,infra
-	
-	PR Content:
-	%s
-	
-	Thanks a bunch, you rock!`
+  # PR Content
+  %s
 
-	prPromptTemplateES = `Che, armame un resumen de este PR con:
+  # Instructions
+  1. Create concise title (max 80 chars)
+  2. Identify 3-5 key changes with purpose and impact
+  3. Suggest relevant labels from: feature, fix, refactor, docs, infra, test, breaking-change
 
-	## Título del PR
-	Un título corto (máx 40 caracteres). Ej: "fix: Error al cargar imágenes"
-	
-	## Cambios clave
-	- Los 3 cambios principales
-	- El propósito de cada uno
-	- Impacto técnico si aplica
-	
-	## Etiquetas sugeridas
-	Separadas por coma. Opciones: feature, fix, refactor, docs, infra, test. Ej: fix,infra
-	
-	Contenido del PR:
-	%s
-	
-	¡Gracias máquina!`
+  # Output Format
+  Respond with ONLY valid JSON:
+  {
+    "title": "PR title here",
+    "body": "Detailed markdown body with:\n- Overview\n- Key changes\n- Technical impact",
+    "labels": ["label1", "label2"]
+  }
+
+  Generate the summary now.`
+
+	prPromptTemplateES = `# Tarea
+  Genera un resumen completo del Pull Request.
+
+  # Contenido del PR
+  %s
+
+  # Instrucciones
+  1. Crea un título conciso (máx 80 caracteres)
+  2. Identifica 3-5 cambios clave con propósito e impacto
+  3. Sugiere etiquetas relevantes de: feature, fix, refactor, docs, infra, test, breaking-change
+
+  # Formato de Salida
+  IMPORTANTE: Responde en ESPAÑOL. Todo el contenido del JSON debe estar en español.
+
+  Responde SOLO con JSON válido:
+  {
+    "title": "título del PR",
+    "body": "cuerpo detallado en markdown con:\n- Resumen\n- Cambios clave\n- Impacto técnico",
+    "labels": ["etiqueta1", "etiqueta2"]
+  }
+
+  Genera el resumen ahora.`
 )
 
 // Templates para Commits con ticket
 const (
-	promptTemplateWithTicketEN = `
-    Instructions:
-    1. Generate %d commit message suggestions based on the provided code changes and ticket information.
-    2. Each suggestion MUST follow the format defined in the "Suggestion Format" section.
-    3. **Critically analyze code changes in detail and rigorously compare them against the "Acceptance Criteria" provided in the "Ticket Information" section.**
-    4. **For each acceptance criterion, explicitly determine if it is fully met, partially met, or not met by the code changes.**
-    5. **In the "🎯 Requirements Analysis" section, provide a detailed breakdown of the acceptance criteria status. For each criterion that is NOT fully met, list it under "❌ Missing Criteria" and provide specific, actionable improvement suggestions under "💡 Improvement Suggestions" to fully meet the criterion.**
-    6. Use appropriate commit types:
-        - feat: New features
-        - fix: Bug fixes
-        - refactor: Code restructuring
-        - test: Adding or modifying tests
-        - docs: Documentation updates
-        - chore: Maintenance tasks
-    7. Keep commit messages under 100 characters.
-    8. Provide specific, actionable improvement suggestions, especially related to meeting acceptance criteria.
-    9. **IMPORTANT - Issue/Ticket References:** %s
+	promptTemplateWithTicketEN = `# Task
+  Generate %d commit message suggestions based on code changes and ticket requirements.
 
-    Suggestion Format:
-    =========[ Suggestion ]=========
-    [number]. [Ordinal] suggestion:
-    🔍 Analyzing changes...
+  # Modified Files
+  %s
 
-    📊 Code Analysis:
-    - Changes Overview: [Brief overview of what changed in the code]
-    - Primary Purpose: [Main goal of these changes]
-    - Technical Impact: [How these changes affect the codebase]
+  # Code Changes
+  %s
 
-    📝 Suggestions:
-    ━━━━━━━━━━━━━━━━━━━━━━━
-    Commit: [type]: [message]
-    📄 Modified files:
-       - [list of modified files, separated by newline and indented]
-    Explanation: [commit explanation]
+  # Ticket Context
+  %s
 
-    🎯 Requirements Analysis:
-    ⚠️ Criteria Status Overview: [Overall status: e.g., "Partially Met - Some criteria are pending."]
-    ❌ Missing Criteria:
-       - [Criterion 1]: [Detailed explanation of why it's missing or partially met]
-       - [Criterion 2]: [Detailed explanation of why it's missing or partially met]
-       - ... (List all criteria not fully met)
-    💡 Improvement Suggestions:
-       - [Suggestion for Criterion 1]: [Specific action to fully meet Criterion 1]
-       - [Suggestion for Criterion 2]: [Specific action to fully meet Criterion 2]
-       - ... (Suggestions for all missing/partially met criteria)
-    ━━━━━━━━━━━━━━━━━━━━━━━
+  # Issue Reference Instructions
+  %s
 
-    Now, generate %d similar suggestions based on the following information.
+  # Instructions
+  1. Analyze changes against acceptance criteria
+  2. Use conventional commit types: feat, fix, refactor, test, docs, chore
+  3. Keep commit messages under 100 characters
+  4. Include issue reference if provided
 
-    Modified files:
-    %s
+  # Output Format
+  Respond with ONLY valid JSON array. Each suggestion must have:
+  {
+    "title": "commit message",
+    "desc": "detailed explanation", 
+    "files": ["file1.go", "file2.go"],
+    "analysis": {
+      "overview": "brief summary",
+      "purpose": "main goal",
+      "impact": "technical impact"
+    },
+    "requirements": {
+      "status": "full_met | partially_met | not_met",
+      "missing": ["criterion 1", "criterion 2"],
+      "suggestions": ["improvement 1", "improvement 2"]
+    }
+  }
 
-    Diff:
-    %s
+  Generate %d suggestions now.`
 
-    Ticket Information:
-    %s
-    `
+	promptTemplateWithTicketES = `# Tarea
+  Genera %d sugerencias de mensajes de commit basadas en los cambios de código y requisitos del 
+  ticket.
 
-	promptTemplateWithTicketES = `
-    Instrucciones:
-    1. Generá %d sugerencias de mensajes de commit basadas en los cambios de código proporcionados y la información del ticket.
-    2. Cada sugerencia DEBE seguir el formato definido en la sección "Formato de Sugerencia".
-    3. **Analizá críticamente los cambios de código en detalle y comparalos rigurosamente con los "Criterios de Aceptación" proporcionados en la sección "Información del Ticket".**
-    4. **Para cada criterio de aceptación, determiná explícitamente si se cumple completamente, parcialmente o no se cumple con los cambios de código.**
-    5. **En la sección "🎯 Análisis de Criterios de Aceptación", proporcioná un desglose detallado del estado de los criterios de aceptación. Para cada criterio que NO se cumpla completamente, listalo bajo "❌ Criterios Faltantes" y proporcioná sugerencias de mejora específicas y accionables bajo "💡 Sugerencias de Mejora" para cumplir completamente el criterio.**
-    6. Usá tipos de commit apropiados:
-        - feat: Nuevas funcionalidades
-        - fix: Correcciones de bugs
-        - refactor: Reestructuración de código
-        - test: Agregar o modificar pruebas
-        - docs: Actualizaciones de documentación
-        - chore: Tareas de mantenimiento
-    7. Mantené los mensajes de commit en menos de 100 caracteres.
-    8. Proporcioná sugerencias de mejora específicas y accionables, especialmente relacionadas con el cumplimiento de los criterios de aceptación.
-    9. **IMPORTANTE - Referencias de Issues/Tickets:** %s
+  # Archivos Modificados
+  %s
 
-    Formato de Sugerencia:
-    =========[ Sugerencia ]=========
-    [número]. [Ordinal] sugerencia:
-    🔍 Analizando cambios...
+  # Cambios en el Código
+  %s
 
-    📊 Análisis de Código:
-    - Resumen de Cambios: [Breve resumen de qué cambió en el código]
-    - Propósito Principal: [Objetivo principal de estos cambios]
-    - Impacto Técnico: [Cómo estos cambios afectan la base de código]
+  # Contexto del Ticket
+  %s
 
-    📝 Sugerencias:
-    ━━━━━━━━━━━━━━━━━━━━━━━
-    Commit: [tipo]: [mensaje]
-    📄 Archivos modificados:
-       - [lista de archivos modificados, separados por nueva línea e indentados]
-    Explicación: [explicación del commit]
+  # Instrucciones de Referencia de Issues
+  %s
 
-    🎯 Análisis de Criterios de Aceptación:
-    ⚠️ Resumen del Estado de Criterios: [Estado general: ej., "Cumplimiento Parcial - Algunos criterios están pendientes."]
-    ❌ Criterios Faltantes:
-       - [Criterio 1]: [Explicación detallada de por qué falta o se cumple parcialmente]
-       - [Criterio 2]: [Explicación detallada de por qué falta o se cumple parcialmente]
-       - ... (Listar todos los criterios no cumplidos completamente)
-    💡 Sugerencias de Mejora:
-       - [Sugerencia para Criterio 1]: [Acción específica para cumplir completamente el Criterio 1]
-       - [Sugerencia para Criterio 2]: [Acción específica para cumplir completamente el Criterio 2]
-       - ... (Sugerencias para todos los criterios faltantes/parcialmente cumplidos)
-    ━━━━━━━━━━━━━━━━━━━━━━━
+  # Instrucciones
+  1. Analiza los cambios contra los criterios de aceptación
+  2. Usa tipos de commit convencionales: feat, fix, refactor, test, docs, chore
+  3. Mantén los mensajes de commit en menos de 100 caracteres
+  4. Incluye referencia al issue si se proporciona
 
-    Ahora, generá %d sugerencias similares basándote en la siguiente información.
+  # Formato de Salida
+  IMPORTANTE: Responde en ESPAÑOL. Todo el contenido del JSON debe estar en español.
+  EXCEPTO el campo "status" que debe ser uno de los valores permitidos exactos.
 
-    Archivos modificados:
-    %s
+  Responde SOLO con un array JSON válido. Cada sugerencia debe tener:
+  {
+    "title": "mensaje del commit",
+    "desc": "explicación detallada",
+    "files": ["archivo1.go", "archivo2.go"],
+    "analysis": {
+      "overview": "resumen breve",
+      "purpose": "objetivo principal",
+      "impact": "impacto técnico"
+    },
+    "requirements": {
+      "status": "full_met | partially_met | not_met",
+      "missing": ["criterio 1", "criterio 2"],
+      "suggestions": ["mejora 1", "mejora 2"]
+    }
+  }
 
-    Diff:
-    %s
-
-    Información del Ticket:
-    %s
-    `
+  Genera %d sugerencias ahora.`
 )
 
 // Templates para Commits sin ticket
 const (
-	// Template en español sin ticket
-	promptTemplateWithoutTicketES = `
-    Instrucciones:
-    1. Generá %d sugerencias de mensajes de commit basadas en los cambios de código proporcionados.
-    2. Cada sugerencia DEBE seguir el formato definido en la sección "Formato de Sugerencia".
-    3. Analizá los cambios de código en detalle para proporcionar sugerencias precisas.
-    4. Concentrate en aspectos técnicos, mejores prácticas, calidad del código e impacto en la mantenibilidad/rendimiento.
-    5. Usá tipos de commit apropiados:
-        - feat: Nuevas funcionalidades
-        - fix: Correcciones de bugs
-        - refactor: Reestructuración de código
-        - test: Agregar o modificar pruebas
-        - docs: Actualizaciones de documentación
-        - chore: Tareas de mantenimiento
-    6. Mantené los mensajes de commit en menos de 100 caracteres.
-    7. Proporcioná sugerencias de mejora específicas y accionables.
-    8. **IMPORTANTE - Referencias de Issues:** %s
+	promptTemplateWithoutTicketES = `# Tarea
+  Genera %d sugerencias de mensajes de commit basadas en los cambios de código.
 
-    Formato de Sugerencia:
-    =========[ Sugerencia ]=========
-    [número]. [Ordinal] sugerencia:
-    🔍 Analizando cambios...
-    
-    📊 Análisis de Código:
-    - Resumen de Cambios: [Breve resumen de qué cambió en el código]
-    - Propósito Principal: [Objetivo principal de estos cambios]
-    - Impacto Técnico: [Cómo estos cambios afectan la base de código]
-    
-    📝 Sugerencias:
-    ━━━━━━━━━━━━━━━━━━━━━━━
-    Commit: [tipo]: [mensaje]
-    📄 Archivos modificados:
-       - [lista de archivos modificados, separados por nueva línea e indentados]
-    Explicación: [explicación del commit]
-    
-    💭 Análisis Técnico:
-    %s
-    ━━━━━━━━━━━━━━━━━━━━━━━
+  # Archivos Modificados
+  %s
 
-    Ahora, generá %d sugerencias similares basándote en la siguiente información.
+  # Cambios en el Código
+  %s
 
-    Archivos modificados:
-    %s
-    
-    Diff:
-    %s
-    `
+  # Instrucciones de Referencia de Issues
+  %s
 
-	promptTemplateWithoutTicketEN = `
-    Instructions:
-    1. Generate %d commit message suggestions based on the provided code changes.
-    2. Each suggestion MUST follow the format defined in the "Suggestion Format" section.
-    3. Analyze code changes in detail to provide accurate suggestions.
-    4. Focus on technical aspects, best practices, code quality and impact on maintainability/performance.
-    5. Use appropriate commit types:
-        - feat: New features
-        - fix: Bug fixes
-        - refactor: Code restructuring
-        - test: Adding or modifying tests
-        - docs: Documentation updates
-        - chore: Maintenance tasks
-    6. Keep commit messages under 100 characters.
-    7. Provide specific, actionable improvement suggestions.
-    8. **IMPORTANT - Issue References:** %s
+  # Instrucciones
+  1. Analiza los cambios en detalle
+  2. Enfócate en aspectos técnicos y mejores prácticas
+  3. Usa tipos de commit convencionales: feat, fix, refactor, test, docs, chore
+  4. Mantén los mensajes en menos de 100 caracteres
+  5. Incluye referencia al issue si se proporciona
 
-    Suggestion Format:
-    =========[ Suggestion ]=========
-    [number]. [Ordinal] suggestion:
-    🔍 Analyzing changes...
-    
-    📊 Code Analysis:
-    - Changes Overview: [Brief overview of what changed in the code]
-    - Primary Purpose: [Main goal of these changes]
-    - Technical Impact: [How these changes affect the codebase]
-    
-    📝 Suggestions:
-    ━━━━━━━━━━━━━━━━━━━━━━━
-    Commit: [type]: [message]
-    📄 Modified files:
-       - [list of modified files, separated by newline and indented]
-    Explanation: [commit explanation]
-    
-    💭 Technical Analysis:
-    %s
-    ━━━━━━━━━━━━━━━━━━━━━━━
+  # Formato de Salida
+  IMPORTANTE: Responde en ESPAÑOL. Todo el contenido del JSON debe estar en español.
 
-    Now, generate %d similar suggestions based on the following information.
-
-    Modified files:
-    %s
-    
-    Diff:
-    %s
-    `
-)
-
-// Templates para Releases
-const (
-	releasePromptTemplateES = `
-  Sos un desarrollador escribiendo las release notes de tu proyecto en primera persona.
-    Usá un tono técnico pero cercano, explicando qué hiciste en esta versión.
-
-    Repositorio: %s/%s
-    Versión anterior: %s
-    Nueva versión: %s
-    Tipo de bump: %s
-
-    Cambios en este release:
-
-    %s
-
-    IMPORTANTE - CONTEXTO ADICIONAL:
-    El listado anterior incluye no solo commits, sino también:
-    - Issues cerrados: Problemas reportados por usuarios que fueron resueltos
-    - Pull Requests mergeados: Contribuciones de la comunidad o del equipo
-    - Contributors: Personas que participaron en este release
-    - Estadísticas de archivos: Magnitud de los cambios
-    - Actualizaciones de dependencias: Librerías actualizadas
-
-    Usá esta información para:
-    1. Dar crédito a contributors mencionándolos por username (@usuario)
-    2. Referenciar issues/PRs específicos cuando sean relevantes (#123)
-    3. Mencionar áreas del código más afectadas según las estadísticas
-    4. Destacar contribuciones de la comunidad si hay nuevos contributors
-    5. Mencionar upgrades importantes de dependencias si afectan al usuario
-
-    REGLAS DE ESTILO:
-    - Primera persona: "Implementé", "Mejoré", "Arreglé", "Agregué"
-    - Voseo natural: "podés", "tenés", "querés" (en vez de "puedes", "tienes", "quieres")
-    - Expresiones naturales: "mucho más simple", "ahora funciona mejor", "sin vueltas"
-    - Tono profesional pero directo, como si le explicaras a un colega
-    - Sé técnico y preciso, pero accesible
-    - NO uses emojis en el contenido de las release notes
-    - Dá crédito: "Gracias a @usuario por reportar/contribuir"
-
-    REGLAS CRÍTICAS - PREVENCIÓN DE ALUCINACIONES:
-    1. Basate EXCLUSIVAMENTE en los commits, issues, PRs listados arriba
-    2. Si la sección de cambios está vacía o solo tiene cambios menores, escribí un resumen breve y honesto
-    3. NO inventes features, comandos, flags, o funcionalidades que no aparezcan explícitamente
-    4. Solo mencioná issues/PRs que estén en el listado
-    5. Solo mencioná contributors que estén en el listado
-    6. Si no hay suficiente información, sé honesto y simple
-    7. Para EXAMPLES, solo mostrá comandos que realmente existan
-    8. Si los cambios son principalmente internos, decilo claramente
-
-    VALIDACIÓN DE CONTENIDO:
-    Antes de escribir cada sección, preguntate: "¿Este detalle específico está en la información que me pasaron?"
-    Si la respuesta es NO, no lo incluyas.
-
-    Formato de respuesta (IMPORTANTE: Incluí TODAS las secciones):
-    
-    TÍTULO: <título conciso y descriptivo (máximo 60 caracteres)>
-    
-    RESUMEN: <2-3 oraciones en primera persona contando los cambios más importantes. Mencioná contributors clave si corresponde>
-    
-    HIGHLIGHTS:
-    - <highlight 1 en primera persona, basado en commits/PRs/issues reales>
-    - <highlight 2 en primera persona, basado en commits/PRs/issues reales>
-    - <highlight 3 en primera persona, basado en commits/PRs/issues reales>
-    (Si hay nuevos contributors o muchos issues cerrados, podés incluirlo como highlight)
-    
-    QUICK_START:
-    <Instrucciones de instalación/actualización en 2-3 líneas. Usá el repositorio real: github.com/%s/%s>
-    IMPORTANTE: Este proyecto es un CLI de Go. Usá "go install github.com/%s/%s@<version>" para instalación.
-    
-    EXAMPLES:
-    EXAMPLE_1:
-    TITLE: <Título del ejemplo>
-    DESCRIPTION: <Breve descripción de qué hace>
-    LANGUAGE: bash
-    CODE: <código del ejemplo - debe ser un comando real que funcione>
-    
-    EXAMPLE_2:
-    TITLE: <Título del segundo ejemplo>
-    DESCRIPTION: <Breve descripción>
-    LANGUAGE: bash
-    CODE: <código del ejemplo - debe ser un comando real que funcione>
-    
-    BREAKING_CHANGES:
-    - <cambio breaking 1, o "Ninguno" si no hay>
-    
-    COMPARISONS:
-    COMPARISON_1:
-    FEATURE: <nombre de la feature que realmente cambió>
-    BEFORE: <estado anterior según los commits>
-    AFTER: <estado nuevo según los commits>
-    
-    CONTRIBUTORS:
-    <Lista de contributors con agradecimiento. Formato: "Gracias a @user1, @user2 y @user3 por sus contribuciones. Damos la bienvenida a los nuevos contributors: @newuser1, @newuser2">
-    (Si hay contributors listados arriba, incluí esta sección. Si no, poné "N/A")
-    
-    LINKS:
-    - Closed Issues: <lista de links a issues cerrados si hay, o "N/A">
-    - Merged PRs: <lista de links a PRs mergeados si hay, o "N/A">
-	`
-
-	releasePromptTemplateEN = `
-  You are a developer writing release notes for your project in first person.
-  Write in a friendly, casual tone explaining what you built in this version.
-
-  Repository: %s/%s
-  Previous version: %s
-  New version: %s
-  Bump type: %s
-
-  Changes in this release:
+  Responde SOLO con un array JSON válido. Cada sugerencia debe tener:
+  {
+    "title": "mensaje del commit",
+    "desc": "explicación detallada",
+    "files": ["archivo1.go", "archivo2.go"],
+    "analysis": {
+      "overview": "resumen breve",
+      "purpose": "objetivo principal",
+      "impact": "impacto técnico"
+    }
+  }
 
   %s
 
-  STYLE RULES:
-  - First person: "I added", "I implemented", "I improved", "I fixed"
-  - Professional but accessible tone (you can use expressions like "now", "simpler", "much better")
-  - Explain what you did and why it's useful
-  - Be technical and precise, but approachable
-  - DO NOT use emojis in the release notes content
+  Genera %d sugerencias ahora.`
 
-  CRITICAL RULES - PREVENTING HALLUCINATIONS:
-  1. Base everything EXCLUSIVELY on the commits listed above in "Changes in this release"
-  2. If the changes section is empty or only has minor changes (e.g., version bump), write a brief and honest summary
-  3. DO NOT invent features, commands, flags, or functionality not explicitly present in the commits
-  4. DO NOT mention "validators", "linters", "new options" or other features unless they appear in the commits
-  5. If you don't have enough info for a specific example, use generic examples of basic project usage
-  6. For EXAMPLES, only show commands that actually exist according to the commits. If there are no significant changes, show existing basic usage
-  7. For COMPARISONS, only include comparisons if there are concrete changes to compare. If not, use "N/A" or a generic version comparison
-  8. If changes are primarily internal or maintenance-related, state that clearly instead of inventing user-visible features
+	promptTemplateWithoutTicketEN = `# Task
+  Generate %d commit message suggestions based on code changes.
 
-  CONTENT VALIDATION:
-  Before writing each section, ask yourself: "Is this specific detail in the commits I was given?"
-  If the answer is NO, don't include it.
+  # Modified Files
+  %s
 
-  Response format (IMPORTANT: Include ALL sections):
-  
-  TITLE: <concise, descriptive title (max 60 chars)>
-  
-  SUMMARY: <2-3 sentences in first person highlighting the most important changes. If there are no significant changes, be honest about it>
-  
-  HIGHLIGHTS:
-  - <highlight 1 in first person, based on actual commits>
-  - <highlight 2 in first person, based on actual commits>
-  - <highlight 3 in first person, based on actual commits>
-  (If there aren't enough real highlights, focus on maintenance, stability, or preparation for future features)
-  
-  QUICK_START:
-  <Installation/update instructions in 2-3 lines. Use the real repository: github.com/%s/%s>
-  IMPORTANT: This project is a Go CLI. Use "go install github.com/%s/%s@<version>" for installation.
-  Do not invent flags or commands that don't exist.
-  
-  EXAMPLES:
-  EXAMPLE_1:
-  TITLE: <Example title>
-  DESCRIPTION: <Brief description of what it does>
-  LANGUAGE: bash
-  CODE: <example code - must be a real command that works>
-  
-  EXAMPLE_2:
-  TITLE: <Second example title>
-  DESCRIPTION: <Brief description>
-  LANGUAGE: bash
-  CODE: <example code - must be a real command that works>
-  (Only include examples of functionality that actually exists. If there are no new features, show existing basic usage)
-  
-  BREAKING_CHANGES:
-  - <breaking change 1, or "None" if there are no breaking changes>
-  (Only list breaking changes if they are explicitly mentioned in the commits)
-  
-  COMPARISONS:
-  COMPARISON_1:
-  FEATURE: <name of feature that actually changed>
-  BEFORE: <previous state according to commits>
-  AFTER: <new state according to commits>
-  (If there are no concrete comparisons based on commits, use "N/A" or a generic version comparison)
-  
-  LINKS:
-  (Only include links if they are relevant to this specific release, such as closed issues or related PRs. If there are no relevant links, put "N/A")
-  `
+  # Code Changes
+  %s
+
+  # Issue Reference Instructions
+  %s
+
+  # Instructions
+  1. Analyze changes in detail
+  2. Focus on technical aspects and best practices
+  3. Use conventional commit types: feat, fix, refactor, test, docs, chore
+  4. Keep messages under 100 characters
+  5. Include issue reference if provided
+
+  # Output Format
+  Respond with ONLY valid JSON array. Each suggestion must have:
+  {
+    "title": "commit message",
+    "desc": "detailed explanation",
+    "files": ["file1.go", "file2.go"],
+    "analysis": {
+      "overview": "brief summary",
+      "purpose": "main goal",
+      "impact": "technical impact"
+    }
+  }
+
+  %s
+
+  Generate %d suggestions now.`
+)
+
+// Templates para Releases - MARKDOWN + JSON
+const (
+	releasePromptTemplateES = `# Tarea
+Genera release notes en primera persona con tono técnico pero cercano (voseo argentino).
+
+# Información del Release
+- Repositorio: %s/%s
+- Versión anterior: %s
+- Nueva versión: %s
+- Tipo de bump: %s
+
+# Cambios
+%s
+
+# Instrucciones
+1. Basate EXCLUSIVAMENTE en los cambios listados arriba
+2. Primera persona con voseo: "Implementé", "Mejoré", "Arreglé"
+3. NO inventes features, comandos o funcionalidades
+4. Si hay contributors, mencioná con @username
+5. Referencias a issues/PRs cuando corresponda
+
+# Formato de Salida
+IMPORTANTE: Responde en ESPAÑOL. Todo el contenido del JSON debe estar en español.
+
+Responde SOLO con JSON válido:
+{
+  "title": "título conciso (max 60 chars)",
+  "summary": "2-3 oraciones en primera persona",
+  "highlights": ["highlight 1", "highlight 2", "highlight 3"],
+  "breaking_changes": ["cambio 1" o "Ninguno"],
+  "contributors": "Gracias a @user1, @user2" o "N/A"
+}
+
+Genera las release notes ahora.`
+
+	releasePromptTemplateEN = `# Task
+Generate release notes in first person with friendly, technical tone.
+
+# Release Information
+- Repository: %s/%s
+- Previous version: %s
+- New version: %s
+- Bump type: %s
+
+# Changes
+%s
+
+# Instructions
+1. Base EVERYTHING on the changes listed above
+2. First person: "I added", "I implemented", "I improved", "I fixed"
+3. DO NOT invent features, commands, or functionality
+4. Credit contributors with @username when applicable
+5. Reference issues/PRs when relevant
+
+# Output Format
+Respond with ONLY valid JSON:
+{
+  "title": "concise title (max 60 chars)",
+  "summary": "2-3 sentences in first person",
+  "highlights": ["highlight 1", "highlight 2", "highlight 3"],
+  "breaking_changes": ["change 1" or "None"],
+  "contributors": "Thanks to @user1, @user2" or "N/A"
+}
+
+Generate the release notes now.`
 )
 
 // GetPRPromptTemplate devuelve el template adecuado según el idioma
@@ -599,4 +440,64 @@ func FormatIssuesForPrompt(issues []models.Issue, locale string) string {
 	}
 
 	return result.String()
+}
+
+// Technical Analysis instructions
+const (
+	technicalAnalysisES = `Proporciona análisis técnico detallado incluyendo: mejores prácticas aplicadas, impacto en rendimiento/mantenibilidad, y consideraciones de seguridad si aplican.`
+	technicalAnalysisEN = `Provide detailed technical analysis including: best practices applied, performance/maintainability impact, and security considerations if applicable.`
+)
+
+func GetTechnicalAnalysisInstruction(locale string) string {
+	if locale == "es" {
+		return technicalAnalysisES
+	}
+	return technicalAnalysisEN
+}
+
+// No Issue Reference instructions
+const (
+	noIssueReferenceES = `No incluyas referencias de issues en el título.`
+	noIssueReferenceEN = `Do not include issue references in the title.`
+)
+
+func GetNoIssueReferenceInstruction(locale string) string {
+	if locale == "es" {
+		return noIssueReferenceES
+	}
+	return noIssueReferenceEN
+}
+
+// Release Note Headers
+var (
+	releaseHeadersES = map[string]string{
+		"breaking":      "CAMBIOS QUE ROMPEN:",
+		"features":      "NUEVAS CARACTERÍSTICAS:",
+		"fixes":         "CORRECCIONES DE BUGS:",
+		"improvements":  "MEJORAS:",
+		"closed_issues": "ISSUES CERRADOS:",
+		"merged_prs":    "PULL REQUESTS MERGEADOS:",
+		"contributors":  "CONTRIBUIDORES",
+		"file_stats":    "ESTADÍSTICAS DE ARCHIVOS:",
+		"deps":          "ACTUALIZACIONES DE DEPENDENCIAS:",
+	}
+
+	releaseHeadersEN = map[string]string{
+		"breaking":      "BREAKING CHANGES:",
+		"features":      "NEW FEATURES:",
+		"fixes":         "BUG FIXES:",
+		"improvements":  "IMPROVEMENTS:",
+		"closed_issues": "CLOSED ISSUES:",
+		"merged_prs":    "MERGED PULL REQUESTS:",
+		"contributors":  "CONTRIBUTORS",
+		"file_stats":    "FILE STATISTICS:",
+		"deps":          "DEPENDENCY UPDATES:",
+	}
+)
+
+func GetReleaseNotesSectionHeaders(locale string) map[string]string {
+	if locale == "es" {
+		return releaseHeadersES
+	}
+	return releaseHeadersEN
 }
