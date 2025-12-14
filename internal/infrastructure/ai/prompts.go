@@ -92,9 +92,13 @@ const (
   # Issue Reference Instructions
   %s
 
+  # Recent History
+  %s
+
   # Instructions
-  1. Analyze changes against acceptance criteria
-  2. Use conventional commit types: feat, fix, refactor, test, docs, chore
+  1. Analyze changes against acceptance criteria. CHECK CODE implementation AND Recent History.
+  2. If code implements a criterion OR it appears completed in Recent History, consider it met even if unchecked [ ] in ticket.
+  3. Use conventional commit types: feat, fix, refactor, test, docs, chore
   3. Keep commit messages under 100 characters
   4. Include issue reference if provided
 
@@ -112,6 +116,7 @@ const (
     "requirements": {
       "status": "full_met | partially_met | not_met",
       "missing": ["criterion 1", "criterion 2"],
+      "completed_indices": [0, 2],
       "suggestions": ["improvement 1", "improvement 2"]
     }
   }
@@ -134,9 +139,13 @@ const (
   # Instrucciones de Referencia de Issues
   %s
 
+  # Historia Reciente
+  %s
+
   # Instrucciones
-  1. Analiza los cambios contra los criterios de aceptación
-  2. Usa tipos de commit convencionales: feat, fix, refactor, test, docs, chore
+  1. Analiza los cambios contra los criterios de aceptación. VERIFICA la implementación en el código Y en la Historia Reciente.
+  2. Si el código implementa un criterio O parece completado en la Historia Reciente, considéralo cumplido incluso si está desmarcado [ ] en el ticket.
+  3. Usa tipos de commit convencionales: feat, fix, refactor, test, docs, chore
   3. Mantén los mensajes de commit en menos de 100 caracteres
   4. Incluye referencia al issue si se proporciona
 
@@ -157,6 +166,7 @@ const (
     "requirements": {
       "status": "full_met | partially_met | not_met",
       "missing": ["criterio 1", "criterio 2"],
+      "completed_indices": [0, 2],
       "suggestions": ["mejora 1", "mejora 2"]
     }
   }
@@ -176,6 +186,9 @@ const (
   %s
 
   # Instrucciones de Referencia de Issues
+  %s
+
+  # Historia Reciente
   %s
 
   # Instrucciones
@@ -214,6 +227,9 @@ const (
   %s
 
   # Issue Reference Instructions
+  %s
+
+  # Recent History
   %s
 
   # Instructions

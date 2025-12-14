@@ -86,9 +86,7 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 
 		cfg.Language = command.String("lang")
 
-		// Actualizar el idioma de las traducciones si cambió
 		if err := t.SetLanguage(cfg.Language); err != nil {
-			// Si el idioma no es soportado, intentar con inglés
 			_ = t.SetLanguage("en")
 		}
 
@@ -151,7 +149,6 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 				ui.PrintError(errStr)
 			}
 
-			// Envolver el error con el mensaje de traducción para errores genéricos
 			return fmt.Errorf("%s", t.GetMessage("suggestion_generation_error", 0, map[string]interface{}{
 				"Error": err,
 			}))

@@ -33,6 +33,7 @@ type IssuesService interface {
 	AddLabelsToIssue(ctx context.Context, owner, repo string, number int, labels []string) ([]*github.Label, *github.Response, error)
 	ListByRepo(ctx context.Context, owner, repo string, opts *github.IssueListByRepoOptions) ([]*github.Issue, *github.Response, error)
 	Get(ctx context.Context, owner, repo string, number int) (*github.Issue, *github.Response, error)
+	Edit(ctx context.Context, owner, repo string, number int, issue *github.IssueRequest) (*github.Issue, *github.Response, error)
 }
 
 type RepositoriesService interface {
@@ -504,7 +505,6 @@ func (ghc *GitHubClient) GetIssue(ctx context.Context, issueNumber int) (*models
 		url = *issue.HTMLURL
 	}
 
-	// Extract acceptance criteria from body markdown
 	criteria := extractAcceptanceCriteria(description)
 
 	return &models.Issue{
@@ -524,11 +524,19 @@ func extractAcceptanceCriteria(body string) []string {
 	var criteria []string
 	lines := strings.Split(body, "\n")
 
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
+	// Regex para capturar checkboxes markdown:
+	// ^ - Inicio de linea (permitiendo espacios antes)
+	// [\-\*\+] - Bullet: - o * o +
+	// \s+ - Espacio obligatorio
+	// \[([ xX])\] - Checkbox: [ ], [x], [X]
+	// \s+ - Espacio obligatorio
+	// (.+) - El texto del criterio
+	re := regexp.MustCompile(`^\s*[\-\*\+]\s+\[([ xX])\]\s+(.+)`)
 
-		if strings.HasPrefix(trimmed, "- [ ]") || strings.HasPrefix(trimmed, "- [x]") {
-			criterion := strings.TrimSpace(trimmed[5:])
+	for _, line := range lines {
+		matches := re.FindStringSubmatch(line)
+		if len(matches) > 2 {
+			criterion := strings.TrimSpace(matches[2])
 			if criterion != "" {
 				criteria = append(criteria, criterion)
 			}
@@ -645,6 +653,60 @@ func (ghc *GitHubClient) addLabelsToIssue(ctx context.Context, prNumber int, lab
 	if err != nil {
 		return fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.add_labels", 0, map[string]interface{}{"pr_number": prNumber}), err)
 	}
+	return nil
+}
+
+func (ghc *GitHubClient) UpdateIssueChecklist(ctx context.Context, issueNumber int, checkedIndices []int) error {
+	// 1. Obtener el issue actual
+	issue, _, err := ghc.issuesService.Get(ctx, ghc.owner, ghc.repo, issueNumber)
+	if err != nil {
+		return fmt.Errorf("error obteniendo issue #%d: %w", issueNumber, err)
+	}
+
+	body := issue.GetBody()
+	lines := strings.Split(body, "\n")
+	re := regexp.MustCompile(`^(\s*[\-\*\+]\s+)\[([ xX])\](\s+.+)`)
+
+	// 2. Mapear indices lógicos a líneas físicas
+	var checklistLineIndices []int
+	for i, line := range lines {
+		if re.MatchString(line) {
+			checklistLineIndices = append(checklistLineIndices, i)
+		}
+	}
+
+	// 3. Actualizar líneas
+	updated := false
+	for _, idx := range checkedIndices {
+		if idx >= 0 && idx < len(checklistLineIndices) {
+			lineIdx := checklistLineIndices[idx]
+			line := lines[lineIdx]
+
+			// Si no está ya chequeado, marcarlo
+			if matches := re.FindStringSubmatch(line); len(matches) > 3 {
+				if matches[2] == " " {
+					lines[lineIdx] = matches[1] + "[x]" + matches[3]
+					updated = true
+				}
+			}
+		}
+	}
+
+	if !updated {
+		return nil
+	}
+
+	// 4. Enviar actualización
+	newBody := strings.Join(lines, "\n")
+	issueRequest := &github.IssueRequest{
+		Body: github.Ptr(newBody),
+	}
+
+	_, _, err = ghc.issuesService.Edit(ctx, ghc.owner, ghc.repo, issueNumber, issueRequest)
+	if err != nil {
+		return fmt.Errorf("error actualizando body del issue #%d: %w", issueNumber, err)
+	}
+
 	return nil
 }
 
