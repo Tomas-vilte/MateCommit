@@ -11,14 +11,6 @@ import (
 	"google.golang.org/genai"
 )
 
-const (
-	prResponseJSON = `{
-	"title": "Fix image loading error in gallery component",
-	"body": "- Fixed memory leak in image loading process\n- Optimized cache usage to improve performance\n- Added error handling for network failures",
-	"labels": ["fix", "performance"]
-}`
-)
-
 func TestGeminiPRSummarizer(t *testing.T) {
 	t.Run("NewGeminiPRSummarizer with empty API key", func(t *testing.T) {
 		// Arrange
@@ -63,7 +55,6 @@ func TestGeminiPRSummarizer(t *testing.T) {
 		assert.Equal(t, models.PRSummary{}, summary, "No deberían generarse resúmenes con prompt vacío")
 		assert.Error(t, err, "Debería retornar un error con prompt vacío")
 	})
-
 
 	t.Run("generatePRPrompt should format correctly", func(t *testing.T) {
 		// Arrange
