@@ -197,8 +197,8 @@ func TestSuggestionHandler_HandleCommitSelection(t *testing.T) {
 		mockGit.On("AddFileToStaging", mock.Anything, "test.go").Return(nil)
 		mockGit.On("CreateCommit", mock.Anything, "feat: test feature").Return(nil)
 
-		// Act
-		simulateInput("1\n", func() {
+		// Act - simula: 1 (selección), n (no ver diff), y (confirmar commit)
+		simulateInput("1\nn\ny\n", func() {
 			err = handler.handleCommitSelection(context.Background(), suggestions)
 		})
 
@@ -300,8 +300,10 @@ func TestSuggestionHandler_HandleSuggestions(t *testing.T) {
 		mockGit.On("AddFileToStaging", mock.Anything, "file2.go").Return(nil)
 		mockGit.On("CreateCommit", mock.Anything, "feat: add new feature").Return(nil)
 
-		// Act
-		err = handler.processCommit(context.Background(), suggestions[0], mockGit)
+		// Act - simula: n (no ver diff), y (confirmar commit)
+		simulateInput("n\ny\n", func() {
+			err = handler.processCommit(context.Background(), suggestions[0], mockGit)
+		})
 
 		// Assert
 		assert.NoError(t, err)
@@ -326,8 +328,10 @@ func TestSuggestionHandler_HandleSuggestions(t *testing.T) {
 		expectedErr := errors.New("staging error")
 		mockGit.On("AddFileToStaging", mock.Anything, "file1.go").Return(expectedErr)
 
-		// act
-		err = handler.processCommit(context.Background(), suggestions[0], mockGit)
+		// act - simula: n (no ver diff), y (confirmar commit)
+		simulateInput("n\ny\n", func() {
+			err = handler.processCommit(context.Background(), suggestions[0], mockGit)
+		})
 
 		// assert
 		assert.Error(t, err)
@@ -352,8 +356,10 @@ func TestSuggestionHandler_HandleSuggestions(t *testing.T) {
 		expectedErr := errors.New("commit error")
 		mockGit.On("CreateCommit", mock.Anything, "feat: add new feature").Return(expectedErr)
 
-		// Act
-		err = handler.processCommit(context.Background(), suggestions[0], mockGit)
+		// Act - simula: n (no ver diff), y (confirmar commit)
+		simulateInput("n\ny\n", func() {
+			err = handler.processCommit(context.Background(), suggestions[0], mockGit)
+		})
 
 		// Assert
 		assert.Error(t, err)
@@ -402,8 +408,10 @@ func TestSuggestionHandler_ProcessCommit(t *testing.T) {
 		mockGit.On("AddFileToStaging", mock.Anything, "file1.go").Return(nil)
 		mockGit.On("CreateCommit", mock.Anything, "feat: add new feature").Return(nil)
 
-		// Act
-		err = handler.processCommit(context.Background(), suggestion, mockGit)
+		// Act - simula: n (no ver diff), y (confirmar commit)
+		simulateInput("n\ny\n", func() {
+			err = handler.processCommit(context.Background(), suggestion, mockGit)
+		})
 
 		// Assert
 		assert.NoError(t, err)
@@ -428,8 +436,10 @@ func TestSuggestionHandler_ProcessCommit(t *testing.T) {
 		}
 		mockGit.On("CreateCommit", mock.Anything, "feat: multi-file change").Return(nil)
 
-		// Act
-		err = handler.processCommit(context.Background(), suggestion, mockGit)
+		// Act - simula: n (no ver diff), y (confirmar commit)
+		simulateInput("n\ny\n", func() {
+			err = handler.processCommit(context.Background(), suggestion, mockGit)
+		})
 
 		// Assert
 		assert.NoError(t, err)
