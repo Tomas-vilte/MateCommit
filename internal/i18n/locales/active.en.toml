@@ -533,12 +533,19 @@ error_saving_config = "Error saving configuration"
 # UI - Preview and confirmations
 [ui_preview]
 commit_selected = "Commit selected: {{.Title}}"
+modified_files_header = "📄 Modified files"
 files_count = "Files: {{.Count}}"
+changes_header = "Changes"
 ask_show_diff = "Show changes before committing?"
+ask_edit_message = "Edit commit message?"
 ask_confirm_commit = "Confirm commit?"
 commit_cancelled = "Commit cancelled"
 no_changes_to_show = "No changes to show"
 error_showing_diff = "Could not show diff: {{.Error}}"
+error_showing_stats = "Could not show stats: {{.Error}}"
+error_editing_message = "Error editing message: {{.Error}}"
+editor_error = "Editor error"
+message_updated = "Message updated"
 
 # UI - Selection
 [ui_selection]
