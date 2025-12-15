@@ -570,3 +570,64 @@ technical_analysis = "🔧 Technical Analysis:"
 completed = "Completed"
 error = "Error:"
 
+
+# Doctor command
+[doctor]
+command_usage = "Check configuration and dependencies status"
+running_checks = "🔍 Checking Configuration"
+summary = "📋 Summary"
+all_good = "All good! All checks passed"
+has_warnings = "Partially ready (warnings found)"
+has_errors = "Incomplete setup (errors found)"
+available_commands = "Available commands:"
+command_ready = "(ready)"
+command_unavailable = "(unavailable)"
+
+# Checks
+check_config_file = "Configuration file"
+check_git_repo = "Git repository"
+check_git_installed = "Git installed"
+check_gemini_key = "Gemini API key"
+check_github_token = "GitHub token"
+check_editor = "Editor configured"
+
+# Results
+config_not_found = "Configuration file not found"
+run_config_init = "Run: matecommit config init"
+not_in_git_repo = "Not in a Git repository"
+git_init_suggestion = "Run: git init"
+git_not_installed = "Git is not installed"
+install_git_suggestion = "Install Git from: https://git-scm.com"
+gemini_not_configured = "API key not configured"
+gemini_key_invalid = "Invalid API key or no permissions"
+check_api_key = "Check your API key at: https://makersuite.google.com"
+api_key_valid = "valid and working"
+github_not_configured = "Token not configured"
+github_optional = "Optional - only for PR commands"
+github_configured = "configured"
+editor_not_set = "EDITOR variable not set (detected: {{.Editor}})"
+no_editor_found = "No editor found"
+install_editor = "Install nano, vim or code"
+editor_not_found = "Editor '{{.Editor}}' not found"
+set_valid_editor = "Set a valid editor with: export EDITOR=nano"
+
+# Config improvements
+[config]
+validating_api_key = "Validating API key..."
+testing_connection = "Testing connection with Gemini"
+api_key_invalid = "Invalid API key"
+api_key_valid = "Valid API key"
+check_api_key_error = "Error: {{.Error}}"
+api_key_instructions = "MateCommit uses Gemini API to generate smart commits."
+get_key_at = "Get your free API key at:"
+api_key_skipped = "API key skipped - you can configure it later"
+api_key_saved_unverified = "API key saved without verification"
+retry_api_key = "Try another API key?"
+
+# Welcome (first run)
+[welcome]
+first_time = "Welcome to MateCommit"
+intro = "Looks like this is your first time using MateCommit. This tool helps you generate smart commits using AI."
+configure_now = "Would you like to configure it now?"
+setup_later = "Setup skipped"
+run_init_hint = "You can configure it later with: matecommit config init"

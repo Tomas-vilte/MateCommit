@@ -105,6 +105,10 @@ func initializeApp() (*cli.Command, error) {
 		log.Fatalf("Error al registrar el comando 'config': %v", err)
 	}
 
+	if err := registerCommand.Register("doctor", config.NewDoctorCommand()); err != nil {
+		log.Fatalf("Error al registrar el comando 'doctor': %v", err)
+	}
+
 	if err := registerCommand.Register("summarize-pr", prCommand); err != nil {
 		log.Fatalf("Error al registrar el comando 'summarize-pr': %v", err)
 	}
