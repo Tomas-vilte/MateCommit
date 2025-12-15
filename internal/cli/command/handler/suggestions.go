@@ -3,8 +3,6 @@ package handler
 import (
 	"context"
 	"fmt"
-	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
@@ -275,44 +273,6 @@ func (h *SuggestionHandler) processCommit(ctx context.Context, suggestion models
 
 	spinner.Success(h.t.GetMessage("ui.commit_created_successfully", 0, nil))
 	fmt.Printf("\n   %s\n\n", finalCommitMessage)
-
-	return nil
-}
-
-func (h *SuggestionHandler) handleIssueUpdate(ctx context.Context, indices []int, commitTitle string) error {
-	if h.vcsClient == nil {
-		return nil
-	}
-
-	re := regexp.MustCompile(`\(#(\d+)\)`)
-	matches := re.FindStringSubmatch(commitTitle)
-	if len(matches) < 2 {
-		return nil
-	}
-
-	issueNumber, err := strconv.Atoi(matches[1])
-	if err != nil {
-		return nil
-	}
-
-	fmt.Println()
-	msg := h.t.GetMessage("commit.ask_update_issue_criteria", 0, map[string]interface{}{
-		"Count":  len(indices),
-		"Number": issueNumber,
-	})
-
-	if ui.AskConfirmation(msg) {
-		spinner := ui.NewSmartSpinner(h.t.GetMessage("commit.updating_issue", 0, nil))
-		spinner.Start()
-
-		if err := h.vcsClient.UpdateIssueChecklist(ctx, issueNumber, indices); err != nil {
-			spinner.Error(h.t.GetMessage("commit.error_updating_issue", 0, nil))
-			ui.PrintWarning(fmt.Sprintf("%v", err))
-			return nil
-		}
-
-		spinner.Success(h.t.GetMessage("commit.issue_updated_successfully", 0, nil))
-	}
 
 	return nil
 }

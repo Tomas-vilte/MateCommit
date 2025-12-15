@@ -7,9 +7,12 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
+	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/ai/gemini"
+	"github.com/Tomas-vilte/MateCommit/internal/ui"
 	"github.com/urfave/cli/v3"
 )
 
@@ -29,7 +32,7 @@ func initConfigAction(cfg *config.Config, t *i18n.Translations) cli.ActionFunc {
 }
 
 func runInitProcess(ctx context.Context, command *cli.Command, reader *bufio.Reader, cfg *config.Config, t *i18n.Translations) error {
-	if err := configureWelcome(reader, cfg, t); err != nil {
+	if err := configureWelcome(ctx, reader, cfg, t); err != nil {
 		return err
 	}
 	if err := configureLanguage(reader, cfg, t); err != nil {
@@ -62,7 +65,7 @@ func runInitProcess(ctx context.Context, command *cli.Command, reader *bufio.Rea
 	return nil
 }
 
-func configureWelcome(reader *bufio.Reader, cfg *config.Config, t *i18n.Translations) error {
+func configureWelcome(ctx context.Context, reader *bufio.Reader, cfg *config.Config, t *i18n.Translations) error {
 	aiProviders := config.SupportedAIs()
 	aiProvidersStr := strings.Join(toStrings(aiProviders), ", ")
 
@@ -74,6 +77,10 @@ func configureWelcome(reader *bufio.Reader, cfg *config.Config, t *i18n.Translat
 	fmt.Println(t.GetMessage("init.welcome", 0, nil))
 	fmt.Println(t.GetMessage("init.ai_intro", 0, map[string]interface{}{"Providers": aiProvidersStr}))
 
+	ui.PrintInfo(t.GetMessage("config.api_key_instructions", 0, nil))
+	ui.PrintInfo(t.GetMessage("config.get_key_at", 0, nil) + " https://makersuite.google.com/app/apikey")
+	fmt.Println()
+
 	fmt.Print(t.GetMessage("init.prompt_gemini_api_key", 0, nil))
 	apiKey, err := reader.ReadString('\n')
 	if err != nil {
@@ -81,8 +88,15 @@ func configureWelcome(reader *bufio.Reader, cfg *config.Config, t *i18n.Translat
 	}
 	apiKey = strings.TrimSpace(apiKey)
 
-	if apiKey != "" && !isValidAPIKey(apiKey) {
-		fmt.Println(t.GetMessage("init.warning_invalid_api_key", 0, nil))
+	if apiKey != "" {
+		if !validateGeminiAPIKey(ctx, apiKey, t) {
+			ui.PrintWarning(t.GetMessage("config.api_key_saved_unverified", 0, nil))
+			fmt.Print(t.GetMessage("config.retry_api_key", 0, nil) + " (y/n): ")
+			retry, _ := reader.ReadString('\n')
+			if strings.ToLower(strings.TrimSpace(retry)) == "y" {
+				return configureWelcome(ctx, reader, cfg, t)
+			}
+		}
 	}
 	cfg.GeminiAPIKey = apiKey
 
@@ -279,6 +293,42 @@ func printConfigSummary(cfg *config.Config, t *i18n.Translations) {
 	fmt.Println(langLabel)
 }
 
+func validateGeminiAPIKey(ctx context.Context, apiKey string, t *i18n.Translations) bool {
+	if apiKey == "" {
+		return false
+	}
+
+	ui.PrintInfo(t.GetMessage("config.validating_api_key", 0, nil))
+	spinner := ui.NewSmartSpinner(t.GetMessage("config.testing_connection", 0, nil))
+	spinner.Start()
+
+	testCfg := &config.Config{
+		GeminiAPIKey: apiKey,
+		Language:     "en",
+		AIConfig: config.AIConfig{
+			ActiveAI: config.AIGemini,
+			Models: map[config.AI]config.Model{
+				config.AIGemini: config.ModelGeminiV25Flash,
+			},
+		},
+	}
+
+	testCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	_, err := gemini.NewGeminiService(testCtx, testCfg, t)
+	if err != nil {
+		spinner.Error(t.GetMessage("config.api_key_invalid", 0, nil))
+		ui.PrintError(t.GetMessage("config.check_api_key_error", 0, map[string]interface{}{
+			"Error": err.Error(),
+		}))
+		return false
+	}
+
+	spinner.Success(t.GetMessage("config.api_key_valid", 0, nil))
+	return true
+}
+
 func disableTickets(cfg *config.Config) {
 	cfg.UseTicket = false
 	cfg.ActiveTicketService = ""
@@ -299,10 +349,6 @@ func isValidLanguage(lang string) bool {
 		"es": true,
 	}
 	return validLangs[strings.ToLower(lang)]
-}
-
-func isValidAPIKey(key string) bool {
-	return len(key) > 10 && !strings.Contains(key, " ")
 }
 
 func isValidURL(rawURL string) bool {

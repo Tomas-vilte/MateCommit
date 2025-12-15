@@ -576,3 +576,64 @@ technical_analysis = "🔧 Análisis Técnico:"
 completed = "Completado"
 error = "Error:"
 
+
+# Doctor command
+[doctor]
+command_usage = "Verifica el estado de la configuración y dependencias"
+running_checks = "🔍 Verificando Configuración"
+summary = "📋 Resumen"
+all_good = "¡Todo listo! Todas las verificaciones pasaron"
+has_warnings = "Configuración parcialmente lista (hay advertencias)"
+has_errors = "Configuración incompleta (hay errores)"
+available_commands = "Comandos disponibles:"
+command_ready = "(listo)"
+command_unavailable = "(no disponible)"
+
+# Checks
+check_config_file = "Archivo de configuración"
+check_git_repo = "Repositorio Git"
+check_git_installed = "Git instalado"
+check_gemini_key = "API key de Gemini"
+check_github_token = "Token de GitHub"
+check_editor = "Editor configurado"
+
+# Results
+config_not_found = "Archivo de configuración no encontrado"
+run_config_init = "Ejecuta: matecommit config init"
+not_in_git_repo = "No estás en un repositorio Git"
+git_init_suggestion = "Ejecuta: git init"
+git_not_installed = "Git no está instalado"
+install_git_suggestion = "Instala Git desde: https://git-scm.com"
+gemini_not_configured = "API key no configurada"
+gemini_key_invalid = "API key inválida o sin permisos"
+check_api_key = "Verifica tu API key en: https://makersuite.google.com"
+api_key_valid = "válida y funcionando"
+github_not_configured = "Token no configurado"
+github_optional = "Opcional - solo para comandos de PR"
+github_configured = "configurado"
+editor_not_set = "Variable EDITOR no configurada (detectado: {{.Editor}})"
+no_editor_found = "No se encontró ningún editor"
+install_editor = "Instala nano, vim o code"
+editor_not_found = "Editor '{{.Editor}}' no encontrado"
+set_valid_editor = "Configura un editor válido con: export EDITOR=nano"
+
+# Config improvements
+[config]
+validating_api_key = "Validando API key..."
+testing_connection = "Testeando conexión con Gemini"
+api_key_invalid = "API key inválida"
+api_key_valid = "API key válida"
+check_api_key_error = "Error: {{.Error}}"
+api_key_instructions = "MateCommit usa la API de Gemini para generar commits inteligentes."
+get_key_at = "Obtené tu API key gratis en:"
+api_key_skipped = "API key omitida - podrás configurarla después"
+api_key_saved_unverified = "API key guardada sin verificar"
+retry_api_key = "¿Intentar con otra API key?"
+
+# Welcome (first run)
+[welcome]
+first_time = "Bienvenido a MateCommit"
+intro = "Parece que es tu primera vez usando MateCommit. Esta herramienta te ayuda a generar commits inteligentes usando IA."
+configure_now = "¿Querés configurarlo ahora?"
+setup_later = "Configuración omitida"
+run_init_hint = "Podés configurarlo después con: matecommit config init"
