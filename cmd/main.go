@@ -14,11 +14,13 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/suggests_commits"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/registry"
 	cfg "github.com/Tomas-vilte/MateCommit/internal/config"
+	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/ai/gemini"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/factory"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/git"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/tickets/jira"
+	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/vcs/github"
 	"github.com/Tomas-vilte/MateCommit/internal/services"
 	"github.com/urfave/cli/v3"
 )
@@ -72,9 +74,22 @@ func initializeApp() (*cli.Command, error) {
 
 	ticketService := jira.NewJiraService(cfgApp, &http.Client{})
 
+	// Inicializar VCS Client si es posible
+	var vcsClient ports.VCSClient
+	repoOwner, repoName, provider, err := gitService.GetRepoInfo(context.Background())
+	if err == nil {
+		if vcsConfig, ok := cfgApp.VCSConfigs[provider]; ok && provider == "github" {
+			vcsClient = github.NewGitHubClient(repoOwner, repoName, vcsConfig.Token, translations)
+		} else if cfgApp.ActiveVCSProvider != "" {
+			if vcsConfig, ok := cfgApp.VCSConfigs[cfgApp.ActiveVCSProvider]; ok && cfgApp.ActiveVCSProvider == "github" {
+				vcsClient = github.NewGitHubClient(repoOwner, repoName, vcsConfig.Token, translations)
+			}
+		}
+	}
+
 	commitService := services.NewCommitService(gitService, aiProvider, ticketService, nil, cfgApp, translations)
 
-	commitHandler := handler.NewSuggestionHandler(gitService, translations)
+	commitHandler := handler.NewSuggestionHandler(gitService, vcsClient, translations)
 
 	registerCommand := registry.NewRegistry(cfgApp, translations)
 
