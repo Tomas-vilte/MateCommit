@@ -3,23 +3,29 @@ package handler
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
+	"github.com/Tomas-vilte/MateCommit/internal/ui"
+	"github.com/fatih/color"
 )
 
 var _ ports.CommitHandler = (*SuggestionHandler)(nil)
 
 type SuggestionHandler struct {
 	gitService ports.GitService
+	vcsClient  ports.VCSClient
 	t          *i18n.Translations
 }
 
-func NewSuggestionHandler(git ports.GitService, t *i18n.Translations) *SuggestionHandler {
+func NewSuggestionHandler(git ports.GitService, vcs ports.VCSClient, t *i18n.Translations) *SuggestionHandler {
 	return &SuggestionHandler{
 		gitService: git,
+		vcsClient:  vcs,
 		t:          t,
 	}
 }
@@ -30,65 +36,122 @@ func (h *SuggestionHandler) HandleSuggestions(ctx context.Context, suggestions [
 }
 
 func (h *SuggestionHandler) displaySuggestions(suggestions []models.CommitSuggestion) {
-	fmt.Printf("%s\n", h.t.GetMessage("commit.header_message", 0, nil))
+	titleColor := color.New(color.FgCyan, color.Bold)
+	sectionColor := color.New(color.FgYellow, color.Bold)
+	fileColor := color.New(color.FgHiBlack)
+
+	fmt.Printf("\n%s\n", h.t.GetMessage("commit.header_message", 0, nil))
 
 	for i, suggestion := range suggestions {
-		suggestionHeader := h.t.GetMessage("suggestion_header", 0, map[string]interface{}{"Number": i + 1})
-		fmt.Printf("\n%s\n", suggestionHeader)
+		separator := color.New(color.FgCyan).Sprint("━━━━━━━━━━━━━━━━━━━━━━━")
+		fmt.Printf("\n%s\n", separator)
 
-		fmt.Printf("\n%s\n", h.t.GetMessage("gemini_service.code_analysis_prefix", 0, nil))
-		fmt.Printf("%s %s\n", h.t.GetMessage("gemini_service.changes_overview_prefix", 0, nil), suggestion.CodeAnalysis.ChangesOverview)
-		fmt.Printf("%s %s\n", h.t.GetMessage("gemini_service.primary_purpose_prefix", 0, nil), suggestion.CodeAnalysis.PrimaryPurpose)
-		fmt.Printf("%s %s\n", h.t.GetMessage("gemini_service.technical_impact_prefix", 0, nil), suggestion.CodeAnalysis.TechnicalImpact)
+		suggestionHeader := color.New(color.FgMagenta, color.Bold).Sprintf("📝 Sugerencia #%d", i+1)
+		fmt.Printf("%s\n\n", suggestionHeader)
 
-		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━")
-		fmt.Printf("Commit: %s\n", suggestion.CommitTitle)
+		_, _ = sectionColor.Println(h.t.GetMessage("ui_labels.code_analysis", 0, nil))
+		printIndentedKeyValue(h.t.GetMessage("ui_labels.changes_overview", 0, nil), suggestion.CodeAnalysis.ChangesOverview)
+		printIndentedKeyValue(h.t.GetMessage("ui_labels.primary_purpose", 0, nil), suggestion.CodeAnalysis.PrimaryPurpose)
+		printIndentedKeyValue(h.t.GetMessage("ui_labels.technical_impact", 0, nil), suggestion.CodeAnalysis.TechnicalImpact)
 
-		fmt.Println(h.t.GetMessage("gemini_service.modified_files_prefix", 0, nil))
+		fmt.Println()
+		fmt.Printf("%s\n", separator)
+
+		fmt.Printf("%s %s\n\n",
+			color.New(color.FgGreen, color.Bold).Sprint("✓ "+h.t.GetMessage("ui_labels.commit_label", 0, nil)),
+			titleColor.Sprint(suggestion.CommitTitle),
+		)
+
+		_, _ = sectionColor.Println(h.t.GetMessage("ui_labels.modified_files", 0, nil))
 		for _, file := range suggestion.Files {
-			fmt.Printf("   - %s\n", file)
+			fmt.Printf("   %s %s\n", color.CyanString("•"), fileColor.Sprint(file))
 		}
-		fmt.Printf("%s %s\n", h.t.GetMessage("gemini_service.explanation_prefix", 0, nil), suggestion.Explanation)
+
+		fmt.Printf("\n%s\n", sectionColor.Sprint(h.t.GetMessage("ui_labels.explanation_label", 0, nil)))
+		fmt.Printf("   %s\n", suggestion.Explanation)
 		fmt.Println()
 
 		if suggestion.RequirementsAnalysis.CriteriaStatus != "" {
-			fmt.Printf("%s\n", h.t.GetMessage("gemini_service.requirements_analysis_prefix", 0, nil))
-			statusMsg := h.t.GetMessage("gemini_service.criteria_status_full", 0, map[string]interface{}{
-				"Status": h.getCriteriaStatusText(suggestion.RequirementsAnalysis.CriteriaStatus),
-			})
-			fmt.Printf("%s\n", statusMsg)
-			fmt.Println()
-
-			if len(suggestion.RequirementsAnalysis.MissingCriteria) > 0 {
-				fmt.Printf("\n%s", h.t.GetMessage("gemini_service.missing_criteria_prefix", 0, nil))
-				for _, criteria := range suggestion.RequirementsAnalysis.MissingCriteria {
-					fmt.Printf("\n   - %s\n", criteria)
-				}
-			}
-
-			if len(suggestion.RequirementsAnalysis.ImprovementSuggestions) > 0 {
-				fmt.Printf("\n%s", h.t.GetMessage("gemini_service.improvement_suggestions_prefix", 0, nil))
-				for _, improvement := range suggestion.RequirementsAnalysis.ImprovementSuggestions {
-					fmt.Printf("\n   - %s", improvement)
-				}
-				fmt.Println()
-			}
+			h.displayRequirementsAnalysis(suggestion.RequirementsAnalysis)
 		} else {
-			fmt.Printf("%s\n", h.t.GetMessage("gemini_service.technical_analysis_section", 0, nil))
-			if len(suggestion.RequirementsAnalysis.ImprovementSuggestions) > 0 {
-				fmt.Println(h.t.GetMessage("gemini_service.improvement_suggestions_label", 0, nil))
-				for _, improvement := range suggestion.RequirementsAnalysis.ImprovementSuggestions {
-					fmt.Printf("   - %s\n", improvement)
-				}
-			}
+			h.displayTechnicalAnalysis(suggestion.RequirementsAnalysis)
 		}
 
-		fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━")
+		fmt.Printf("%s\n", separator)
 	}
 
-	fmt.Println(h.t.GetMessage("commit.select_option_prompt", 0, nil))
-	fmt.Println(h.t.GetMessage("commit.option_commit", 0, nil))
-	fmt.Println(h.t.GetMessage("commit.option_exit", 0, nil))
+	fmt.Println()
+	ui.PrintInfo(h.t.GetMessage("ui_selection.select_option", 0, nil))
+	fmt.Printf("   %s %s\n", color.GreenString("1-%d:", len(suggestions)), h.t.GetMessage("ui_selection.select_suggestion_range", 0, nil))
+	fmt.Printf("   %s %s\n", color.RedString("0:"), h.t.GetMessage("ui_selection.cancel_operation", 0, nil))
+	fmt.Println()
+}
+
+func (h *SuggestionHandler) displayRequirementsAnalysis(analysis models.RequirementsAnalysis) {
+	reqColor := color.New(color.FgMagenta, color.Bold)
+
+	fmt.Printf("%s\n", reqColor.Sprint(h.t.GetMessage("ui_labels.requirements_analysis", 0, nil)))
+
+	statusText := h.getCriteriaStatusText(analysis.CriteriaStatus)
+	statusEmoji := h.getCriteriaStatusEmoji(analysis.CriteriaStatus)
+	statusColor := h.getCriteriaStatusColor(analysis.CriteriaStatus)
+
+	fmt.Printf("   %s %s %s\n", statusEmoji, color.New(color.FgHiBlack).Sprint(h.t.GetMessage("ui_labels.status_label", 0, nil)),
+		statusColor.Sprint(statusText))
+
+	if len(analysis.MissingCriteria) > 0 {
+		fmt.Printf("\n   %s %s\n", color.RedString("❌"), color.New(color.FgRed,
+			color.Bold).Sprint(h.t.GetMessage("ui_labels.missing_criteria", 0, nil)))
+		for _, criteria := range analysis.MissingCriteria {
+			fmt.Printf("      %s %s\n", color.RedString("•"), criteria)
+		}
+	}
+
+	if len(analysis.ImprovementSuggestions) > 0 {
+		fmt.Printf("\n   %s %s\n", color.YellowString("💡"), color.New(color.FgYellow,
+			color.Bold).Sprint(h.t.GetMessage("ui_labels.improvement_suggestions", 0, nil)))
+		for _, improvement := range analysis.ImprovementSuggestions {
+			fmt.Printf("      %s %s\n", color.YellowString("•"), improvement)
+		}
+		fmt.Println()
+	}
+}
+
+func (h *SuggestionHandler) displayTechnicalAnalysis(analysis models.RequirementsAnalysis) {
+	if len(analysis.ImprovementSuggestions) > 0 {
+		techColor := color.New(color.FgBlue, color.Bold)
+		fmt.Printf("%s\n", techColor.Sprint(h.t.GetMessage("ui_labels.technical_analysis", 0, nil)))
+		for _, improvement := range analysis.ImprovementSuggestions {
+			fmt.Printf("   %s %s\n", color.CyanString("•"), improvement)
+		}
+		fmt.Println()
+	}
+}
+
+func (h *SuggestionHandler) getCriteriaStatusEmoji(status models.CriteriaStatus) string {
+	switch status {
+	case models.CriteriaFullyMet:
+		return "✅"
+	case models.CriteriaPartiallyMet:
+		return "⚠️"
+	case models.CriteriaNotMet:
+		return "❌"
+	default:
+		return "❓"
+	}
+}
+
+func (h *SuggestionHandler) getCriteriaStatusColor(status models.CriteriaStatus) *color.Color {
+	switch status {
+	case models.CriteriaFullyMet:
+		return color.New(color.FgGreen, color.Bold)
+	case models.CriteriaPartiallyMet:
+		return color.New(color.FgYellow, color.Bold)
+	case models.CriteriaNotMet:
+		return color.New(color.FgRed, color.Bold)
+	default:
+		return color.New(color.FgHiBlack)
+	}
 }
 
 func (h *SuggestionHandler) getCriteriaStatusText(status models.CriteriaStatus) string {
@@ -111,41 +174,79 @@ func (h *SuggestionHandler) getCriteriaStatusText(status models.CriteriaStatus) 
 
 func (h *SuggestionHandler) handleCommitSelection(ctx context.Context, suggestions []models.CommitSuggestion) error {
 	var selection int
-	fmt.Print(h.t.GetMessage("commit.prompt_selection", 0, nil))
+
+	prompt := color.New(color.FgCyan, color.Bold).Sprint(h.t.GetMessage("ui_selection.select_option", 0, nil))
+	fmt.Print(prompt + " ")
+
 	if _, err := fmt.Scan(&selection); err != nil {
 		msg := h.t.GetMessage("commit.error_reading_selection", 0, map[string]interface{}{"Error": err})
+		ui.PrintError(msg)
 		return fmt.Errorf("%s", msg)
 	}
 
 	if selection == 0 {
-		fmt.Println(h.t.GetMessage("commit.operation_canceled", 0, nil))
+		ui.PrintWarning(h.t.GetMessage("commit.operation_canceled", 0, nil))
 		return nil
 	}
 
 	if selection < 1 || selection > len(suggestions) {
 		msg := h.t.GetMessage("commit.invalid_selection", 0, map[string]interface{}{"Number": len(suggestions)})
+		ui.PrintError(msg)
 		return fmt.Errorf("%s", msg)
 	}
 
 	return h.processCommit(ctx, suggestions[selection-1], h.gitService)
 }
 
-func (h *SuggestionHandler) processCommit(ctx context.Context, suggestion models.CommitSuggestion, gitService ports.GitService) error {
+func (h *SuggestionHandler) processCommit(ctx context.Context, suggestion models.CommitSuggestion,
+	gitService ports.GitService) error {
 	commitTitle := strings.TrimSpace(strings.TrimPrefix(suggestion.CommitTitle, "Commit: "))
+
+	fmt.Println()
+	ui.PrintInfo(h.t.GetMessage("ui_preview.commit_selected", 0, map[string]interface{}{
+		"Title": commitTitle,
+	}))
+	ui.PrintInfo(h.t.GetMessage("ui_preview.files_count", 0, map[string]interface{}{
+		"Count": len(suggestion.Files),
+	}))
+
+	if ui.AskConfirmation(h.t.GetMessage("ui_preview.ask_show_diff", 0, nil)) {
+		fmt.Println()
+		if err := ui.ShowDiff(suggestion.Files); err != nil {
+			ui.PrintWarning(h.t.GetMessage("ui_preview.error_showing_diff", 0, map[string]interface{}{
+				"Error": err,
+			}))
+		}
+	}
+
+	if !ui.AskConfirmation(h.t.GetMessage("ui_preview.ask_confirm_commit", 0, nil)) {
+		ui.PrintWarning(h.t.GetMessage("ui_preview.commit_cancelled", 0, nil))
+		return nil
+	}
+
+	spinner := ui.NewSmartSpinner(h.t.GetMessage("ui.adding_to_staging", 0, nil))
+	spinner.Start()
 
 	for _, file := range suggestion.Files {
 		if err := gitService.AddFileToStaging(ctx, file); err != nil {
+			spinner.Error(fmt.Sprintf("Error al agregar %s", file))
 			msg := h.t.GetMessage("commit.error_add_file_staging", 0, map[string]interface{}{
 				"File":  file,
 				"Error": err,
 			})
 			return fmt.Errorf("%s", msg)
 		}
-		msg := h.t.GetMessage("commit.add_file_to_staging", 0, map[string]interface{}{"File": file})
-		fmt.Printf("%s", msg)
 	}
 
+	spinner.Success(h.t.GetMessage("ui.files_added_to_staging", 0, map[string]interface{}{
+		"Count": len(suggestion.Files),
+	}))
+
+	commitSpinner := ui.NewSmartSpinner(h.t.GetMessage("ui.creating_commit", 0, nil))
+	commitSpinner.Start()
+
 	if err := gitService.CreateCommit(ctx, commitTitle); err != nil {
+		commitSpinner.Error("Error al crear el commit")
 		msg := h.t.GetMessage("commit.error_creating_commit", 0, map[string]interface{}{
 			"Commit": commitTitle,
 			"Error":  err,
@@ -153,6 +254,58 @@ func (h *SuggestionHandler) processCommit(ctx context.Context, suggestion models
 		return fmt.Errorf("%s", msg)
 	}
 
-	fmt.Printf("%s\n", h.t.GetMessage("commit.commit_successful", 0, map[string]interface{}{"CommitTitle": commitTitle}))
+	commitSpinner.Stop()
+
+	ui.PrintSuccess(h.t.GetMessage("ui.commit_created_successfully", 0, nil))
+	fmt.Printf("\n   %s\n\n", color.New(color.FgCyan).Sprint(commitTitle))
+
+	if len(suggestion.RequirementsAnalysis.CompletedIndices) > 0 {
+		return h.handleIssueUpdate(ctx, suggestion.RequirementsAnalysis.CompletedIndices, commitTitle)
+	}
+
 	return nil
+}
+
+func (h *SuggestionHandler) handleIssueUpdate(ctx context.Context, indices []int, commitTitle string) error {
+	if h.vcsClient == nil {
+		return nil
+	}
+
+	re := regexp.MustCompile(`\(#(\d+)\)`)
+	matches := re.FindStringSubmatch(commitTitle)
+	if len(matches) < 2 {
+		return nil
+	}
+
+	issueNumber, err := strconv.Atoi(matches[1])
+	if err != nil {
+		return nil
+	}
+
+	fmt.Println()
+	msg := h.t.GetMessage("commit.ask_update_issue_criteria", 0, map[string]interface{}{
+		"Count":  len(indices),
+		"Number": issueNumber,
+	})
+
+	if ui.AskConfirmation(msg) {
+		spinner := ui.NewSmartSpinner(h.t.GetMessage("commit.updating_issue", 0, nil))
+		spinner.Start()
+
+		if err := h.vcsClient.UpdateIssueChecklist(ctx, issueNumber, indices); err != nil {
+			spinner.Error(h.t.GetMessage("commit.error_updating_issue", 0, nil))
+			ui.PrintWarning(fmt.Sprintf("%v", err))
+			return nil
+		}
+
+		spinner.Success(h.t.GetMessage("commit.issue_updated_successfully", 0, nil))
+	}
+
+	return nil
+}
+
+func printIndentedKeyValue(key, value string) {
+	keyColored := color.New(color.FgHiBlack).Sprint(key + ":")
+	valueColored := color.New(color.FgWhite).Sprint(value)
+	fmt.Printf("   %s %s\n", keyColored, valueColored)
 }

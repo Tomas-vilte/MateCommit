@@ -38,4 +38,6 @@ type VCSClient interface {
 	GetFileAtTag(ctx context.Context, tag, filepath string) (string, error)
 	// GetPRIssues obtiene issues relacionadas con un PR basándose en branch name, commits y descripción
 	GetPRIssues(ctx context.Context, branchName string, commits []string, prDescription string) ([]models.Issue, error)
+	// UpdateIssueChecklist actualiza el checklist de un issue marcando elementos como completados
+	UpdateIssueChecklist(ctx context.Context, issueNumber int, indices []int) error
 }

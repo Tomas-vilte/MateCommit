@@ -99,6 +99,11 @@ func (m *MockVCSClient) GetPRIssues(ctx context.Context, branchName string, comm
 	return args.Get(0).([]models.Issue), args.Error(1)
 }
 
+func (m *MockVCSClient) UpdateIssueChecklist(ctx context.Context, issueNumber int, indices []int) error {
+	args := m.Called(ctx, issueNumber, indices)
+	return args.Error(0)
+}
+
 func TestGoModAnalyzer_Name(t *testing.T) {
 	analyzer := NewGoModAnalyzer()
 	assert.Equal(t, "go.mod", analyzer.Name())

@@ -220,6 +220,7 @@ func (s *GeminiService) generatePrompt(locale string, info models.CommitInfo, co
 			diffFormatted,
 			ticketInfo,
 			issueInstructions,
+			info.RecentHistory,
 			count,
 		)
 	}
@@ -229,6 +230,7 @@ func (s *GeminiService) generatePrompt(locale string, info models.CommitInfo, co
 		filesFormatted,
 		diffFormatted,
 		issueInstructions,
+		info.RecentHistory,
 		technicalAnalysis,
 		count,
 	)

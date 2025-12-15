@@ -155,6 +155,10 @@ option_commit = "1-N: Usar la sugerencia correspondiente"
 option_exit = "0: Salir sin commitear"
 error_creating_commit = "❌ Error al crear el commit: {0}"
 factory_already_registered = "❌ La fabrica con el nombre '{{.FactoryName}}' ya está registrada"
+ask_update_issue_criteria = "💡 La IA identificó {{.Count}} criterios completados en el issue #{{.Number}}. ¿Querés actualizar el issue?"
+updating_issue = "Actualizando issue en GitHub..."
+error_updating_issue = "Error al actualizar el issue en GitHub."
+issue_updated_successfully = "Issue de GitHub actualizado exitosamente."
 
 missing_criteria_none = "✅ Criterios Faltantes: Ninguno"
 improvement_suggestions_none = "💡 Sugerencias de Mejora: Ninguna"
@@ -189,10 +193,10 @@ missing_criteria_prefix = "❌ Criterios Faltantes:"
 missing_criteria_none = "-"
 improvement_suggestions_prefix = "💡 Sugerencias de Mejora:"
 improvement_suggestions_none = "-"
-criteria_fully_met_prefix = "✅ Cumplimiento Completo"
-criteria_partially_met_prefix = "⚠️  Cumplimiento Parcial"
-criteria_not_met_prefix = "❌ No Cumplimiento"
-criteria_unknown_prefix = "❓ Estado Desconocido"
+criteria_fully_met_prefix = "Cumplimiento Completo"
+criteria_partially_met_prefix = "Cumplimiento Parcial"
+criteria_not_met_prefix = "No Cumplimiento"
+criteria_unknown_prefix = "Estado Desconocido"
 code_analysis_prefix = "📊 Análisis de Código:"
 changes_overview_prefix = "- Resumen de Cambios:"
 primary_purpose_prefix = "- Propósito Principal:"
@@ -266,6 +270,7 @@ vcs_provider_auto_detected_not_configured = "Proveedor de VCS '%s' detectado aut
 release_already_exists = "Esta release {{.Version}} ya existe"
 repo_or_tag_not_found = "No se encontró el repositorio o la etiqueta. Asegurate de que la etiqueta {{.Version}} exista"
 create_release = "Error creando release"
+pr_number_required = "Debes especificar el número del PR con -n o --number"
 
 [warning]
 pr_too_large = "El PR #{{.pr_number}} es demasiado grande (>20,000 líneas). Obteniendo diff commit por commit..."
@@ -505,3 +510,62 @@ other = "⚠️  Breaking changes detectados en {{.Count}} commits"
 
 [pr_test_plan_generated]
 other = "📋 Test plan generado automáticamente"
+# UI - Spinners y Feedback
+[ui]
+generating_suggestions_banner = "Generando Sugerencias de Commit"
+generating_with_ai = "Generando sugerencias con IA..."
+including_issue_context = "Incluyendo contexto del issue #{{.Number}}..."
+generating_with_issue = "Generando sugerencias con contexto del issue..."
+adding_to_staging = "Agregando archivos al staging..."
+creating_commit = "Creando commit..."
+files_added_to_staging = "{{.Count}} archivos agregados al staging"
+commit_created_successfully = "Commit creado exitosamente"
+suggestions_generated = "{{.Count}} sugerencias generadas"
+error_generating_suggestions = "Error al generar sugerencias"
+detected_issue = "Detectado issue #{{.Number}}"
+fetching_pr_info = "Obteniendo información del PR #{{.Number}}..."
+error_generating_pr_summary = "Error al generar resumen del PR"
+pr_updated_successfully = "PR #{{.Number}} actualizado: {{.Title}}"
+
+# UI - Errors con sugerencias
+[ui_error]
+gemini_api_key_missing = "API key de Gemini no configurado"
+github_token_missing = "Token de GitHub no configurado"
+no_changes_detected = "No se detectaron cambios en el repositorio"
+ensure_modified_files = "Asegúrate de tener archivos modificados antes de generar sugerencias"
+run_config_init = "Ejecuta: matecommit config init"
+error_saving_config = "Error al guardar la configuración"
+
+# UI - Preview y confirmaciones
+[ui_preview]
+commit_selected = "Commit seleccionado: {{.Title}}"
+files_count = "Archivos: {{.Count}}"
+ask_show_diff = "¿Ver cambios antes de commitear?"
+ask_confirm_commit = "¿Confirmar commit?"
+commit_cancelled = "Commit cancelado"
+no_changes_to_show = "No hay cambios para mostrar"
+error_showing_diff = "No se pudo mostrar el diff: {{.Error}}"
+
+# UI - Selection
+[ui_selection]
+select_option = "Selecciona una opción:"
+select_suggestion_range = "Seleccionar sugerencia"
+cancel_operation = "Cancelar"
+
+# UI - Labels
+[ui_labels]
+code_analysis = "📊 Análisis de Código:"
+changes_overview = "Resumen de Cambios"
+primary_purpose = "Propósito Principal"
+technical_impact = "Impacto Técnico"
+commit_label = "Commit:"
+modified_files = "📄 Archivos modificados:"
+explanation_label = "💬 Explicación:"
+requirements_analysis = "🎯 Análisis de Requerimientos:"
+status_label = "Estado:"
+missing_criteria = "Criterios Faltantes:"
+improvement_suggestions = "Sugerencias de Mejora:"
+technical_analysis = "🔧 Análisis Técnico:"
+completed = "Completado"
+error = "Error:"
+

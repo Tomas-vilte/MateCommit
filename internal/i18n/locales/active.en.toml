@@ -151,6 +151,10 @@ option_commit = "1-N: Use the corresponding suggestion"
 option_exit = "0: Exit without committing"
 error_creating_commit = "❌ Error creating the commit: {0}"
 factory_already_registered = "❌ The factory with the name '{{.FactoryName}}' is already registered"
+ask_update_issue_criteria = "💡 AI identified {{.Count}} criteria completed in issue #{{.Number}}. Do you want to update the issue?"
+updating_issue = "Updating GitHub issue..."
+error_updating_issue = "Error updating GitHub issue."
+issue_updated_successfully = "GitHub issue updated successfully."
 
 
 [jira_config_command_usage]
@@ -178,10 +182,10 @@ criteria_status_prefix = "⚠️ Criteria Status:"
 missing_criteria_prefix = "❌ Missing Criteria:"
 improvement_suggestions_prefix = "💡 Improvement Suggestions:"
 improvement_suggestions_none = "-"
-criteria_fully_met_prefix = "✅ Fully Met"
-criteria_partially_met_prefix = "⚠️  Partially Met"
-criteria_not_met_prefix = "❌ Not Met"
-criteria_unknown_prefix = "❓ Unknown Status"
+criteria_fully_met_prefix = "Fully Met"
+criteria_partially_met_prefix = "Partially Met"
+criteria_not_met_prefix = "Not Met"
+criteria_unknown_prefix = "Unknown Status"
 code_analysis_prefix = "📊 Code Analysis:"
 changes_overview_prefix = "- Changes Overview:"
 primary_purpose_prefix = "- Primary Purpose:"
@@ -258,6 +262,7 @@ vcs_provider_auto_detected_not_configured = "VCS provider '%s' auto-detected but
 release_already_exists = "This release {{.Version}} already exists"
 repo_or_tag_not_found = "Repository or tag not found. Make sure tag {{.Version}} exists"
 create_release = "Error creating release"
+pr_number_required = "You must specify the PR number with -n or --number"
 
 [warning]
 pr_too_large = "The PR #{{.pr_number}} is too large (>20,000 lines). We're getting diffs commit by commit..."
@@ -498,3 +503,63 @@ other = "⚠️  Breaking changes detected in {{.Count}} commits"
 
 [pr_test_plan_generated]
 other = "📋 Test plan generated automatically"
+
+# UI - Spinners and Feedback
+[ui]
+generating_suggestions_banner = "Generating Commit Suggestions"
+generating_with_ai = "Generating suggestions with AI..."
+including_issue_context = "Including issue #{{.Number}} context..."
+generating_with_issue = "Generating suggestions with issue context..."
+adding_to_staging = "Adding files to staging..."
+creating_commit = "Creating commit..."
+files_added_to_staging = "{{.Count}} files added to staging"
+commit_created_successfully = "Commit created successfully"
+suggestions_generated = "{{.Count}} suggestions generated"
+error_generating_suggestions = "Error generating suggestions"
+detected_issue = "Detected issue #{{.Number}}"
+fetching_pr_info = "Fetching PR #{{.Number}} information..."
+error_generating_pr_summary = "Error generating PR summary"
+pr_updated_successfully = "PR #{{.Number}} updated: {{.Title}}"
+
+# UI - Errors with suggestions
+[ui_error]
+gemini_api_key_missing = "Gemini API key not configured"
+github_token_missing = "GitHub token not configured"
+no_changes_detected = "No changes detected in repository"
+ensure_modified_files = "Make sure you have modified files before generating suggestions"
+run_config_init = "Run: matecommit config init"
+error_saving_config = "Error saving configuration"
+
+# UI - Preview and confirmations
+[ui_preview]
+commit_selected = "Commit selected: {{.Title}}"
+files_count = "Files: {{.Count}}"
+ask_show_diff = "Show changes before committing?"
+ask_confirm_commit = "Confirm commit?"
+commit_cancelled = "Commit cancelled"
+no_changes_to_show = "No changes to show"
+error_showing_diff = "Could not show diff: {{.Error}}"
+
+# UI - Selection
+[ui_selection]
+select_option = "Select an option:"
+select_suggestion_range = "Select suggestion"
+cancel_operation = "Cancel"
+
+# UI - Labels
+[ui_labels]
+code_analysis = "📊 Code Analysis:"
+changes_overview = "Changes Overview"
+primary_purpose = "Primary Purpose"
+technical_impact = "Technical Impact"
+commit_label = "Commit:"
+modified_files = "📄 Modified files:"
+explanation_label = "💬 Explanation:"
+requirements_analysis = "🎯 Requirements Analysis:"
+status_label = "Status:"
+missing_criteria = "Missing Criteria:"
+improvement_suggestions = "Improvement Suggestions:"
+technical_analysis = "🔧 Technical Analysis:"
+completed = "Completed"
+error = "Error:"
+
