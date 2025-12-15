@@ -8,7 +8,8 @@ import (
 
 type CommitService interface {
 	// GenerateSuggestions genera sugerencias de commit basadas en los cambios detectados
-	GenerateSuggestions(ctx context.Context, count int) ([]models.CommitSuggestion, error)
+	// GenerateSuggestions genera sugerencias de commit basadas en los cambios detectados
+	GenerateSuggestions(ctx context.Context, count int, progress func(string)) ([]models.CommitSuggestion, error)
 	// GenerateSuggestionsWithIssue genera sugerencias considerando un issue específico
-	GenerateSuggestionsWithIssue(ctx context.Context, count int, issueNumber int) ([]models.CommitSuggestion, error)
+	GenerateSuggestionsWithIssue(ctx context.Context, count int, issueNumber int, progress func(string)) ([]models.CommitSuggestion, error)
 }

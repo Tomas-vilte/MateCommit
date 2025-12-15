@@ -50,7 +50,9 @@ func (c *SummarizeCommand) CreateCommand(t *i18n.Translations, _ *cfg.Config) *c
 			}))
 			spinner.Start()
 
-			summary, err := prService.SummarizePR(ctx, prNumber)
+			summary, err := prService.SummarizePR(ctx, prNumber, func(msg string) {
+				spinner.Log(msg)
+			})
 			if err != nil {
 				spinner.Error(t.GetMessage("ui.error_generating_pr_summary", 0, nil))
 				return fmt.Errorf(t.GetMessage("error.pr_summary_error", 0, nil)+": %w", err)

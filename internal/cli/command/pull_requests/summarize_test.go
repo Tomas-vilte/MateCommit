@@ -18,8 +18,8 @@ type MockPRService struct {
 	mock.Mock
 }
 
-func (m *MockPRService) SummarizePR(ctx context.Context, prNumber int) (models.PRSummary, error) {
-	args := m.Called(ctx, prNumber)
+func (m *MockPRService) SummarizePR(ctx context.Context, prNumber int, progress func(string)) (models.PRSummary, error) {
+	args := m.Called(ctx, prNumber, progress)
 	return args.Get(0).(models.PRSummary), args.Error(1)
 }
 
@@ -58,7 +58,7 @@ func TestSummarizeCommand(t *testing.T) {
 		}
 
 		mockFactory.On("CreatePRService", mock.Anything).Return(mockPRService, nil)
-		mockPRService.On("SummarizePR", mock.Anything, prNumber).Return(summary, nil)
+		mockPRService.On("SummarizePR", mock.Anything, prNumber, mock.Anything).Return(summary, nil)
 
 		prCommand := NewSummarizeCommand(mockFactory)
 		cmd := prCommand.CreateCommand(translations, cfg)
@@ -99,7 +99,7 @@ func TestSummarizeCommand(t *testing.T) {
 		mockError := fmt.Errorf("service error")
 
 		mockFactory.On("CreatePRService", mock.Anything).Return(mockPRService, nil)
-		mockPRService.On("SummarizePR", mock.Anything, prNumber).Return(models.PRSummary{}, mockError)
+		mockPRService.On("SummarizePR", mock.Anything, prNumber, mock.Anything).Return(models.PRSummary{}, mockError)
 
 		prCommand := NewSummarizeCommand(mockFactory)
 		cmd := prCommand.CreateCommand(translations, cfg)

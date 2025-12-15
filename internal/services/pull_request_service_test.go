@@ -52,7 +52,7 @@ func TestPRService_SummarizePR_Success(t *testing.T) {
 	service := NewPRService(mockVCS, mockAI, trans, cfg)
 
 	// Act
-	result, err := service.SummarizePR(ctx, prNumber)
+	result, err := service.SummarizePR(ctx, prNumber, func(s string) {})
 
 	// Assert
 	assert.NoError(t, err)
@@ -78,7 +78,7 @@ func TestPRService_SummarizePR_GetPRError(t *testing.T) {
 	service := NewPRService(mockVCS, mockAI, trans, cfg)
 
 	// act
-	_, err = service.SummarizePR(ctx, prNumber)
+	_, err = service.SummarizePR(ctx, prNumber, func(s string) {})
 
 	// assert
 	assert.Error(t, err)
@@ -113,7 +113,7 @@ func TestPRService_SummarizePR_GenerateError(t *testing.T) {
 	service := NewPRService(mockVCS, mockAI, trans, cfg)
 
 	// Act
-	_, err = service.SummarizePR(ctx, prNumber)
+	_, err = service.SummarizePR(ctx, prNumber, func(s string) {})
 
 	// Assert
 	assert.Error(t, err)
@@ -154,7 +154,7 @@ func TestPRService_SummarizePR_UpdateError(t *testing.T) {
 
 	service := NewPRService(mockVCS, mockAI, trans, cfg)
 
-	_, err = service.SummarizePR(ctx, prNumber)
+	_, err = service.SummarizePR(ctx, prNumber, func(s string) {})
 
 	assert.ErrorContains(t, err, "Error al actualizar el PR: update failed")
 	mockVCS.AssertExpectations(t)
@@ -169,7 +169,7 @@ func TestPRService_SummarizePR_NilAIService(t *testing.T) {
 
 	service := NewPRService(nil, nil, trans, cfg)
 
-	_, err = service.SummarizePR(ctx, 123)
+	_, err = service.SummarizePR(ctx, 123, func(s string) {})
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "ai_missing_for_pr")
@@ -217,7 +217,7 @@ func TestPRService_SummarizePR_WithRelatedIssues(t *testing.T) {
 
 	service := NewPRService(mockVCS, mockAI, trans, cfg)
 
-	_, err = service.SummarizePR(ctx, prNumber)
+	_, err = service.SummarizePR(ctx, prNumber, func(s string) {})
 
 	assert.NoError(t, err)
 	mockVCS.AssertExpectations(t)
@@ -254,7 +254,7 @@ func TestPRService_SummarizePR_BreakingChanges(t *testing.T) {
 
 	service := NewPRService(mockVCS, mockAI, trans, cfg)
 
-	_, err = service.SummarizePR(ctx, prNumber)
+	_, err = service.SummarizePR(ctx, prNumber, func(s string) {})
 
 	assert.NoError(t, err)
 	mockVCS.AssertExpectations(t)
@@ -380,7 +380,9 @@ func TestPRService_SummarizePR_Integration(t *testing.T) {
 
 	t.Run("should successfully summarize a real PR", func(t *testing.T) {
 		ctx := context.Background()
-		summary, err := prService.SummarizePR(ctx, testConfig.PRNumber)
+		summary, err := prService.SummarizePR(ctx, testConfig.PRNumber, func(s string) {
+			t.Log(s)
+		})
 
 		require.NoError(t, err)
 		require.NotEmpty(t, summary)
