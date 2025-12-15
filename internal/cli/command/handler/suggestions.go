@@ -156,16 +156,16 @@ func (h *SuggestionHandler) getCriteriaStatusText(status models.CriteriaStatus) 
 	var msg string
 	switch status {
 	case models.CriteriaFullyMet:
-		msg = h.t.GetMessage("gemini_service.criteria_fully_met_prefix", 0, nil)
+		msg = h.t.GetMessage("ai_service.criteria_fully_met_prefix", 0, nil)
 		return msg
 	case models.CriteriaPartiallyMet:
-		msg = h.t.GetMessage("gemini_service.criteria_partially_met_prefix", 0, nil)
+		msg = h.t.GetMessage("ai_service.criteria_partially_met_prefix", 0, nil)
 		return msg
 	case models.CriteriaNotMet:
-		msg = h.t.GetMessage("gemini_service.criteria_not_met_prefix", 0, nil)
+		msg = h.t.GetMessage("ai_service.criteria_not_met_prefix", 0, nil)
 		return msg
 	default:
-		msg = h.t.GetMessage("gemini_service.criteria_unknown_prefix", 0, nil)
+		msg = h.t.GetMessage("ai_service.criteria_unknown_prefix", 0, nil)
 		return msg
 	}
 }

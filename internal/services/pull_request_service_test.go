@@ -348,8 +348,15 @@ func setupServices(t *testing.T, testConfig TestConfig) (*PRService, error) {
 	)
 
 	cfg := &config.Config{
-		GeminiAPIKey: testConfig.GeminiAPIKey,
-		Language:     "es",
+		Language: "es",
+		AIProviders: map[string]config.AIProviderConfig{
+			"gemini": {
+				APIKey:      testConfig.GeminiAPIKey,
+				Model:       "gemini-2.5-flash",
+				Temperature: 0.3,
+				MaxTokens:   10000,
+			},
+		},
 		AIConfig: config.AIConfig{
 			Models: map[config.AI]config.Model{
 				config.AIGemini: config.ModelGeminiV25Flash,

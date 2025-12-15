@@ -16,7 +16,11 @@ func TestShowCommand(t *testing.T) {
 	t.Run("should display configuration with API key set", func(t *testing.T) {
 		cfg, translations, _, cleanup := setupConfigTest(t)
 		cfg.UseEmoji = true
-		cfg.GeminiAPIKey = "test-api-key"
+		cfg.AIProviders = map[string]config.AIProviderConfig{
+			"gemini": {
+				APIKey: "test-api-key",
+			},
+		}
 		assert.NoError(t, config.SaveConfig(cfg))
 
 		cmd := NewConfigCommandFactory().newShowCommand(translations, cfg)
@@ -57,11 +61,17 @@ func TestShowCommand(t *testing.T) {
 		cfg, translations, _, cleanup := setupConfigTest(t)
 		cfg.UseTicket = true
 		cfg.ActiveTicketService = "jira"
-		cfg.GeminiAPIKey = "test-api-key"
-		cfg.JiraConfig = config.JiraConfig{
-			BaseURL: "https://example.atlassian.net",
-			Email:   "user@example.com",
-			APIKey:  "test-api-key",
+		cfg.AIProviders = map[string]config.AIProviderConfig{
+			"gemini": {
+				APIKey: "test-api-key",
+			},
+		}
+		cfg.TicketProviders = map[string]config.TicketProviderConfig{
+			"jira": {
+				BaseURL: "https://example.atlassian.net",
+				Email:   "user@example.com",
+				APIKey:  "test-api-key",
+			},
 		}
 		cfg.AIConfig = config.AIConfig{
 			ActiveAI: config.AIGemini,
