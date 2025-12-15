@@ -10,25 +10,37 @@ import (
 
 type (
 	Config struct {
-		GeminiAPIKey     string `json:"gemini_api_key"`
 		Language         string `json:"language"`
 		UseEmoji         bool   `json:"use_emoji"`
 		SuggestionsCount int    `json:"suggestions_count"`
 		PathFile         string `json:"path_file"`
 
-		ActiveTicketService string     `json:"active_ticket_service,omitempty"` // "jira", "trello", "github", etc.
-		JiraConfig          JiraConfig `json:"jira_config"`
-		UseTicket           bool       `json:"use_ticket,omitempty"`
-		AIConfig            AIConfig   `json:"ai_config"`
+		AIProviders map[string]AIProviderConfig `json:"ai_providers,omitempty"`
+		AIConfig    AIConfig                    `json:"ai_config"`
+
+		TicketProviders     map[string]TicketProviderConfig `json:"ticket_providers,omitempty"`
+		ActiveTicketService string                          `json:"active_ticket_service,omitempty"`
+		UseTicket           bool                            `json:"use_ticket,omitempty"`
 
 		VCSConfigs        map[string]VCSConfig `json:"vcs_configs"`
 		ActiveVCSProvider string               `json:"active_vcs_provider,omitempty"`
 	}
 
-	JiraConfig struct {
-		APIKey  string `json:"api_key,omitempty"`
-		BaseURL string `json:"base_url,omitempty"`
-		Email   string `json:"email,omitempty"`
+	// AIProviderConfig contiene la configuración específica de cada proveedor de IA
+	AIProviderConfig struct {
+		APIKey      string  `json:"api_key"`
+		Model       string  `json:"model,omitempty"`
+		Temperature float32 `json:"temperature,omitempty"`
+		MaxTokens   int     `json:"max_tokens,omitempty"`
+	}
+
+	// TicketProviderConfig contiene la configuración específica de cada proveedor de tickets
+	TicketProviderConfig struct {
+		APIKey   string            `json:"api_key"`
+		BaseURL  string            `json:"base_url,omitempty"`
+		Email    string            `json:"email,omitempty"`
+		Username string            `json:"username,omitempty"`
+		Extra    map[string]string `json:"extra,omitempty"` // Para configuraciones específicas del proveedor
 	}
 
 	AIConfig struct {
@@ -84,6 +96,7 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("la configuración cargada no es válida: %w", err)
 	}
 
+	config.PathFile = configPath
 	return &config, nil
 }
 
@@ -98,11 +111,10 @@ func createDefaultConfig(path string) (*Config, error) {
 			Models:   make(map[AI]Model),
 		},
 
-		JiraConfig: JiraConfig{
-			APIKey:  "",
-			BaseURL: "",
-			Email:   "",
-		},
+		AIProviders:     make(map[string]AIProviderConfig),
+		TicketProviders: make(map[string]TicketProviderConfig),
+		VCSConfigs:      make(map[string]VCSConfig),
+
 		ActiveTicketService: "",
 		UseTicket:           false,
 	}
@@ -151,20 +163,17 @@ func validateConfig(config *Config) error {
 	}
 
 	if config.ActiveTicketService != "" {
-		switch config.ActiveTicketService {
-		case "jira":
-			if config.JiraConfig.BaseURL == "" {
-				return errors.New("jira base URL no está configurada")
+		if config.TicketProviders != nil {
+			if ticketCfg, exists := config.TicketProviders[config.ActiveTicketService]; exists {
+				if ticketCfg.BaseURL == "" {
+					return fmt.Errorf("%s base URL no está configurada", config.ActiveTicketService)
+				}
+				if ticketCfg.APIKey == "" {
+					return fmt.Errorf("%s API key no está configurada", config.ActiveTicketService)
+				}
 			}
-			if config.JiraConfig.Email == "" {
-				return errors.New("jira username no está configurado")
-			}
-			if config.JiraConfig.APIKey == "" {
-				return errors.New("jira API key no está configurada")
-			}
-		default:
-			return fmt.Errorf("servicio de tickets no soportado: %s", config.ActiveTicketService)
 		}
 	}
+
 	return nil
 }

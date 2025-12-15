@@ -49,8 +49,8 @@ other = "❌ No staged changes to commit.\nUse 'git add' to stage your changes f
 [invalid_suggestions_count]
 other = "Number of suggestions must be between {{.Min}} and {{.Max}}"
 
-[gemini_init_error]
-other = "❌ Error initializing Gemini: {{.Error}}"
+[ai_init_error]
+other = "❌ Error initializing {{.Provider}}: {{.Error}}"
 
 [analyzing_changes]
 other = "🔍 Analyzing changes..."
@@ -63,6 +63,12 @@ other = "⚙️  Manage configuration"
 
 [config_init_usage]
 other = "🚀 Initialize configuration wizard"
+
+[config_init_quick_flag]
+other = "Quick setup (only essential configuration)"
+
+[config_init_full_flag]
+other = "Full setup (configure everything)"
 
 [config_edit_usage]
 other = "✏️  Open configuration file in editor"
@@ -83,7 +89,7 @@ other = "❌ Unsupported language. Use 'en' or 'es'"
 other = "✅ Language set to: {{.Lang}}"
 
 [error_missing_api_key]
-other = "The GEMINI_API_KEY is not configured"
+other = "The {{.Provider}} API key is not configured"
 
 [error_generating_content]
 other = "Error generating content: {{.Error}}"
@@ -131,10 +137,10 @@ key_config_command = "mate-commit config set-api-key --key <your_api_key>"
 key_set = "🔑 API Key: ✅ Configured"
 
 [commands]
-set_api_key_usage = "🔑 Set the Gemini API Key"
+set_api_key_usage = "🔑 Set the AI provider API Key"
 
 [flags]
-gemini_api_key = "Your Gemini API Key"
+ai_api_key = "Your AI provider API Key"
 [commit]
 prompt_selection = "👉 Enter your selection: "
 operation_canceled = "✨ Operation canceled"
@@ -174,7 +180,7 @@ ticket_enabled_success = "Ticket integration has been enabled successfully"
 [config_save]
 error_saving_config = "Error saving configuration: {{.Error}}"
 
-[gemini_service]
+[ai_service]
 modified_files_prefix = "📄 Modified files:"
 explanation_prefix = "Explanation:"
 requirements_analysis_prefix = "🎯 Requirements Analysis:"
@@ -198,7 +204,7 @@ missing_criteria_none = "✅ Missing Criteria: None"
 pr_title_section = "PR Title"
 pr_labels_section = "Suggested Tags"
 pr_changes_section = "Key Changes"
-error_gemini_client = "Error creating Gemini client: {{.Error}}"
+error_ai_client = "Error creating AI client: {{.Error}}"
 response_empty = "Empty AI response"
 title_not_found = "The title was not found in the answer"
 error_empty_prompt = "The prompt cannot be empty"
@@ -315,7 +321,8 @@ error_update_pr = "Error updating PR: {{.Error}}"
 section_welcome = "1. Welcome and AI"
 welcome = "👋 Welcome to the MateCommit setup assistant!"
 ai_intro = "First, let’s configure the AI. (Supported providers: {{.Providers}})"
-prompt_gemini_api_key = "> Enter your Gemini API Key (Enter to skip): "
+prompt_ai_api_key = "> Enter your {{.Provider}} API Key (Enter to skip): "
+prompt_ai_api_key_generic = "> Enter your AI API Key (Enter to skip): "
 model_hint_supported = "> You can specify a model (supported: {{.Models}})."
 prompt_model_with_default = "> Model to use (default: {{.Default}}): "
 
@@ -346,11 +353,11 @@ summary_vcs_none = "No VCS provider configured"
 prompt_run_again = "Do you want to run the wizard again? (y/n): "
 
 [ai_missing]
-for_suggest = "❌ AI is not configured. Set your Gemini API Key to use 'suggest'.\n   👉 matecommit config init"
-for_pr = "❌ AI is not configured. Set your Gemini API Key to use 'summarize-pr'.\n   👉 matecommit config init"
+for_suggest = "❌ AI is not configured. Set your AI provider API Key to use 'suggest'.\n   👉 matecommit config init"
+for_pr = "❌ AI is not configured. Set your AI provider API Key to use 'summarize-pr'.\n   👉 matecommit config init"
 
-ai_missing_for_suggest = "❌ AI is not configured. Set your Gemini API Key to use 'suggest'.\n   👉 matecommit config init"
-ai_missing_for_pr = "❌ AI is not configured. Set your Gemini API Key to use 'summarize-pr'.\n   👉 matecommit config init"
+ai_missing_for_suggest = "❌ AI is not configured. Set your AI provider API Key to use 'suggest'.\n   👉 matecommit config init"
+ai_missing_for_pr = "❌ AI is not configured. Set your AI provider API Key to use 'summarize-pr'.\n   👉 matecommit config init"
 
 [help_command_usage]
 other = "Shows a list of commands or help for one command"
@@ -523,7 +530,8 @@ pr_updated_successfully = "PR #{{.Number}} updated: {{.Title}}"
 
 # UI - Errors with suggestions
 [ui_error]
-gemini_api_key_missing = "Gemini API key not configured"
+ai_api_key_missing = "{{.Provider}} API key not configured"
+ai_api_key_missing_generic = "AI API key not configured"
 github_token_missing = "GitHub token not configured"
 no_changes_detected = "No changes detected in repository"
 ensure_modified_files = "Make sure you have modified files before generating suggestions"
@@ -587,7 +595,8 @@ command_unavailable = "(unavailable)"
 check_config_file = "Configuration file"
 check_git_repo = "Git repository"
 check_git_installed = "Git installed"
-check_gemini_key = "Gemini API key"
+check_ai_key = "{{.Provider}} API key"
+check_ai_key_generic = "AI provider API key"
 check_github_token = "GitHub token"
 check_editor = "Editor configured"
 
@@ -598,8 +607,10 @@ not_in_git_repo = "Not in a Git repository"
 git_init_suggestion = "Run: git init"
 git_not_installed = "Git is not installed"
 install_git_suggestion = "Install Git from: https://git-scm.com"
-gemini_not_configured = "API key not configured"
-gemini_key_invalid = "Invalid API key or no permissions"
+ai_not_configured = "{{.Provider}} API key not configured"
+ai_key_invalid = "Invalid {{.Provider}} API key or no permissions"
+ai_not_configured_generic = "AI API key not configured"
+ai_key_invalid_generic = "Invalid AI API key or no permissions"
 check_api_key = "Check your API key at: https://makersuite.google.com"
 api_key_valid = "valid and working"
 github_not_configured = "Token not configured"
@@ -614,12 +625,15 @@ set_valid_editor = "Set a valid editor with: export EDITOR=nano"
 # Config improvements
 [config]
 validating_api_key = "Validating API key..."
-testing_connection = "Testing connection with Gemini"
+testing_connection = "Testing connection with {{.Provider}}"
+testing_connection_generic = "Testing AI connection"
 api_key_invalid = "Invalid API key"
 api_key_valid = "Valid API key"
 check_api_key_error = "Error: {{.Error}}"
-api_key_instructions = "MateCommit uses Gemini API to generate smart commits."
-get_key_at = "Get your free API key at:"
+api_key_instructions = "MateCommit uses {{.Provider}} to generate smart commits."
+api_key_instructions_generic = "MateCommit uses AI to generate smart commits."
+get_key_at = "Get your API key at: {{.URL}}"
+get_key_at_generic = "Get your API key from your provider's website"
 api_key_skipped = "API key skipped - you can configure it later"
 api_key_saved_unverified = "API key saved without verification"
 retry_api_key = "Try another API key?"
@@ -631,3 +645,37 @@ intro = "Looks like this is your first time using MateCommit. This tool helps yo
 configure_now = "Would you like to configure it now?"
 setup_later = "Setup skipped"
 run_init_hint = "You can configure it later with: matecommit config init"
+
+# Quick setup
+[quick_setup]
+header = "🚀 Quick Setup"
+intro_message = "Get started in 30 seconds with just the essentials"
+ai_provider_intro = "AI Provider: {{.Provider}}"
+get_api_key_at = "Get your free API key at: {{.URL}}"
+prompt_api_key = "> Enter your {{.Provider}} API Key: "
+no_api_key_provided = "No API key provided. You can configure it later with: matecommit config init"
+validating_key = "Validating API key..."
+key_validated = "✅ API key validated successfully"
+key_validation_failed = "⚠️  Could not validate API key, but saving anyway"
+config_saved = "✅ Configuration saved!"
+try_now = "💡 Try it now: matecommit s"
+full_setup_hint = "💡 For full setup: matecommit config init"
+
+# Setup mode selection
+[setup_mode]
+choose_mode = "Choose setup mode:"
+quick_option = "1. Quick (recommended) - Just AI, ready in 30 seconds"
+full_option = "2. Full - Configure everything (AI, VCS, Tickets)"
+prompt_selection = "Select [1]: "
+
+# First run wizard
+[first_run]
+welcome_banner = "👋 Welcome to MateCommit!"
+welcome_message = "Looks like this is your first time. MateCommit uses AI to generate smart commits."
+what_to_do = "What would you like to do?"
+quick_setup_option = "1. Quick setup (30 seconds)"
+full_setup_option = "2. Full setup"
+exit_option = "3. Exit"
+prompt_choice = "Select [1]: "
+setup_cancelled = "Setup cancelled"
+invalid_choice = "Invalid choice"

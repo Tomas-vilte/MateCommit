@@ -14,8 +14,8 @@ func TestNewReleaseNotesGenerator(t *testing.T) {
 	// Arrange
 	ctx := context.Background()
 	cfg := &config.Config{
-		GeminiAPIKey: "test-api-key",
-		Language:     "en",
+		AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test-api-key", Model: "gemini-2.5-flash", Temperature: 0.3, MaxTokens: 10000}},
+		Language:    "en",
 		AIConfig: config.AIConfig{
 			Models: map[config.AI]config.Model{
 				config.AIGemini: "gemini-pro",
@@ -40,7 +40,7 @@ func TestNewReleaseNotesGenerator_MissingKey(t *testing.T) {
 	// Arrange
 	ctx := context.Background()
 	cfg := &config.Config{
-		GeminiAPIKey: "",
+		AIProviders: map[string]config.AIProviderConfig{},
 	}
 	trans, err := i18n.NewTranslations("en", "")
 	assert.NoError(t, err)
@@ -51,7 +51,7 @@ func TestNewReleaseNotesGenerator_MissingKey(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 	assert.Nil(t, generator)
-	assert.Contains(t, err.Error(), "The GEMINI_API_KEY is not configured")
+	assert.Contains(t, err.Error(), "The gemini API key is not configured")
 }
 
 func TestBuildPrompt(t *testing.T) {
