@@ -16,7 +16,6 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/ai/gemini"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/di"
-	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/factory"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/git"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/tickets/jira"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/vcs/github"
@@ -83,8 +82,11 @@ func initializeApp() (*cli.Command, error) {
 	vcsClientInstance, _ := vcsClient.CreateClientFromConfig(ctx, gitService, cfgApp, translations)
 	commitHandler := handler.NewSuggestionHandler(gitService, vcsClientInstance, translations)
 
-	prServiceFactory := factory.NewPrServiceFactory(cfgApp, translations, nil, gitService)
-	prCommand := pull_requests.NewSummarizeCommand(prServiceFactory)
+	prService, err := container.GetPRService(ctx)
+	if err != nil {
+		log.Println("La IA no está configurada para PRs. Podés configurarla con 'matecommit config init'")
+	}
+	prCommand := pull_requests.NewSummarizeCommand(prService)
 
 	registerCommand := registry.NewRegistry(cfgApp, translations)
 

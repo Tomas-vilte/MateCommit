@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	cfg "github.com/Tomas-vilte/MateCommit/internal/config"
-	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/factory"
+	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/ui"
 
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
@@ -13,12 +13,12 @@ import (
 )
 
 type SummarizeCommand struct {
-	prFactory factory.PRServiceFactoryInterface
+	prService ports.PRService
 }
 
-func NewSummarizeCommand(prFactory factory.PRServiceFactoryInterface) *SummarizeCommand {
+func NewSummarizeCommand(prService ports.PRService) *SummarizeCommand {
 	return &SummarizeCommand{
-		prFactory: prFactory,
+		prService: prService,
 	}
 }
 
@@ -36,9 +36,8 @@ func (c *SummarizeCommand) CreateCommand(t *i18n.Translations, _ *cfg.Config) *c
 			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			prService, err := c.prFactory.CreatePRService(ctx)
-			if err != nil {
-				return fmt.Errorf(t.GetMessage("error.pr_service_creation_error", 0, nil)+": %w", err)
+			if c.prService == nil {
+				return fmt.Errorf("%s", t.GetMessage("ai_missing.ai_missing_for_pr", 0, nil))
 			}
 			prNumber := cmd.Int("pr-number")
 			if prNumber == 0 {
@@ -50,7 +49,7 @@ func (c *SummarizeCommand) CreateCommand(t *i18n.Translations, _ *cfg.Config) *c
 			}))
 			spinner.Start()
 
-			summary, err := prService.SummarizePR(ctx, prNumber, func(msg string) {
+			summary, err := c.prService.SummarizePR(ctx, prNumber, func(msg string) {
 				spinner.Log(msg)
 			})
 			if err != nil {
