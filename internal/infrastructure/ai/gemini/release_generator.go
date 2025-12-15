@@ -47,7 +47,7 @@ func NewReleaseNotesGenerator(ctx context.Context, cfg *config.Config, trans *i1
 		Backend: genai.BackendGeminiAPI,
 	})
 	if err != nil {
-		msg := trans.GetMessage("error_gemini_client", 0, map[string]interface{}{
+		msg := trans.GetMessage("ai_service.error_ai_client", 0, map[string]interface{}{
 			"Error": err,
 		})
 		return nil, fmt.Errorf("%s", msg)
@@ -75,14 +75,14 @@ func (g *ReleaseNotesGenerator) GenerateNotes(ctx context.Context, release *mode
 
 	resp, err := g.client.Models.GenerateContent(ctx, g.model, genai.Text(prompt), genConfig)
 	if err != nil {
-		msg := g.trans.GetMessage("error_generating_release_notes", 0, map[string]interface{}{
+		msg := g.trans.GetMessage("ai_service.error_generating_release_notes", 0, map[string]interface{}{
 			"Error": err,
 		})
 		return nil, fmt.Errorf("%s", msg)
 	}
 
 	if len(resp.Candidates) == 0 {
-		msg := g.trans.GetMessage("error_no_ai_response", 0, nil)
+		msg := g.trans.GetMessage("ai_service.error_no_ai_response", 0, nil)
 		return nil, fmt.Errorf("%s", msg)
 	}
 

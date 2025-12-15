@@ -33,7 +33,7 @@ func NewPRService(vcsClient ports.VCSClient, aiService ports.PRSummarizer, trans
 
 func (s *PRService) SummarizePR(ctx context.Context, prNumber int, progress func(string)) (models.PRSummary, error) {
 	if s.aiService == nil {
-		msg := s.trans.GetMessage("ai_missing_for_pr", 0, nil)
+		msg := s.trans.GetMessage("ai_missing.ai_missing_for_pr", 0, nil)
 		return models.PRSummary{}, fmt.Errorf("%s", msg)
 	}
 
