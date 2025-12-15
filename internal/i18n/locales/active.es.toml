@@ -49,14 +49,14 @@ other = "❌ No hay cambios preparados para commitear.\nUsá 'git add' para prep
 [invalid_suggestions_count]
 other = "La cantidad de sugerencias tiene que estar entre {{.Min}} y {{.Max}}"
 
-[gemini_init_error]
-other = "❌ Error al iniciar Gemini: {{.Error}}"
+[ai_init_error]
+other = "❌ Error al inicializar {{.Provider}}: {{.Error}}"
 
 [analyzing_changes]
 other = "🔍 Analizando cambios..."
 
 [error_missing_api_key]
-other = "La GEMINI_API_KEY no está configurada"
+other = "La API key de {{.Provider}} no está configurada"
 
 [error_generating_content]
 other = "Error generando el contenido: {{.Error}}"
@@ -81,6 +81,12 @@ other = "⚙️  Administrar configuración"
 
 [config_init_usage]
 other = "🚀 Iniciar asistente de configuración"
+
+[config_init_quick_flag]
+other = "Configuración rápida (solo lo esencial)"
+
+[config_init_full_flag]
+other = "Configuración completa (configurar todo)"
 
 [config_edit_usage]
 other = "✏️  Abrir archivo de configuración en el editor"
@@ -134,10 +140,10 @@ key_config_command = "mate-commit config set-api-key --key <tu_clave_api>"
 key_set = "🔑 Clave API: ✅ Configurada"
 
 [commands]
-set_api_key_usage = "🔑 Configurar la clave API de Gemini"
+set_api_key_usage = "🔑 Configurar la API Key del proveedor de IA"
 
 [flags]
-gemini_api_key = "Tu clave API de Gemini"
+ai_api_key = "Tu clave API del proveedor de IA"
 
 [commit]
 prompt_selection = "👉 Ingresá tu selección: "
@@ -183,7 +189,7 @@ ticket_enabled_success = "La integración de tickets ha sido activada exitosamen
 [config_save]
 error_saving_config = "Error al guardar la configuración: {{.Error}}"
 
-[gemini_service]
+[ai_service]
 modified_files_prefix = "📄 Archivos modificados:"
 explanation_prefix = "Explicación:"
 requirements_analysis_prefix = "🎯 Análisis de Requerimientos:"
@@ -206,7 +212,7 @@ technical_analysis_section = "💭 Analisis Tecnico:"
 pr_title_section = "Título del PR"
 pr_labels_section = "Etiquetas sugeridas"
 pr_changes_section = "Cambios clave"
-error_gemini_client = "Error al crear el cliente de Gemini: {{.Error}}"
+error_ai_client = "Error al crear el cliente de IA: {{.Error}}"
 response_empty = "Respuesta de la IA vacia"
 title_not_found = "No se encontro el titulo en la respuesta"
 error_empty_prompt = "El prompt no puede estar vacio"
@@ -322,7 +328,8 @@ error_update_pr = "Error al actualizar el PR: {{.Error}}"
 section_welcome = "1. Bienvenida e IA"
 welcome = "👋 ¡Bienvenido al asistente de configuración de MateCommit!"
 ai_intro = "Primero, configuremos la IA. (Proveedores soportados: {{.Providers}})"
-prompt_gemini_api_key = "> Introduce tu API Key de Gemini (Enter para omitir): "
+prompt_ai_api_key = "> Introduce tu API Key de {{.Provider}} (Enter para omitir): "
+prompt_ai_api_key_generic = "> Introduce tu API Key de IA (Enter para omitir): "
 model_hint_supported = "> Puedes especificar un modelo (soportados: {{.Models}})."
 prompt_model_with_default = "> Modelo a usar (por defecto: {{.Default}}): "
 
@@ -353,12 +360,12 @@ summary_vcs_none = "Proveedor VCS no configurado"
 prompt_run_again = "¿Querés volver a ejecutar el asistente? (s/n): "
 
 [ai_missing]
-for_suggest = "❌ La IA no está configurada. Configurá tu API Key de Gemini para usar 'suggest'.\n   👉 matecommit config init"
-for_pr = "❌ La IA no está configurada. Configurá tu API Key de Gemini para usar 'summarize-pr'.\n   👉 matecommit config init"
+for_suggest = "❌ La IA no está configurada. Configura tu API Key del proveedor de IA para usar 'suggest'.\n   👉 matecommit config init"
+for_pr = "❌ La IA no está configurada. Configura tu API Key del proveedor de IA para usar 'summarize-pr'.\n   👉 matecommit config init"
 
-ai_missing_for_suggest = "❌ La IA no está configurada. Configurá tu API Key de Gemini para usar 'suggest'.\n   👉 matecommit config init"
+ai_missing_for_suggest = "❌ La IA no está configurada. Configura tu API Key del proveedor de IA para usar 'suggest'.\n   👉 matecommit config init"
 
-ai_missing_for_pr = "❌ La IA no está configurada. Configurá tu API Key de Gemini para usar 'summarize-pr'.\n   👉 matecommit config init"
+ai_missing_for_pr = "❌ La IA no está configurada. Configura tu API Key del proveedor de IA para usar 'summarize-pr'.\n   👉 matecommit config init"
 
 [help_command_usage]
 other = "Muestra una lista de comandos o ayuda para un comando"
@@ -529,7 +536,8 @@ pr_updated_successfully = "PR #{{.Number}} actualizado: {{.Title}}"
 
 # UI - Errors con sugerencias
 [ui_error]
-gemini_api_key_missing = "API key de Gemini no configurado"
+ai_api_key_missing = "API key de {{.Provider}} no configurado"
+ai_api_key_missing_generic = "API key de IA no configurado"
 github_token_missing = "Token de GitHub no configurado"
 no_changes_detected = "No se detectaron cambios en el repositorio"
 ensure_modified_files = "Asegúrate de tener archivos modificados antes de generar sugerencias"
@@ -593,7 +601,8 @@ command_unavailable = "(no disponible)"
 check_config_file = "Archivo de configuración"
 check_git_repo = "Repositorio Git"
 check_git_installed = "Git instalado"
-check_gemini_key = "API key de Gemini"
+check_ai_key = "API key de {{.Provider}}"
+check_ai_key_generic = "API key del proveedor de IA"
 check_github_token = "Token de GitHub"
 check_editor = "Editor configurado"
 
@@ -604,8 +613,10 @@ not_in_git_repo = "No estás en un repositorio Git"
 git_init_suggestion = "Ejecuta: git init"
 git_not_installed = "Git no está instalado"
 install_git_suggestion = "Instala Git desde: https://git-scm.com"
-gemini_not_configured = "API key no configurada"
-gemini_key_invalid = "API key inválida o sin permisos"
+ai_not_configured = "API key de {{.Provider}} no configurada"
+ai_key_invalid = "API key de {{.Provider}} inválida o sin permisos"
+ai_not_configured_generic = "API key de IA no configurada"
+ai_key_invalid_generic = "API key de IA inválida o sin permisos"
 check_api_key = "Verifica tu API key en: https://makersuite.google.com"
 api_key_valid = "válida y funcionando"
 github_not_configured = "Token no configurado"
@@ -620,12 +631,15 @@ set_valid_editor = "Configura un editor válido con: export EDITOR=nano"
 # Config improvements
 [config]
 validating_api_key = "Validando API key..."
-testing_connection = "Testeando conexión con Gemini"
+testing_connection = "Probando conexión con {{.Provider}}"
+testing_connection_generic = "Probando conexión con IA"
 api_key_invalid = "API key inválida"
 api_key_valid = "API key válida"
 check_api_key_error = "Error: {{.Error}}"
-api_key_instructions = "MateCommit usa la API de Gemini para generar commits inteligentes."
-get_key_at = "Obtené tu API key gratis en:"
+api_key_instructions = "MateCommit usa {{.Provider}} para generar commits inteligentes."
+api_key_instructions_generic = "MateCommit usa IA para generar commits inteligentes."
+get_key_at = "Obtén tu API key en: {{.URL}}"
+get_key_at_generic = "Obtén tu API key del sitio web de tu proveedor"
 api_key_skipped = "API key omitida - podrás configurarla después"
 api_key_saved_unverified = "API key guardada sin verificar"
 retry_api_key = "¿Intentar con otra API key?"
@@ -637,3 +651,37 @@ intro = "Parece que es tu primera vez usando MateCommit. Esta herramienta te ayu
 configure_now = "¿Querés configurarlo ahora?"
 setup_later = "Configuración omitida"
 run_init_hint = "Podés configurarlo después con: matecommit config init"
+
+# Quick setup
+[quick_setup]
+header = "🚀 Configuración Rápida"
+intro_message = "Comenzá en 30 segundos con solo lo esencial"
+ai_provider_intro = "Proveedor de IA: {{.Provider}}"
+get_api_key_at = "Obtené tu API key gratis en: {{.URL}}"
+prompt_api_key = "> Introduce tu API Key de {{.Provider}}: "
+no_api_key_provided = "No se proporcionó API key. Podés configurarla después con: matecommit config init"
+validating_key = "Validando API key..."
+key_validated = "✅ API key validada exitosamente"
+key_validation_failed = "⚠️  No se pudo validar la API key, pero se guardará de todas formas"
+config_saved = "✅ ¡Configuración guardada!"
+try_now = "💡 Probalo ahora: matecommit s"
+full_setup_hint = "💡 Para configuración completa: matecommit config init"
+
+# Setup mode selection
+[setup_mode]
+choose_mode = "Elegí el modo de configuración:"
+quick_option = "1. Rápida (recomendado) - Solo IA, listo en 30 segundos"
+full_option = "2. Completa - Configurar todo (IA, VCS, Tickets)"
+prompt_selection = "Selecciona [1]: "
+
+# First run wizard
+[first_run]
+welcome_banner = "👋 ¡Bienvenido a MateCommit!"
+welcome_message = "Parece que es tu primera vez. MateCommit usa IA para generar commits inteligentes."
+what_to_do = "¿Qué querés hacer?"
+quick_setup_option = "1. Configuración rápida (30 segundos)"
+full_setup_option = "2. Configuración completa"
+exit_option = "3. Salir"
+prompt_choice = "Selecciona [1]: "
+setup_cancelled = "Configuración cancelada"
+invalid_choice = "Opción inválida"

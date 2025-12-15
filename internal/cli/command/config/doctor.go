@@ -95,7 +95,10 @@ func (d *DoctorCommand) runHealthCheck(ctx context.Context, t *i18n.Translations
 	fmt.Println()
 	ui.PrintInfo(t.GetMessage("doctor.available_commands", 0, nil))
 
-	hasGemini := cfg.GeminiAPIKey != ""
+	hasGemini := false
+	if providerCfg, exists := cfg.AIProviders["gemini"]; exists && providerCfg.APIKey != "" {
+		hasGemini = true
+	}
 	hasGitHub := false
 	if cfg.VCSConfigs != nil {
 		if githubConfig, ok := cfg.VCSConfigs["github"]; ok && githubConfig.Token != "" {
@@ -191,7 +194,8 @@ func (d *DoctorCommand) checkGitInstalled(ctx context.Context, t *i18n.Translati
 }
 
 func (d *DoctorCommand) checkGeminiAPIKey(ctx context.Context, t *i18n.Translations, cfg *config.Config) checkResult {
-	if cfg.GeminiAPIKey == "" {
+	providerCfg, exists := cfg.AIProviders["gemini"]
+	if !exists || providerCfg.APIKey == "" {
 		return checkResult{
 			status:     checkStatusWarning,
 			message:    t.GetMessage("doctor.gemini_not_configured", 0, nil),

@@ -53,10 +53,10 @@ func (r *ReleaseCommandFactory) createReleaseService(ctx context.Context, t *i18
 	}
 
 	var notesGen ports.ReleaseNotesGenerator
-	if r.config.GeminiAPIKey != "" {
+	if providerCfg, exists := r.config.AIProviders["gemini"]; exists && providerCfg.APIKey != "" {
 		owner, repo, _, err := r.gitService.GetRepoInfo(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("error getting repo info: %w", err)
+			return nil, fmt.Errorf("error obteniendo informacion del repositorio: %w", err)
 		}
 
 		gen, err := geminiAI.NewReleaseNotesGenerator(ctx, r.config, t, owner, repo)

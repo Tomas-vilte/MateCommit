@@ -162,17 +162,17 @@ func TestPRService_SummarizePR_UpdateError(t *testing.T) {
 }
 
 func TestPRService_SummarizePR_NilAIService(t *testing.T) {
-	ctx := context.Background()
 	trans, err := i18n.NewTranslations("es", "../i18n/locales")
 	require.NoError(t, err)
 	cfg := &config.Config{}
 
 	service := NewPRService(nil, nil, trans, cfg)
 
-	_, err = service.SummarizePR(ctx, 123, func(s string) {})
+	summary, err := service.SummarizePR(context.Background(), 1, func(msg string) {})
 
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "ai_missing_for_pr")
+	assert.Contains(t, err.Error(), "La IA no está configurada")
+	assert.Empty(t, summary.Title)
 }
 
 func TestPRService_SummarizePR_WithRelatedIssues(t *testing.T) {
@@ -348,8 +348,15 @@ func setupServices(t *testing.T, testConfig TestConfig) (*PRService, error) {
 	)
 
 	cfg := &config.Config{
-		GeminiAPIKey: testConfig.GeminiAPIKey,
-		Language:     "es",
+		Language: "es",
+		AIProviders: map[string]config.AIProviderConfig{
+			"gemini": {
+				APIKey:      testConfig.GeminiAPIKey,
+				Model:       "gemini-2.5-flash",
+				Temperature: 0.3,
+				MaxTokens:   10000,
+			},
+		},
 		AIConfig: config.AIConfig{
 			Models: map[config.AI]config.Model{
 				config.AIGemini: config.ModelGeminiV25Flash,

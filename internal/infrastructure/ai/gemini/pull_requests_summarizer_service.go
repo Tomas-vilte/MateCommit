@@ -29,17 +29,18 @@ type PRSummaryJSON struct {
 }
 
 func NewGeminiPRSummarizer(ctx context.Context, cfg *config.Config, trans *i18n.Translations) (*GeminiPRSummarizer, error) {
-	if cfg.GeminiAPIKey == "" {
-		msg := trans.GetMessage("error_missing_api_key", 0, nil)
+	providerCfg, exists := cfg.AIProviders["gemini"]
+	if !exists || providerCfg.APIKey == "" {
+		msg := trans.GetMessage("error_missing_api_key", 0, map[string]interface{}{"Provider": "gemini"})
 		return nil, fmt.Errorf("%s", msg)
 	}
 
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
-		APIKey:  cfg.GeminiAPIKey,
+		APIKey:  providerCfg.APIKey,
 		Backend: genai.BackendGeminiAPI,
 	})
 	if err != nil {
-		msg := trans.GetMessage("error_gemini_client", 0, map[string]interface{}{
+		msg := trans.GetMessage("ai_service.error_ai_client", 0, map[string]interface{}{
 			"Error": err,
 		})
 		return nil, fmt.Errorf("%s", msg)
