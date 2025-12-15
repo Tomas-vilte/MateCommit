@@ -40,7 +40,7 @@ func NewGeminiPRSummarizer(ctx context.Context, cfg *config.Config, trans *i18n.
 		Backend: genai.BackendGeminiAPI,
 	})
 	if err != nil {
-		msg := trans.GetMessage("error_gemini_client", 0, map[string]interface{}{
+		msg := trans.GetMessage("ai_service.error_ai_client", 0, map[string]interface{}{
 			"Error": err,
 		})
 		return nil, fmt.Errorf("%s", msg)
