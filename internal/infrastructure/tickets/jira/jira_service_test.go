@@ -3,13 +3,13 @@ package jira
 import (
 	"encoding/json"
 	"errors"
-	"github.com/Tomas-vilte/MateCommit/internal/config"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -26,20 +26,10 @@ func (m *MockHTTPClient) Do(req *http.Request) (*http.Response, error) {
 }
 
 func TestGetTicketInfo_Success(t *testing.T) {
-	// Configura el mock HTTPClient
 	mockClient := new(MockHTTPClient)
-	cfgJira := &config.Config{
-		JiraConfig: config.JiraConfig{
-			APIKey:  "token",
-			BaseURL: "https://example.com",
-			Email:   "mail.example.com",
-		},
-	}
 
-	// Configura el servicio Jira con el mock HTTPClient
-	service := NewJiraService(cfgJira, mockClient)
+	service := NewJiraService("https://example.com", "token", "mail.example.com", mockClient)
 
-	// Respuesta simulada para la solicitud de campos personalizados
 	customFieldsResponse := []map[string]interface{}{
 		{
 			"id":     "customfield_12345",
@@ -55,7 +45,6 @@ func TestGetTicketInfo_Success(t *testing.T) {
 	}
 	customFieldsResp.Code = http.StatusOK
 
-	// Respuesta simulada para la solicitud de información del ticket
 	ticketResponse := map[string]interface{}{
 		"fields": map[string]interface{}{
 			"summary": "Test Ticket Summary",
@@ -98,17 +87,13 @@ func TestGetTicketInfo_Success(t *testing.T) {
 	}
 	ticketResp.Code = http.StatusOK
 
-	// Configura las expectativas del mock
 	mockClient.On("Do", mock.Anything).Return(customFieldsResp.Result(), nil).Once()
 	mockClient.On("Do", mock.Anything).Return(ticketResp.Result(), nil).Once()
 
-	// Llama a la función que se está probando
 	ticketInfo, err := service.GetTicketInfo("TEST-123")
 
-	// Verifica que no haya errores
 	assert.NoError(t, err)
 
-	// Verifica que la información del ticket sea la esperada
 	expectedTicketInfo := &models.TicketInfo{
 		TicketID:    "TEST-123",
 		TicketTitle: "Test Ticket Summary",
@@ -117,25 +102,15 @@ func TestGetTicketInfo_Success(t *testing.T) {
 	}
 	assert.Equal(t, expectedTicketInfo, ticketInfo)
 
-	// Verifica que se hayan llamado las funciones del mock
 	mockClient.AssertExpectations(t)
 }
 
 func TestGetTicketInfo_CustomFieldsError(t *testing.T) {
 	// Arrange
 	mockClient := new(MockHTTPClient)
-	cfgJira := &config.Config{
-		JiraConfig: config.JiraConfig{
-			APIKey:  "token",
-			BaseURL: "https://example.com",
-			Email:   "mail.example.com",
-		},
-	}
 
-	// Configura el servicio Jira con el mock HTTPClient
-	service := NewJiraService(cfgJira, mockClient)
+	service := NewJiraService("https://example.com", "token", "mail.example.com", mockClient)
 
-	// Mock error for custom fields request
 	mockClient.On("Do", mock.Anything).Return(&http.Response{
 		StatusCode: http.StatusInternalServerError,
 		Body:       io.NopCloser(strings.NewReader("")),
@@ -147,32 +122,22 @@ func TestGetTicketInfo_CustomFieldsError(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 	assert.Nil(t, ticketInfo)
-	assert.Contains(t, err.Error(), "failed to get custom fields")
+	assert.Contains(t, err.Error(), "no se pudieron obtener los campos personalizados")
 	mockClient.AssertExpectations(t)
 }
 
 func TestGetTicketInfo_TicketFieldsError(t *testing.T) {
 	// Arrange
 	mockClient := new(MockHTTPClient)
-	cfgJira := &config.Config{
-		JiraConfig: config.JiraConfig{
-			APIKey:  "token",
-			BaseURL: "https://example.com",
-			Email:   "mail.example.com",
-		},
-	}
 
-	// Configura el servicio Jira con el mock HTTPClient
-	service := NewJiraService(cfgJira, mockClient)
+	service := NewJiraService("https://example.com", "token", "mail.example.com", mockClient)
 
-	// Mock response for custom fields
 	customFieldsResponse := `[{"id":"customfield_12345","name":"Acceptance Criteria","custom":true}]`
 	mockClient.On("Do", mock.Anything).Return(&http.Response{
 		StatusCode: http.StatusOK,
 		Body:       io.NopCloser(strings.NewReader(customFieldsResponse)),
 	}, nil).Once()
 
-	// Mock error for ticket fields request
 	mockClient.On("Do", mock.Anything).Return(&http.Response{
 		StatusCode: http.StatusNotFound,
 		Body:       io.NopCloser(strings.NewReader("")),
@@ -184,32 +149,22 @@ func TestGetTicketInfo_TicketFieldsError(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 	assert.Nil(t, ticketInfo)
-	assert.Contains(t, err.Error(), "failed to fetch ticket fields")
+	assert.Contains(t, err.Error(), "no se pudieron obtener los campos de tickets")
 	mockClient.AssertExpectations(t)
 }
 
 func TestGetTicketInfo_ExtractCriteriaFromCustomField(t *testing.T) {
 	// Arrange
 	mockClient := new(MockHTTPClient)
-	cfgJira := &config.Config{
-		JiraConfig: config.JiraConfig{
-			APIKey:  "token",
-			BaseURL: "https://example.com",
-			Email:   "mail.example.com",
-		},
-	}
 
-	// Configura el servicio Jira con el mock HTTPClient
-	service := NewJiraService(cfgJira, mockClient)
+	service := NewJiraService("https://example.com", "token", "mail.example.com", mockClient)
 
-	// Mock response for custom fields
 	customFieldsResponse := `[{"id":"customfield_12345","name":"Acceptance Criteria","custom":true}]`
 	mockClient.On("Do", mock.Anything).Return(&http.Response{
 		StatusCode: http.StatusOK,
 		Body:       io.NopCloser(strings.NewReader(customFieldsResponse)),
 	}, nil).Once()
 
-	// Mock response for ticket fields with custom criteria
 	ticketFieldsResponse := `{"fields":{"summary":"Test Ticket","description":{"type":"doc","version":1,"content":[{"type":"text","text":"This is a test description."}]},"customfield_12345":{"type":"text","text":"Criterion 1\nCriterion 2"}}}`
 	mockClient.On("Do", mock.Anything).Return(&http.Response{
 		StatusCode: http.StatusOK,
@@ -337,20 +292,11 @@ func TestParseAtlassianDoc(t *testing.T) {
 func TestGetCustomFields_ErrorStatusCode(t *testing.T) {
 	// Arrange
 	mockClient := new(MockHTTPClient)
-	cfgJira := &config.Config{
-		JiraConfig: config.JiraConfig{
-			APIKey:  "token",
-			BaseURL: "https://example.com",
-			Email:   "mail.example.com",
-		},
-	}
 
-	// Configura el servicio Jira con el mock HTTPClient
-	service := NewJiraService(cfgJira, mockClient)
+	service := NewJiraService("https://example.com", "token", "mail.example.com", mockClient)
 
-	// Mock response with a non-OK status code
 	mockClient.On("Do", mock.Anything).Return(&http.Response{
-		StatusCode: http.StatusInternalServerError, // 500 Internal Server Error
+		StatusCode: http.StatusInternalServerError,
 		Status:     "500 Internal Server Error",
 		Body:       io.NopCloser(strings.NewReader("")),
 	}, nil).Once()
@@ -361,7 +307,7 @@ func TestGetCustomFields_ErrorStatusCode(t *testing.T) {
 	// Assert
 	assert.Error(t, err, "Se esperaba un error debido al código de estado no OK")
 	assert.Nil(t, customFields, "No debería devolverse ningún campo personalizado")
-	assert.Contains(t, err.Error(), "error fetching custom fields: 500 Internal Server Error", "El mensaje de error no coincide")
+	assert.Contains(t, err.Error(), "error al obtener campos personalizados: 500 Internal Server Error", "El mensaje de error no coincide")
 	mockClient.AssertExpectations(t)
 }
 
@@ -369,18 +315,8 @@ func TestMakeRequest(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		// Arrange
 		mockClient := new(MockHTTPClient)
-		cfgJira := &config.Config{
-			JiraConfig: config.JiraConfig{
-				APIKey:  "token",
-				BaseURL: "https://example.com",
-				Email:   "mail.example.com",
-			},
-		}
+		service := NewJiraService("https://example.com", "token", "mail.example.com", mockClient)
 
-		// Configura el servicio Jira con el mock HTTPClient
-		service := NewJiraService(cfgJira, mockClient)
-
-		// Mock response for a successful request
 		mockClient.On("Do", mock.Anything).Return(&http.Response{
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(strings.NewReader(`{"key":"value"}`)),
@@ -399,19 +335,9 @@ func TestMakeRequest(t *testing.T) {
 	t.Run("ErrorCreatingRequest", func(t *testing.T) {
 		// Arrange
 		mockClient := new(MockHTTPClient)
-		cfgJira := &config.Config{
-			JiraConfig: config.JiraConfig{
-				APIKey:  "token",
-				BaseURL: "https://example.com",
-				Email:   "mail.example.com",
-			},
-		}
+		service := NewJiraService("https://example.com", "token", "mail.example.com", mockClient)
 
-		// Configura el servicio Jira con el mock HTTPClient
-		service := NewJiraService(cfgJira, mockClient)
-
-		// Simulamos un error en http.NewRequest pasando una URL inválida.
-		invalidURL := "://invalid-url" // URL inválida
+		invalidURL := "://invalid-url"
 
 		// Act
 		resp, err := service.makeRequest("GET", invalidURL)
@@ -419,24 +345,14 @@ func TestMakeRequest(t *testing.T) {
 		// Assert
 		assert.Error(t, err, "Se esperaba un error al crear la solicitud HTTP")
 		assert.Nil(t, resp, "No debería devolverse ninguna respuesta")
-		assert.Contains(t, err.Error(), "error creating request", "El mensaje de error no coincide")
+		assert.Contains(t, err.Error(), "error creando requests", "El mensaje de error no coincide")
 	})
 
 	t.Run("ErrorMakingRequest", func(t *testing.T) {
 		// Arrange
 		mockClient := new(MockHTTPClient)
-		cfgJira := &config.Config{
-			JiraConfig: config.JiraConfig{
-				APIKey:  "token",
-				BaseURL: "https://example.com",
-				Email:   "mail.example.com",
-			},
-		}
+		service := NewJiraService("https://example.com", "token", "mail.example.com", mockClient)
 
-		// Configura el servicio Jira con el mock HTTPClient
-		service := NewJiraService(cfgJira, mockClient)
-
-		// Mock error for request
 		mockClient.On("Do", mock.Anything).Return(&http.Response{
 			StatusCode: http.StatusInternalServerError,
 			Body:       io.NopCloser(strings.NewReader("")),
@@ -447,7 +363,7 @@ func TestMakeRequest(t *testing.T) {
 
 		// Assert
 		assert.Error(t, err, "Se esperaba un error al realizar la solicitud HTTP")
-		assert.Contains(t, err.Error(), "error making request", "El mensaje de error no coincide")
+		assert.Contains(t, err.Error(), "error al realizar la solicitud", "El mensaje de error no coincide")
 		mockClient.AssertExpectations(t)
 	})
 }

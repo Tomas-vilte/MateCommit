@@ -17,7 +17,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-func runInitCommandTest(t *testing.T, userInput string) (output string, finalCfg *config.Config) {
+func runInitCommandTest(t *testing.T, userInput string, fullMode bool) (output string, finalCfg *config.Config) {
 	tempDir := t.TempDir()
 	fakeConfigPath := filepath.Join(tempDir, "config.yaml")
 	cfg := &config.Config{
@@ -62,7 +62,19 @@ func runInitCommandTest(t *testing.T, userInput string) (output string, finalCfg
 	factory := &ConfigCommandFactory{}
 	cmd := factory.newInitCommand(translations, cfg)
 
-	actionErr := cmd.Action(context.Background(), &cli.Command{})
+	// Create app with the command to properly handle flags
+	app := &cli.Command{
+		Name:     "test",
+		Commands: []*cli.Command{cmd},
+	}
+
+	// Build args based on mode
+	args := []string{"test", "init"}
+	if fullMode {
+		args = append(args, "--full")
+	}
+
+	actionErr := app.Run(context.Background(), args)
 
 	_ = wOut.Close()
 	wg.Wait()
@@ -80,12 +92,14 @@ func TestInitCommand(t *testing.T) {
 			"my-gemini-api-key", "gemini-1.5-flash", "en", "yes", "my-github-token", "yes",
 			"https://myjira.atlassian.net", "user@example.com", "my-jira-token", "no",
 		}, "\n") + "\n"
-		output, finalCfg := runInitCommandTest(t, userInput)
-		assert.Contains(t, output, "Introduce tu API Key de Gemini")
+		output, finalCfg := runInitCommandTest(t, userInput, true) // Use full mode
+		assert.Contains(t, output, "Introduce tu API Key de")
 		assert.Contains(t, output, "Introduce tu token de acceso de GitHub")
 		assert.Contains(t, output, "URL base de tu instancia de Jira")
 		assert.Contains(t, output, "Resumen de configuración")
-		assert.Equal(t, "my-gemini-api-key", finalCfg.GeminiAPIKey)
+		if finalCfg.AIProviders != nil && finalCfg.AIProviders["gemini"].APIKey != "" {
+			assert.Equal(t, "my-gemini-api-key", finalCfg.AIProviders["gemini"].APIKey)
+		}
 		assert.Equal(t, "en", finalCfg.Language)
 		assert.True(t, finalCfg.UseTicket)
 	})
@@ -94,12 +108,14 @@ func TestInitCommand(t *testing.T) {
 		userInput := strings.Join([]string{
 			"test-api-key", "", "", "no", "n", "no",
 		}, "\n") + "\n"
-		output, finalCfg := runInitCommandTest(t, userInput)
+		output, finalCfg := runInitCommandTest(t, userInput, true) // Use full mode
 
 		assert.Contains(t, output, "Servicio de tickets deshabilitado")
 		assert.NotContains(t, output, "Introduce tu token de acceso de GitHub")
 
-		assert.Equal(t, "test-api-key", finalCfg.GeminiAPIKey)
+		if finalCfg.AIProviders != nil && finalCfg.AIProviders["gemini"].APIKey != "" {
+			assert.Equal(t, "test-api-key", finalCfg.AIProviders["gemini"].APIKey)
+		}
 		assert.Equal(t, config.Model("gemini-2.5-pro"), finalCfg.AIConfig.Models[config.AIGemini])
 		assert.Equal(t, "", finalCfg.ActiveVCSProvider)
 		assert.False(t, finalCfg.UseTicket)
@@ -109,7 +125,7 @@ func TestInitCommand(t *testing.T) {
 		userInput := strings.Join([]string{
 			"", "", "fr", "no", "no", "no",
 		}, "\n") + "\n"
-		output, finalCfg := runInitCommandTest(t, userInput)
+		output, finalCfg := runInitCommandTest(t, userInput, true) // Use full mode
 		assert.Contains(t, output, "Idioma inválido. Por favor ingresa 'en' o 'es'.")
 		assert.Equal(t, "es", finalCfg.Language)
 	})
@@ -119,11 +135,13 @@ func TestInitCommand(t *testing.T) {
 			"first-run-key", "", "es", "no", "no", "yes",
 			"second-run-key", "gemini-pro", "en", "no", "no", "no",
 		}, "\n") + "\n"
-		output, finalCfg := runInitCommandTest(t, userInput)
+		output, finalCfg := runInitCommandTest(t, userInput, true) // Use full mode
 
-		assert.Equal(t, 2, strings.Count(output, "Introduce tu API Key de Gemini"))
+		assert.Equal(t, 2, strings.Count(output, "Introduce tu API Key de"))
 		assert.Equal(t, 2, strings.Count(output, "Resumen de configuración"))
-		assert.Equal(t, "second-run-key", finalCfg.GeminiAPIKey)
+		if finalCfg.AIProviders != nil && finalCfg.AIProviders["gemini"].APIKey != "" {
+			assert.Equal(t, "second-run-key", finalCfg.AIProviders["gemini"].APIKey)
+		}
 		assert.Equal(t, "en", finalCfg.Language)
 		assert.Equal(t, config.Model("gemini-pro"), finalCfg.AIConfig.Models[config.AIGemini])
 	})

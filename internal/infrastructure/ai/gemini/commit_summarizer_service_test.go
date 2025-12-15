@@ -46,7 +46,7 @@ func TestGeminiService(t *testing.T) {
 		// arrange
 		ctx := context.Background()
 		cfg := &config.Config{
-			GeminiAPIKey: "",
+			AIProviders: map[string]config.AIProviderConfig{},
 		}
 
 		trans, err := i18n.NewTranslations("es", "../../../i18n/locales/")
@@ -69,7 +69,7 @@ func TestGeminiService(t *testing.T) {
 		// arrange
 		ctx := context.Background()
 		cfg := &config.Config{
-			GeminiAPIKey: "test-api-key",
+			AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test-api-key", Model: "gemini-2.5-flash", Temperature: 0.3, MaxTokens: 10000}},
 		}
 
 		trans, err := i18n.NewTranslations("es", "../../../i18n/locales/")
@@ -103,7 +103,7 @@ func TestGeminiService(t *testing.T) {
 		// arrange
 		ctx := context.Background()
 		cfg := &config.Config{
-			GeminiAPIKey: "test-api-key",
+			AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test-api-key", Model: "gemini-2.5-flash", Temperature: 0.3, MaxTokens: 10000}},
 		}
 
 		trans, err := i18n.NewTranslations("es", "../../../i18n/locales/")
@@ -136,7 +136,7 @@ func TestGeminiService(t *testing.T) {
 		// arrange
 		ctx := context.Background()
 		cfg := &config.Config{
-			GeminiAPIKey: "test-api-key",
+			AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test-api-key", Model: "gemini-2.5-flash", Temperature: 0.3, MaxTokens: 10000}},
 		}
 
 		trans, err := i18n.NewTranslations("es", "../../../i18n/locales/")
@@ -208,9 +208,9 @@ func TestGeminiService(t *testing.T) {
 		// arrange
 		ctx := context.Background()
 		cfg := &config.Config{
-			Language:     "es",
-			UseEmoji:     true,
-			GeminiAPIKey: "test-api-key",
+			Language:    "es",
+			UseEmoji:    true,
+			AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test-api-key", Model: "gemini-2.5-flash", Temperature: 0.3, MaxTokens: 10000}},
 		}
 
 		trans, err := i18n.NewTranslations("es", "../../../i18n/locales/")
@@ -239,9 +239,9 @@ func TestGeminiService(t *testing.T) {
 		// arrange
 		ctx := context.Background()
 		cfg := &config.Config{
-			Language:     "en",
-			UseEmoji:     true,
-			GeminiAPIKey: "test-api-key",
+			Language:    "en",
+			UseEmoji:    true,
+			AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test-api-key", Model: "gemini-2.5-flash", Temperature: 0.3, MaxTokens: 10000}},
 		}
 
 		trans, err := i18n.NewTranslations("es", "../../../i18n/locales/")
@@ -270,9 +270,9 @@ func TestGeminiService(t *testing.T) {
 		// arrange
 		ctx := context.Background()
 		cfg := &config.Config{
-			Language:     "en",
-			UseEmoji:     true,
-			GeminiAPIKey: "test-api-key",
+			Language:    "en",
+			UseEmoji:    true,
+			AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test-api-key", Model: "gemini-2.5-flash", Temperature: 0.3, MaxTokens: 10000}},
 		}
 
 		trans, err := i18n.NewTranslations("es", "../../../i18n/locales/")
@@ -331,7 +331,7 @@ func TestGeminiService(t *testing.T) {
 		// arrange
 		ctx := context.Background()
 		cfg := &config.Config{
-			GeminiAPIKey: "test-api-key",
+			AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test-api-key", Model: "gemini-2.5-flash", Temperature: 0.3, MaxTokens: 10000}},
 		}
 		trans, _ := i18n.NewTranslations("es", "../../../i18n/locales/")
 		service, _ := NewGeminiService(ctx, cfg, trans)
@@ -354,7 +354,7 @@ func TestGeminiService(t *testing.T) {
 	t.Run("parseSuggestionsJSON status passthrough", func(t *testing.T) {
 		// arrange
 		ctx := context.Background()
-		cfg := &config.Config{GeminiAPIKey: "test-api-key"}
+		cfg := &config.Config{AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test-api-key", Model: "gemini-2.5-flash", Temperature: 0.3, MaxTokens: 10000}}}
 		trans, _ := i18n.NewTranslations("es", "../../../i18n/locales/")
 		service, _ := NewGeminiService(ctx, cfg, trans)
 

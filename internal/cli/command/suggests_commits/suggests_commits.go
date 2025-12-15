@@ -138,9 +138,10 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 			errStr := err.Error()
 			if containsStr(errStr, "GEMINI_API_KEY") || containsStr(errStr, "API key") {
 				ui.PrintErrorWithSuggestion(
-					t.GetMessage("ui_error.gemini_api_key_missing", 0, nil),
+					t.GetMessage("ui_error.ai_api_key_missing_generic", 0, nil),
 					t.GetMessage("ui_error.run_config_init", 0, nil),
 				)
+				return err
 			} else if containsStr(errStr, "GITHUB_TOKEN") {
 				ui.PrintErrorWithSuggestion(
 					t.GetMessage("ui_error.github_token_missing", 0, nil),

@@ -18,8 +18,19 @@ import (
 
 func (c *ConfigCommandFactory) newInitCommand(t *i18n.Translations, cfg *config.Config) *cli.Command {
 	return &cli.Command{
-		Name:   "init",
-		Usage:  t.GetMessage("config_init_usage", 0, nil),
+		Name:  "init",
+		Usage: t.GetMessage("config_init_usage", 0, nil),
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:    "quick",
+				Aliases: []string{"q"},
+				Usage:   t.GetMessage("config_init_quick_flag", 0, nil),
+			},
+			&cli.BoolFlag{
+				Name:  "full",
+				Usage: t.GetMessage("config_init_full_flag", 0, nil),
+			},
+		},
 		Action: initConfigAction(cfg, t),
 	}
 }
@@ -27,11 +38,32 @@ func (c *ConfigCommandFactory) newInitCommand(t *i18n.Translations, cfg *config.
 func initConfigAction(cfg *config.Config, t *i18n.Translations) cli.ActionFunc {
 	return func(ctx context.Context, command *cli.Command) error {
 		reader := bufio.NewReader(os.Stdin)
-		return runInitProcess(ctx, command, reader, cfg, t)
+
+		if command.Bool("quick") {
+			return runQuickSetup(ctx, reader, cfg, t)
+		}
+
+		if command.Bool("full") {
+			return runFullSetup(ctx, command, reader, cfg, t)
+		}
+
+		fmt.Println(t.GetMessage("setup_mode.choose_mode", 0, nil))
+		fmt.Println(t.GetMessage("setup_mode.quick_option", 0, nil))
+		fmt.Println(t.GetMessage("setup_mode.full_option", 0, nil))
+		fmt.Print(t.GetMessage("setup_mode.prompt_selection", 0, nil))
+
+		choice, _ := reader.ReadString('\n')
+		choice = strings.TrimSpace(choice)
+
+		if choice == "" || choice == "1" {
+			return runQuickSetup(ctx, reader, cfg, t)
+		}
+
+		return runFullSetup(ctx, command, reader, cfg, t)
 	}
 }
 
-func runInitProcess(ctx context.Context, command *cli.Command, reader *bufio.Reader, cfg *config.Config, t *i18n.Translations) error {
+func runFullSetup(ctx context.Context, command *cli.Command, reader *bufio.Reader, cfg *config.Config, t *i18n.Translations) error {
 	if err := configureWelcome(ctx, reader, cfg, t); err != nil {
 		return err
 	}
@@ -46,7 +78,7 @@ func runInitProcess(ctx context.Context, command *cli.Command, reader *bufio.Rea
 	}
 	if err := config.SaveConfig(cfg); err != nil {
 		fmt.Println(t.GetMessage("config_save.error_saving_config", 0, map[string]interface{}{"Error": err.Error()}))
-		return fmt.Errorf("error saving configuration: %w", err)
+		return fmt.Errorf("error guardando configuracion: %w", err)
 	}
 
 	printConfigSummary(cfg, t)
@@ -55,11 +87,11 @@ func runInitProcess(ctx context.Context, command *cli.Command, reader *bufio.Rea
 	fmt.Print(t.GetMessage("init.prompt_run_again", 0, nil))
 	runAgain, err := reader.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("error reading input: %w", err)
+		return fmt.Errorf("error leyendo input: %w", err)
 	}
 
 	if isYes(runAgain) {
-		return runInitProcess(ctx, command, reader, cfg, t)
+		return runFullSetup(ctx, command, reader, cfg, t)
 	}
 
 	return nil
@@ -77,14 +109,20 @@ func configureWelcome(ctx context.Context, reader *bufio.Reader, cfg *config.Con
 	fmt.Println(t.GetMessage("init.welcome", 0, nil))
 	fmt.Println(t.GetMessage("init.ai_intro", 0, map[string]interface{}{"Providers": aiProvidersStr}))
 
-	ui.PrintInfo(t.GetMessage("config.api_key_instructions", 0, nil))
-	ui.PrintInfo(t.GetMessage("config.get_key_at", 0, nil) + " https://makersuite.google.com/app/apikey")
+	ui.PrintInfo(t.GetMessage("config.api_key_instructions", 0, map[string]interface{}{
+		"Provider": "Gemini",
+	}))
+	ui.PrintInfo(t.GetMessage("config.get_key_at", 0, map[string]interface{}{
+		"URL": "https://makersuite.google.com/app/apikey",
+	}))
 	fmt.Println()
 
-	fmt.Print(t.GetMessage("init.prompt_gemini_api_key", 0, nil))
+	fmt.Print(t.GetMessage("init.prompt_ai_api_key", 0, map[string]interface{}{
+		"Provider": "Gemini",
+	}))
 	apiKey, err := reader.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("error reading API key: %w", err)
+		return fmt.Errorf("error leyendo API_KEY: %w", err)
 	}
 	apiKey = strings.TrimSpace(apiKey)
 
@@ -98,25 +136,36 @@ func configureWelcome(ctx context.Context, reader *bufio.Reader, cfg *config.Con
 			}
 		}
 	}
-	cfg.GeminiAPIKey = apiKey
 
 	fmt.Println(t.GetMessage("init.model_hint_supported", 0, map[string]interface{}{"Models": geminiModelsStr}))
 	fmt.Print(t.GetMessage("init.prompt_model_with_default", 0, map[string]interface{}{"Default": geminiDefault}))
 	modelInput, err := reader.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("error reading model: %w", err)
+		return fmt.Errorf("error leyendo modelo: %w", err)
 	}
 	modelInput = strings.TrimSpace(modelInput)
+
+	selectedModel := geminiDefault
+	if modelInput != "" {
+		selectedModel = modelInput
+	}
+
+	if cfg.AIProviders == nil {
+		cfg.AIProviders = make(map[string]config.AIProviderConfig)
+	}
+
+	cfg.AIProviders["gemini"] = config.AIProviderConfig{
+		APIKey:      apiKey,
+		Model:       selectedModel,
+		Temperature: 0.3,
+		MaxTokens:   10000,
+	}
 
 	cfg.AIConfig.ActiveAI = config.AIGemini
 	if cfg.AIConfig.Models == nil {
 		cfg.AIConfig.Models = make(map[config.AI]config.Model)
 	}
-	if modelInput == "" {
-		cfg.AIConfig.Models[config.AIGemini] = config.Model(geminiDefault)
-	} else {
-		cfg.AIConfig.Models[config.AIGemini] = config.Model(modelInput)
-	}
+	cfg.AIConfig.Models[config.AIGemini] = config.Model(selectedModel)
 
 	return nil
 }
@@ -152,7 +201,7 @@ func configureVCS(reader *bufio.Reader, cfg *config.Config, t *i18n.Translations
 
 	ansVCS, err := reader.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("error reading VCS answer: %w", err)
+		return fmt.Errorf("error al leer la respuesta de VCS: %w", err)
 	}
 	ansVCS = strings.TrimSpace(strings.ToLower(ansVCS))
 
@@ -161,7 +210,7 @@ func configureVCS(reader *bufio.Reader, cfg *config.Config, t *i18n.Translations
 		fmt.Print(t.GetMessage("init.prompt_github_token_blank_skip", 0, nil))
 		token, err := reader.ReadString('\n')
 		if err != nil {
-			return fmt.Errorf("error reading GitHub token: %w", err)
+			return fmt.Errorf("error al leer el token de GitHub: %w", err)
 		}
 		token = strings.TrimSpace(token)
 
@@ -190,7 +239,7 @@ func configureTickets(reader *bufio.Reader, cfg *config.Config, t *i18n.Translat
 
 	ansJira, err := reader.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("error reading Jira answer: %w", err)
+		return fmt.Errorf("error al leer la respuesta de Jira: %w", err)
 	}
 	ansJira = strings.TrimSpace(strings.ToLower(ansJira))
 
@@ -205,7 +254,7 @@ func configureTickets(reader *bufio.Reader, cfg *config.Config, t *i18n.Translat
 	fmt.Print(t.GetMessage("init.prompt_jira_base_url_blank_cancel", 0, nil))
 	jiraURL, err := reader.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("error reading Jira URL: %w", err)
+		return fmt.Errorf("error al leer la URL de Jira: %w", err)
 	}
 	jiraURL = strings.TrimSpace(jiraURL)
 
@@ -218,12 +267,11 @@ func configureTickets(reader *bufio.Reader, cfg *config.Config, t *i18n.Translat
 	if !isValidURL(jiraURL) {
 		fmt.Println(t.GetMessage("init.warning_invalid_url", 0, nil))
 	}
-	cfg.JiraConfig.BaseURL = jiraURL
 
 	fmt.Print(t.GetMessage("init.prompt_jira_email_blank_cancel", 0, nil))
 	jiraEmail, err := reader.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("error reading Jira email: %w", err)
+		return fmt.Errorf("error al leer el correo electrónico de Jira: %w", err)
 	}
 	jiraEmail = strings.TrimSpace(jiraEmail)
 
@@ -236,12 +284,11 @@ func configureTickets(reader *bufio.Reader, cfg *config.Config, t *i18n.Translat
 	if !isValidEmail(jiraEmail) {
 		fmt.Println(t.GetMessage("init.warning_invalid_email", 0, nil))
 	}
-	cfg.JiraConfig.Email = jiraEmail
 
 	fmt.Print(t.GetMessage("init.prompt_jira_api_token_blank_cancel", 0, nil))
 	jiraToken, err := reader.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("error reading Jira token: %w", err)
+		return fmt.Errorf("error al leer el token de Jira: %w", err)
 	}
 	jiraToken = strings.TrimSpace(jiraToken)
 
@@ -250,7 +297,16 @@ func configureTickets(reader *bufio.Reader, cfg *config.Config, t *i18n.Translat
 		disableTickets(cfg)
 		return nil
 	}
-	cfg.JiraConfig.APIKey = jiraToken
+
+	if cfg.TicketProviders == nil {
+		cfg.TicketProviders = make(map[string]config.TicketProviderConfig)
+	}
+
+	cfg.TicketProviders["jira"] = config.TicketProviderConfig{
+		APIKey:  jiraToken,
+		BaseURL: jiraURL,
+		Email:   jiraEmail,
+	}
 
 	return nil
 }
@@ -272,7 +328,7 @@ func printConfigSummary(cfg *config.Config, t *i18n.Translations) {
 	}
 
 	apiMask := "❌"
-	if cfg.GeminiAPIKey != "" {
+	if providerCfg, exists := cfg.AIProviders["gemini"]; exists && providerCfg.APIKey != "" {
 		apiMask = "✅"
 	}
 	fmt.Println(t.GetMessage("init.summary_api", 0, map[string]interface{}{"AI": "gemini", "Configured": apiMask}))
@@ -285,7 +341,8 @@ func printConfigSummary(cfg *config.Config, t *i18n.Translations) {
 
 	if cfg.UseTicket && cfg.ActiveTicketService == "jira" {
 		fmt.Println(t.GetMessage("config_models.ticket_service_enabled", 0, map[string]interface{}{"Service": "jira"}))
-		fmt.Println(t.GetMessage("config_models.jira_config_label", 0, map[string]interface{}{"BaseURL": cfg.JiraConfig.BaseURL, "Email": cfg.JiraConfig.Email}))
+		jiraCfg := cfg.TicketProviders["jira"]
+		fmt.Println(t.GetMessage("config_models.jira_config_label", 0, map[string]interface{}{"BaseURL": jiraCfg.BaseURL, "Email": jiraCfg.Email}))
 	} else {
 		fmt.Println(t.GetMessage("config_models.ticket_service_disabled", 0, nil))
 	}
@@ -303,8 +360,15 @@ func validateGeminiAPIKey(ctx context.Context, apiKey string, t *i18n.Translatio
 	spinner.Start()
 
 	testCfg := &config.Config{
-		GeminiAPIKey: apiKey,
-		Language:     "en",
+		Language: "en",
+		AIProviders: map[string]config.AIProviderConfig{
+			"gemini": {
+				APIKey:      apiKey,
+				Model:       string(config.ModelGeminiV25Flash),
+				Temperature: 0.3,
+				MaxTokens:   10000,
+			},
+		},
 		AIConfig: config.AIConfig{
 			ActiveAI: config.AIGemini,
 			Models: map[config.AI]config.Model{

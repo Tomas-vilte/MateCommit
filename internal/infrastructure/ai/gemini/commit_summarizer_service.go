@@ -43,13 +43,14 @@ type (
 )
 
 func NewGeminiService(ctx context.Context, cfg *config.Config, trans *i18n.Translations) (*GeminiService, error) {
-	if cfg.GeminiAPIKey == "" {
-		msg := trans.GetMessage("error_missing_api_key", 0, nil)
+	providerCfg, exists := cfg.AIProviders["gemini"]
+	if !exists || providerCfg.APIKey == "" {
+		msg := trans.GetMessage("error_missing_api_key", 0, map[string]interface{}{"Provider": "gemini"})
 		return nil, fmt.Errorf("%s", msg)
 	}
 
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
-		APIKey:  cfg.GeminiAPIKey,
+		APIKey:  providerCfg.APIKey,
 		Backend: genai.BackendGeminiAPI,
 	})
 	if err != nil {

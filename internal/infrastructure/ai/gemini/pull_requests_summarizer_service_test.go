@@ -16,7 +16,7 @@ func TestGeminiPRSummarizer(t *testing.T) {
 		// Arrange
 		ctx := context.Background()
 		cfg := &config.Config{
-			GeminiAPIKey: "",
+			AIProviders: map[string]config.AIProviderConfig{},
 		}
 
 		trans, err := i18n.NewTranslations("es", "../../../i18n/locales/")
@@ -34,7 +34,7 @@ func TestGeminiPRSummarizer(t *testing.T) {
 		// Arrange
 		ctx := context.Background()
 		cfg := &config.Config{
-			GeminiAPIKey: "test-api-key",
+			AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test-api-key", Model: "gemini-2.5-flash", Temperature: 0.3, MaxTokens: 10000}},
 			AIConfig: config.AIConfig{
 				Models: map[config.AI]config.Model{
 					config.AIGemini: "gemini-pro",
@@ -60,8 +60,8 @@ func TestGeminiPRSummarizer(t *testing.T) {
 		// Arrange
 		ctx := context.Background()
 		cfg := &config.Config{
-			GeminiAPIKey: "test-api-key",
-			Language:     "en",
+			AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test-api-key", Model: "gemini-2.5-flash", Temperature: 0.3, MaxTokens: 10000}},
+			Language:    "en",
 		}
 
 		trans, err := i18n.NewTranslations("en", "../../../i18n/locales/")

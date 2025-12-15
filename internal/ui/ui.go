@@ -78,6 +78,58 @@ func (s *SmartSpinner) Log(msg string) {
 	s.spinner.Start()
 }
 
+// SpinnerBuilder permite construir spinners con configuración flexible
+type SpinnerBuilder struct {
+	message string
+	charset int
+	color   string
+	speed   time.Duration
+}
+
+// NewSpinner crea un nuevo builder para spinners
+func NewSpinner() *SpinnerBuilder {
+	return &SpinnerBuilder{
+		charset: 14,
+		color:   "cyan",
+		speed:   100 * time.Millisecond,
+	}
+}
+
+// WithMessage establece el mensaje del spinner
+func (b *SpinnerBuilder) WithMessage(msg string) *SpinnerBuilder {
+	b.message = msg
+	return b
+}
+
+// WithColor establece el color del spinner
+func (b *SpinnerBuilder) WithColor(color string) *SpinnerBuilder {
+	b.color = color
+	return b
+}
+
+// WithSpeed establece la velocidad del spinner
+func (b *SpinnerBuilder) WithSpeed(speed time.Duration) *SpinnerBuilder {
+	b.speed = speed
+	return b
+}
+
+// WithCharset establece el charset del spinner
+func (b *SpinnerBuilder) WithCharset(charset int) *SpinnerBuilder {
+	b.charset = charset
+	return b
+}
+
+// Build construye el SmartSpinner con la configuración especificada
+func (b *SpinnerBuilder) Build() *SmartSpinner {
+	s := spinner.New(
+		spinner.CharSets[b.charset],
+		b.speed,
+		spinner.WithColor(b.color),
+		spinner.WithSuffix(" "+b.message),
+	)
+	return &SmartSpinner{spinner: s}
+}
+
 func PrintSuccess(msg string) {
 	fmt.Printf("%s %s\n", SuccessEmoji, Success.Sprint(msg))
 }

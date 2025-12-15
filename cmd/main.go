@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/config"
@@ -14,14 +13,13 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/suggests_commits"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/registry"
 	cfg "github.com/Tomas-vilte/MateCommit/internal/config"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/ai/gemini"
+	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/di"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/factory"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/git"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/tickets/jira"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/vcs/github"
-	"github.com/Tomas-vilte/MateCommit/internal/services"
 	"github.com/urfave/cli/v3"
 )
 
@@ -57,45 +55,38 @@ func initializeApp() (*cli.Command, error) {
 		return nil, err
 	}
 
+	container := di.NewContainer(cfgApp, translations)
+
+	if err := container.RegisterAIProvider("gemini", gemini.NewGeminiProviderFactory()); err != nil {
+		log.Printf("Warning: failed to register Gemini provider: %v", err)
+	}
+
+	if err := container.RegisterVCSProvider("github", github.NewGitHubProviderFactory()); err != nil {
+		log.Printf("Warning: failed to register GitHub provider: %v", err)
+	}
+
+	if err := container.RegisterTicketProvider("jira", jira.NewJiraProviderFactory()); err != nil {
+		log.Printf("Warning: failed to register Jira provider: %v", err)
+	}
+
 	gitService := git.NewGitService(translations)
-	aiProvider, err := gemini.NewGeminiService(context.Background(), cfgApp, translations)
+	container.SetGitService(gitService)
+
+	ctx := context.Background()
+	commitService, err := container.GetCommitService(ctx)
 	if err != nil {
-		log.Printf("Warning: %v", err)
+		log.Printf("Warning: commit service initialization failed: %v", err)
 		log.Println("La IA no está configurada. Podés configurarla con 'matecommit config init'")
-		aiProvider = nil
 	}
 
-	aiSummarizer, err := gemini.NewGeminiPRSummarizer(context.Background(), cfgApp, translations)
-	if err != nil {
-		log.Printf("Warning: %v", err)
-		log.Println("El resumidor de PRs está deshabilitado hasta configurar la IA (Gemini).")
-		aiSummarizer = nil
-	}
+	var vcsClient = container.GetVCSRegistry()
+	vcsClientInstance, _ := vcsClient.CreateClientFromConfig(ctx, gitService, cfgApp, translations)
+	commitHandler := handler.NewSuggestionHandler(gitService, vcsClientInstance, translations)
 
-	ticketService := jira.NewJiraService(cfgApp, &http.Client{})
-
-	// Inicializar VCS Client si es posible
-	var vcsClient ports.VCSClient
-	repoOwner, repoName, provider, err := gitService.GetRepoInfo(context.Background())
-	if err == nil {
-		if vcsConfig, ok := cfgApp.VCSConfigs[provider]; ok && provider == "github" {
-			vcsClient = github.NewGitHubClient(repoOwner, repoName, vcsConfig.Token, translations)
-		} else if cfgApp.ActiveVCSProvider != "" {
-			if vcsConfig, ok := cfgApp.VCSConfigs[cfgApp.ActiveVCSProvider]; ok && cfgApp.ActiveVCSProvider == "github" {
-				vcsClient = github.NewGitHubClient(repoOwner, repoName, vcsConfig.Token, translations)
-			}
-		}
-	}
-
-	commitService := services.NewCommitService(gitService, aiProvider, ticketService, nil, cfgApp, translations)
-
-	commitHandler := handler.NewSuggestionHandler(gitService, vcsClient, translations)
+	prServiceFactory := factory.NewPrServiceFactory(cfgApp, translations, nil, gitService)
+	prCommand := pull_requests.NewSummarizeCommand(prServiceFactory)
 
 	registerCommand := registry.NewRegistry(cfgApp, translations)
-
-	prServiceFactory := factory.NewPrServiceFactory(cfgApp, translations, aiSummarizer, gitService)
-
-	prCommand := pull_requests.NewSummarizeCommand(prServiceFactory)
 
 	if err := registerCommand.Register("suggest", suggests_commits.NewSuggestCommandFactory(commitService, commitHandler)); err != nil {
 		log.Fatalf("Error al registrar el comando 'suggest': %v", err)
