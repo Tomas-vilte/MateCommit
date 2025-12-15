@@ -23,7 +23,7 @@ var (
 	SuccessEmoji = Success.Sprint("✓")
 	ErrorEmoji   = Error.Sprint("✗")
 	WarningEmoji = Warning.Sprint("⚠")
-	InfoEmoji    = Info.Sprint("ℹ")
+	InfoEmoji    = Info.Sprint("*")
 	RocketEmoji  = Accent.Sprint("🚀")
 	SparkleEmoji = Accent.Sprint("✨")
 )
@@ -69,6 +69,12 @@ func (s *SmartSpinner) Error(msg string) {
 func (s *SmartSpinner) Warning(msg string) {
 	s.spinner.Stop()
 	PrintWarning(msg)
+}
+
+func (s *SmartSpinner) Log(msg string) {
+	s.spinner.Stop()
+	fmt.Println(msg)
+	s.spinner.Start()
 }
 
 func PrintSuccess(msg string) {

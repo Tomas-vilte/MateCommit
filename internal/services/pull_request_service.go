@@ -31,7 +31,7 @@ func NewPRService(vcsClient ports.VCSClient, aiService ports.PRSummarizer, trans
 	}
 }
 
-func (s *PRService) SummarizePR(ctx context.Context, prNumber int) (models.PRSummary, error) {
+func (s *PRService) SummarizePR(ctx context.Context, prNumber int, progress func(string)) (models.PRSummary, error) {
 	if s.aiService == nil {
 		msg := s.trans.GetMessage("ai_missing_for_pr", 0, nil)
 		return models.PRSummary{}, fmt.Errorf("%s", msg)
@@ -58,10 +58,11 @@ func (s *PRService) SummarizePR(ctx context.Context, prNumber int) (models.PRSum
 		for i, issue := range issues {
 			issueNums[i] = fmt.Sprintf("#%d", issue.Number)
 		}
-		fmt.Printf("%s\n", s.trans.GetMessage("pr_detected_issues", 0, map[string]interface{}{
+		msg := s.trans.GetMessage("pr_detected_issues", 0, map[string]interface{}{
 			"Number": prNumber,
 			"Issues": strings.Join(issueNums, ", "),
-		}))
+		})
+		progress(msg)
 	}
 
 	prompt := s.buildPRPrompt(prData)
@@ -77,22 +78,24 @@ func (s *PRService) SummarizePR(ctx context.Context, prNumber int) (models.PRSum
 	if len(prData.RelatedIssues) > 0 {
 		summary = s.ensurePRIssueReferences(summary, prData.RelatedIssues)
 
-		fmt.Printf("%s\n", s.trans.GetMessage("pr_issues_will_close_on_merge", 0, map[string]interface{}{
+		msg := s.trans.GetMessage("pr_issues_will_close_on_merge", 0, map[string]interface{}{
 			"Count": len(prData.RelatedIssues),
-		}))
+		})
+		progress(msg)
 	}
 
 	breakingChanges := s.detectBreakingChanges(prData.Commits)
 	if len(breakingChanges) > 0 {
-		fmt.Printf("%s\n", s.trans.GetMessage("pr_breaking_changes_detected", 0, map[string]interface{}{
+		msg := s.trans.GetMessage("pr_breaking_changes_detected", 0, map[string]interface{}{
 			"Count": len(breakingChanges),
-		}))
+		})
+		progress(msg)
 		summary = s.addBreakingChangesToSummary(summary, breakingChanges)
 	}
 
 	testPlan := s.generateTestPlan(prData)
 	if testPlan != "" {
-		fmt.Printf("%s\n", s.trans.GetMessage("pr_test_plan_generated", 0, nil))
+		progress(s.trans.GetMessage("pr_test_plan_generated", 0, nil))
 		summary.Body += testPlan
 	}
 

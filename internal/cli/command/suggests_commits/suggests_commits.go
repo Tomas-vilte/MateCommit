@@ -120,10 +120,14 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 			spinner = ui.NewSmartSpinner(t.GetMessage("ui.generating_with_issue", 0, nil))
 			spinner.Start()
 
-			suggestions, err = f.commitService.GenerateSuggestionsWithIssue(ctx, count, issueNumber)
+			suggestions, err = f.commitService.GenerateSuggestionsWithIssue(ctx, count, issueNumber, func(msg string) {
+				spinner.Log(msg)
+			})
 		} else {
 			spinner.UpdateMessage(t.GetMessage("ui.generating_with_ai", 0, nil))
-			suggestions, err = f.commitService.GenerateSuggestions(ctx, count)
+			suggestions, err = f.commitService.GenerateSuggestions(ctx, count, func(msg string) {
+				spinner.Log(msg)
+			})
 		}
 
 		duration := time.Since(start)
