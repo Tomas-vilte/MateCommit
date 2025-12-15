@@ -539,12 +539,19 @@ error_saving_config = "Error al guardar la configuración"
 # UI - Preview y confirmaciones
 [ui_preview]
 commit_selected = "Commit seleccionado: {{.Title}}"
+modified_files_header = "📄 Archivos modificados"
 files_count = "Archivos: {{.Count}}"
+changes_header = "Cambios"
 ask_show_diff = "¿Ver cambios antes de commitear?"
+ask_edit_message = "¿Editar mensaje del commit?"
 ask_confirm_commit = "¿Confirmar commit?"
 commit_cancelled = "Commit cancelado"
 no_changes_to_show = "No hay cambios para mostrar"
 error_showing_diff = "No se pudo mostrar el diff: {{.Error}}"
+error_showing_stats = "No se pudo mostrar estadísticas: {{.Error}}"
+error_editing_message = "Error al editar mensaje: {{.Error}}"
+editor_error = "Error con el editor"
+message_updated = "Mensaje actualizado"
 
 # UI - Selection
 [ui_selection]

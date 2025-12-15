@@ -206,9 +206,20 @@ func (h *SuggestionHandler) processCommit(ctx context.Context, suggestion models
 	ui.PrintInfo(h.t.GetMessage("ui_preview.commit_selected", 0, map[string]interface{}{
 		"Title": commitTitle,
 	}))
-	ui.PrintInfo(h.t.GetMessage("ui_preview.files_count", 0, map[string]interface{}{
-		"Count": len(suggestion.Files),
-	}))
+
+	treeHeader := h.t.GetMessage("ui_preview.modified_files_header", 0, nil)
+	if err := ui.ShowFilesTree(suggestion.Files, treeHeader); err != nil {
+		ui.PrintInfo(h.t.GetMessage("ui_preview.files_count", 0, map[string]interface{}{
+			"Count": len(suggestion.Files),
+		}))
+	}
+
+	statsHeader := h.t.GetMessage("ui_preview.changes_header", 0, nil)
+	if err := ui.ShowDiffStats(suggestion.Files, statsHeader); err != nil {
+		ui.PrintWarning(h.t.GetMessage("ui_preview.error_showing_stats", 0, map[string]interface{}{
+			"Error": err,
+		}))
+	}
 
 	if ui.AskConfirmation(h.t.GetMessage("ui_preview.ask_show_diff", 0, nil)) {
 		fmt.Println()
@@ -217,6 +228,20 @@ func (h *SuggestionHandler) processCommit(ctx context.Context, suggestion models
 				"Error": err,
 			}))
 		}
+	}
+
+	finalCommitMessage := commitTitle
+	if ui.AskConfirmation(h.t.GetMessage("ui_preview.ask_edit_message", 0, nil)) {
+		editorError := h.t.GetMessage("ui_preview.editor_error", 0, nil)
+		editedMessage, err := ui.EditCommitMessage(commitTitle, editorError)
+		if err != nil {
+			ui.PrintError(h.t.GetMessage("ui_preview.error_editing_message", 0, map[string]interface{}{
+				"Error": err,
+			}))
+			return err
+		}
+		finalCommitMessage = editedMessage
+		ui.PrintSuccess(h.t.GetMessage("ui_preview.message_updated", 0, nil))
 	}
 
 	if !ui.AskConfirmation(h.t.GetMessage("ui_preview.ask_confirm_commit", 0, nil)) {
@@ -229,12 +254,10 @@ func (h *SuggestionHandler) processCommit(ctx context.Context, suggestion models
 
 	for _, file := range suggestion.Files {
 		if err := gitService.AddFileToStaging(ctx, file); err != nil {
-			spinner.Error(fmt.Sprintf("Error al agregar %s", file))
-			msg := h.t.GetMessage("commit.error_add_file_staging", 0, map[string]interface{}{
-				"File":  file,
-				"Error": err,
-			})
-			return fmt.Errorf("%s", msg)
+			spinner.Error(h.t.GetMessage("error_adding_file", 0, map[string]interface{}{
+				"File": file,
+			}))
+			return fmt.Errorf("error al agregar %s: %w", file, err)
 		}
 	}
 
@@ -242,26 +265,16 @@ func (h *SuggestionHandler) processCommit(ctx context.Context, suggestion models
 		"Count": len(suggestion.Files),
 	}))
 
-	commitSpinner := ui.NewSmartSpinner(h.t.GetMessage("ui.creating_commit", 0, nil))
-	commitSpinner.Start()
+	spinner = ui.NewSmartSpinner(h.t.GetMessage("ui.creating_commit", 0, nil))
+	spinner.Start()
 
-	if err := gitService.CreateCommit(ctx, commitTitle); err != nil {
-		commitSpinner.Error("Error al crear el commit")
-		msg := h.t.GetMessage("commit.error_creating_commit", 0, map[string]interface{}{
-			"Commit": commitTitle,
-			"Error":  err,
-		})
-		return fmt.Errorf("%s", msg)
+	if err := gitService.CreateCommit(ctx, finalCommitMessage); err != nil {
+		spinner.Error(h.t.GetMessage("error_creating_commit", 0, nil))
+		return fmt.Errorf("error al crear el commit: %w", err)
 	}
 
-	commitSpinner.Stop()
-
-	ui.PrintSuccess(h.t.GetMessage("ui.commit_created_successfully", 0, nil))
-	fmt.Printf("\n   %s\n\n", color.New(color.FgCyan).Sprint(commitTitle))
-
-	if len(suggestion.RequirementsAnalysis.CompletedIndices) > 0 {
-		return h.handleIssueUpdate(ctx, suggestion.RequirementsAnalysis.CompletedIndices, commitTitle)
-	}
+	spinner.Success(h.t.GetMessage("ui.commit_created_successfully", 0, nil))
+	fmt.Printf("\n   %s\n\n", finalCommitMessage)
 
 	return nil
 }

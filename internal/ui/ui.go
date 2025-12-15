@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -25,7 +26,7 @@ var (
 	WarningEmoji = Warning.Sprint("⚠")
 	InfoEmoji    = Info.Sprint("*")
 	RocketEmoji  = Accent.Sprint("🚀")
-	SparkleEmoji = Accent.Sprint("✨")
+	StatsEmoji   = Accent.Sprint("📊")
 )
 
 // SmartSpinner es un spinner con capacidades mejoradas
@@ -179,4 +180,261 @@ func WithSpinnerAndDuration(message string, fn func() error) error {
 	s.Stop()
 	PrintDuration(message+" completed", duration)
 	return nil
+}
+
+// ShowDiffStats muestra estadísticas de cambios (como git diff --stat)
+func ShowDiffStats(files []string, headerMessage string) error {
+	cmd := exec.Command("git", append([]string{"diff", "--stat", "--staged", "--"}, files...)...)
+	output, err := cmd.CombinedOutput()
+
+	if err != nil || len(output) == 0 {
+		cmd = exec.Command("git", append([]string{"diff", "--stat", "--"}, files...)...)
+		output, err = cmd.CombinedOutput()
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if len(output) > 0 {
+		fmt.Printf("\n%s %s\n", StatsEmoji, headerMessage)
+		fmt.Println(string(output))
+	}
+
+	return nil
+}
+
+// EditCommitMessage abre un editor para que el usuario edite el mensaje
+func EditCommitMessage(initialMessage string, editorErrorMsg string) (string, error) {
+	tmpFile, err := os.CreateTemp("", "commit-msg-*.txt")
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", editorErrorMsg, err)
+	}
+	defer func() {
+		if err := os.Remove(tmpFile.Name()); err != nil {
+			return
+		}
+	}()
+
+	if _, err := tmpFile.WriteString(initialMessage); err != nil {
+		return "", fmt.Errorf("%s: %w", editorErrorMsg, err)
+	}
+	_ = tmpFile.Close()
+
+	editor := os.Getenv("EDITOR")
+	if editor == "" {
+		editor = "nano"
+		if _, err := exec.LookPath("nano"); err != nil {
+			editor = "vi"
+		}
+	}
+
+	cmd := exec.Command(editor, tmpFile.Name())
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("%s: %w", editorErrorMsg, err)
+	}
+
+	content, err := os.ReadFile(tmpFile.Name())
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", editorErrorMsg, err)
+	}
+
+	editedMessage := strings.TrimSpace(string(content))
+	if editedMessage == "" {
+		return "", fmt.Errorf("%s", editorErrorMsg)
+	}
+
+	return editedMessage, nil
+}
+
+// FileChange representa un archivo modificado con sus estadísticas
+type FileChange struct {
+	Path      string
+	Additions int
+	Deletions int
+}
+
+// ShowFilesTree muestra los archivos modificados en formato árbol
+func ShowFilesTree(files []string, headerMessage string) error {
+	if len(files) == 0 {
+		return nil
+	}
+
+	fileChanges, err := getFileStats(files)
+	if err != nil {
+		fmt.Printf("\n%s\n", headerMessage)
+		for _, file := range files {
+			fmt.Printf("   • %s\n", file)
+		}
+		return nil
+	}
+
+	fmt.Printf("\n%s\n", headerMessage)
+	tree := buildFileTree(fileChanges)
+	printTree(tree, "", true)
+
+	return nil
+}
+
+// getFileStats obtiene las estadísticas de cambios para cada archivo
+func getFileStats(files []string) ([]FileChange, error) {
+	cmd := exec.Command("git", append([]string{"diff", "--numstat", "--staged", "--"}, files...)...)
+	output, err := cmd.CombinedOutput()
+
+	if err != nil || len(output) == 0 {
+		cmd = exec.Command("git", append([]string{"diff", "--numstat", "--"}, files...)...)
+		output, err = cmd.CombinedOutput()
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	var changes []FileChange
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+
+		parts := strings.Fields(line)
+		if len(parts) < 3 {
+			continue
+		}
+
+		additions := 0
+		deletions := 0
+
+		if parts[0] != "-" {
+			additions = parseInt(parts[0])
+		}
+		if parts[1] != "-" {
+			deletions = parseInt(parts[1])
+		}
+
+		changes = append(changes, FileChange{
+			Path:      parts[2],
+			Additions: additions,
+			Deletions: deletions,
+		})
+	}
+
+	return changes, nil
+}
+
+// treeNode representa un nodo en el árbol de archivos
+type treeNode struct {
+	name     string
+	isFile   bool
+	change   *FileChange
+	children map[string]*treeNode
+}
+
+// buildFileTree construye un árbol de directorios
+func buildFileTree(changes []FileChange) *treeNode {
+	root := &treeNode{
+		name:     "",
+		children: make(map[string]*treeNode),
+	}
+
+	for _, change := range changes {
+		parts := strings.Split(change.Path, "/")
+		current := root
+
+		for i, part := range parts {
+			isFile := i == len(parts)-1
+
+			if current.children[part] == nil {
+				current.children[part] = &treeNode{
+					name:     part,
+					isFile:   isFile,
+					children: make(map[string]*treeNode),
+				}
+
+				if isFile {
+					current.children[part].change = &change
+				}
+			}
+			current = current.children[part]
+		}
+	}
+	return root
+}
+
+// printTree imprime el árbol recursivamente
+func printTree(node *treeNode, prefix string, isLast bool) {
+	if node.name != "" {
+		connector := "├── "
+		if isLast {
+			connector = "└── "
+		}
+
+		name := node.name
+		if !node.isFile {
+			name = Info.Sprint(name + "/")
+		}
+
+		stats := ""
+		if node.isFile && node.change != nil {
+			statsColor := color.New(color.FgGreen)
+			if node.change.Deletions > node.change.Additions {
+				statsColor = color.New(color.FgRed)
+			}
+			stats = statsColor.Sprintf(" (+%d, -%d)", node.change.Additions, node.change.Deletions)
+		}
+
+		fmt.Printf("%s%s%s%s\n", prefix, connector, name, stats)
+	}
+
+	childPrefix := prefix
+	if node.name != "" {
+		if isLast {
+			childPrefix += "    "
+		} else {
+			childPrefix += "│   "
+		}
+	}
+
+	var keys []string
+	for key := range node.children {
+		keys = append(keys, key)
+	}
+
+	sortFileTree(keys, node.children)
+
+	for i, key := range keys {
+		child := node.children[key]
+		isLastChild := i == len(keys)-1
+		printTree(child, childPrefix, isLastChild)
+	}
+}
+
+// sortFileTree ordena las claves: directorios primero, luego archivos
+func sortFileTree(keys []string, nodes map[string]*treeNode) {
+	for i := 0; i < len(keys); i++ {
+		for j := i + 1; j < len(keys); j++ {
+			node1 := nodes[keys[i]]
+			node2 := nodes[keys[j]]
+
+			if node1.isFile && !node2.isFile {
+				keys[i], keys[j] = keys[j], keys[i]
+			} else if node1.isFile == node2.isFile {
+				if keys[i] > keys[j] {
+					keys[i], keys[j] = keys[j], keys[i]
+				}
+			}
+		}
+	}
+}
+
+// parseInt convierte string a int, retorna 0 si falla
+func parseInt(s string) int {
+	var result int
+	_, _ = fmt.Sscanf(s, "%d", &result)
+	return result
 }
