@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
@@ -162,18 +161,7 @@ func (s *ReleaseService) EnrichReleaseContext(ctx context.Context, release *mode
 func (s *ReleaseService) UpdateLocalChangelog(release *models.Release, notes *models.ReleaseNotes) error {
 	const changelogFile = "CHANGELOG.md"
 
-	newContent := notes.Changelog
-	if newContent == "" {
-		newContent = s.buildChangelog(release)
-	}
-
-	versionHeader := fmt.Sprintf("## %s (%s)", release.Version, time.Now().Format("2006-01-02"))
-
-	if !strings.HasPrefix(strings.TrimSpace(newContent), "## "+release.Version) {
-		newContent = fmt.Sprintf("%s\n\n%s\n\n", versionHeader, strings.TrimSpace(newContent))
-	} else {
-		newContent = newContent + "\n\n"
-	}
+	newContent := s.buildChangelogFromNotes(context.Background(), release, notes)
 
 	fmt.Println(s.trans.GetMessage("release.changelog_update_started", 0, nil))
 
@@ -344,7 +332,58 @@ func (s *ReleaseService) generateBasicNotes(release *models.Release) *models.Rel
 	}
 }
 
-// buildChangelog construye el changelog en formato markdown
+// buildChangelogFromNotes formatea el registro de cambios utilizando destacados generados por IA
+func (s *ReleaseService) buildChangelogFromNotes(ctx context.Context, release *models.Release, notes *models.ReleaseNotes) string {
+	var sb strings.Builder
+
+	tagDate, err := s.git.GetTagDate(ctx, release.Version)
+	if err != nil {
+		tagDate = ""
+	}
+
+	owner, repo, provider, _ := s.git.GetRepoInfo(ctx)
+
+	versionHeader := fmt.Sprintf("## [%s]", release.Version)
+	if tagDate != "" {
+		versionHeader += fmt.Sprintf(" - %s", tagDate)
+	}
+
+	if provider == "github" && owner != "" && repo != "" {
+		compareURL := ""
+		if release.PreviousVersion != "" {
+			compareURL = fmt.Sprintf("https://github.com/%s/%s/compare/%s...%s", owner, repo, release.PreviousVersion, release.Version)
+		} else {
+			compareURL = fmt.Sprintf("https://github.com/%s/%s/releases/tag/%s", owner, repo, release.Version)
+		}
+		versionHeader += fmt.Sprintf("\n\n[%s]: %s", release.Version, compareURL)
+	}
+
+	sb.WriteString(versionHeader + "\n\n")
+
+	if notes.Summary != "" {
+		sb.WriteString(fmt.Sprintf("%s\n\n", notes.Summary))
+	}
+
+	if len(notes.Highlights) > 0 {
+		sb.WriteString("### ✨ Highlights\n\n")
+		for _, highlight := range notes.Highlights {
+			sb.WriteString(fmt.Sprintf("- %s\n", highlight))
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(notes.BreakingChanges) > 0 {
+		sb.WriteString("### ⚠️ Breaking Changes\n\n")
+		for _, bc := range notes.BreakingChanges {
+			sb.WriteString(fmt.Sprintf("- %s\n", bc))
+		}
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
+}
+
+// buildChangelog formatea el registro de cambios a partir de confirmaciones sin procesar (respaldo cuando la IA no está disponible)
 func (s *ReleaseService) buildChangelog(release *models.Release) string {
 	var sb strings.Builder
 
