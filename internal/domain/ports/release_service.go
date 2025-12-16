@@ -32,6 +32,7 @@ type ReleaseService interface {
 	EnrichReleaseContext(ctx context.Context, release *models.Release) error
 	UpdateLocalChangelog(release *models.Release, notes *models.ReleaseNotes) error
 	CommitChangelog(ctx context.Context, version string) error
+	PushChanges(ctx context.Context) error
 	UpdateAppVersion(version string) error
 }
 

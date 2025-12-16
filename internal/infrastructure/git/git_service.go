@@ -275,6 +275,12 @@ func (s *GitService) PushTag(ctx context.Context, version string) error {
 	return cmd.Run()
 }
 
+// Push pushes commits to the remote repository
+func (s *GitService) Push(ctx context.Context) error {
+	cmd := exec.CommandContext(ctx, "git", "push")
+	return cmd.Run()
+}
+
 func (s *GitService) GetCommitCount(ctx context.Context) (int, error) {
 	cmd := exec.CommandContext(ctx, "git", "rev-list", "--count", "HEAD")
 	output, err := cmd.Output()

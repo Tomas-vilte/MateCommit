@@ -123,6 +123,11 @@ func (m *MockGitService) PushTag(ctx context.Context, version string) error {
 	return args.Error(0)
 }
 
+func (m *MockGitService) Push(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
 func (m *MockAIProvider) GenerateSuggestions(ctx context.Context, info models.CommitInfo, count int) ([]models.CommitSuggestion, error) {
 	args := m.Called(ctx, info, count)
 	return args.Get(0).([]models.CommitSuggestion), args.Error(1)

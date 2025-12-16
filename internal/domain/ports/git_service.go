@@ -38,4 +38,5 @@ type GitService interface {
 	GetRecentCommitMessages(ctx context.Context, count int) (string, error)
 	CreateTag(ctx context.Context, version, message string) error
 	PushTag(ctx context.Context, version string) error
+	Push(ctx context.Context) error
 }
