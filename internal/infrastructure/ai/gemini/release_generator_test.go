@@ -72,9 +72,8 @@ func TestBuildPrompt(t *testing.T) {
 		prompt := generator.buildPrompt(release)
 
 		// Assert
-		assert.Contains(t, prompt, "Previous version: v0.9.0")
-		assert.Contains(t, prompt, "New version: v1.0.0")
-		assert.Contains(t, prompt, "Bump type: major")
+		// Assert
+		assert.Contains(t, prompt, "Versions: v0.9.0 -> v1.0.0 (major)")
 
 		assert.Contains(t, prompt, "BREAKING CHANGES:")
 		assert.Contains(t, prompt, "- breaking: Breaking change")

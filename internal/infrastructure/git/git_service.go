@@ -215,6 +215,47 @@ func (s *GitService) GetCommitsSinceTag(ctx context.Context, tag string) ([]mode
 	return commits, nil
 }
 
+func (s *GitService) GetCommitsBetweenTags(ctx context.Context, fromTag, toTag string) ([]models.Commit, error) {
+	rangeSpec := toTag
+	if fromTag != "" {
+		rangeSpec = fromTag + ".." + toTag
+	}
+
+	args := []string{"log", rangeSpec, "--pretty=format:%H|%s|%b", "--no-merges"}
+	cmd := exec.CommandContext(ctx, "git", args...)
+	output, err := cmd.Output()
+	if err != nil {
+		msg := s.trans.GetMessage("git.get_commits", 0, map[string]interface{}{
+			"Error": err,
+		})
+		return nil, fmt.Errorf("%s", msg)
+	}
+
+	if len(output) == 0 {
+		return []models.Commit{}, nil
+	}
+
+	var commits []models.Commit
+	lines := strings.Split(string(output), "\n")
+
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "|", 3)
+		if len(parts) >= 2 {
+			commit := models.Commit{
+				Message: parts[1],
+			}
+			if len(parts) == 3 {
+				commit.Message = parts[1] + "\n" + parts[2]
+			}
+			commits = append(commits, commit)
+		}
+	}
+	return commits, nil
+}
+
 func (s *GitService) GetRecentCommitMessages(ctx context.Context, count int) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", "log", fmt.Sprintf("-%d", count), "--pretty=format:%s %b")
 	output, err := cmd.Output()
@@ -243,6 +284,24 @@ func (s *GitService) GetCommitCount(ctx context.Context) (int, error) {
 	count := 0
 	_, _ = fmt.Sscanf(strings.TrimSpace(string(output)), "%d", &count)
 	return count, nil
+}
+
+// GetTagDate returns the creation date of a tag in YYYY-MM-DD format
+func (s *GitService) GetTagDate(ctx context.Context, tag string) (string, error) {
+	// Get the date of the tag using git log
+	cmd := exec.CommandContext(ctx, "git", "log", "-1", "--format=%ai", tag)
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("error getting tag date: %w", err)
+	}
+
+	// Parse the date (format: "2024-03-20 15:30:45 -0300")
+	dateStr := strings.TrimSpace(string(output))
+	if len(dateStr) >= 10 {
+		return dateStr[:10], nil // Return YYYY-MM-DD
+	}
+
+	return dateStr, nil
 }
 
 func parseRepoURL(url string, trans *i18n.Translations) (string, string, string, error) {

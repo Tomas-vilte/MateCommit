@@ -272,7 +272,7 @@ const (
 
 const (
 	releasePromptTemplateES = `# Tarea
-Genera release notes actuando como un Desarrollador Senior.
+Generá release notes profesionales para un CHANGELOG.md siguiendo el estándar "Keep a Changelog".
 
 # Datos del Release
 - Repo: %s/%s
@@ -281,63 +281,196 @@ Genera release notes actuando como un Desarrollador Senior.
 # Changelog (Diff)
 %s
 
-# Instrucciones de Precisión
-1. **Verdad ante todo:** Si el changelog solo muestra actualizaciones de dependencias, no inventes features. Poné "Mantenimiento de dependencias".
-2. **Agrupación Inteligente:**
-   - Si ves muchos commits de "fix", agrupalos en un highlight si están relacionados.
-   - Si es un bump de versión sin cambios de código, decilo claro: "Release de mantenimiento para actualizar versiones internas".
-3. **Estilo de Redacción:**
-   - **Tono:** Profesional, directo y humano (similar a como escribirías en Slack o un email técnico).
-   - **Primera Persona:** Usa "Implementé", "Mejoramos", "Agregué". Evita la voz pasiva ("Se ha implementado").
-   - **Highlights:** Tienen que explicar el valor real del cambio, no solo describir el código.
+# Instrucciones Críticas
 
-# Formato de Salida
-IMPORTANTE: Responde en ESPAÑOL. Todo el contenido del JSON debe estar en español. JSON crudo.
+## 1. FILTRADO DE RUIDO TÉCNICO
+**IGNORAR completamente** estos tipos de commits (no incluirlos en ninguna sección):
+- Cambios en mocks o tests internos (ej: "Implementa GetIssue en MockVCSClient")
+- Refactors internos que no afectan funcionalidad (ej: "Refactor: extract helper function")
+- Updates menores de dependencias (ej: "chore: update go.mod")
+- Cambios de documentación interna o comentarios
+- Fixes de typos en código o variables internas
 
-Responde SOLO con JSON válido:
+**SÍ INCLUIR** solo cambios que impactan al usuario final:
+- Nuevas features visibles
+- Mejoras de performance o UX
+- Correcciones de bugs que afectaban funcionalidad
+- Breaking changes
+- Updates importantes de dependencias (cambios de versión mayor)
+
+## 2. AGRUPACIÓN INTELIGENTE
+**AGRUPAR** commits relacionados bajo un concepto unificador:
+
+❌ **MAL** (lista cruda de commits):
+- "feat: agregar spinners"
+- "feat: agregar colores"
+- "feat: mejorar feedback visual"
+
+✅ **BIEN** (agrupado con valor):
+- "UX Renovada: Agregamos spinners, colores y feedback visual en todas las operaciones largas para que no sientas que la terminal se colgó"
+
+**Reglas de agrupación:**
+- Si 3+ commits tocan el mismo módulo/feature → agrupar en un solo highlight
+- Priorizar el VALOR para el usuario, no los detalles técnicos
+- Máximo 5-7 highlights por release (no listar 15+ ítems)
+
+## 3. IDIOMA Y TONO
+**ESPAÑOL ARGENTINO PROFESIONAL:**
+- Tono: Conversacional pero técnico, como un email entre devs
+- Primera persona plural: "Agregamos", "Mejoramos", "Implementamos"
+- Evitar spanglish completamente (nada de "fixeamos" o "pusheamos")
+- Evitar jerga forzada, mantener profesionalismo
+
+**Ejemplos de tono correcto:**
+- ✅ "Automatizamos la generación del CHANGELOG.md"
+- ✅ "Mejoramos la detección automática de issues"
+- ❌ "Se implementó la feature de changelog" (muy formal/pasivo)
+- ❌ "Agregamos un fix re-copado" (muy informal)
+
+## 4. ESTRUCTURA Y NARRATIVA
+Cada release debe contar una historia:
+- **Summary:** Explicar el foco principal del release (ej: "En esta versión nos enfocamos en mejorar la UX y automatizar el proceso de releases")
+- **Highlights:** Agrupar por tema (UX, Automatización, Performance, etc.)
+- Cada highlight debe responder: "¿Qué ganó el usuario con esto?"
+
+## 5. FORMATO DE SALIDA
+IMPORTANTE: TODO en español. JSON válido sin markdown.
+
 {
-  "title": "título descriptivo y real (ej: 'Mejoras en performance y correcciones')",
-  "summary": "2-3 oraciones en primera persona contando de qué trata este release (ej: 'En esta versión me enfoqué en mejorar la UX...')",
-  "highlights": ["highlight 1 (en primera persona)", "highlight 2", "highlight 3"],
-  "breaking_changes": ["descripción del cambio" (o array vacío [] si no hay)],
+  "title": "Título conciso y descriptivo (ej: 'Mejoras de UX y Automatización')",
+  "summary": "2-3 oraciones explicando el foco del release en primera persona plural. Debe dar contexto de por qué estos cambios importan.",
+  "highlights": [
+    "Highlight 1: Agrupación de features relacionadas con explicación de valor",
+    "Highlight 2: Otra mejora importante",
+    "Highlight 3: Correcciones relevantes"
+  ],
+  "breaking_changes": ["Descripción clara del breaking change y cómo migrar" (o [] si no hay)],
   "contributors": "Gracias a @user1, @user2" o "N/A"
 }
 
-Genera las release notes ahora.`
+# Ejemplo de Calidad Esperada
+
+**Input (commits crudos):**
+- feat: add spinners to long operations
+- feat: add colors to output
+- feat: improve visual feedback
+- feat(mock): implement GetIssue in MockVCSClient
+- fix: correct spinner formatting
+- chore: update dependencies
+
+**Output esperado:**
+{
+  "title": "Mejoras de Experiencia de Usuario",
+  "summary": "En esta versión nos enfocamos en mejorar la experiencia de usuario agregando feedback visual completo. Ya no vas a sentir que la terminal se colgó durante operaciones largas.",
+  "highlights": [
+    "UX Renovada: Agregamos spinners, colores y feedback visual en todas las operaciones largas (#45)",
+    "Correcciones: Mejoramos el formato de los spinners para mejor legibilidad"
+  ],
+  "breaking_changes": [],
+  "contributors": "N/A"
+}
+
+Generá las release notes ahora siguiendo estas instrucciones al pie de la letra.`
 
 	releasePromptTemplateEN = `# Task
-Generate release notes acting as a Technical Product Owner.
+Generate professional release notes for a CHANGELOG.md following the "Keep a Changelog" standard.
 
 # Release Information
 - Repository: %s/%s
-- Previous version: %s
-- New version: %s
-- Bump type: %s
+- Versions: %s -> %s (%s)
 
-# Changes
+# Changelog (Diff)
 %s
 
-# Precision Instructions
-1. **Truthfulness:** If the changelog only shows dependency updates, DO NOT invent features. State "Dependency maintenance".
-2. **Smart Grouping:**
-   - Group related "fix" commits into a single highlight.
-   - If it's a version bump without code changes, state it clearly.
-3. **Style:**
-   - First person ("We released", "I improved", "I added").
-   - Tone: Professional, technical, yet friendly.
-   - "Highlights" must sell the value, not just describe the code.
+# Critical Instructions
 
-# Output Format
-Respond with ONLY valid JSON (no markdown):
+## 1. TECHNICAL NOISE FILTERING
+**COMPLETELY IGNORE** these types of commits (do not include them in any section):
+- Changes to mocks or internal tests (e.g., "Implement GetIssue in MockVCSClient")
+- Internal refactors that don't affect functionality (e.g., "Refactor: extract helper function")
+- Minor dependency updates (e.g., "chore: update go.mod")
+- Internal documentation or comment changes
+- Typo fixes in code or internal variables
+
+**DO INCLUDE** only changes that impact the end user:
+- New visible features
+- Performance or UX improvements
+- Bug fixes affecting functionality
+- Breaking changes
+- Important dependency updates (major version changes)
+
+## 2. INTELLIGENT GROUPING
+**GROUP** related commits under a unifying concept:
+
+❌ **BAD** (raw commit list):
+- "feat: add spinners"
+- "feat: add colors"
+- "feat: improve visual feedback"
+
+✅ **GOOD** (grouped with value):
+- "Revamped UX: Added spinners, colors, and visual feedback across all long-running operations so you never feel like the terminal froze"
+
+**Grouping rules:**
+- If 3+ commits touch the same module/feature → group into a single highlight
+- Prioritize USER VALUE, not technical details
+- Maximum 5-7 highlights per release (don't list 15+ items)
+
+## 3. LANGUAGE AND TONE
+**PROFESSIONAL ENGLISH:**
+- Tone: Conversational yet technical, like an email between developers
+- First person plural: "We added", "We improved", "We implemented"
+- Maintain professionalism, avoid forced slang
+
+**Examples of correct tone:**
+- ✅ "We automated CHANGELOG.md generation"
+- ✅ "We improved automatic issue detection"
+- ❌ "The changelog feature was implemented" (too formal/passive)
+- ❌ "We added a super cool fix" (too informal)
+
+## 4. STRUCTURE AND NARRATIVE
+Each release should tell a story:
+- **Summary:** Explain the main focus of the release (e.g., "In this release, we focused on improving UX and automating the release process")
+- **Highlights:** Group by theme (UX, Automation, Performance, etc.)
+- Each highlight should answer: "What did the user gain from this?"
+
+## 5. OUTPUT FORMAT
+IMPORTANT: Everything in English. Valid JSON without markdown.
+
 {
-  "title": "Catchy but real title (e.g., 'Performance improvements and fixes')",
-  "summary": "2-3 sentences in first person summarizing this release.",
-  "highlights": ["highlight 1", "highlight 2", "highlight 3"],
-  "breaking_changes": ["change 1" (or empty array [] if none)],
+  "title": "Concise and descriptive title (e.g., 'UX Improvements and Automation')",
+  "summary": "2-3 sentences explaining the release focus in first person plural. Should provide context on why these changes matter.",
+  "highlights": [
+    "Highlight 1: Grouping of related features with value explanation",
+    "Highlight 2: Another important improvement",
+    "Highlight 3: Relevant fixes"
+  ],
+  "breaking_changes": ["Clear description of breaking change and how to migrate" (or [] if none)],
   "contributors": "Thanks to @user1, @user2" or "N/A"
 }
 
-Generate the release notes now.`
+# Expected Quality Example
+
+**Input (raw commits):**
+- feat: add spinners to long operations
+- feat: add colors to output
+- feat: improve visual feedback
+- feat(mock): implement GetIssue in MockVCSClient
+- fix: correct spinner formatting
+- chore: update dependencies
+
+**Expected output:**
+{
+  "title": "User Experience Improvements",
+  "summary": "In this release, we focused on improving the user experience by adding complete visual feedback. You'll no longer feel like the terminal froze during long operations.",
+  "highlights": [
+    "Revamped UX: Added spinners, colors, and visual feedback across all long-running operations (#45)",
+    "Fixes: Improved spinner formatting for better readability"
+  ],
+  "breaking_changes": [],
+  "contributors": "N/A"
+}
+
+Generate the release notes now following these instructions to the letter.`
 )
 
 // GetPRPromptTemplate devuelve el template adecuado según el idioma
