@@ -473,6 +473,11 @@ func (s *ReleaseService) CommitChangelog(ctx context.Context, version string) er
 	return nil
 }
 
+// PushChanges pushes committed changes to the remote repository
+func (s *ReleaseService) PushChanges(ctx context.Context) error {
+	return s.git.Push(ctx)
+}
+
 func (s *ReleaseService) UpdateAppVersion(version string) error {
 	mainGoFile := "cmd/main.go"
 	versionPattern := `Version:\s*".*"`

@@ -70,6 +70,11 @@ func (m *MockReleaseService) CommitChangelog(ctx context.Context, version string
 	return args.Error(0)
 }
 
+func (m *MockReleaseService) PushChanges(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
 func (m *MockReleaseService) UpdateAppVersion(version string) error {
 	args := m.Called(version)
 	return args.Error(0)
@@ -152,6 +157,11 @@ func (m *MockGitService) CreateTag(ctx context.Context, version, message string)
 
 func (m *MockGitService) PushTag(ctx context.Context, version string) error {
 	args := m.Called(ctx, version)
+	return args.Error(0)
+}
+
+func (m *MockGitService) Push(ctx context.Context) error {
+	args := m.Called(ctx)
 	return args.Error(0)
 }
 

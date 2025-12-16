@@ -2,19 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
-## [v1.4.0] - 2025-12-16
+## [v1.4.0]
 
 [v1.4.0]: https://github.com/Tomas-vilte/MateCommit/compare/v1.3.0...v1.4.0
 
-En esta versión nos enfocamos en pulir la experiencia de usuario, potenciar la inteligencia artificial para sugerencias más inteligentes y automatizar aún más los procesos de release. Queremos que tu flujo de trabajo sea más ágil y eficiente, permitiéndote concentrarte en lo importante.
+En esta versión nos enfocamos en transformar tu interacción con la herramienta, mejorando drásticamente la experiencia de usuario con feedback visual en tiempo real y optimizando la automatización de tus procesos de release. Además, potenciamos la inteligencia artificial para un análisis más profundo y contextualizado.
 
 ### ✨ Highlights
 
-- Experiencia de Usuario Renovada: Mejoramos significativamente la interacción con la aplicación. Ahora contamos con autocompletado de comandos y flags, un feedback visual más claro con spinners y colores durante operaciones largas, y una previsualización de commits que permite editar el mensaje antes de confirmar. Además, agregamos el comando `doctor` para validar tu API key de Gemini.
-- Inteligencia Artificial Potenciada: Optimizamos la integración con Gemini para generar sugerencias de commits más precisas y estructuradas, aprovechando su modo JSON. La IA ahora detecta automáticamente el contexto de tus issues, enriqueciendo el análisis y ofreciendo propuestas más relevantes.
-- Automatización Avanzada de Releases: Simplificamos el proceso de lanzamiento de nuevas versiones. La aplicación ahora automatiza la actualización de la versión y el commit del `CHANGELOG.md`. También implementamos la capacidad de editar releases y generar notas de release estructuradas con la ayuda de la IA.
-- Análisis de Dependencias Multi-lenguaje: Incorporamos una nueva funcionalidad para analizar los cambios en las dependencias de tus proyectos, con soporte para múltiples lenguajes, brindándote un control más granular en cada release.
-- Resúmenes de Pull Request Inteligentes: El generador de resúmenes de Pull Request ahora es más inteligente, incluyendo información clave como issues relacionados, breaking changes y planes de prueba. También corregimos un error para asegurar el uso correcto de las plantillas para el formato JSON.
+- **Experiencia de Usuario Renovada:** Implementamos spinners, colores y una previsualización de cambios (diff) para un feedback visual en tiempo real. Además, agregamos un comando `doctor` para validar tu clave de API de Gemini y mejoramos la previsualización de commits, permitiéndote editar el mensaje antes de confirmar.
+- **Automatización Integral de Releases:** Simplificamos y automatizamos la generación de notas de release para `CHANGELOG.md`, la actualización de la versión de la aplicación y el commit automático del changelog. Ahora también podés editar releases existentes, agilizando tu flujo de trabajo.
+- **Inteligencia Artificial Contextualizada:** Mejoramos la capacidad de la IA para entender el contexto de tus commits y solicitudes de incorporación (PRs). Ahora detecta automáticamente issues, breaking changes y planes de prueba, enriqueciendo los resúmenes de PR y las notas de release con información más relevante.
+- **Análisis de Dependencias Multi-lenguaje:** Agregamos la capacidad de analizar cambios en las dependencias de tus proyectos, incluso en entornos multi-lenguaje, brindando una visión más completa y detallada de cada release.
+- **Mejoras en la Interfaz de Línea de Comandos (CLI):** Implementamos autocompletado para comandos y flags, haciendo tu experiencia en la terminal mucho más fluida y eficiente.
+- **Correcciones y Estabilidad:** Aseguramos que el resumidor de PRs utilice correctamente la plantilla para las instrucciones de formato JSON, garantizando la consistencia en la generación de resúmenes.
 
 ## [v1.3.0] - 2025-12-09
 

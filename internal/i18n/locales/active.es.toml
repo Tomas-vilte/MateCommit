@@ -451,6 +451,10 @@ error_committing_changelog = "Error al enviar el Changelog: {{.Error}}"
 error_updating_app_version = "Error al actualizar la versión de la aplicación: {{.Error}}"
 app_version_updated = "✅ Versión de la aplicación actualizada a {{.Version}}"
 commit_no_staged = "No hay cambios que confirmar. Se omite el paso de confirmación."
+changelog_committed = "✅ Changelog confirmado con éxito"
+pushing_changes = "Subiendo cambios al repositorio remoto..."
+error_pushing_changes = "Error al subir cambios: {{.Error}}"
+changes_pushed = "✅ Cambios subidos con éxito"
 
 highlights_section = "### Highlights"
 # Generate Markdown

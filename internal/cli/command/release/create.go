@@ -123,6 +123,17 @@ func createReleaseAction(releaseService ports.ReleaseService, trans *i18n.Transl
 			}
 			sCommit.Success(trans.GetMessage("release.changelog_committed", 0, nil))
 			fmt.Println()
+
+			sPush := ui.NewSmartSpinner(trans.GetMessage("release.pushing_changes", 0, nil))
+			sPush.Start()
+			if err := releaseService.PushChanges(ctx); err != nil {
+				sPush.Error(trans.GetMessage("release.error_pushing_changes", 0, map[string]interface{}{
+					"Error": err.Error(),
+				}))
+				return fmt.Errorf("error pusheando cambios: %w", err)
+			}
+			sPush.Success(trans.GetMessage("release.changes_pushed", 0, nil))
+			fmt.Println()
 		}
 
 		fmt.Println(trans.GetMessage("release.create_preview", 0, map[string]interface{}{
