@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Tomas-vilte/MateCommit/internal/cli/completion_helper"
 	cfg "github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/factory"
 	"github.com/Tomas-vilte/MateCommit/internal/ui"
@@ -35,6 +36,7 @@ func (c *SummarizeCommand) CreateCommand(t *i18n.Translations, _ *cfg.Config) *c
 				Required: true,
 			},
 		},
+		ShellComplete: completion_helper.DefaultFlagComplete,
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			prService, err := c.prFactory.CreatePRService(ctx)
 			if err != nil {

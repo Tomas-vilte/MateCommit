@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/Tomas-vilte/MateCommit/internal/cli/completion_helper"
 	cfg "github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
@@ -43,6 +44,7 @@ func (r *ReleaseCommandFactory) newCreateCommand(t *i18n.Translations) *cli.Comm
 				Usage: t.GetMessage("release.flag_changelog_usage", 0, nil),
 			},
 		},
+		ShellComplete: completion_helper.DefaultFlagComplete,
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			service, err := r.createReleaseService(ctx, t)
 			if err != nil {

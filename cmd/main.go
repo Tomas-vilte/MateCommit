@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/Tomas-vilte/MateCommit/internal/cli/command/completion"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/config"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/handler"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/pull_requests"
@@ -109,6 +110,8 @@ func initializeApp() (*cli.Command, error) {
 	}
 
 	commands := registerCommand.CreateCommands()
+	commands = append(commands, completion.NewCompletionCommand(translations))
+
 	helpCommand := &cli.Command{
 		Name:    "help",
 		Aliases: []string{"h"},
@@ -120,10 +123,11 @@ func initializeApp() (*cli.Command, error) {
 	commands = append(commands, helpCommand)
 
 	return &cli.Command{
-		Name:        "mate-commit",
-		Usage:       translations.GetMessage("app_usage", 0, nil),
-		Version:     "1.4.0",
-		Description: translations.GetMessage("app_description", 0, nil),
-		Commands:    commands,
+		Name:                  "mate-commit",
+		Usage:                 translations.GetMessage("app_usage", 0, nil),
+		Version:               "1.4.0",
+		Description:           translations.GetMessage("app_description", 0, nil),
+		Commands:              commands,
+		EnableShellCompletion: true,
 	}, nil
 }
