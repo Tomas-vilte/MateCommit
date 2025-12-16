@@ -71,6 +71,7 @@ func (g *ReleaseNotesGenerator) GenerateNotes(ctx context.Context, release *mode
 		Temperature:      float32Ptr(0.3),
 		MaxOutputTokens:  int32(10000),
 		ResponseMIMEType: "application/json",
+		MediaResolution:  genai.MediaResolutionHigh,
 	}
 
 	resp, err := g.client.Models.GenerateContent(ctx, g.model, genai.Text(prompt), genConfig)

@@ -85,6 +85,7 @@ func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.Com
 		Temperature:      float32Ptr(0.3),
 		MaxOutputTokens:  int32(10000),
 		ResponseMIMEType: "application/json",
+		MediaResolution:  genai.MediaResolutionHigh,
 	}
 
 	resp, err := s.client.Models.GenerateContent(ctx, modelName, genai.Text(prompt), genConfig)

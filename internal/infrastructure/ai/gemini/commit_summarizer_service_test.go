@@ -291,7 +291,7 @@ func TestGeminiService(t *testing.T) {
 		t.Logf("Prompt generado:\n%s", prompt)
 
 		// assert
-		assert.Contains(t, prompt, "Generate 3 commit message suggestions", "El prompt debe incluir la instrucción de generación")
+		assert.Contains(t, prompt, "Generate 3 suggestions now", "El prompt debe incluir la instrucción de generación")
 		assert.Contains(t, prompt, "Modified Files", "Debe incluir la sección de archivos modificados")
 		assert.Contains(t, prompt, "Code Changes", "Debe incluir la sección de diff")
 		assert.Contains(t, prompt, "technical analysis", "Debe incluir la sección de análisis técnico")

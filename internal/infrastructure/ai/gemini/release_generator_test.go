@@ -96,9 +96,9 @@ func TestBuildPrompt(t *testing.T) {
 		// Act
 		prompt := generator.buildPrompt(release)
 
-		assert.Contains(t, prompt, "Versión anterior:")
-		assert.Contains(t, prompt, "Nueva versión:")
-		assert.Contains(t, prompt, "Tipo de bump:")
+		assert.Contains(t, prompt, "- Versiones:")
+		assert.Contains(t, prompt, "->")
+		assert.Contains(t, prompt, "(")
 	})
 
 	t.Run("handles empty changes", func(t *testing.T) {
