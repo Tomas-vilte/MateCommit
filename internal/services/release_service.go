@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
@@ -29,6 +30,7 @@ type ReleaseService struct {
 	notesGen    ports.ReleaseNotesGenerator
 	trans       *i18n.Translations
 	depAnalyzer *dependency.AnalyzerRegistry
+	config      *config.Config
 }
 
 func NewReleaseService(
@@ -36,6 +38,7 @@ func NewReleaseService(
 	vcsClient ports.VCSClient,
 	notesGen ports.ReleaseNotesGenerator,
 	trans *i18n.Translations,
+	config *config.Config,
 ) *ReleaseService {
 	return &ReleaseService{
 		git:         git,
@@ -43,6 +46,7 @@ func NewReleaseService(
 		notesGen:    notesGen,
 		trans:       trans,
 		depAnalyzer: dependency.NewAnalyzerRegistry(),
+		config:      config,
 	}
 }
 
@@ -189,35 +193,27 @@ func (s *ReleaseService) prependToChangelog(filename, newContent string) error {
 	current := string(content)
 	var sb strings.Builder
 
-	firstReleaseIdx := strings.Index(current, "\n## ")
+	idx := strings.Index(current, "\n## ")
 
-	if firstReleaseIdx != -1 {
-		sb.WriteString(current[:firstReleaseIdx+1])
-		sb.WriteString(newContent)
-		if !strings.HasSuffix(newContent, "\n\n") {
-			if !strings.HasSuffix(newContent, "\n") {
-				sb.WriteString("\n")
-			}
-			sb.WriteString("\n")
-		}
-		sb.WriteString(current[firstReleaseIdx+1:])
+	if idx != -1 {
+		pre := current[:idx]
+		post := current[idx:]
+
+		sb.WriteString(strings.TrimSpace(pre))
+		sb.WriteString("\n\n")
+		sb.WriteString(strings.TrimSpace(newContent))
+		sb.WriteString("\n")
+		sb.WriteString(post)
 	} else {
 		if strings.HasPrefix(current, "# ") {
-			endOfFirstLine := strings.Index(current, "\n")
-			if endOfFirstLine != -1 {
-				sb.WriteString(current[:endOfFirstLine+1])
-				sb.WriteString("\n")
-				sb.WriteString(newContent)
-				if len(current) > endOfFirstLine+1 {
-					sb.WriteString(current[endOfFirstLine+1:])
-				}
-			} else {
-				sb.WriteString(current + "\n\n" + newContent)
-			}
-		} else {
-			sb.WriteString(newContent)
+			sb.WriteString(strings.TrimSpace(current))
+			sb.WriteString("\n\n")
+			sb.WriteString(strings.TrimSpace(newContent))
 			sb.WriteString("\n")
-			sb.WriteString(current)
+		} else {
+			sb.WriteString(strings.TrimSpace(newContent))
+			sb.WriteString("\n\n")
+			sb.WriteString(strings.TrimSpace(current))
 		}
 	}
 
@@ -415,15 +411,74 @@ func (s *ReleaseService) formatReleaseItem(item models.ReleaseItem) string {
 }
 
 func (s *ReleaseService) CommitChangelog(ctx context.Context, version string) error {
-	const changelogFile = "CHANGELOG.md"
-
-	if err := s.git.AddFileToStaging(ctx, changelogFile); err != nil {
-		return fmt.Errorf("error haciendo git add del changelog: %w", err)
+	mainGoFile := "cmd/main.go"
+	if s.config != nil && s.config.VersionFile != "" {
+		mainGoFile = s.config.VersionFile
 	}
 
-	message := fmt.Sprintf("chore: update changelog for %s", version)
+	if _, err := os.Stat(mainGoFile); err == nil {
+		if err := s.git.AddFileToStaging(ctx, mainGoFile); err != nil {
+			return fmt.Errorf("error haciendo git add de archivo de versión (%s): %w", mainGoFile, err)
+		}
+	}
+
+	if !s.git.HasStagedChanges(ctx) {
+		fmt.Println(s.trans.GetMessage("release.commit_no_staged", 0, nil))
+		return nil
+	}
+
+	message := fmt.Sprintf("chore: update changelog and bump version to %s", version)
 	if err := s.git.CreateCommit(ctx, message); err != nil {
-		return fmt.Errorf("error haciendo git commit del changelog: %w", err)
+		return fmt.Errorf("%s", s.trans.GetMessage("release.error_committing_changelog", 0, map[string]interface{}{"Error": err}))
 	}
+	return nil
+}
+
+func (s *ReleaseService) UpdateAppVersion(version string) error {
+	mainGoFile := "cmd/main.go"
+	versionPattern := `Version:\s*".*"`
+
+	if s.config != nil {
+		if s.config.VersionFile != "" {
+			mainGoFile = s.config.VersionFile
+		}
+		if s.config.VersionPattern != "" {
+			versionPattern = s.config.VersionPattern
+		}
+	}
+
+	content, err := os.ReadFile(mainGoFile)
+	if err != nil {
+		return fmt.Errorf("error leyendo archivo de versión (%s): %w", mainGoFile, err)
+	}
+
+	re, err := regexp.Compile(versionPattern)
+	if err != nil {
+		return fmt.Errorf("patrón de versión inválido (%s): %w", versionPattern, err)
+	}
+
+	currentContent := string(content)
+	if !re.MatchString(currentContent) {
+		return fmt.Errorf("no se encontró el patrón de versión en %s", mainGoFile)
+	}
+
+	match := re.FindString(currentContent)
+
+	valueRe := regexp.MustCompile(`"(.*)"`)
+	valMatch := valueRe.FindStringIndex(match)
+
+	if valMatch == nil {
+		return fmt.Errorf("no se encontró una cadena entre comillas en el patrón coincidente")
+	}
+
+	cleanVersion := strings.TrimPrefix(version, "v")
+	newMatch := match[:valMatch[0]] + fmt.Sprintf(`"%s"`, cleanVersion) + match[valMatch[1]:]
+
+	newContent := strings.Replace(currentContent, match, newMatch, 1)
+
+	if err := os.WriteFile(mainGoFile, []byte(newContent), 0644); err != nil {
+		return fmt.Errorf("error escribiendo archivo de versión: %w", err)
+	}
+
 	return nil
 }
