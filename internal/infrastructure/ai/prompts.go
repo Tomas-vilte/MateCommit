@@ -7,7 +7,6 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 )
 
-// Issue reference instructions
 const (
 	issueReferenceInstructionsES = `Si hay un issue asociado (#%d), DEBES incluir la referencia en el título del commit:
        - Para features/mejoras: "tipo: mensaje (#%d)"
@@ -16,7 +15,7 @@ const (
          ✅ feat: add dark mode support (#%d)
          ✅ fix: resolve authentication error (fixes #%d)
          ✅ feat(api): implement caching layer (#%d)
-       - NUNCA omitas la referencia del issue #%d.`
+       - No omitas la referencia del issue #%d.`
 
 	issueReferenceInstructionsEN = `There is an associated issue (#%d), you MUST include the reference in the commit title:
        - For features/improvements: "type: message (#%d)"
@@ -28,23 +27,27 @@ const (
        - NEVER omit the reference to issue #%d.`
 )
 
-// Templates para Pull Requests
 const (
 	prPromptTemplateEN = `# Task
-  Generate a comprehensive Pull Request summary.
+  Act as a Senior Tech Lead and generate a Pull Request summary.
 
   # PR Content
   %s
 
+  # Golden Rules (Constraints)
+  1. **No Hallucinations:** If it's not in the diff, DO NOT invent it.
+  2. **Tone:** Professional, direct, technical. Use first person ("I implemented", "I added").
+  3. **Format:** Raw JSON only. Do not wrap in markdown blocks (like ` + "```json" + `).
+
   # Instructions
-  1. Create concise title (max 80 chars)
-  2. Identify 3-5 key changes with purpose and impact
-  3. Suggest relevant labels from: feature, fix, refactor, docs, infra, test, breaking-change
+  1. Title: Catchy but descriptive (max 80 chars).
+  2. Key Changes: Filter the noise. Explain the *technical impact*, not just the code change.
+  3. Labels: Choose wisely (feature, fix, refactor, docs, infra, test, breaking-change).
 
   # Output Format
-  Respond with ONLY valid JSON:
+  Respond with ONLY valid JSON (no markdown):
   {
-    "title": "PR title here",
+    "title": "PR title",
     "body": "Detailed markdown body with:\n- Overview\n- Key changes\n- Technical impact",
     "labels": ["label1", "label2"]
   }
@@ -52,248 +55,258 @@ const (
   Generate the summary now.`
 
 	prPromptTemplateES = `# Tarea
-  Genera un resumen completo del Pull Request.
+  Actuá como un Desarrollador Senior y genera un resumen del Pull Request.
 
   # Contenido del PR
   %s
 
+  # Reglas de Oro (Constraints)
+  1. **Cero alucinaciones:** Si algo no está explícito en el diff, no lo inventes.
+  2. **Tono:** Profesional, cercano y directo. Usa primera persona ("Implementé", "Agregué", "Corregí"). Evita el lenguaje robótico ("Se ha realizado").
+  3. **Formato:** JSON crudo. No incluyas bloques de markdown.
+
   # Instrucciones
-  1. Crea un título conciso (máx 80 caracteres)
-  2. Identifica 3-5 cambios clave con propósito e impacto
-  3. Sugiere etiquetas relevantes de: feature, fix, refactor, docs, infra, test, breaking-change
+  1. Título: Descriptivo y conciso (máx 80 caracteres).
+  2. Cambios Clave: Filtrá el ruido. Explicá el *impacto* técnico y el propósito, no solo qué línea cambió.
+  3. Etiquetas: Elegí con criterio (feature, fix, refactor, docs, infra, test, breaking-change).
 
   # Formato de Salida
   IMPORTANTE: Responde en ESPAÑOL. Todo el contenido del JSON debe estar en español.
 
-  Responde SOLO con JSON válido:
+  Responde SOLO con JSON válido (sin markdown):
   {
     "title": "título del PR",
-    "body": "cuerpo detallado en markdown con:\n- Resumen\n- Cambios clave\n- Impacto técnico",
+    "body": "cuerpo detallado en markdown con:\n- Resumen (qué hice y por qué)\n- Cambios clave\n- Impacto técnico",
     "labels": ["etiqueta1", "etiqueta2"]
   }
 
   Genera el resumen ahora.`
 )
 
-// Templates para Commits con ticket
 const (
 	promptTemplateWithTicketEN = `# Task
-  Generate %d commit message suggestions based on code changes and ticket requirements.
+  Act as a Git Specialist and generate %d commit message suggestions.
 
-  # Modified Files
-  %s
+  # Context
+  - Modified Files: %s
+  - Diff: %s
+  - Ticket/Issue: %s
+  - Recent History: %s
+  - Issue Instructions: %s
 
-  # Code Changes
-  %s
-
-  # Ticket Context
-  %s
-
-  # Issue Reference Instructions
-  %s
-
-  # Recent History
-  %s
-
-  # Instructions
-  1. Analyze changes against acceptance criteria. CHECK CODE implementation AND Recent History.
-  2. If code implements a criterion OR it appears completed in Recent History, consider it met even if unchecked [ ] in ticket.
-  3. Use conventional commit types: feat, fix, refactor, test, docs, chore
-  3. Keep commit messages under 100 characters
-  4. Include issue reference if provided
+  # Quality Guidelines
+  1. **Conventional Commits:** Strictly follow ` + "`type(scope): description`" + `.
+     - Types: feat, fix, refactor, perf, test, docs, chore, build, ci.
+  2. **Precision:**
+     - ❌ BAD: "fix: various fixes in login" (Too vague)
+     - ✅ GOOD: "fix(auth): handle null token error (#42)" (Precise)
+  3. **Scope:** If you touched 'ui' files, scope is (ui). If 'api', then (api).
+  4. **Style:** 
+     - Title: Imperative mood ("add", not "added").
+     - Description: First person, professional tone ("I optimized the query...").
+  5. **Validation:** Analyze changes against ticket criteria.
 
   # Output Format
-  Respond with ONLY valid JSON array. Each suggestion must have:
-  {
-    "title": "commit message",
-    "desc": "detailed explanation", 
-    "files": ["file1.go", "file2.go"],
-    "analysis": {
-      "overview": "brief summary",
-      "purpose": "main goal",
-      "impact": "technical impact"
-    },
-    "requirements": {
-      "status": "full_met | partially_met | not_met",
-      "missing": ["criterion 1", "criterion 2"],
-      "completed_indices": [0, 2],
-      "suggestions": ["improvement 1", "improvement 2"]
+  Respond with ONLY valid JSON array (no markdown).
+
+  [
+    {
+      "title": "type(scope): short message (#N)",
+      "desc": "detailed technical explanation in first person", 
+      "files": ["file1.go", "file2.go"],
+      "analysis": {
+        "overview": "brief summary",
+        "purpose": "main goal",
+        "impact": "technical impact"
+      },
+      "requirements": {
+        "status": "full_met | partially_met | not_met",
+        "missing": ["missing test", "missing doc"],
+        "completed_indices": [0, 2],
+        "suggestions": ["improvement 1", "improvement 2"]
+      }
     }
-  }
+  ]
 
   Generate %d suggestions now.`
 
 	promptTemplateWithTicketES = `# Tarea
-  Genera %d sugerencias de mensajes de commit basadas en los cambios de código y requisitos del 
-  ticket.
+  Actuá como un especialista en Git y genera %d sugerencias de commits.
+  
+  # Contexto
+  - Archivos: %s
+  - Diff: %s
+  - Ticket/Issue: %s
+  - Historial reciente: %s
+  - Instrucciones Issue: %s
 
-  # Archivos Modificados
-  %s
-
-  # Cambios en el Código
-  %s
-
-  # Contexto del Ticket
-  %s
-
-  # Instrucciones de Referencia de Issues
-  %s
-
-  # Historia Reciente
-  %s
-
-  # Instrucciones
-  1. Analiza los cambios contra los criterios de aceptación. VERIFICA la implementación en el código Y en la Historia Reciente.
-  2. Si el código implementa un criterio O parece completado en la Historia Reciente, considéralo cumplido incluso si está desmarcado [ ] en el ticket.
-  3. Usa tipos de commit convencionales: feat, fix, refactor, test, docs, chore
-  3. Mantén los mensajes de commit en menos de 100 caracteres
-  4. Incluye referencia al issue si se proporciona
+  # Criterios de Calidad (Guidelines)
+  1. **Conventional Commits:** Respeta estrictamente ` + "`tipo(scope): descripción`" + `.
+     - Tipos: feat, fix, refactor, perf, test, docs, chore, build, ci.
+  2. **Precisión:**
+     - ❌ MAL: "fix: arreglos varios en el login" (Muy vago)
+     - ✅ BIEN: "fix(auth): manejo de error en token nulo (#42)" (Preciso)
+  3. **Scope:** Si tocaste archivos de 'ui', el scope es (ui). Si es 'api', es (api). Si son muchos, no uses scope.
+  4. **Primera Persona:** La descripción ("desc") escribila como si le contaras a un colega (ej: "Optimicé la query para mejorar el tiempo de respuesta").
+  5. **Validación:** Analiza los cambios contra los criterios del ticket.
 
   # Formato de Salida
   IMPORTANTE: Responde en ESPAÑOL. Todo el contenido del JSON debe estar en español.
-  EXCEPTO el campo "status" que debe ser uno de los valores permitidos exactos.
+  EXCEPTO el campo "status" que debe ser uno de los valores permitidos exactos. JSON crudo, sin markdown.
 
-  Responde SOLO con un array JSON válido. Cada sugerencia debe tener:
-  {
-    "title": "mensaje del commit",
-    "desc": "explicación detallada",
-    "files": ["archivo1.go", "archivo2.go"],
-    "analysis": {
-      "overview": "resumen breve",
-      "purpose": "objetivo principal",
-      "impact": "impacto técnico"
-    },
-    "requirements": {
-      "status": "full_met | partially_met | not_met",
-      "missing": ["criterio 1", "criterio 2"],
-      "completed_indices": [0, 2],
-      "suggestions": ["mejora 1", "mejora 2"]
+  Responde SOLO con este array JSON:
+  [
+    {
+      "title": "tipo(scope): mensaje corto (#N)",
+      "desc": "explicación técnica detallada y natural",
+      "files": ["archivo_modificado.go"],
+      "analysis": {
+        "overview": "qué cambiaste",
+        "purpose": "para qué lo cambiaste",
+        "impact": "qué mejora esto"
+      },
+      "requirements": {
+        "status": "full_met | partially_met | not_met",
+        "missing": ["falta test", "falta doc"],
+        "completed_indices": [0],
+        "suggestions": ["agregar test de integración"]
+      }
     }
-  }
+  ]
 
   Genera %d sugerencias ahora.`
 )
 
-// Templates para Commits sin ticket
 const (
 	promptTemplateWithoutTicketES = `# Tarea
-  Genera %d sugerencias de mensajes de commit basadas en los cambios de código.
+  Actuá como un especialista en Git y genera %d sugerencias de commits basadas en el código.
 
-  # Archivos Modificados
-  %s
+  # Inputs
+  - Archivos Modificados: %s
+  - Cambios (Diff): %s
+  - Instrucciones Issues: %s
+  - Historial: %s
 
-  # Cambios en el Código
-  %s
+  # Estrategia de Generación
+  1. **Analiza el Diff:** Identifica qué lógica cambió realmente. Ignora cambios de formato/espacios.
+  2. **Categoriza:**
+     - ¿Nueva feature? -> feat
+     - ¿Arreglo de bug? -> fix
+     - ¿Cambio de código sin cambio de lógica? -> refactor
+     - ¿Solo documentación? -> docs
+  3. **Redacta:**
+     - Título: Imperativo, max 50 chars si es posible (ej: "agrega validación", no "agregando").
+     - Descripción: Primera persona, tono profesional y natural. "Agregué esta validación para evitar X error".
 
-  # Instrucciones de Referencia de Issues
-  %s
-
-  # Historia Reciente
-  %s
-
-  # Instrucciones
-  1. Analiza los cambios en detalle
-  2. Enfócate en aspectos técnicos y mejores prácticas
-  3. Usa tipos de commit convencionales: feat, fix, refactor, test, docs, chore
-  4. Mantén los mensajes en menos de 100 caracteres
-  5. Incluye referencia al issue si se proporciona
+  # Ejemplos de Estilo
+  - ❌ "update main.go" (Pésimo, no dice nada)
+  - ❌ "se corrigió el error" (Voz pasiva, muy robótico)
+  - ✅ "fix(cli): corrijo panic al no tener config" (Bien)
 
   # Formato de Salida
-  IMPORTANTE: Responde en ESPAÑOL. Todo el contenido del JSON debe estar en español.
+  IMPORTANTE: Responde en ESPAÑOL. Todo el contenido del JSON debe estar en español. JSON crudo, sin markdown.
 
-  Responde SOLO con un array JSON válido. Cada sugerencia debe tener:
-  {
-    "title": "mensaje del commit",
-    "desc": "explicación detallada",
-    "files": ["archivo1.go", "archivo2.go"],
-    "analysis": {
-      "overview": "resumen breve",
-      "purpose": "objetivo principal",
-      "impact": "impacto técnico"
+  Responde SOLO con un array JSON válido:
+  [
+    {
+      "title": "tipo(scope): mensaje",
+      "desc": "explicación clara en primera persona",
+      "files": ["archivo1.go", "archivo2.go"],
+      "analysis": {
+        "overview": "resumen breve",
+        "purpose": "objetivo principal",
+        "impact": "impacto técnico"
+      }
     }
-  }
+  ]
 
   %s
 
   Genera %d sugerencias ahora.`
 
 	promptTemplateWithoutTicketEN = `# Task
-  Generate %d commit message suggestions based on code changes.
+  Act as a Git Specialist and generate %d commit message suggestions based on code changes.
 
-  # Modified Files
-  %s
+  # Inputs
+  - Modified Files: %s
+  - Code Changes (Diff): %s
+  - Issue Instructions: %s
+  - Recent History: %s
 
-  # Code Changes
-  %s
+  # Generation Strategy
+  1. **Analyze Diff:** Identify logic changes vs formatting.
+  2. **Categorize:**
+     - New feature? -> feat
+     - Bug fix? -> fix
+     - Code change without logic change? -> refactor
+     - Docs only? -> docs
+  3. **Drafting:**
+     - Title: Imperative mood, max 50 chars if possible (e.g., "add validation", not "adding").
+     - Description: First person, professional tone. "I added this validation to prevent X error".
 
-  # Issue Reference Instructions
-  %s
-
-  # Recent History
-  %s
-
-  # Instructions
-  1. Analyze changes in detail
-  2. Focus on technical aspects and best practices
-  3. Use conventional commit types: feat, fix, refactor, test, docs, chore
-  4. Keep messages under 100 characters
-  5. Include issue reference if provided
+  # Style Examples
+  - ❌ "update main.go" (Terrible, says nothing)
+  - ❌ "error was fixed" (Passive voice)
+  - ✅ "fix(cli): handle panic when config is missing" (Perfect)
 
   # Output Format
-  Respond with ONLY valid JSON array. Each suggestion must have:
-  {
-    "title": "commit message",
-    "desc": "detailed explanation",
-    "files": ["file1.go", "file2.go"],
-    "analysis": {
-      "overview": "brief summary",
-      "purpose": "main goal",
-      "impact": "technical impact"
+  Respond with ONLY valid JSON array (no markdown).
+
+  [
+    {
+      "title": "type(scope): message",
+      "desc": "detailed explanation in first person",
+      "files": ["file1.go", "file2.go"],
+      "analysis": {
+        "overview": "brief summary",
+        "purpose": "main goal",
+        "impact": "technical impact"
+      }
     }
-  }
+  ]
 
   %s
 
   Generate %d suggestions now.`
 )
 
-// Templates para Releases - MARKDOWN + JSON
 const (
 	releasePromptTemplateES = `# Tarea
-Genera release notes en primera persona con tono técnico pero cercano (voseo argentino).
+Genera release notes actuando como un Desarrollador Senior.
 
-# Información del Release
-- Repositorio: %s/%s
-- Versión anterior: %s
-- Nueva versión: %s
-- Tipo de bump: %s
+# Datos del Release
+- Repo: %s/%s
+- Versiones: %s -> %s (%s)
 
-# Cambios
+# Changelog (Diff)
 %s
 
-# Instrucciones
-1. Basate EXCLUSIVAMENTE en los cambios listados arriba
-2. Primera persona con voseo: "Implementé", "Mejoré", "Arreglé"
-3. NO inventes features, comandos o funcionalidades
-4. Si hay contributors, mencioná con @username
-5. Referencias a issues/PRs cuando corresponda
+# Instrucciones de Precisión
+1. **Verdad ante todo:** Si el changelog solo muestra actualizaciones de dependencias, no inventes features. Poné "Mantenimiento de dependencias".
+2. **Agrupación Inteligente:**
+   - Si ves muchos commits de "fix", agrupalos en un highlight si están relacionados.
+   - Si es un bump de versión sin cambios de código, decilo claro: "Release de mantenimiento para actualizar versiones internas".
+3. **Estilo de Redacción:**
+   - **Tono:** Profesional, directo y humano (similar a como escribirías en Slack o un email técnico).
+   - **Primera Persona:** Usa "Implementé", "Mejoramos", "Agregué". Evita la voz pasiva ("Se ha implementado").
+   - **Highlights:** Tienen que explicar el valor real del cambio, no solo describir el código.
 
 # Formato de Salida
-IMPORTANTE: Responde en ESPAÑOL. Todo el contenido del JSON debe estar en español.
+IMPORTANTE: Responde en ESPAÑOL. Todo el contenido del JSON debe estar en español. JSON crudo.
 
 Responde SOLO con JSON válido:
 {
-  "title": "título conciso (max 60 chars)",
-  "summary": "2-3 oraciones en primera persona",
-  "highlights": ["highlight 1", "highlight 2", "highlight 3"],
-  "breaking_changes": ["cambio 1" o "Ninguno"],
+  "title": "título descriptivo y real (ej: 'Mejoras en performance y correcciones')",
+  "summary": "2-3 oraciones en primera persona contando de qué trata este release (ej: 'En esta versión me enfoqué en mejorar la UX...')",
+  "highlights": ["highlight 1 (en primera persona)", "highlight 2", "highlight 3"],
+  "breaking_changes": ["descripción del cambio" (o array vacío [] si no hay)],
   "contributors": "Gracias a @user1, @user2" o "N/A"
 }
 
 Genera las release notes ahora.`
 
 	releasePromptTemplateEN = `# Task
-Generate release notes in first person with friendly, technical tone.
+Generate release notes acting as a Technical Product Owner.
 
 # Release Information
 - Repository: %s/%s
@@ -304,20 +317,23 @@ Generate release notes in first person with friendly, technical tone.
 # Changes
 %s
 
-# Instructions
-1. Base EVERYTHING on the changes listed above
-2. First person: "I added", "I implemented", "I improved", "I fixed"
-3. DO NOT invent features, commands, or functionality
-4. Credit contributors with @username when applicable
-5. Reference issues/PRs when relevant
+# Precision Instructions
+1. **Truthfulness:** If the changelog only shows dependency updates, DO NOT invent features. State "Dependency maintenance".
+2. **Smart Grouping:**
+   - Group related "fix" commits into a single highlight.
+   - If it's a version bump without code changes, state it clearly.
+3. **Style:**
+   - First person ("We released", "I improved", "I added").
+   - Tone: Professional, technical, yet friendly.
+   - "Highlights" must sell the value, not just describe the code.
 
 # Output Format
-Respond with ONLY valid JSON:
+Respond with ONLY valid JSON (no markdown):
 {
-  "title": "concise title (max 60 chars)",
-  "summary": "2-3 sentences in first person",
+  "title": "Catchy but real title (e.g., 'Performance improvements and fixes')",
+  "summary": "2-3 sentences in first person summarizing this release.",
   "highlights": ["highlight 1", "highlight 2", "highlight 3"],
-  "breaking_changes": ["change 1" or "None"],
+  "breaking_changes": ["change 1" (or empty array [] if none)],
   "contributors": "Thanks to @user1, @user2" or "N/A"
 }
 
@@ -374,16 +390,16 @@ const (
   Este PR está relacionado con los siguientes issues:
   %s
 
-  **INSTRUCCIONES OBLIGATORIAS:**
+  **INSTRUCCIONES CLAVES:**
   1. DEBES incluir AL INICIO del resumen (primeras líneas) las referencias de cierre:
      - Si resuelve bugs: "Fixes #N"
      - Si implementa features: "Closes #N"
      - Si solo relaciona: "Relates to #N"
      - Formato: "Closes #39, Fixes #41" (separados por comas)
 
-  2. En la sección de cambios clave, menciona explícitamente cómo cada cambio aborda el issue
+  2. En la sección de cambios clave, menciona explícitamente cómo cada cambio impacta en el issue.
 
-  3. Usa el formato correcto para que GitHub auto-enlace los issues en la sección "Development"
+  3. Usa el formato correcto para que GitHub enlace los issues automáticamente.
 
   **Ejemplo de formato correcto:**
   Closes #39
@@ -458,9 +474,8 @@ func FormatIssuesForPrompt(issues []models.Issue, locale string) string {
 	return result.String()
 }
 
-// Technical Analysis instructions
 const (
-	technicalAnalysisES = `Proporciona análisis técnico detallado incluyendo: mejores prácticas aplicadas, impacto en rendimiento/mantenibilidad, y consideraciones de seguridad si aplican.`
+	technicalAnalysisES = `Proporciona un análisis técnico detallado incluyendo: buenas prácticas aplicadas, impacto en rendimiento/mantenibilidad, y consideraciones de seguridad si aplican.`
 	technicalAnalysisEN = `Provide detailed technical analysis including: best practices applied, performance/maintainability impact, and security considerations if applicable.`
 )
 
@@ -471,7 +486,6 @@ func GetTechnicalAnalysisInstruction(locale string) string {
 	return technicalAnalysisEN
 }
 
-// No Issue Reference instructions
 const (
 	noIssueReferenceES = `No incluyas referencias de issues en el título.`
 	noIssueReferenceEN = `Do not include issue references in the title.`

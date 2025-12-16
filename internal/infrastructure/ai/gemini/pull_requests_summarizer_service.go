@@ -62,6 +62,7 @@ func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prContent 
 		Temperature:      float32Ptr(0.3),
 		MaxOutputTokens:  int32(10000),
 		ResponseMIMEType: "application/json",
+		MediaResolution:  genai.MediaResolutionHigh,
 	}
 
 	resp, err := gps.client.Models.GenerateContent(ctx, modelName, genai.Text(prompt), genConfig)
