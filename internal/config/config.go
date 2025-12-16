@@ -24,6 +24,7 @@ type (
 
 		VCSConfigs        map[string]VCSConfig `json:"vcs_configs"`
 		ActiveVCSProvider string               `json:"active_vcs_provider,omitempty"`
+		UpdateChangelog   bool                 `json:"update_changelog"`
 	}
 
 	// AIProviderConfig contiene la configuración específica de cada proveedor de IA
@@ -105,6 +106,7 @@ func createDefaultConfig(path string) (*Config, error) {
 		Language:         defaultLang,
 		UseEmoji:         defaultUseEmoji,
 		SuggestionsCount: defaultSuggestionsCount,
+		UpdateChangelog:  false,
 		PathFile:         path,
 		AIConfig: AIConfig{
 			ActiveAI: AIGemini,

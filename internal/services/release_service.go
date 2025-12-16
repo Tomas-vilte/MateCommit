@@ -3,14 +3,22 @@ package services
 import (
 	"context"
 	"fmt"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/dependency"
+)
+
+var (
+	conventionalRegex = regexp.MustCompile(`^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(([^)]+)\))?(!)?:\s*(.+)`)
+	breakingRegex     = regexp.MustCompile(`BREAKING[ -]CHANGE:\s*(.+)`)
+	versionRegex      = regexp.MustCompile(`v?(\d+)\.(\d+)\.(\d+)`)
 )
 
 var _ ports.ReleaseService = (*ReleaseService)(nil)
@@ -147,6 +155,75 @@ func (s *ReleaseService) EnrichReleaseContext(ctx context.Context, release *mode
 	return nil
 }
 
+func (s *ReleaseService) UpdateLocalChangelog(release *models.Release, notes *models.ReleaseNotes) error {
+	const changelogFile = "CHANGELOG.md"
+
+	newContent := notes.Changelog
+	if newContent == "" {
+		newContent = s.buildChangelog(release)
+	}
+
+	versionHeader := fmt.Sprintf("## %s (%s)", release.Version, time.Now().Format("2006-01-02"))
+
+	if !strings.HasPrefix(strings.TrimSpace(newContent), "## "+release.Version) {
+		newContent = fmt.Sprintf("%s\n\n%s\n\n", versionHeader, strings.TrimSpace(newContent))
+	} else {
+		newContent = newContent + "\n\n"
+	}
+
+	fmt.Println(s.trans.GetMessage("release.changelog_update_started", 0, nil))
+
+	return s.prependToChangelog(changelogFile, newContent)
+}
+
+func (s *ReleaseService) prependToChangelog(filename, newContent string) error {
+	content, err := os.ReadFile(filename)
+	if os.IsNotExist(err) {
+		header := "# Changelog\n\nAll notable changes to this project will be documented in this file.\n\n"
+		return os.WriteFile(filename, []byte(header+newContent), 0644)
+	}
+	if err != nil {
+		return err
+	}
+
+	current := string(content)
+	var sb strings.Builder
+
+	firstReleaseIdx := strings.Index(current, "\n## ")
+
+	if firstReleaseIdx != -1 {
+		sb.WriteString(current[:firstReleaseIdx+1])
+		sb.WriteString(newContent)
+		if !strings.HasSuffix(newContent, "\n\n") {
+			if !strings.HasSuffix(newContent, "\n") {
+				sb.WriteString("\n")
+			}
+			sb.WriteString("\n")
+		}
+		sb.WriteString(current[firstReleaseIdx+1:])
+	} else {
+		if strings.HasPrefix(current, "# ") {
+			endOfFirstLine := strings.Index(current, "\n")
+			if endOfFirstLine != -1 {
+				sb.WriteString(current[:endOfFirstLine+1])
+				sb.WriteString("\n")
+				sb.WriteString(newContent)
+				if len(current) > endOfFirstLine+1 {
+					sb.WriteString(current[endOfFirstLine+1:])
+				}
+			} else {
+				sb.WriteString(current + "\n\n" + newContent)
+			}
+		} else {
+			sb.WriteString(newContent)
+			sb.WriteString("\n")
+			sb.WriteString(current)
+		}
+	}
+
+	return os.WriteFile(filename, []byte(sb.String()), 0644)
+}
+
 func (s *ReleaseService) analyzeDependencyChanges(ctx context.Context, release *models.Release) ([]models.DependencyChange, error) {
 	if s.vcsClient == nil {
 		return []models.DependencyChange{}, nil
@@ -156,9 +233,6 @@ func (s *ReleaseService) analyzeDependencyChanges(ctx context.Context, release *
 
 // categorizeCommits categoriza los commits según conventional commits
 func (s *ReleaseService) categorizeCommits(release *models.Release) {
-	conventionalRegex := regexp.MustCompile(`^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(([^)]+)\))?(!)?:\s*(.+)`)
-	breakingRegex := regexp.MustCompile(`BREAKING[ -]CHANGE:\s*(.+)`)
-
 	for _, commit := range release.AllCommits {
 		msg := commit.Message
 		lines := strings.Split(msg, "\n")
@@ -223,7 +297,6 @@ func (s *ReleaseService) categorizeCommits(release *models.Release) {
 
 // calculateVersion calcula la nueva versión basándose en semantic versioning
 func (s *ReleaseService) calculateVersion(currentTag string, release *models.Release) (string, models.VersionBump) {
-	versionRegex := regexp.MustCompile(`v?(\d+)\.(\d+)\.(\d+)`)
 	matches := versionRegex.FindStringSubmatch(currentTag)
 
 	major, minor, patch := 0, 0, 0
@@ -339,4 +412,18 @@ func (s *ReleaseService) formatReleaseItem(item models.ReleaseItem) string {
 
 	line += "\n"
 	return line
+}
+
+func (s *ReleaseService) CommitChangelog(ctx context.Context, version string) error {
+	const changelogFile = "CHANGELOG.md"
+
+	if err := s.git.AddFileToStaging(ctx, changelogFile); err != nil {
+		return fmt.Errorf("error haciendo git add del changelog: %w", err)
+	}
+
+	message := fmt.Sprintf("chore: update changelog for %s", version)
+	if err := s.git.CreateCommit(ctx, message); err != nil {
+		return fmt.Errorf("error haciendo git commit del changelog: %w", err)
+	}
+	return nil
 }
