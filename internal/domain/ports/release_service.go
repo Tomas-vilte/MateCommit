@@ -30,6 +30,8 @@ type ReleaseService interface {
 
 	// EnrichReleaseContext enriquece el release con información adicional de GitHub (issues, PRs, contributors, etc.)
 	EnrichReleaseContext(ctx context.Context, release *models.Release) error
+	UpdateLocalChangelog(release *models.Release, notes *models.ReleaseNotes) error
+	CommitChangelog(ctx context.Context, version string) error
 }
 
 type ReleaseNotesGenerator interface {

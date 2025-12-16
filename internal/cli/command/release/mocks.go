@@ -60,6 +60,16 @@ func (m *MockReleaseService) EnrichReleaseContext(ctx context.Context, release *
 	return args.Error(0)
 }
 
+func (m *MockReleaseService) UpdateLocalChangelog(release *models.Release, notes *models.ReleaseNotes) error {
+	args := m.Called(release, notes)
+	return args.Error(0)
+}
+
+func (m *MockReleaseService) CommitChangelog(ctx context.Context, version string) error {
+	args := m.Called(ctx, version)
+	return args.Error(0)
+}
+
 type MockGitService struct {
 	mock.Mock
 }

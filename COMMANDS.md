@@ -1,30 +1,32 @@
-# Guía de la CLI de MateCommit 🧉
+***
 
-Bienvenido a la guía de MateCommit. Acá vas a encontrar todo lo que necesitás saber para usar la CLI .
+# Guía de la CLI de MateCommit
+
+Hola, te dejo esta guía para que le saques el jugo a la CLI de MateCommit. Acá vas a encontrar todo lo necesario para empezar a usarla y configurarla a tu gusto.
 
 ## Índice
 - [Empezando](#empezando)
 - [Comandos Principales](#comandos-principales)
-  - [Sugerencias de Commits](#sugerencias-de-commits)
-  - [Configuración Básica](#configuración-básica)
-  - [Configuración de IA](#configuración-de-ia)
-  - [Integración con Jira](#integración-con-jira)
-  - [Configuración de VCS](#configuración-de-vcs)
-  - [Idiomas](#idiomas)
-- [Ejemplos con Salidas](#ejemplos-con-salidas)
-- [Tips y Trucos](#tips-y-trucos)
+   - [Sugerencias de Commits](#sugerencias-de-commits)
+   - [Configuración](#configuracion)
+   - [Idiomas](#idiomas)
+   - [Gestión de Releases](#gestion-de-releases)
+- [Ejemplos de uso](#ejemplos-de-uso)
+- [Tips y consejos](#tips-y-consejos)
 
 ## Empezando
 
-MateCommit es simple de usar. La idea es que te ayude a hacer commits más copados sin tener que pensar mucho en los mensajes.
+MateCommit es bastante simple. La idea es que te ayude a armar commits prolijos sin que tengas que dar muchas vueltas pensando el mensaje.
 
 ### Instalación Básica
+
+Para arrancar, lo mejor es correr la configuración interactiva:
 
 ```bash
 # Configuración interactiva completa (recomendado)
 matecommit config init
 
-# O si solo querés ver la configuración actual
+# Si querés ver qué tenés configurado actualmente
 matecommit config show
 ```
 
@@ -32,216 +34,227 @@ matecommit config show
 
 ### Sugerencias de Commits
 
-El comando más importante es `suggest` (o `s` para hacerla corta):
+El comando que más vas a usar es `suggest` (o `s` si no querés escribir tanto). Básicamente analiza tus cambios y te tira opciones.
 
 ```bash
-# Generar 3 sugerencias (default)
+# Generar 3 sugerencias (el default)
 matecommit suggest
 
-# Generar 5 sugerencias
+# Si querés más variedad (ej: 5 opciones)
 matecommit s -n 5
 
-# Sugerencias en inglés
+# Si necesitás los mensajes en inglés
 matecommit s -l en
 
-# Sin emojis
+# Si preferís un output limpio sin emojis en el commit
 matecommit s --no-emoji
 ```
 
-### Configuración Básica
+### Configuración
 
-#### Configuración interactiva completa
+Tenés varias formas de configurar la herramienta, dependiendo de qué tanto quieras personalizar.
+
+#### Setup Rápido (Para arrancar ya)
+
+Si estás apurado y solo querés que ande, usá el flag `--quick`. Solo te va a pedir la API Key de Gemini.
+
 ```bash
+matecommit config init --quick
+# o más corto
+matecommit config init -q
+```
+
+**Lo que hace este comando:**
+- Te pide la API key de Gemini.
+- Configura el modelo recomendado (gemini-2.5-flash) por defecto.
+- Deja todo listo para usar en menos de un minuto.
+
+#### Setup Completo (Para tener el control total)
+
+Si preferís revisar cada detalle, mandale el init completo. Es un wizard interactivo.
+
+```bash
+matecommit config init --full
+# o simplemente
 matecommit config init
 ```
 
-Este comando te guía paso a paso para configurar:
-- 🌍 **Idioma**: Español o inglés
-- 🤖 **IA**: API key de Gemini y modelo
-- 🔧 **VCS**: Token de GitHub para resúmenes de PR
-- 🎫 **Tickets**: Integración con Jira (opcional)
+**Acá vas a poder configurar:**
+
+1. **IA (Gemini):** API key y qué modelo específico querés usar (flash, pro, etc.).
+2. **Idioma:** Si querés que te hable en español o inglés por defecto.
+3. **VCS (GitHub):** Token de GitHub. Esto es clave si querés usar las funciones de resumen de PRs o releases.
+4. **Tickets (Jira):** Si usás Jira, podés configurar la URL y credenciales para que te linkee los tickets solo.
+5. **Releases:** Opciones como actualizar automáticamente el `CHANGELOG.md` (`update_changelog`).
 
 #### Ver configuración actual
+
+Para chequear cómo quedó todo configurado:
+
 ```bash
 matecommit config show
 ```
 
-Te va a mostrar algo así:
-```
-📋 Configuración actual
-━━━━━━━━━━━━━━━━━━━━━━━
-🌍 Idioma: es
-😊 Emojis: true
-🔑 Clave API: ✅ Configurada
-IA Activa: gemini
-Modelos de IA configurados:
-- gemini: gemini-1.5-pro
-```
-
 #### Editar configuración manualmente
+
+Si sos de los que prefieren tocar los archivos directamente:
+
 ```bash
 matecommit config edit
 ```
 
-Abre el archivo de configuración en tu editor preferido para editarlo manualmente.
+Esto te abre el archivo `config.yaml` en tu editor predeterminado.
 
-### Configuración de IA
+#### Diagnóstico (Doctor)
 
-La configuración de IA se hace a través del comando `config init`:
-
-```bash
-# Configuración interactiva que incluye IA
-matecommit config init
-```
-
-Durante el proceso te va a preguntar:
-- 🤖 **API Key de Gemini**: Tu clave para usar Gemini
-- 🧠 **Modelo**: Qué modelo usar (gemini-1.5-flash, gemini-1.5-pro, etc.)
-
-**Nota**: Actualmente solo soporta Gemini, pero próximamente vamos a agregar OpenAI y Claude.
-
-### Integración con Jira
-
-La configuración de Jira también se hace con `config init`:
+Si algo no te anda, tirá este comando para ver qué pasa:
 
 ```bash
-# Configuración interactiva que incluye Jira
-matecommit config init
+matecommit doctor
 ```
 
-Durante el proceso te va a preguntar si querés habilitar Jira y te pedirá:
-- 🌐 **Base URL**: La URL de tu instancia de Jira
-- 📧 **Email**: Tu email de Jira
-- 🔑 **API Token**: Tu token de API de Jira
+Verifica que tengas conexión, que las keys sean válidas, que git esté instalado, etc.
 
-### Configuración de VCS
+#### Cómo obtener las API Keys
 
-La configuración de VCS se hace con `config init`:
+**Gemini (Requerido):**
+1. Entrá a Google AI Studio.
+2. Logueate y generá una API Key nueva.
+3. Copiala (empieza con `AIza...`).
 
-```bash
-# Configuración interactiva que incluye VCS
-matecommit config init
-```
+**GitHub (Opcional, pero recomendado):**
+1. Andá a Settings > Developer settings > Personal access tokens > Tokens (classic).
+2. Generá un token nuevo con scope `repo` y `read:org`.
+3. Usá ese token (empieza con `ghp_...`).
 
-Durante el proceso te va a preguntar si querés habilitar VCS y te pedirá:
-- 🔑 **Token de GitHub**: Tu Personal Access Token (recomendamos classic tokens)
-
-**Importante para repositorios de organizaciones**: 
-- Usá **Personal access tokens (classic)** en lugar de fine-grained tokens
-- Los classic tokens funcionan mejor con organizaciones sin necesidad de aprobación
-
-Una vez configurado, podés usar:
-```bash
-# Resumir un Pull Request
-matecommit summarize-pr --pr-number 42
-matecommit spr -n 42  # alias corto
-```
+**Importante:** Usá los "Classic tokens", suelen dar menos problemas de permisos que los fine-grained para este tipo de herramientas.
 
 ### Idiomas
 
-```bash
-# Configurar idioma default (se hace en config init)
-matecommit config init  # te pregunta el idioma
+Podés configurar el idioma base en el `config init`, pero si justo necesitás un commit en otro idioma, podés forzarlo con el flag `-l`:
 
-# O usar otro idioma solo para una sugerencia
-matecommit s -l en  # sugerencia en inglés
-matecommit s -l es  # sugerencia en español
+```bash
+matecommit s -l en  # Genera sugerencias en inglés
+matecommit s -l es  # Genera sugerencias en español
 ```
 
-## Ejemplos con Salidas
+## Gestión de Releases
 
-### Ejemplo 1: Flujo básico
+MateCommit trae un gestor de releases integrado. Automatiza el versionado, genera el changelog con IA y publica en GitHub.
+
+### Comandos de Release
+
+El comando base es `release` (o `r`).
+
+#### Vista previa (Preview)
+Antes de romper nada, fijate qué cambios entrarían en el release:
+
 ```bash
-# Agregar cambios
+matecommit release preview
+# o el alias
+matecommit r p
+```
+Te muestra la versión actual, la siguiente sugerida y un borrador de las notas.
+
+#### Generar notas
+Si solo querés el changelog en un archivo:
+
+```bash
+matecommit release generate
+# Guardar en un archivo específico
+matecommit r g -o CHANGELOG.md
+```
+
+#### Crear release (Tag local)
+Esto crea el tag de git en tu máquina.
+
+```bash
+# Con confirmación
+matecommit release create
+
+# Directo sin preguntar (útil para scripts)
+matecommit r c --auto
+
+# Crear y subir a GitHub de una
+matecommit r c --publish
+
+# Actualizar CHANGELOG.md localmente y crear release
+matecommit r c --changelog
+```
+
+**Nota sobre `--changelog`:**
+Este flag genera el contenido del changelog, actualiza tu archivo `CHANGELOG.md` local (haciendo prepend), y realiza automáticamente un `git add CHANGELOG.md` y un `git commit` antes de crear el tag. Esto asegura que el changelog actualizado sea parte de la versión liberada.
+
+Podés configurar esto para que sea el comportamiento por defecto editando tu config (`matecommit config edit`) y seteando `update_changelog: true`.
+```
+
+#### Publicar en GitHub
+Si ya tenés el tag local y querés armar el release en GitHub:
+
+```bash
+matecommit release publish
+# Publicar como draft (para revisar antes de hacer público)
+matecommit r pub --draft
+```
+
+#### Editar release existente
+Si el release ya está creado pero querés mejorar las notas:
+
+```bash
+matecommit release edit -v v1.2.3
+# Regenerar las notas con IA
+matecommit r e -v v1.2.3 --ai
+```
+
+### Flujo de trabajo sugerido
+
+1. **Revisión:** Ejecutá `matecommit r p` para ver qué se viene.
+2. **Creación:** Si está todo ok, mandale `matecommit r c --publish`.
+3. **Drafts:** Si no estás seguro, usá el flag `--draft` al publicar para revisarlo en la web de GitHub antes de soltarlo.
+
+## Ejemplos de uso
+
+### Flujo básico
+```bash
+# 1. Agregás tus cambios al stage
 git add .
 
-# Pedir sugerencias
+# 2. Pedís sugerencias
 matecommit s
 
-🔍 Analizando cambios...
-📝 Sugerencias:
-━━━━━━━━━━━━━━━━━━━━━━━
-feat: agrega soporte para múltiples idiomas ✨
-📄 Archivos modificados:
-   - translations/es.json
-   - translations/en.json
-💡 Agregué archivos de traducción para español e inglés
-
-👉 Ingresá tu selección: 1
-
-✅ Commit creado con éxito
+# Output:
+# Analizando cambios...
+# Sugerencias:
+# 1. feat: agrega soporte para múltiples idiomas
+#    Archivos: translations/es.json, translations/en.json
+#    Explicación: Agregué archivos de traducción base.
+#
+# Seleccioná una opción: 1
+# Commit creado con éxito.
 ```
 
-### Ejemplo 2: Sugerencia con análisis técnico
+### Integración con Jira
+Si tenés Jira configurado, la herramienta detecta el contexto y formatea el commit acorde:
+
 ```bash
 matecommit s
 
-📊 Análisis de Código:
-- Resumen de Cambios: Actualización de configuración
-- Propósito Principal: Agregar soporte para nuevos modelos de IA
-- Impacto Técnico: Mejora la flexibilidad del sistema
-
-💡 feat: agrega soporte para modelos de IA adicionales
-
-📄 Archivos modificados:
-   - config/ai_models.go
-   - config/providers.go
+# Output:
+# feat(PROJ-123): implementa nuevo endpoint de usuarios
 ```
 
-### Ejemplo 3: Integración con Jira
-```bash
-matecommit s
+### Resumen de PR
+Si tenés el token de GitHub, podés pedir un resumen de un Pull Request:
 
-🎯 Análisis de Requerimientos:
-⚠️ Estado de los Criterios: Parcialmente cumplidos
-❌ Criterios Faltantes:
-   - Falta documentación de API
-   - Pendiente actualizar tests
-
-💡 feat(PROJ-123): implementa nuevo endpoint de usuarios
-```
-
-### Ejemplo 4: Resumen de PR con VCS
 ```bash
 matecommit spr -n 42
-✅ PR #42 actualizado: Implementación de repository
+# Output:
+# PR #42 actualizado: Implementación de repository pattern
 ```
 
-## Tips y Trucos
+## Tips y consejos
 
-1. **Alias Rápidos**:
-   - Usá `s` en lugar de `suggest`
-   - Usá `spr` en lugar de `summarize-pr`
-   - `config show` te muestra todo de una
-
-2. **Mejores Prácticas**:
-   - Siempre hacé `git add` antes de usar MateCommit
-   - Si no te convence ninguna sugerencia, apretá 0 y pedí más
-   - Usá classic tokens para GitHub en lugar de fine-grained tokens
-
-3. **Personalización**:
-   - Probá diferentes modelos de Gemini hasta encontrar el que mejor te funcione
-   - Los emojis son opcionales pero le dan más onda 😎
-   - Podés tener un idioma default y usar otro para commits específicos
-
-4. **Integración con Jira**:
-   - Activala solo si trabajás con tickets
-   - Te agrega automáticamente el número de ticket en los commits
-
-5. **Configuración**:
-   - Usá `config init` para configurar todo de una vez
-   - Si algo no te gusta, podés editarlo con `config edit`
-   - Siempre podés volver a ejecutar `config init` para cambiar algo
-
-6. **Repositorios de Organización**:
-   - Para repos de organizaciones, usá Personal Access Tokens (classic)
-   - Los fine-grained tokens requieren aprobación de la organización
-
-¿Necesitás más ayuda? Siempre podés usar:
-```bash
-matecommit --help
-# o para un comando específico
-matecommit config --help
-matecommit suggest --help
-matecommit summarize-pr --help
-```
+1. **Usá los alias:** No escribas `matecommit suggest` cada vez. Usá `matecommit s`. Lo mismo para `r` (release) o `spr` (resumen de PR).
+2. **Feedback:** Si ninguna sugerencia te convence, seleccioná la opción 0 para generar nuevas o editar una manualmente.
+3. **Repos de Organización:** Si laburás en una organización de GitHub, acordate de usar el Personal Access Token (Classic) y autorizarlo en la organización (SSO), si no te va a tirar error de permisos.
+4. **Release rápido:** Si confiás en la herramienta, `matecommit r c --publish --auto` hace todo el trabajo sucio (tag, notas, push y release) en un solo paso.
