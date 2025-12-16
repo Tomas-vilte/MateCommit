@@ -435,6 +435,7 @@ md_summary = "Summary"
 md_highlights = "Highlights"
 
 error_publishing_release = "Error publishing release: {{.Error}}"
+flag_changelog_usage = "Update CHANGELOG.md and create commit automatically"
 
 # Edit
 edit_usage = "Edit release notes of an existing release"
@@ -659,4 +660,17 @@ full_setup_option = "2. Full setup"
 exit_option = "3. Exit"
 prompt_choice = "Select [1]: "
 setup_cancelled = "Setup cancelled"
-invalid_choice = "Invalid choice"
+[completion]
+command_usage = "Generate completion script"
+command_description = "Outputs the completion script for your shell"
+bash_usage = "Generate bash completion script"
+zsh_usage = "Generate zsh completion script"
+install_usage = "Install completion script to your shell config"
+error_home_dir = "could not get user home directory: {{.Error}}"
+error_unsupported_shell = "unsupported shell: {{.Shell}}. Only bash and zsh are supported for auto-install"
+error_open_config = "could not open config file: {{.Error}}"
+error_write_config = "could not write to config file: {{.Error}}"
+already_installed = "✅ Completion already installed in {{.File}}"
+restart_shell = "Please restart your shell or run:"
+installed_success = "✅ Completion installed to {{.File}}"
+

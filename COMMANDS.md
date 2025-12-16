@@ -30,6 +30,20 @@ matecommit config init
 matecommit config show
 ```
 
+### Autocompletado (Shell Completion)
+
+Para activar el autocompletado en tu terminal (Bash o Zsh) y que la herramienta te sugiera comandos y flags, ejecutá:
+
+```bash
+matecommit completion install
+```
+
+Esto va a detectar tu shell y agregar la configuración necesaria en tu `.bashrc` o `.zshrc`. 
+Una vez hecho esto, **reiniciá tu terminal** o ejecutá `source ~/.bashrc` (o el archivo que corresponda).
+
+Ahora probá escribir `matecommit serv` y apretá `TAB`. ¡Magia! ✨
+También funciona para flags: `matecommit suggest --<TAB>`.
+
 ## Comandos Principales
 
 ### Sugerencias de Commits
@@ -186,7 +200,6 @@ matecommit r c --changelog
 Este flag genera el contenido del changelog, actualiza tu archivo `CHANGELOG.md` local (haciendo prepend), y realiza automáticamente un `git add CHANGELOG.md` y un `git commit` antes de crear el tag. Esto asegura que el changelog actualizado sea parte de la versión liberada.
 
 Podés configurar esto para que sea el comportamiento por defecto editando tu config (`matecommit config edit`) y seteando `update_changelog: true`.
-```
 
 #### Publicar en GitHub
 Si ya tenés el tag local y querés armar el release en GitHub:
@@ -216,10 +229,7 @@ matecommit r e -v v1.2.3 --ai
 
 ### Flujo básico
 ```bash
-# 1. Agregás tus cambios al stage
-git add .
-
-# 2. Pedís sugerencias
+# 1. Pedís sugerencias
 matecommit s
 
 # Output:

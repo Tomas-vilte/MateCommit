@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Tomas-vilte/MateCommit/internal/cli/completion_helper"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/urfave/cli/v3"
@@ -11,9 +12,10 @@ import (
 
 func (r *ReleaseCommandFactory) newPreviewCommand(trans *i18n.Translations) *cli.Command {
 	return &cli.Command{
-		Name:    "preview",
-		Aliases: []string{"p"},
-		Usage:   trans.GetMessage("release.preview_usage", 0, nil),
+		Name:          "preview",
+		Aliases:       []string{"p"},
+		Usage:         trans.GetMessage("release.preview_usage", 0, nil),
+		ShellComplete: completion_helper.DefaultFlagComplete,
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			service, err := r.createReleaseService(ctx, trans)
 			if err != nil {
