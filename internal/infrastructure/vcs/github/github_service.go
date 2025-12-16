@@ -531,7 +531,7 @@ func extractAcceptanceCriteria(body string) []string {
 	// \[([ xX])\] - Checkbox: [ ], [x], [X]
 	// \s+ - Espacio obligatorio
 	// (.+) - El texto del criterio
-	re := regexp.MustCompile(`^\s*[\-\*\+]\s+\[([ xX])\]\s+(.+)`)
+	re := regexp.MustCompile(`^\s*[\-*+]\s+\[([ xX])]\s+(.+)`)
 
 	for _, line := range lines {
 		matches := re.FindStringSubmatch(line)
@@ -657,7 +657,6 @@ func (ghc *GitHubClient) addLabelsToIssue(ctx context.Context, prNumber int, lab
 }
 
 func (ghc *GitHubClient) UpdateIssueChecklist(ctx context.Context, issueNumber int, checkedIndices []int) error {
-	// 1. Obtener el issue actual
 	issue, _, err := ghc.issuesService.Get(ctx, ghc.owner, ghc.repo, issueNumber)
 	if err != nil {
 		return fmt.Errorf("error obteniendo issue #%d: %w", issueNumber, err)
@@ -665,9 +664,8 @@ func (ghc *GitHubClient) UpdateIssueChecklist(ctx context.Context, issueNumber i
 
 	body := issue.GetBody()
 	lines := strings.Split(body, "\n")
-	re := regexp.MustCompile(`^(\s*[\-\*\+]\s+)\[([ xX])\](\s+.+)`)
+	re := regexp.MustCompile(`^(\s*[\-*+]\s+)\[([ xX])](\s+.+)`)
 
-	// 2. Mapear indices lógicos a líneas físicas
 	var checklistLineIndices []int
 	for i, line := range lines {
 		if re.MatchString(line) {
@@ -675,14 +673,12 @@ func (ghc *GitHubClient) UpdateIssueChecklist(ctx context.Context, issueNumber i
 		}
 	}
 
-	// 3. Actualizar líneas
 	updated := false
 	for _, idx := range checkedIndices {
 		if idx >= 0 && idx < len(checklistLineIndices) {
 			lineIdx := checklistLineIndices[idx]
 			line := lines[lineIdx]
 
-			// Si no está ya chequeado, marcarlo
 			if matches := re.FindStringSubmatch(line); len(matches) > 3 {
 				if matches[2] == " " {
 					lines[lineIdx] = matches[1] + "[x]" + matches[3]
@@ -696,7 +692,6 @@ func (ghc *GitHubClient) UpdateIssueChecklist(ctx context.Context, issueNumber i
 		return nil
 	}
 
-	// 4. Enviar actualización
 	newBody := strings.Join(lines, "\n")
 	issueRequest := &github.IssueRequest{
 		Body: github.Ptr(newBody),
