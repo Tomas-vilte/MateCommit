@@ -104,6 +104,15 @@ func createReleaseAction(releaseService ports.ReleaseService, trans *i18n.Transl
 			s.Success(trans.GetMessage("release.changelog_updated", 0, nil))
 			fmt.Println()
 
+			sVersion := ui.NewSmartSpinner(trans.GetMessage("release.app_version_update_started", 0, map[string]interface{}{"Version": release.Version}))
+			sVersion.Start()
+			if err := releaseService.UpdateAppVersion(release.Version); err != nil {
+				sVersion.Error(trans.GetMessage("release.error_updating_app_version", 0, map[string]interface{}{"Error": err.Error()}))
+				return fmt.Errorf("error al actualizar la version de la app: %w", err)
+			}
+			sVersion.Success(trans.GetMessage("release.app_version_updated", 0, map[string]interface{}{"Version": release.Version}))
+			fmt.Println()
+
 			sCommit := ui.NewSmartSpinner(trans.GetMessage("release.committing_changelog", 0, nil))
 			sCommit.Start()
 			if err := releaseService.CommitChangelog(ctx, release.Version); err != nil {

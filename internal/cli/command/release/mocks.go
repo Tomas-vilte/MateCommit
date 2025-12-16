@@ -70,6 +70,11 @@ func (m *MockReleaseService) CommitChangelog(ctx context.Context, version string
 	return args.Error(0)
 }
 
+func (m *MockReleaseService) UpdateAppVersion(version string) error {
+	args := m.Called(version)
+	return args.Error(0)
+}
+
 type MockGitService struct {
 	mock.Mock
 }

@@ -425,9 +425,11 @@ changelog_updated = "✅ CHANGELOG.md updated successfully"
 committing_changelog = "💾 Committing changelog..."
 changelog_committed = "✅ Changelog committed successfully"
 error_committing_changelog = "Error committing changelog: {{.Error}}"
-
-# Common
 version_calculated = "📦 New version calculated: {{.Version}}"
+error_updating_app_version = "Error updating app version: {{.Error}}"
+app_version_updated = "✅ App version updated to {{.Version}}"
+commit_no_staged = "No changes to commit. Skipping commit step."
+
 # Generate Markdown
 md_version = "Version"
 md_previous = "Previous Version"

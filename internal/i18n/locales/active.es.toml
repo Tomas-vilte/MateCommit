@@ -445,6 +445,13 @@ create_push_help = "   3. Opcional: matecommit release push"
 
 # Common
 version_calculated = "📦 Nueva versión calculada: {{.Version}}"
+changelog_update_started = "📝 Actualizando CHANGELOG.md..."
+changelog_updated = "✅ CHANGELOG.md Actualizado exitosamente"
+error_committing_changelog = "Error al enviar el Changelog: {{.Error}}"
+error_updating_app_version = "Error al actualizar la versión de la aplicación: {{.Error}}"
+app_version_updated = "✅ Versión de la aplicación actualizada a {{.Version}}"
+commit_no_staged = "No hay cambios que confirmar. Se omite el paso de confirmación."
+
 highlights_section = "### Highlights"
 # Generate Markdown
 md_version = "Versión"

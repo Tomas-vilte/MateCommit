@@ -3,12 +3,16 @@ package services
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
+	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestReleaseService_AnalyzeNextRelease(t *testing.T) {
@@ -16,7 +20,7 @@ func TestReleaseService_AnalyzeNextRelease(t *testing.T) {
 		mockGit := new(MockGitService)
 		mockVCS := new(MockVCSClient)
 		mockNotesGen := new(MockReleaseNotesGenerator)
-		service := NewReleaseService(mockGit, mockVCS, mockNotesGen, nil)
+		service := NewReleaseService(mockGit, mockVCS, mockNotesGen, nil, nil)
 
 		mockGit.On("GetLastTag", mock.Anything).Return("v1.0.0", nil)
 		mockGit.On("GetCommitsSinceTag", mock.Anything, "v1.0.0").Return([]models.Commit{
@@ -39,7 +43,7 @@ func TestReleaseService_AnalyzeNextRelease(t *testing.T) {
 
 	t.Run("Success with breaking change", func(t *testing.T) {
 		mockGit := new(MockGitService)
-		service := NewReleaseService(mockGit, nil, nil, nil)
+		service := NewReleaseService(mockGit, nil, nil, nil, nil)
 
 		mockGit.On("GetLastTag", mock.Anything).Return("v1.0.0", nil)
 		mockGit.On("GetCommitsSinceTag", mock.Anything, "v1.0.0").Return([]models.Commit{
@@ -57,7 +61,7 @@ func TestReleaseService_AnalyzeNextRelease(t *testing.T) {
 
 	t.Run("Success with no previous tags (initial release)", func(t *testing.T) {
 		mockGit := new(MockGitService)
-		service := NewReleaseService(mockGit, nil, nil, nil)
+		service := NewReleaseService(mockGit, nil, nil, nil, nil)
 
 		mockGit.On("GetLastTag", mock.Anything).Return("", nil)
 		mockGit.On("GetCommitCount", mock.Anything).Return(1, nil)
@@ -76,7 +80,7 @@ func TestReleaseService_AnalyzeNextRelease(t *testing.T) {
 
 	t.Run("Error getting last tag", func(t *testing.T) {
 		mockGit := new(MockGitService)
-		service := NewReleaseService(mockGit, nil, nil, nil)
+		service := NewReleaseService(mockGit, nil, nil, nil, nil)
 
 		mockGit.On("GetLastTag", mock.Anything).Return("", errors.New("git error"))
 
@@ -91,7 +95,7 @@ func TestReleaseService_AnalyzeNextRelease(t *testing.T) {
 
 	t.Run("No changes since last tag", func(t *testing.T) {
 		mockGit := new(MockGitService)
-		service := NewReleaseService(mockGit, nil, nil, nil)
+		service := NewReleaseService(mockGit, nil, nil, nil, nil)
 
 		mockGit.On("GetLastTag", mock.Anything).Return("v1.0.0", nil)
 		mockGit.On("GetCommitsSinceTag", mock.Anything, "v1.0.0").Return([]models.Commit{}, nil)
@@ -107,7 +111,7 @@ func TestReleaseService_AnalyzeNextRelease(t *testing.T) {
 
 	t.Run("Error getting commits", func(t *testing.T) {
 		mockGit := new(MockGitService)
-		service := NewReleaseService(mockGit, nil, nil, nil)
+		service := NewReleaseService(mockGit, nil, nil, nil, nil)
 
 		mockGit.On("GetLastTag", mock.Anything).Return("v1.0.0", nil)
 		mockGit.On("GetCommitsSinceTag", mock.Anything, "v1.0.0").Return(nil, errors.New("git error"))
@@ -123,7 +127,7 @@ func TestReleaseService_AnalyzeNextRelease(t *testing.T) {
 
 	t.Run("Empty repository", func(t *testing.T) {
 		mockGit := new(MockGitService)
-		service := NewReleaseService(mockGit, nil, nil, nil)
+		service := NewReleaseService(mockGit, nil, nil, nil, nil)
 
 		mockGit.On("GetLastTag", mock.Anything).Return("", nil)
 		mockGit.On("GetCommitCount", mock.Anything).Return(0, nil)
@@ -141,7 +145,7 @@ func TestReleaseService_AnalyzeNextRelease(t *testing.T) {
 func TestReleaseService_GenerateReleaseNotes(t *testing.T) {
 	t.Run("Use AI generator when available", func(t *testing.T) {
 		mockNotesGen := new(MockReleaseNotesGenerator)
-		service := NewReleaseService(nil, nil, mockNotesGen, nil)
+		service := NewReleaseService(nil, nil, mockNotesGen, nil, nil)
 
 		release := &models.Release{Version: "v1.1.0"}
 		expectedNotes := &models.ReleaseNotes{
@@ -159,7 +163,7 @@ func TestReleaseService_GenerateReleaseNotes(t *testing.T) {
 	})
 
 	t.Run("Fallback to basic notes when generator is nil", func(t *testing.T) {
-		service := NewReleaseService(nil, nil, nil, nil) // No generator
+		service := NewReleaseService(nil, nil, nil, nil, nil) // No generator
 
 		release := &models.Release{
 			Version: "v1.1.0",
@@ -184,7 +188,7 @@ func TestReleaseService_GenerateReleaseNotes(t *testing.T) {
 
 	t.Run("Error from generator", func(t *testing.T) {
 		mockNotesGen := new(MockReleaseNotesGenerator)
-		service := NewReleaseService(nil, nil, mockNotesGen, nil)
+		service := NewReleaseService(nil, nil, mockNotesGen, nil, nil)
 
 		release := &models.Release{Version: "v1.1.0"}
 
@@ -202,7 +206,7 @@ func TestReleaseService_GenerateReleaseNotes(t *testing.T) {
 func TestReleaseService_GetRelease(t *testing.T) {
 	t.Run("should get release successfully", func(t *testing.T) {
 		mockVCS := new(MockVCSClient)
-		service := NewReleaseService(nil, mockVCS, nil, nil)
+		service := NewReleaseService(nil, mockVCS, nil, nil, nil)
 
 		expectedRelease := &models.VCSRelease{
 			TagName: "v1.2.0",
@@ -227,7 +231,7 @@ func TestReleaseService_GetRelease(t *testing.T) {
 		if err != nil {
 			trans, _ = i18n.NewTranslations("en", "../../i18n/locales")
 		}
-		service := NewReleaseService(nil, nil, nil, trans)
+		service := NewReleaseService(nil, nil, nil, trans, nil)
 
 		release, err := service.GetRelease(context.Background(), "v1.2.0")
 
@@ -237,7 +241,7 @@ func TestReleaseService_GetRelease(t *testing.T) {
 
 	t.Run("should propagate VCS client error", func(t *testing.T) {
 		mockVCS := new(MockVCSClient)
-		service := NewReleaseService(nil, mockVCS, nil, nil)
+		service := NewReleaseService(nil, mockVCS, nil, nil, nil)
 
 		mockVCS.On("GetRelease", mock.Anything, "v1.2.0").Return((*models.VCSRelease)(nil), errors.New("release not found"))
 
@@ -253,7 +257,7 @@ func TestReleaseService_GetRelease(t *testing.T) {
 func TestReleaseService_UpdateRelease(t *testing.T) {
 	t.Run("should update release successfully", func(t *testing.T) {
 		mockVCS := new(MockVCSClient)
-		service := NewReleaseService(nil, mockVCS, nil, nil)
+		service := NewReleaseService(nil, mockVCS, nil, nil, nil)
 
 		mockVCS.On("UpdateRelease", mock.Anything, "v1.2.0", "Updated release notes").Return(nil)
 
@@ -268,7 +272,7 @@ func TestReleaseService_UpdateRelease(t *testing.T) {
 		if err != nil {
 			trans, _ = i18n.NewTranslations("en", "../../i18n/locales")
 		}
-		service := NewReleaseService(nil, nil, nil, trans)
+		service := NewReleaseService(nil, nil, nil, trans, nil)
 
 		err = service.UpdateRelease(context.Background(), "v1.2.0", "Updated notes")
 
@@ -277,7 +281,7 @@ func TestReleaseService_UpdateRelease(t *testing.T) {
 
 	t.Run("should propagate VCS client error", func(t *testing.T) {
 		mockVCS := new(MockVCSClient)
-		service := NewReleaseService(nil, mockVCS, nil, nil)
+		service := NewReleaseService(nil, mockVCS, nil, nil, nil)
 
 		mockVCS.On("UpdateRelease", mock.Anything, "v1.2.0", "Updated notes").Return(errors.New("update failed"))
 
@@ -292,7 +296,7 @@ func TestReleaseService_UpdateRelease(t *testing.T) {
 func TestReleaseService_PublishRelease(t *testing.T) {
 	t.Run("should publish release successfully", func(t *testing.T) {
 		mockVCS := new(MockVCSClient)
-		service := NewReleaseService(nil, mockVCS, nil, nil)
+		service := NewReleaseService(nil, mockVCS, nil, nil, nil)
 
 		release := &models.Release{Version: "v1.0.0"}
 		notes := &models.ReleaseNotes{Title: "Release v1.0.0"}
@@ -306,7 +310,7 @@ func TestReleaseService_PublishRelease(t *testing.T) {
 	})
 
 	t.Run("should return error if VCS client not configured", func(t *testing.T) {
-		service := NewReleaseService(nil, nil, nil, nil)
+		service := NewReleaseService(nil, nil, nil, nil, nil)
 
 		release := &models.Release{Version: "v1.0.0"}
 		notes := &models.ReleaseNotes{}
@@ -319,7 +323,7 @@ func TestReleaseService_PublishRelease(t *testing.T) {
 
 	t.Run("should propagate VCS client error", func(t *testing.T) {
 		mockVCS := new(MockVCSClient)
-		service := NewReleaseService(nil, mockVCS, nil, nil)
+		service := NewReleaseService(nil, mockVCS, nil, nil, nil)
 
 		release := &models.Release{Version: "v1.0.0"}
 		notes := &models.ReleaseNotes{}
@@ -337,7 +341,7 @@ func TestReleaseService_PublishRelease(t *testing.T) {
 func TestReleaseService_CreateTag(t *testing.T) {
 	t.Run("should create tag successfully", func(t *testing.T) {
 		mockGit := new(MockGitService)
-		service := NewReleaseService(mockGit, nil, nil, nil)
+		service := NewReleaseService(mockGit, nil, nil, nil, nil)
 
 		mockGit.On("CreateTag", mock.Anything, "v1.0.0", "Release v1.0.0").Return(nil)
 
@@ -349,7 +353,7 @@ func TestReleaseService_CreateTag(t *testing.T) {
 
 	t.Run("should propagate git error", func(t *testing.T) {
 		mockGit := new(MockGitService)
-		service := NewReleaseService(mockGit, nil, nil, nil)
+		service := NewReleaseService(mockGit, nil, nil, nil, nil)
 
 		mockGit.On("CreateTag", mock.Anything, "v1.0.0", "Release v1.0.0").Return(errors.New("tag already exists"))
 
@@ -364,7 +368,7 @@ func TestReleaseService_CreateTag(t *testing.T) {
 func TestReleaseService_PushTag(t *testing.T) {
 	t.Run("should push tag successfully", func(t *testing.T) {
 		mockGit := new(MockGitService)
-		service := NewReleaseService(mockGit, nil, nil, nil)
+		service := NewReleaseService(mockGit, nil, nil, nil, nil)
 
 		mockGit.On("PushTag", mock.Anything, "v1.0.0").Return(nil)
 
@@ -376,7 +380,7 @@ func TestReleaseService_PushTag(t *testing.T) {
 
 	t.Run("should propagate git error", func(t *testing.T) {
 		mockGit := new(MockGitService)
-		service := NewReleaseService(mockGit, nil, nil, nil)
+		service := NewReleaseService(mockGit, nil, nil, nil, nil)
 
 		mockGit.On("PushTag", mock.Anything, "v1.0.0").Return(errors.New("push failed"))
 
@@ -391,7 +395,7 @@ func TestReleaseService_PushTag(t *testing.T) {
 func TestReleaseService_EnrichReleaseContext(t *testing.T) {
 	t.Run("should enrich release context successfully", func(t *testing.T) {
 		mockVCS := new(MockVCSClient)
-		service := NewReleaseService(nil, mockVCS, nil, nil)
+		service := NewReleaseService(nil, mockVCS, nil, nil, nil)
 
 		release := &models.Release{
 			PreviousVersion: "v1.0.0",
@@ -424,7 +428,7 @@ func TestReleaseService_EnrichReleaseContext(t *testing.T) {
 		if err != nil {
 			trans, _ = i18n.NewTranslations("en", "../../i18n/locales")
 		}
-		service := NewReleaseService(nil, nil, nil, trans)
+		service := NewReleaseService(nil, nil, nil, trans, nil)
 
 		release := &models.Release{}
 
@@ -435,7 +439,7 @@ func TestReleaseService_EnrichReleaseContext(t *testing.T) {
 
 	t.Run("should continue even if some enrichments fail", func(t *testing.T) {
 		mockVCS := new(MockVCSClient)
-		service := NewReleaseService(nil, mockVCS, nil, nil)
+		service := NewReleaseService(nil, mockVCS, nil, nil, nil)
 
 		release := &models.Release{
 			PreviousVersion: "v1.0.0",
@@ -461,5 +465,83 @@ func TestReleaseService_EnrichReleaseContext(t *testing.T) {
 		assert.Len(t, release.Contributors, 0)
 		assert.Equal(t, 3, release.FileStats.FilesChanged)
 		mockVCS.AssertExpectations(t)
+	})
+}
+
+func TestReleaseService_UpdateAppVersion(t *testing.T) {
+	t.Run("should update version in default file", func(t *testing.T) {
+		dir := t.TempDir()
+		// Simulate cmd/main.go in temp dir
+		cmdDir := filepath.Join(dir, "cmd")
+		err := os.MkdirAll(cmdDir, 0755)
+		require.NoError(t, err)
+
+		mainGoPath := filepath.Join(cmdDir, "main.go")
+		initialContent := `package main
+var (
+	Version: "1.0.0"
+)`
+
+		err = os.WriteFile(mainGoPath, []byte(initialContent), 0644)
+		require.NoError(t, err)
+
+		// Override default config
+		cfg := &config.Config{
+			VersionFile: mainGoPath,
+		}
+
+		service := NewReleaseService(nil, nil, nil, nil, cfg)
+
+		err = service.UpdateAppVersion("v1.1.0")
+		assert.NoError(t, err)
+
+		newContent, err := os.ReadFile(mainGoPath)
+		require.NoError(t, err)
+
+		// verify stripped v and updated value
+		assert.Contains(t, string(newContent), `"1.1.0"`)
+	})
+
+	t.Run("should update version with custom pattern", func(t *testing.T) {
+		dir := t.TempDir()
+		versionFile := filepath.Join(dir, "version.go")
+
+		initialContent := `package version
+const CurrentVersion = "0.0.1"
+`
+		err := os.WriteFile(versionFile, []byte(initialContent), 0644)
+		require.NoError(t, err)
+
+		cfg := &config.Config{
+			VersionFile:    versionFile,
+			VersionPattern: `CurrentVersion\s*=\s*".*"`,
+		}
+
+		service := NewReleaseService(nil, nil, nil, nil, cfg)
+
+		err = service.UpdateAppVersion("v0.0.2")
+		assert.NoError(t, err)
+
+		newContent, err := os.ReadFile(versionFile)
+		require.NoError(t, err)
+
+		assert.Contains(t, string(newContent), `CurrentVersion = "0.0.2"`)
+		// Also verify spaces are preserved/stripped as per replacement logic.
+		// Our replacement logic: match[:startQuote] + "newVal" + match[endQuote:]
+		// So `CurrentVersion = "0.0.1"` -> `CurrentVersion = "0.0.2"`
+	})
+
+	t.Run("should fail if pattern not found", func(t *testing.T) {
+		dir := t.TempDir()
+		versionFile := filepath.Join(dir, "version.go")
+		err := os.WriteFile(versionFile, []byte("package version\n"), 0644)
+		require.NoError(t, err)
+
+		cfg := &config.Config{VersionFile: versionFile}
+		service := NewReleaseService(nil, nil, nil, nil, cfg)
+
+		err = service.UpdateAppVersion("v1.0.0")
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "no se encontró el patrón")
 	})
 }
