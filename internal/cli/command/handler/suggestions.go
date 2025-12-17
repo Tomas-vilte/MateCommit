@@ -47,10 +47,6 @@ func (h *SuggestionHandler) displaySuggestions(suggestions []models.CommitSugges
 		suggestionHeader := color.New(color.FgMagenta, color.Bold).Sprintf("📝 Sugerencia #%d", i+1)
 		fmt.Printf("%s\n\n", suggestionHeader)
 
-		if i == 0 && suggestion.Usage != nil {
-			ui.PrintTokenUsage(suggestion.Usage, h.t)
-		}
-
 		_, _ = sectionColor.Println(h.t.GetMessage("ui_labels.code_analysis", 0, nil))
 		printIndentedKeyValue(h.t.GetMessage("ui_labels.changes_overview", 0, nil), suggestion.CodeAnalysis.ChangesOverview)
 		printIndentedKeyValue(h.t.GetMessage("ui_labels.primary_purpose", 0, nil), suggestion.CodeAnalysis.PrimaryPurpose)
@@ -77,6 +73,11 @@ func (h *SuggestionHandler) displaySuggestions(suggestions []models.CommitSugges
 			h.displayRequirementsAnalysis(suggestion.RequirementsAnalysis)
 		} else {
 			h.displayTechnicalAnalysis(suggestion.RequirementsAnalysis)
+		}
+
+		if i == 0 && suggestion.Usage != nil {
+			fmt.Println()
+			ui.PrintTokenUsage(suggestion.Usage, h.t)
 		}
 
 		fmt.Printf("%s\n", separator)
