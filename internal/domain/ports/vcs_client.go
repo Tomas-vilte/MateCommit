@@ -19,7 +19,8 @@ type VCSClient interface {
 	// AddLabelsToPR agrega labels específicas a un PR
 	AddLabelsToPR(ctx context.Context, prNumber int, labels []string) error
 	// CreateRelease crea una nueva release en el repositorio
-	CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool) error
+	// buildBinaries indica si se deben compilar y subir binarios (opcional, solo algunos proveedores lo soportan)
+	CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool) error
 	// GetRelease obtiene la release del repositorio
 	GetRelease(ctx context.Context, version string) (*models.VCSRelease, error)
 	// UpdateRelease actualiza una release del repositorio

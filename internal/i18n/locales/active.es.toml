@@ -276,6 +276,16 @@ vcs_provider_auto_detected_not_configured = "Proveedor de VCS '%s' detectado aut
 release_already_exists = "Esta release {{.Version}} ya existe"
 repo_or_tag_not_found = "No se encontró el repositorio o la etiqueta. Asegurate de que la etiqueta {{.Version}} exista"
 create_release = "Error creando release"
+upload_binaries = "Error subiendo binarios: {{.Error}}"
+create_temp_dir = "Error creando directorio temporal: {{.Error}}"
+build_binaries = "Error construyendo binarios: {{.Error}}"
+open_file = "Error abriendo archivo: {{.File}}: {{.Error}}"
+upload_asset = "Error subiendo asset {{.Asset}}: {{.Error}}"
+compile_target = "Error compilando para {{.GOOS}}/{{.GOARCH}}: {{.Output}}"
+create_zip = "Error creando zip: {{.Error}}"
+create_targz = "Error creando tar.gz: {{.Error}}"
+archive_format_not_supported = "Formato de archivo no soportado: {{.Format}}"
+binary_not_found_archive = "Binario no encontrado en el archivo"
 pr_number_required = "Debes especificar el número del PR con -n o --number"
 
 [warning]
@@ -709,3 +719,73 @@ error_write_config = "no se pudo escribir en el archivo de configuración: {{.Er
 already_installed = "✅ Autocompletado ya instalado en {{.File}}"
 restart_shell = "Por favor reinicia tu terminal o ejecuta:"
 installed_success = "✅ Autocompletado instalado en {{.File}}"
+
+[token_usage]
+header = "📊 Uso de Tokens"
+input = "Tokens de Entrada"
+output = "Tokens de Salida"
+total = "Tokens Totales"
+
+[update]
+usage = "Actualizar MateCommit a la última versión"
+box_top = "╭──────────────────────────────────────────────╮"
+box_bottom = "╰──────────────────────────────────────────────╯"
+available = "  ¡Actualización disponible! {{.Current}} -> {{.Latest}}"
+command = "  Ejecuta: {{.Command}} para actualizar"
+updating = "🔄 Actualizando MateCommit..."
+success = "✅ ¡MateCommit actualizado correctamente!"
+error = "Error al actualizar MateCommit"
+
+[update.method_not_detected]
+other = "Método de instalación no detectado. Por favor actualizá manualmente"
+
+[update.go_not_found]
+other = "Go no está instalado. No se puede actualizar via 'go install'"
+
+[update.brew_not_found]
+other = "Homebrew no está instalado. No se puede actualizar via 'brew'"
+
+[update.binary_not_supported]
+other = "Actualización via binario no soportada todavía. Por favor actualizá manualmente:\n  • Via Go: go install github.com/Tomas-vilte/MateCommit@latest\n  • Via Homebrew: brew upgrade matecommit"
+
+[update.downloading]
+other = "Descargando versión {{.Version}}..."
+
+[update.extracting]
+other = "Extrayendo archivos..."
+
+[update.installing]
+other = "Instalando nueva versión..."
+
+
+
+[build]
+compiling_binaries = "Compilando binarios para múltiples plataformas..."
+uploading_binaries = "Subiendo {{.Count}} binarios al release..."
+
+[build.errors]
+upload_binaries = "Error subiendo binarios: {{.Error}}"
+create_zip = "Error creando zip: {{.Error}}"
+create_targz = "Error creando tar.gz: {{.Error}}"
+compile_target = "Error compilando para {{.GOOS}}/{{.GOARCH}}: {{.Output}}"
+build_binaries = "Error construyendo y empaquetando binarios: {{.Error}}"
+open_file = "Error abriendo archivo {{.File}}: {{.Error}}"
+upload_asset = "Error subiendo asset {{.Asset}}: {{.Error}}"
+create_temp_dir = "Error creando directorio temporal: {{.Error}}"
+
+[update.errors]
+get_latest = "Error obteniendo ultima version: {{.Error}}"
+arch_not_supported = "Arquitectura no soportada: {{.Arch}}"
+os_not_supported = "Sistema operativo no soportado: {{.OS}}"
+binary_not_found_manual = "Binario no encontrado para {{.OS}}/{{.Arch}}. Descargalo manualmente desde: {{.URL}}"
+create_temp = "Error creando directorio temporal: {{.Error}}"
+download = "Error descargando binario: {{.Error}}"
+download_http = "Error descargando: HTTP {{.StatusCode}}"
+create_temp_file = "Error creando archivo temporal: {{.Error}}"
+save_binary = "Error guardando binario: {{.Error}}"
+extract = "Error extrayendo archivo: {{.Error}}"
+get_executable = "Error obteniendo ruta del ejecutable: {{.Error}}"
+resolve_symlinks = "Error resolviendo symlinks: {{.Error}}"
+create_backup = "Error creando backup: {{.Error}}"
+install_binary = "Error instalando nuevo binario: {{.Error}}"
+chmod = "Error estableciendo permisos: {{.Error}}"

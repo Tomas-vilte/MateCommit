@@ -303,7 +303,7 @@ func TestReleaseService_PublishRelease(t *testing.T) {
 
 		mockVCS.On("CreateRelease", mock.Anything, release, notes, false).Return(nil)
 
-		err := service.PublishRelease(context.Background(), release, notes, false)
+		err := service.PublishRelease(context.Background(), release, notes, false, true)
 
 		assert.NoError(t, err)
 		mockVCS.AssertExpectations(t)
@@ -315,7 +315,7 @@ func TestReleaseService_PublishRelease(t *testing.T) {
 		release := &models.Release{Version: "v1.0.0"}
 		notes := &models.ReleaseNotes{}
 
-		err := service.PublishRelease(context.Background(), release, notes, false)
+		err := service.PublishRelease(context.Background(), release, notes, false, true)
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "cliente VCS no configurado")
@@ -330,7 +330,7 @@ func TestReleaseService_PublishRelease(t *testing.T) {
 
 		mockVCS.On("CreateRelease", mock.Anything, release, notes, true).Return(errors.New("publish failed"))
 
-		err := service.PublishRelease(context.Background(), release, notes, true)
+		err := service.PublishRelease(context.Background(), release, notes, true, true)
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "publish failed")
