@@ -6,10 +6,13 @@ toolchain go1.24.5
 
 require (
 	github.com/BurntSushi/toml v1.5.0
+	github.com/briandowns/spinner v1.23.0
+	github.com/fatih/color v1.18.0
 	github.com/google/go-github/v80 v80.0.0
 	github.com/nicksnyder/go-i18n/v2 v2.6.0
 	github.com/stretchr/testify v1.11.1
 	github.com/urfave/cli/v3 v3.6.1
+	golang.org/x/mod v0.30.0
 	golang.org/x/oauth2 v0.34.0
 	golang.org/x/text v0.32.0
 	google.golang.org/genai v1.38.0
@@ -19,10 +22,8 @@ require (
 	cloud.google.com/go v0.123.0 // indirect
 	cloud.google.com/go/auth v0.17.0 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
-	github.com/briandowns/spinner v1.23.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/fatih/color v1.18.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect

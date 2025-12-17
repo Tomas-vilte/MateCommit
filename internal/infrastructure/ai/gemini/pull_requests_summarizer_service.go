@@ -95,10 +95,13 @@ func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prContent 
 		return models.PRSummary{}, fmt.Errorf("la IA no generó un título para el PR. Respuesta (longitud: %d): %s", respLen, preview)
 	}
 
+	usage := extractUsage(resp)
+
 	return models.PRSummary{
 		Title:  jsonSummary.Title,
 		Body:   jsonSummary.Body,
 		Labels: jsonSummary.Labels,
+		Usage:  usage,
 	}, nil
 }
 

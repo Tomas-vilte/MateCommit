@@ -108,8 +108,14 @@ func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.Com
 			respLen, err, preview)
 	}
 
+	usage := extractUsage(resp)
+
 	if len(suggestions) == 0 {
 		return nil, fmt.Errorf("la IA no generó ninguna sugerencia")
+	}
+
+	for i := range suggestions {
+		suggestions[i].Usage = usage
 	}
 
 	if info.IssueInfo != nil && info.IssueInfo.Number > 0 {
