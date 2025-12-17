@@ -26,6 +26,12 @@ func (r *ReleaseCommandFactory) newPublishCommand(trans *i18n.Translations) *cli
 				Aliases: []string{"d"},
 				Usage:   trans.GetMessage("release.draft_flag", 0, nil),
 			},
+			&cli.BoolFlag{
+				Name:    "build-binaries",
+				Aliases: []string{"b"},
+				Usage:   trans.GetMessage("release.build_binaries_flag", 0, nil),
+				Value:   true,
+			},
 		},
 		ShellComplete: completion_helper.DefaultFlagComplete,
 		Action: func(ctx context.Context, cmd *cli.Command) error {
@@ -38,7 +44,8 @@ func (r *ReleaseCommandFactory) newPublishCommand(trans *i18n.Translations) *cli
 	}
 }
 
-func publishReleaseAction(releaseService ports.ReleaseService, trans *i18n.Translations) cli.ActionFunc {
+func publishReleaseAction(releaseService ports.ReleaseService,
+	trans *i18n.Translations) cli.ActionFunc {
 	return func(ctx context.Context, cmd *cli.Command) error {
 		release, err := releaseService.AnalyzeNextRelease(ctx)
 		if err != nil {
@@ -65,6 +72,7 @@ func publishReleaseAction(releaseService ports.ReleaseService, trans *i18n.Trans
 		}
 
 		draft := cmd.Bool("draft")
+		buildBinaries := cmd.Bool("build-binaries")
 		draftText := ""
 		if draft {
 			draftText = " " + trans.GetMessage("release.as_draft", 0, nil)
@@ -75,7 +83,7 @@ func publishReleaseAction(releaseService ports.ReleaseService, trans *i18n.Trans
 			"Draft":   draftText,
 		}))
 
-		err = releaseService.PublishRelease(ctx, release, notes, draft)
+		err = releaseService.PublishRelease(ctx, release, notes, draft, buildBinaries)
 		if err != nil {
 			return fmt.Errorf("%s", trans.GetMessage("release.error_publishing", 0, map[string]interface{}{
 				"Error": err.Error(),

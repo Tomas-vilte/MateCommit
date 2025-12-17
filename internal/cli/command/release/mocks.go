@@ -27,8 +27,8 @@ func (m *MockReleaseService) GenerateReleaseNotes(ctx context.Context, release *
 	return args.Get(0).(*models.ReleaseNotes), args.Error(1)
 }
 
-func (m *MockReleaseService) PublishRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool) error {
-	args := m.Called(ctx, release, notes, draft)
+func (m *MockReleaseService) PublishRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool) error {
+	args := m.Called(ctx, release, notes, draft, buildBinaries)
 	return args.Error(0)
 }
 

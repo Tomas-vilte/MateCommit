@@ -43,6 +43,12 @@ func (r *ReleaseCommandFactory) newCreateCommand(t *i18n.Translations) *cli.Comm
 				Name:  "changelog",
 				Usage: t.GetMessage("release.flag_changelog_usage", 0, nil),
 			},
+			&cli.BoolFlag{
+				Name:    "build-binaries",
+				Aliases: []string{"b"},
+				Usage:   t.GetMessage("release.build_binaries_flag", 0, nil),
+				Value:   true,
+			},
 		},
 		ShellComplete: completion_helper.DefaultFlagComplete,
 		Action: func(ctx context.Context, cmd *cli.Command) error {
@@ -177,7 +183,8 @@ func createReleaseAction(releaseService ports.ReleaseService, trans *i18n.Transl
 			notes.Changelog = FormatReleaseMarkdown(release, notes, trans)
 
 			fmt.Println(trans.GetMessage("release.publishing_release", 0, nil))
-			err := releaseService.PublishRelease(ctx, release, notes, cmd.Bool("draft"))
+			buildBinaries := cmd.Bool("build-binaries")
+			err := releaseService.PublishRelease(ctx, release, notes, cmd.Bool("draft"), buildBinaries)
 			if err != nil {
 				return fmt.Errorf("%s", trans.GetMessage("release.error_publishing_release", 0, map[string]interface{}{"Error": err.Error()}))
 			}
