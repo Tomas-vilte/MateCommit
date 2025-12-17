@@ -64,6 +64,12 @@ func (c *SummarizeCommand) CreateCommand(t *i18n.Translations, _ *cfg.Config) *c
 				"Number": prNumber,
 				"Title":  summary.Title,
 			}))
+
+			if summary.Usage != nil {
+				fmt.Println()
+				ui.PrintTokenUsage(summary.Usage, t)
+			}
+
 			return nil
 		},
 	}
