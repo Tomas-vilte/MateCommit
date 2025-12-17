@@ -394,6 +394,6 @@ func TestPRService_SummarizePR_Integration(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, summary)
 
-		t.Logf("Resumen generado: %s", summary)
+		t.Logf("Resumen generado: %+v", summary)
 	})
 }

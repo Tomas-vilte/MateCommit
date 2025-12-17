@@ -92,10 +92,13 @@ func (g *ReleaseNotesGenerator) GenerateNotes(ctx context.Context, release *mode
 		content += part.Text
 	}
 
+	usage := extractUsage(resp)
 	notes, err := g.parseJSONResponse(content, release)
 	if err != nil {
 		return nil, fmt.Errorf("error al parsear respuesta JSON de release notes: %w", err)
 	}
+
+	notes.Usage = usage
 
 	return notes, nil
 }
