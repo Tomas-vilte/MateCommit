@@ -7,6 +7,7 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/cli/completion_helper"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
+	"github.com/Tomas-vilte/MateCommit/internal/ui"
 	"github.com/urfave/cli/v3"
 )
 
@@ -103,6 +104,11 @@ func previewReleaseAction(releaseService ports.ReleaseService, trans *i18n.Trans
 		fmt.Println(trans.GetMessage("release.next_steps", 0, nil))
 		fmt.Println(trans.GetMessage("release.next_steps_cmd", 0, nil))
 		fmt.Println()
+
+		if notes.Usage != nil {
+			ui.PrintTokenUsage(notes.Usage, trans)
+			fmt.Println()
+		}
 
 		return nil
 	}
