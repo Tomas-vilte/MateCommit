@@ -42,6 +42,7 @@ func (f *IssuesCommandFactory) CreateCommand(t *i18n.Translations, cfg *config.C
 		Usage:   t.GetMessage("issue.command_usage", 0, nil),
 		Commands: []*cli.Command{
 			f.newGenerateCommand(t, cfg),
+			f.newLinkCommand(t, cfg),
 			f.newTemplateCommand(t, cfg),
 		},
 	}
@@ -345,4 +346,75 @@ func (f *IssuesCommandFactory) checkoutBranch(branchName string) error {
 		return fmt.Errorf("git checkout fallo: %w (output: %s)", err, string(output))
 	}
 	return nil
+}
+
+// newLinkCommand crea el subcomando 'link'.
+func (f *IssuesCommandFactory) newLinkCommand(t *i18n.Translations, cfg *config.Config) *cli.Command {
+	return &cli.Command{
+		Name:    "link",
+		Aliases: []string{"l"},
+		Usage:   t.GetMessage("issue.link_usage", 0, nil),
+		Flags: []cli.Flag{
+			&cli.IntFlag{
+				Name:     "pr",
+				Aliases:  []string{"p"},
+				Usage:    t.GetMessage("issue.flag_pr_number", 0, nil),
+				Required: true,
+			},
+			&cli.IntFlag{
+				Name:     "issue",
+				Aliases:  []string{"i"},
+				Usage:    t.GetMessage("issue.flag_issue_number", 0, nil),
+				Required: true,
+			},
+		},
+		Action: f.createLinkAction(t, cfg),
+	}
+}
+
+// createLinkAction crea la acción para linkear un PR a una issue.
+func (f *IssuesCommandFactory) createLinkAction(t *i18n.Translations, cfg *config.Config) cli.ActionFunc {
+	return func(ctx context.Context, command *cli.Command) error {
+		prNumber := command.Int("pr")
+		issueNumber := command.Int("issue")
+
+		if prNumber <= 0 {
+			ui.PrintError(t.GetMessage("issue.error_invalid_pr", 0, nil))
+			return fmt.Errorf("invalid PR number")
+		}
+
+		if issueNumber <= 0 {
+			ui.PrintError(t.GetMessage("issue.error_invalid_issue", 0, nil))
+			return fmt.Errorf("invalid issue number")
+		}
+
+		ui.PrintSectionBanner(t.GetMessage("issue.link_banner", 0, nil))
+
+		issueService, err := f.issueServiceProvider(ctx)
+		if err != nil {
+			ui.PrintError(fmt.Sprintf("%s: %v", t.GetMessage("issue.error_linking", 0, nil), err))
+			return err
+		}
+
+		spinner := ui.NewSmartSpinner(t.GetMessage("issue.linking", 0, map[string]interface{}{
+			"PR":    prNumber,
+			"Issue": issueNumber,
+		}))
+		spinner.Start()
+
+		err = issueService.LinkIssueToPR(ctx, prNumber, issueNumber)
+		spinner.Stop()
+
+		if err != nil {
+			ui.PrintError(fmt.Sprintf("%s: %v", t.GetMessage("issue.error_linking", 0, nil), err))
+			return err
+		}
+
+		ui.PrintSuccess(t.GetMessage("issue.link_success", 0, map[string]interface{}{
+			"PR":    prNumber,
+			"Issue": issueNumber,
+		}))
+
+		return nil
+	}
 }
