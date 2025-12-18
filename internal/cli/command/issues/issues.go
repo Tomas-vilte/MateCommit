@@ -17,7 +17,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// IssueServiceProvider es una interfaz para obtener el servicio de issues de manera lazy
 type IssueServiceProvider func(ctx context.Context) (ports.IssueGeneratorService, error)
 
 // IssuesCommandFactory es el factory para crear el comando de issues.
@@ -348,7 +347,6 @@ func (f *IssuesCommandFactory) checkoutBranch(branchName string) error {
 	return nil
 }
 
-// newLinkCommand crea el subcomando 'link'.
 func (f *IssuesCommandFactory) newLinkCommand(t *i18n.Translations, cfg *config.Config) *cli.Command {
 	return &cli.Command{
 		Name:    "link",
@@ -373,7 +371,7 @@ func (f *IssuesCommandFactory) newLinkCommand(t *i18n.Translations, cfg *config.
 }
 
 // createLinkAction crea la acción para linkear un PR a una issue.
-func (f *IssuesCommandFactory) createLinkAction(t *i18n.Translations, cfg *config.Config) cli.ActionFunc {
+func (f *IssuesCommandFactory) createLinkAction(t *i18n.Translations, _ *config.Config) cli.ActionFunc {
 	return func(ctx context.Context, command *cli.Command) error {
 		prNumber := command.Int("pr")
 		issueNumber := command.Int("issue")
