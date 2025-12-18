@@ -16,6 +16,7 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/update"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/registry"
 	cfg "github.com/Tomas-vilte/MateCommit/internal/config"
+	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/ai/gemini"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/di"
@@ -91,18 +92,17 @@ func initializeApp() (*cli.Command, error) {
 	prServiceFactory := factory.NewPrServiceFactory(cfgApp, translations, nil, gitService)
 	prCommand := pull_requests.NewSummarizeCommand(prServiceFactory)
 
-	issueGeneratorService, err := container.GetIssueGeneratorService(ctx)
-	if err != nil {
-		log.Printf("Warning: no se pudo inicializar el servicio de generación de issues: %v", err)
-	}
-
 	registerCommand := registry.NewRegistry(cfgApp, translations)
 
 	if err := registerCommand.Register("suggest", suggests_commits.NewSuggestCommandFactory(commitService, commitHandler)); err != nil {
 		log.Fatalf("Error al registrar el comando 'suggest': %v", err)
 	}
 
-	if err := registerCommand.Register("issue", issues.NewIssuesCommandFactory(issueGeneratorService, container.GetIssueTemplateService())); err != nil {
+	issueServiceProvider := func(ctx context.Context) (ports.IssueGeneratorService, error) {
+		return container.GetIssueGeneratorService(ctx)
+	}
+
+	if err := registerCommand.Register("issue", issues.NewIssuesCommandFactory(issueServiceProvider, container.GetIssueTemplateService())); err != nil {
 		log.Fatalf("Error al registrar el comando 'issue': %v", err)
 	}
 

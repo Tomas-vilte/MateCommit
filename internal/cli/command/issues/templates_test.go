@@ -11,8 +11,8 @@ import (
 
 func TestIssueTemplateAction(t *testing.T) {
 	t.Run("should init templates successfully", func(t *testing.T) {
-		mockGen, mockTemp, trans, cfg := setupIssuesTest(t)
-		factory := NewIssuesCommandFactory(mockGen, mockTemp)
+		_, mockTemp, provider, trans, cfg := setupIssuesTest(t)
+		factory := NewIssuesCommandFactory(provider, mockTemp)
 		cmd := factory.CreateCommand(trans, cfg)
 
 		mockTemp.On("InitializeTemplates", false).Return(nil)
@@ -26,8 +26,8 @@ func TestIssueTemplateAction(t *testing.T) {
 	})
 
 	t.Run("should init templates with force flag", func(t *testing.T) {
-		mockGen, mockTemp, trans, cfg := setupIssuesTest(t)
-		factory := NewIssuesCommandFactory(mockGen, mockTemp)
+		_, mockTemp, provider, trans, cfg := setupIssuesTest(t)
+		factory := NewIssuesCommandFactory(provider, mockTemp)
 		cmd := factory.CreateCommand(trans, cfg)
 
 		mockTemp.On("InitializeTemplates", true).Return(nil)
@@ -41,8 +41,8 @@ func TestIssueTemplateAction(t *testing.T) {
 	})
 
 	t.Run("should list templates successfully", func(t *testing.T) {
-		mockGen, mockTemp, trans, cfg := setupIssuesTest(t)
-		factory := NewIssuesCommandFactory(mockGen, mockTemp)
+		_, mockTemp, provider, trans, cfg := setupIssuesTest(t)
+		factory := NewIssuesCommandFactory(provider, mockTemp)
 		cmd := factory.CreateCommand(trans, cfg)
 
 		templates := []models.TemplateMetadata{
@@ -59,8 +59,8 @@ func TestIssueTemplateAction(t *testing.T) {
 	})
 
 	t.Run("should handle empty template list", func(t *testing.T) {
-		mockGen, mockTemp, trans, cfg := setupIssuesTest(t)
-		factory := NewIssuesCommandFactory(mockGen, mockTemp)
+		_, mockTemp, provider, trans, cfg := setupIssuesTest(t)
+		factory := NewIssuesCommandFactory(provider, mockTemp)
 		cmd := factory.CreateCommand(trans, cfg)
 
 		mockTemp.On("ListTemplates").Return([]models.TemplateMetadata{}, nil)

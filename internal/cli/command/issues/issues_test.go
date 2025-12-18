@@ -7,6 +7,7 @@ import (
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
+	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -14,13 +15,18 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-func setupIssuesTest(t *testing.T) (*MockIssueGeneratorService, *MockIssueTemplateService, *i18n.Translations, *config.Config) {
+func setupIssuesTest(t *testing.T) (*MockIssueGeneratorService, *MockIssueTemplateService, IssueServiceProvider, *i18n.Translations, *config.Config) {
 	mockGen := &MockIssueGeneratorService{}
 	mockTemp := &MockIssueTemplateService{}
+
+	provider := func(ctx context.Context) (ports.IssueGeneratorService, error) {
+		return mockGen, nil
+	}
+
 	trans, err := i18n.NewTranslations("en", "../../../../internal/i18n/locales")
 	require.NoError(t, err)
 	cfg := &config.Config{Language: "en"}
-	return mockGen, mockTemp, trans, cfg
+	return mockGen, mockTemp, provider, trans, cfg
 }
 
 func withStdin(input string, f func()) {
@@ -41,8 +47,8 @@ func withStdin(input string, f func()) {
 
 func TestIssueGenerateAction(t *testing.T) {
 	t.Run("should fail if no input provided", func(t *testing.T) {
-		mockGen, mockTemp, trans, cfg := setupIssuesTest(t)
-		factory := NewIssuesCommandFactory(mockGen, mockTemp)
+		_, mockTemp, provider, trans, cfg := setupIssuesTest(t)
+		factory := NewIssuesCommandFactory(provider, mockTemp)
 		cmd := factory.CreateCommand(trans, cfg)
 
 		app := &cli.Command{Name: "test", Commands: []*cli.Command{cmd}}
@@ -53,8 +59,8 @@ func TestIssueGenerateAction(t *testing.T) {
 	})
 
 	t.Run("should fail if multiple sources provided", func(t *testing.T) {
-		mockGen, mockTemp, trans, cfg := setupIssuesTest(t)
-		factory := NewIssuesCommandFactory(mockGen, mockTemp)
+		_, mockTemp, provider, trans, cfg := setupIssuesTest(t)
+		factory := NewIssuesCommandFactory(provider, mockTemp)
 		cmd := factory.CreateCommand(trans, cfg)
 
 		app := &cli.Command{Name: "test", Commands: []*cli.Command{cmd}}
@@ -65,8 +71,8 @@ func TestIssueGenerateAction(t *testing.T) {
 	})
 
 	t.Run("should generate from diff successfully", func(t *testing.T) {
-		mockGen, mockTemp, trans, cfg := setupIssuesTest(t)
-		factory := NewIssuesCommandFactory(mockGen, mockTemp)
+		mockGen, mockTemp, provider, trans, cfg := setupIssuesTest(t)
+		factory := NewIssuesCommandFactory(provider, mockTemp)
 		cmd := factory.CreateCommand(trans, cfg)
 
 		expectedResult := &models.IssueGenerationResult{
@@ -88,8 +94,8 @@ func TestIssueGenerateAction(t *testing.T) {
 	})
 
 	t.Run("should handle dry-run correctly", func(t *testing.T) {
-		mockGen, mockTemp, trans, cfg := setupIssuesTest(t)
-		factory := NewIssuesCommandFactory(mockGen, mockTemp)
+		mockGen, mockTemp, provider, trans, cfg := setupIssuesTest(t)
+		factory := NewIssuesCommandFactory(provider, mockTemp)
 		cmd := factory.CreateCommand(trans, cfg)
 
 		expectedResult := &models.IssueGenerationResult{
@@ -108,8 +114,8 @@ func TestIssueGenerateAction(t *testing.T) {
 	})
 
 	t.Run("should handle assign-me flag", func(t *testing.T) {
-		mockGen, mockTemp, trans, cfg := setupIssuesTest(t)
-		factory := NewIssuesCommandFactory(mockGen, mockTemp)
+		mockGen, mockTemp, provider, trans, cfg := setupIssuesTest(t)
+		factory := NewIssuesCommandFactory(provider, mockTemp)
 		cmd := factory.CreateCommand(trans, cfg)
 
 		expectedResult := &models.IssueGenerationResult{
@@ -130,8 +136,8 @@ func TestIssueGenerateAction(t *testing.T) {
 	})
 
 	t.Run("should cancel if user chooses no", func(t *testing.T) {
-		mockGen, mockTemp, trans, cfg := setupIssuesTest(t)
-		factory := NewIssuesCommandFactory(mockGen, mockTemp)
+		mockGen, mockTemp, provider, trans, cfg := setupIssuesTest(t)
+		factory := NewIssuesCommandFactory(provider, mockTemp)
 		cmd := factory.CreateCommand(trans, cfg)
 
 		mockGen.On("GenerateFromDiff", mock.Anything, "", false).Return(&models.IssueGenerationResult{Title: "T"}, nil)
@@ -146,8 +152,8 @@ func TestIssueGenerateAction(t *testing.T) {
 	})
 
 	t.Run("should use template if specified", func(t *testing.T) {
-		mockGen, mockTemp, trans, cfg := setupIssuesTest(t)
-		factory := NewIssuesCommandFactory(mockGen, mockTemp)
+		mockGen, mockTemp, provider, trans, cfg := setupIssuesTest(t)
+		factory := NewIssuesCommandFactory(provider, mockTemp)
 		cmd := factory.CreateCommand(trans, cfg)
 
 		expectedResult := &models.IssueGenerationResult{Title: "Template Issue"}
