@@ -33,7 +33,10 @@ type GitService interface {
 	GetLastTag(ctx context.Context) (string, error)
 	GetCommitCount(ctx context.Context) (int, error)
 	GetCommitsSinceTag(ctx context.Context, tag string) ([]models.Commit, error)
+	GetCommitsBetweenTags(ctx context.Context, fromTag, toTag string) ([]models.Commit, error)
+	GetTagDate(ctx context.Context, tag string) (string, error)
 	GetRecentCommitMessages(ctx context.Context, count int) (string, error)
 	CreateTag(ctx context.Context, version, message string) error
 	PushTag(ctx context.Context, version string) error
+	Push(ctx context.Context) error
 }

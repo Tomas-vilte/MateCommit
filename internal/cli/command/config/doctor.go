@@ -206,7 +206,7 @@ func (d *DoctorCommand) checkGeminiAPIKey(ctx context.Context, t *i18n.Translati
 	testCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	service, err := gemini.NewGeminiService(testCtx, cfg, t)
+	service, err := gemini.NewGeminiCommitSummarizer(testCtx, cfg, t)
 	if err != nil {
 		return checkResult{
 			status:     checkStatusError,

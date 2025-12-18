@@ -66,5 +66,5 @@ func (r *ReleaseCommandFactory) createReleaseService(ctx context.Context, t *i18
 		notesGen = gen
 	}
 
-	return services.NewReleaseService(r.gitService, vcsClient, notesGen, t), nil
+	return services.NewReleaseService(r.gitService, vcsClient, notesGen, t, r.config), nil
 }

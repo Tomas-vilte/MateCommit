@@ -30,6 +30,14 @@ type (
 	MockReleaseNotesGenerator struct {
 		mock.Mock
 	}
+
+	MockIssueContentGenerator struct {
+		mock.Mock
+	}
+
+	MockIssueTemplateService struct {
+		mock.Mock
+	}
 )
 
 func (m *MockJiraService) GetTicketInfo(ticketID string) (*models.TicketInfo, error) {
@@ -95,6 +103,19 @@ func (m *MockGitService) GetCommitsSinceTag(ctx context.Context, tag string) ([]
 	return args.Get(0).([]models.Commit), args.Error(1)
 }
 
+func (m *MockGitService) GetCommitsBetweenTags(ctx context.Context, fromTag, toTag string) ([]models.Commit, error) {
+	args := m.Called(ctx, fromTag, toTag)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.Commit), args.Error(1)
+}
+
+func (m *MockGitService) GetTagDate(ctx context.Context, tag string) (string, error) {
+	args := m.Called(ctx, tag)
+	return args.String(0), args.Error(1)
+}
+
 func (m *MockGitService) GetRecentCommitMessages(ctx context.Context, count int) (string, error) {
 	args := m.Called(ctx, count)
 	return args.String(0), args.Error(1)
@@ -107,6 +128,11 @@ func (m *MockGitService) CreateTag(ctx context.Context, version, message string)
 
 func (m *MockGitService) PushTag(ctx context.Context, version string) error {
 	args := m.Called(ctx, version)
+	return args.Error(0)
+}
+
+func (m *MockGitService) Push(ctx context.Context) error {
+	args := m.Called(ctx)
 	return args.Error(0)
 }
 
@@ -140,7 +166,7 @@ func (m *MockVCSClient) AddLabelsToPR(ctx context.Context, prNumber int, labels 
 	return args.Error(0)
 }
 
-func (m *MockVCSClient) CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool) error {
+func (m *MockVCSClient) CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool) error {
 	args := m.Called(ctx, release, notes, draft)
 	return args.Error(0)
 }
@@ -195,6 +221,16 @@ func (m *MockVCSClient) UpdateIssueChecklist(ctx context.Context, issueNumber in
 	return args.Error(0)
 }
 
+func (m *MockVCSClient) CreateIssue(ctx context.Context, title string, body string, labels []string, assignees []string) (*models.Issue, error) {
+	args := m.Called(ctx, title, body, labels, assignees)
+	return args.Get(0).(*models.Issue), args.Error(1)
+}
+
+func (m *MockVCSClient) GetAuthenticatedUser(ctx context.Context) (string, error) {
+	args := m.Called(ctx)
+	return args.String(0), args.Error(1)
+}
+
 func (m *MockPRSummarizer) GeneratePRSummary(ctx context.Context, prompt string) (models.PRSummary, error) {
 	args := m.Called(ctx, prompt)
 	return args.Get(0).(models.PRSummary), args.Error(1)
@@ -206,4 +242,48 @@ func (m *MockReleaseNotesGenerator) GenerateNotes(ctx context.Context, release *
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*models.ReleaseNotes), args.Error(1)
+}
+
+func (m *MockIssueContentGenerator) GenerateIssueContent(ctx context.Context, request models.IssueGenerationRequest) (*models.IssueGenerationResult, error) {
+	args := m.Called(ctx, request)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.IssueGenerationResult), args.Error(1)
+}
+
+func (m *MockIssueTemplateService) GetTemplatesDir() (string, error) {
+	args := m.Called()
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockIssueTemplateService) ListTemplates() ([]models.TemplateMetadata, error) {
+	args := m.Called()
+	return args.Get(0).([]models.TemplateMetadata), args.Error(1)
+}
+
+func (m *MockIssueTemplateService) LoadTemplate(filePath string) (*models.IssueTemplate, error) {
+	args := m.Called(filePath)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.IssueTemplate), args.Error(1)
+}
+
+func (m *MockIssueTemplateService) GetTemplateByName(name string) (*models.IssueTemplate, error) {
+	args := m.Called(name)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.IssueTemplate), args.Error(1)
+}
+
+func (m *MockIssueTemplateService) InitializeTemplates(force bool) error {
+	args := m.Called(force)
+	return args.Error(0)
+}
+
+func (m *MockIssueTemplateService) MergeWithGeneratedContent(template *models.IssueTemplate, generated *models.IssueGenerationResult) *models.IssueGenerationResult {
+	args := m.Called(template, generated)
+	return args.Get(0).(*models.IssueGenerationResult)
 }

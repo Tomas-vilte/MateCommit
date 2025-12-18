@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Tomas-vilte/MateCommit/internal/cli/completion_helper"
 	cfg "github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/ui"
@@ -35,6 +36,7 @@ func (c *SummarizeCommand) CreateCommand(t *i18n.Translations, _ *cfg.Config) *c
 				Required: true,
 			},
 		},
+		ShellComplete: completion_helper.DefaultFlagComplete,
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			if c.prService == nil {
 				return fmt.Errorf("%s", t.GetMessage("ai_missing.ai_missing_for_pr", 0, nil))
@@ -61,6 +63,12 @@ func (c *SummarizeCommand) CreateCommand(t *i18n.Translations, _ *cfg.Config) *c
 				"Number": prNumber,
 				"Title":  summary.Title,
 			}))
+
+			if summary.Usage != nil {
+				fmt.Println()
+				ui.PrintTokenUsage(summary.Usage, t)
+			}
+
 			return nil
 		},
 	}

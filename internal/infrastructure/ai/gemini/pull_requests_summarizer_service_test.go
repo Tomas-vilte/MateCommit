@@ -77,9 +77,9 @@ func TestGeminiPRSummarizer(t *testing.T) {
 
 		// Assert
 		assert.Contains(t, prompt, "Some PR content to summarize", "El prompt debe contener el contenido del PR")
-		assert.Contains(t, prompt, "concise title", "El prompt debe solicitar un título para el PR")
-		assert.Contains(t, prompt, "key changes", "El prompt debe solicitar cambios clave")
-		assert.Contains(t, prompt, "Suggest relevant labels", "El prompt debe solicitar etiquetas sugeridas")
+		assert.Contains(t, prompt, "Catchy but descriptive", "El prompt debe solicitar un título descriptivo")
+		assert.Contains(t, prompt, "Key Changes", "El prompt debe solicitar cambios clave")
+		assert.Contains(t, prompt, "Labels: Choose wisely", "El prompt debe solicitar etiquetas con criterio")
 	})
 
 	t.Run("formatResponse", func(t *testing.T) {

@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/Tomas-vilte/MateCommit/internal/cli/completion_helper"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
+	"github.com/Tomas-vilte/MateCommit/internal/ui"
 	"github.com/urfave/cli/v3"
 )
 
@@ -23,6 +25,7 @@ func (r *ReleaseCommandFactory) newGenerateCommand(trans *i18n.Translations) *cl
 				Value:   "RELEASE_NOTES.md",
 			},
 		},
+		ShellComplete: completion_helper.DefaultFlagComplete,
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			service, err := r.createReleaseService(ctx, trans)
 			if err != nil {
@@ -75,6 +78,12 @@ func generateReleaseAction(releaseService ports.ReleaseService, trans *i18n.Tran
 		fmt.Println(trans.GetMessage("release.version_label", 0, map[string]interface{}{
 			"Version": release.Version,
 		}))
+
+		if notes.Usage != nil {
+			fmt.Println()
+			ui.PrintTokenUsage(notes.Usage, trans)
+		}
+
 		fmt.Println()
 
 		return nil

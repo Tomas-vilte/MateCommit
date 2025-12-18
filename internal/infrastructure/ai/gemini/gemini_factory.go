@@ -23,7 +23,7 @@ func (f *GeminiProviderFactory) CreateCommitSummarizer(
 	cfg *config.Config,
 	trans *i18n.Translations,
 ) (ports.CommitSummarizer, error) {
-	return NewGeminiService(ctx, cfg, trans)
+	return NewGeminiCommitSummarizer(ctx, cfg, trans)
 }
 
 // CreatePRSummarizer crea un servicio Gemini para resumir PRs
@@ -33,6 +33,15 @@ func (f *GeminiProviderFactory) CreatePRSummarizer(
 	trans *i18n.Translations,
 ) (ports.PRSummarizer, error) {
 	return NewGeminiPRSummarizer(ctx, cfg, trans)
+}
+
+// CreateIssueContentGenerator crea un servicio Gemini para generar contenido de issues
+func (f *GeminiProviderFactory) CreateIssueContentGenerator(
+	ctx context.Context,
+	cfg *config.Config,
+	trans *i18n.Translations,
+) (ports.IssueContentGenerator, error) {
+	return NewGeminiIssueContentGenerator(ctx, cfg, trans)
 }
 
 // ValidateConfig valida la configuración de Gemini

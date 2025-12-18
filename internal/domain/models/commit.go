@@ -28,6 +28,7 @@ type (
 		Files                []string
 		CodeAnalysis         CodeAnalysis
 		RequirementsAnalysis RequirementsAnalysis
+		Usage                *UsageMetadata
 	}
 
 	CodeAnalysis struct {

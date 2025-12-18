@@ -21,7 +21,7 @@ type Translations struct {
 
 func NewTranslations(defaultLang string, localesPath string) (*Translations, error) {
 	if defaultLang == "" {
-		return nil, fmt.Errorf("default language cannot be empty")
+		return nil, fmt.Errorf("el idioma predeterminado no puede estar vacío")
 	}
 
 	var files []os.DirEntry
@@ -49,7 +49,7 @@ func NewTranslations(defaultLang string, localesPath string) (*Translations, err
 		}
 
 		if err != nil {
-			return nil, fmt.Errorf("error reading file %s: %w", file.Name(), err)
+			return nil, fmt.Errorf("error leyendo archivo %s: %w", file.Name(), err)
 		}
 
 		bundle.MustParseMessageFileBytes(data, file.Name())
@@ -63,8 +63,6 @@ func NewTranslations(defaultLang string, localesPath string) (*Translations, err
 	}, nil
 }
 
-// Force re-embed check 2
-
 func (t *Translations) SetLanguage(lang string) error {
 	for _, tag := range t.bundle.LanguageTags() {
 		if tag.String() == lang {
@@ -72,7 +70,7 @@ func (t *Translations) SetLanguage(lang string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("language '%s' not supported", lang)
+	return fmt.Errorf("lenguaje '%s' no soportado", lang)
 }
 
 func (t *Translations) GetMessage(messageID string, count int, templateData map[string]interface{}) string {
@@ -84,7 +82,7 @@ func (t *Translations) GetMessage(messageID string, count int, templateData map[
 		TemplateData: templateData,
 	})
 	if err != nil {
-		return "Translation missing: " + messageID
+		return "Falta la traducción: " + messageID
 	}
 	return localized
 }

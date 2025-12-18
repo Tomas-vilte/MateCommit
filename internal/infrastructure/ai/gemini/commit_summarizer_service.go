@@ -14,7 +14,7 @@ import (
 	"google.golang.org/genai"
 )
 
-type GeminiService struct {
+type GeminiCommitSummarizer struct {
 	client *genai.Client
 	config *config.Config
 	trans  *i18n.Translations
@@ -42,7 +42,7 @@ type (
 	}
 )
 
-func NewGeminiService(ctx context.Context, cfg *config.Config, trans *i18n.Translations) (*GeminiService, error) {
+func NewGeminiCommitSummarizer(ctx context.Context, cfg *config.Config, trans *i18n.Translations) (*GeminiCommitSummarizer, error) {
 	providerCfg, exists := cfg.AIProviders["gemini"]
 	if !exists || providerCfg.APIKey == "" {
 		msg := trans.GetMessage("error_missing_api_key", 0, map[string]interface{}{"Provider": "gemini"})
@@ -60,14 +60,14 @@ func NewGeminiService(ctx context.Context, cfg *config.Config, trans *i18n.Trans
 		return nil, fmt.Errorf("%s", msg)
 	}
 
-	return &GeminiService{
+	return &GeminiCommitSummarizer{
 		client: client,
 		config: cfg,
 		trans:  trans,
 	}, nil
 }
 
-func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.CommitInfo, count int) ([]models.CommitSuggestion, error) {
+func (s *GeminiCommitSummarizer) GenerateSuggestions(ctx context.Context, info models.CommitInfo, count int) ([]models.CommitSuggestion, error) {
 	if count <= 0 {
 		msg := s.trans.GetMessage("error_invalid_suggestion_count", 0, nil)
 		return nil, fmt.Errorf("%s", msg)
@@ -85,6 +85,7 @@ func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.Com
 		Temperature:      float32Ptr(0.3),
 		MaxOutputTokens:  int32(10000),
 		ResponseMIMEType: "application/json",
+		MediaResolution:  genai.MediaResolutionHigh,
 	}
 
 	resp, err := s.client.Models.GenerateContent(ctx, modelName, genai.Text(prompt), genConfig)
@@ -107,8 +108,14 @@ func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.Com
 			respLen, err, preview)
 	}
 
+	usage := extractUsage(resp)
+
 	if len(suggestions) == 0 {
 		return nil, fmt.Errorf("la IA no generó ninguna sugerencia")
+	}
+
+	for i := range suggestions {
+		suggestions[i].Usage = usage
 	}
 
 	if info.IssueInfo != nil && info.IssueInfo.Number > 0 {
@@ -118,7 +125,7 @@ func (s *GeminiService) GenerateSuggestions(ctx context.Context, info models.Com
 	return suggestions, nil
 }
 
-func (s *GeminiService) parseSuggestionsJSON(resp *genai.GenerateContentResponse) ([]models.CommitSuggestion, error) {
+func (s *GeminiCommitSummarizer) parseSuggestionsJSON(resp *genai.GenerateContentResponse) ([]models.CommitSuggestion, error) {
 	if resp == nil || len(resp.Candidates) == 0 {
 		return nil, fmt.Errorf("respuesta vacía de la IA")
 	}
@@ -169,7 +176,7 @@ func (s *GeminiService) parseSuggestionsJSON(resp *genai.GenerateContentResponse
 	return suggestions, nil
 }
 
-func (s *GeminiService) generatePrompt(locale string, info models.CommitInfo, count int) string {
+func (s *GeminiCommitSummarizer) generatePrompt(locale string, info models.CommitInfo, count int) string {
 	promptTemplate := ai.GetCommitPromptTemplate(locale, info.TicketInfo != nil &&
 		info.TicketInfo.TicketTitle != "")
 
@@ -279,7 +286,7 @@ func formatResponse(resp *genai.GenerateContentResponse) string {
 }
 
 // ensureIssueReference asegura que todas las sugerencias incluyan la referencia al issue correcta
-func (s *GeminiService) ensureIssueReference(suggestions []models.CommitSuggestion, issueNumber int) []models.CommitSuggestion {
+func (s *GeminiCommitSummarizer) ensureIssueReference(suggestions []models.CommitSuggestion, issueNumber int) []models.CommitSuggestion {
 	issuePattern := regexp.MustCompile(`\(#\d+\)`)
 
 	for i := range suggestions {

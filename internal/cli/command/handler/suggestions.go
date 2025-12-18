@@ -75,6 +75,11 @@ func (h *SuggestionHandler) displaySuggestions(suggestions []models.CommitSugges
 			h.displayTechnicalAnalysis(suggestion.RequirementsAnalysis)
 		}
 
+		if i == 0 && suggestion.Usage != nil {
+			fmt.Println()
+			ui.PrintTokenUsage(suggestion.Usage, h.t)
+		}
+
 		fmt.Printf("%s\n", separator)
 	}
 

@@ -45,7 +45,7 @@ func (m *MockVCSClient) AddLabelsToPR(ctx context.Context, prNumber int, labels 
 	return args.Error(0)
 }
 
-func (m *MockVCSClient) CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool) error {
+func (m *MockVCSClient) CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool) error {
 	args := m.Called(ctx, release, notes, draft)
 	return args.Error(0)
 }
@@ -102,6 +102,16 @@ func (m *MockVCSClient) GetPRIssues(ctx context.Context, branchName string, comm
 func (m *MockVCSClient) UpdateIssueChecklist(ctx context.Context, issueNumber int, indices []int) error {
 	args := m.Called(ctx, issueNumber, indices)
 	return args.Error(0)
+}
+
+func (m *MockVCSClient) CreateIssue(ctx context.Context, title string, body string, labels []string, assignees []string) (*models.Issue, error) {
+	args := m.Called(ctx, title, body, labels, assignees)
+	return args.Get(0).(*models.Issue), args.Error(1)
+}
+
+func (m *MockVCSClient) GetAuthenticatedUser(ctx context.Context) (string, error) {
+	args := m.Called(ctx)
+	return args.String(0), args.Error(1)
 }
 
 func TestGoModAnalyzer_Name(t *testing.T) {

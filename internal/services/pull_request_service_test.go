@@ -186,10 +186,11 @@ func TestPRService_SummarizePR_WithRelatedIssues(t *testing.T) {
 	cfg := &config.Config{Language: "es"}
 
 	prData := models.PRData{
-		ID:            prNumber,
-		BranchName:    "fix/123-bug",
-		PRDescription: "Closes #456",
-		Commits:       []models.Commit{{Message: "Fix #789"}},
+		ID:          prNumber,
+		Title:       "fix/123-bug",
+		BranchName:  "fix/123-bug",
+		Description: "Closes #456",
+		Commits:     []models.Commit{{Message: "Fix #789"}},
 	}
 
 	relatedIssues := []models.Issue{
@@ -204,7 +205,7 @@ func TestPRService_SummarizePR_WithRelatedIssues(t *testing.T) {
 	}
 
 	mockVCS.On("GetPR", ctx, prNumber).Return(prData, nil)
-	mockVCS.On("GetPRIssues", ctx, prData.BranchName, []string{"Fix #789"}, prData.PRDescription).
+	mockVCS.On("GetPRIssues", ctx, prData.BranchName, []string{"Fix #789"}, prData.Description).
 		Return(relatedIssues, nil)
 
 	mockAI.On("GeneratePRSummary", ctx, mock.MatchedBy(func(prompt string) bool {
@@ -394,6 +395,6 @@ func TestPRService_SummarizePR_Integration(t *testing.T) {
 		require.NoError(t, err)
 		require.NotEmpty(t, summary)
 
-		t.Logf("Resumen generado: %s", summary)
+		t.Logf("Resumen generado: %+v", summary)
 	})
 }

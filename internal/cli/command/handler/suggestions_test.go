@@ -71,6 +71,19 @@ func (m *mockGitService) GetCommitsSinceTag(ctx context.Context, tag string) ([]
 	return args.Get(0).([]models.Commit), args.Error(1)
 }
 
+func (m *mockGitService) GetCommitsBetweenTags(ctx context.Context, fromTag, toTag string) ([]models.Commit, error) {
+	args := m.Called(ctx, fromTag, toTag)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.Commit), args.Error(1)
+}
+
+func (m *mockGitService) GetTagDate(ctx context.Context, tag string) (string, error) {
+	args := m.Called(ctx, tag)
+	return args.String(0), args.Error(1)
+}
+
 func (m *mockGitService) CreateTag(ctx context.Context, version, message string) error {
 	args := m.Called(ctx, version, message)
 	return args.Error(0)
@@ -78,6 +91,11 @@ func (m *mockGitService) CreateTag(ctx context.Context, version, message string)
 
 func (m *mockGitService) PushTag(ctx context.Context, version string) error {
 	args := m.Called(ctx, version)
+	return args.Error(0)
+}
+
+func (m *mockGitService) Push(ctx context.Context) error {
+	args := m.Called(ctx)
 	return args.Error(0)
 }
 

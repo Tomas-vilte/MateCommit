@@ -204,7 +204,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		mockGit.On("GetDiff", mock.Anything).Return("diff", nil)
 		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return("history", nil)
 		mockGit.On("GetCurrentBranch", mock.Anything).Return("main", nil)
-		mockGit.On("GetRecentCommitMessages", mock.Anything, 5).Return("Just a commit #999", nil)
+		mockGit.On("GetRecentCommitMessages", mock.Anything, 5).Return("Just a commit fixes #999", nil)
 
 		mockGit.On("GetRepoInfo", mock.Anything).Return("owner", "repo", "github", nil)
 		cfg.VCSConfigs = map[string]config.VCSConfig{"github": {Token: "token"}}

@@ -90,7 +90,11 @@ func FormatReleaseMarkdown(release *models.Release, notes *models.ReleaseNotes, 
 		if len(validLinks) > 0 {
 			content += fmt.Sprintf("## 📚 %s\n\n", trans.GetMessage("release.resources_title", 0, nil))
 			for key, value := range validLinks {
-				content += fmt.Sprintf("- [%s](%s)\n", key, value)
+				if strings.HasPrefix(value, "http://") || strings.HasPrefix(value, "https://") {
+					content += fmt.Sprintf("- [%s](%s)\n", key, value)
+				} else {
+					content += fmt.Sprintf("- **%s:** %s\n", key, value)
+				}
 			}
 			content += "\n"
 		}

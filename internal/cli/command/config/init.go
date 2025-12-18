@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Tomas-vilte/MateCommit/internal/cli/completion_helper"
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/ai/gemini"
@@ -31,7 +32,8 @@ func (c *ConfigCommandFactory) newInitCommand(t *i18n.Translations, cfg *config.
 				Usage: t.GetMessage("config_init_full_flag", 0, nil),
 			},
 		},
-		Action: initConfigAction(cfg, t),
+		ShellComplete: completion_helper.DefaultFlagComplete,
+		Action:        initConfigAction(cfg, t),
 	}
 }
 
@@ -380,7 +382,7 @@ func validateGeminiAPIKey(ctx context.Context, apiKey string, t *i18n.Translatio
 	testCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	_, err := gemini.NewGeminiService(testCtx, testCfg, t)
+	_, err := gemini.NewGeminiCommitSummarizer(testCtx, testCfg, t)
 	if err != nil {
 		spinner.Error(t.GetMessage("config.api_key_invalid", 0, nil))
 		ui.PrintError(t.GetMessage("config.check_api_key_error", 0, map[string]interface{}{
