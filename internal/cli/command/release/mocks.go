@@ -27,8 +27,8 @@ func (m *MockReleaseService) GenerateReleaseNotes(ctx context.Context, release *
 	return args.Get(0).(*models.ReleaseNotes), args.Error(1)
 }
 
-func (m *MockReleaseService) PublishRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool) error {
-	args := m.Called(ctx, release, notes, draft)
+func (m *MockReleaseService) PublishRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool) error {
+	args := m.Called(ctx, release, notes, draft, buildBinaries)
 	return args.Error(0)
 }
 
@@ -57,6 +57,26 @@ func (m *MockReleaseService) UpdateRelease(ctx context.Context, version, body st
 
 func (m *MockReleaseService) EnrichReleaseContext(ctx context.Context, release *models.Release) error {
 	args := m.Called(ctx, release)
+	return args.Error(0)
+}
+
+func (m *MockReleaseService) UpdateLocalChangelog(release *models.Release, notes *models.ReleaseNotes) error {
+	args := m.Called(release, notes)
+	return args.Error(0)
+}
+
+func (m *MockReleaseService) CommitChangelog(ctx context.Context, version string) error {
+	args := m.Called(ctx, version)
+	return args.Error(0)
+}
+
+func (m *MockReleaseService) PushChanges(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
+func (m *MockReleaseService) UpdateAppVersion(version string) error {
+	args := m.Called(version)
 	return args.Error(0)
 }
 
@@ -117,6 +137,19 @@ func (m *MockGitService) GetCommitsSinceTag(ctx context.Context, tag string) ([]
 	return args.Get(0).([]models.Commit), args.Error(1)
 }
 
+func (m *MockGitService) GetCommitsBetweenTags(ctx context.Context, fromTag, toTag string) ([]models.Commit, error) {
+	args := m.Called(ctx, fromTag, toTag)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.Commit), args.Error(1)
+}
+
+func (m *MockGitService) GetTagDate(ctx context.Context, tag string) (string, error) {
+	args := m.Called(ctx, tag)
+	return args.String(0), args.Error(1)
+}
+
 func (m *MockGitService) CreateTag(ctx context.Context, version, message string) error {
 	args := m.Called(ctx, version, message)
 	return args.Error(0)
@@ -124,6 +157,11 @@ func (m *MockGitService) CreateTag(ctx context.Context, version, message string)
 
 func (m *MockGitService) PushTag(ctx context.Context, version string) error {
 	args := m.Called(ctx, version)
+	return args.Error(0)
+}
+
+func (m *MockGitService) Push(ctx context.Context) error {
+	args := m.Called(ctx)
 	return args.Error(0)
 }
 

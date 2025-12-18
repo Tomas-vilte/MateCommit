@@ -71,6 +71,7 @@ func (g *ReleaseNotesGenerator) GenerateNotes(ctx context.Context, release *mode
 		Temperature:      float32Ptr(0.3),
 		MaxOutputTokens:  int32(10000),
 		ResponseMIMEType: "application/json",
+		MediaResolution:  genai.MediaResolutionHigh,
 	}
 
 	resp, err := g.client.Models.GenerateContent(ctx, g.model, genai.Text(prompt), genConfig)
@@ -91,10 +92,13 @@ func (g *ReleaseNotesGenerator) GenerateNotes(ctx context.Context, release *mode
 		content += part.Text
 	}
 
+	usage := extractUsage(resp)
 	notes, err := g.parseJSONResponse(content, release)
 	if err != nil {
 		return nil, fmt.Errorf("error al parsear respuesta JSON de release notes: %w", err)
 	}
+
+	notes.Usage = usage
 
 	return notes, nil
 }

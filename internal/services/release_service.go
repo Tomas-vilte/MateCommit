@@ -3,14 +3,22 @@ package services
 import (
 	"context"
 	"fmt"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
 
+	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/dependency"
+)
+
+var (
+	conventionalRegex = regexp.MustCompile(`^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(([^)]+)\))?(!)?:\s*(.+)`)
+	breakingRegex     = regexp.MustCompile(`BREAKING[ -]CHANGE:\s*(.+)`)
+	versionRegex      = regexp.MustCompile(`v?(\d+)\.(\d+)\.(\d+)`)
 )
 
 var _ ports.ReleaseService = (*ReleaseService)(nil)
@@ -21,6 +29,7 @@ type ReleaseService struct {
 	notesGen    ports.ReleaseNotesGenerator
 	trans       *i18n.Translations
 	depAnalyzer *dependency.AnalyzerRegistry
+	config      *config.Config
 }
 
 func NewReleaseService(
@@ -28,6 +37,7 @@ func NewReleaseService(
 	vcsClient ports.VCSClient,
 	notesGen ports.ReleaseNotesGenerator,
 	trans *i18n.Translations,
+	config *config.Config,
 ) *ReleaseService {
 	return &ReleaseService{
 		git:         git,
@@ -35,6 +45,7 @@ func NewReleaseService(
 		notesGen:    notesGen,
 		trans:       trans,
 		depAnalyzer: dependency.NewAnalyzerRegistry(),
+		config:      config,
 	}
 }
 
@@ -83,11 +94,12 @@ func (s *ReleaseService) GenerateReleaseNotes(ctx context.Context, release *mode
 	return s.notesGen.GenerateNotes(ctx, release)
 }
 
-func (s *ReleaseService) PublishRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool) error {
+func (s *ReleaseService) PublishRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool) error {
 	if s.vcsClient == nil {
 		return fmt.Errorf("cliente VCS no configurado. Configura un proveedor VCS con 'matecommit config set-vcsClient'")
 	}
-	return s.vcsClient.CreateRelease(ctx, release, notes, draft)
+
+	return s.vcsClient.CreateRelease(ctx, release, notes, draft, buildBinaries)
 }
 
 func (s *ReleaseService) CreateTag(ctx context.Context, version, message string) error {
@@ -147,6 +159,56 @@ func (s *ReleaseService) EnrichReleaseContext(ctx context.Context, release *mode
 	return nil
 }
 
+func (s *ReleaseService) UpdateLocalChangelog(release *models.Release, notes *models.ReleaseNotes) error {
+	const changelogFile = "CHANGELOG.md"
+
+	newContent := s.buildChangelogFromNotes(context.Background(), release, notes)
+
+	fmt.Println(s.trans.GetMessage("release.changelog_update_started", 0, nil))
+
+	return s.prependToChangelog(changelogFile, newContent)
+}
+
+func (s *ReleaseService) prependToChangelog(filename, newContent string) error {
+	content, err := os.ReadFile(filename)
+	if os.IsNotExist(err) {
+		header := "# Changelog\n\nAll notable changes to this project will be documented in this file.\n\n"
+		return os.WriteFile(filename, []byte(header+newContent), 0644)
+	}
+	if err != nil {
+		return err
+	}
+
+	current := string(content)
+	var sb strings.Builder
+
+	idx := strings.Index(current, "\n## ")
+
+	if idx != -1 {
+		pre := current[:idx]
+		post := current[idx:]
+
+		sb.WriteString(strings.TrimSpace(pre))
+		sb.WriteString("\n\n")
+		sb.WriteString(strings.TrimSpace(newContent))
+		sb.WriteString("\n")
+		sb.WriteString(post)
+	} else {
+		if strings.HasPrefix(current, "# ") {
+			sb.WriteString(strings.TrimSpace(current))
+			sb.WriteString("\n\n")
+			sb.WriteString(strings.TrimSpace(newContent))
+			sb.WriteString("\n")
+		} else {
+			sb.WriteString(strings.TrimSpace(newContent))
+			sb.WriteString("\n\n")
+			sb.WriteString(strings.TrimSpace(current))
+		}
+	}
+
+	return os.WriteFile(filename, []byte(sb.String()), 0644)
+}
+
 func (s *ReleaseService) analyzeDependencyChanges(ctx context.Context, release *models.Release) ([]models.DependencyChange, error) {
 	if s.vcsClient == nil {
 		return []models.DependencyChange{}, nil
@@ -156,9 +218,6 @@ func (s *ReleaseService) analyzeDependencyChanges(ctx context.Context, release *
 
 // categorizeCommits categoriza los commits según conventional commits
 func (s *ReleaseService) categorizeCommits(release *models.Release) {
-	conventionalRegex := regexp.MustCompile(`^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(([^)]+)\))?(!)?:\s*(.+)`)
-	breakingRegex := regexp.MustCompile(`BREAKING[ -]CHANGE:\s*(.+)`)
-
 	for _, commit := range release.AllCommits {
 		msg := commit.Message
 		lines := strings.Split(msg, "\n")
@@ -223,7 +282,6 @@ func (s *ReleaseService) categorizeCommits(release *models.Release) {
 
 // calculateVersion calcula la nueva versión basándose en semantic versioning
 func (s *ReleaseService) calculateVersion(currentTag string, release *models.Release) (string, models.VersionBump) {
-	versionRegex := regexp.MustCompile(`v?(\d+)\.(\d+)\.(\d+)`)
 	matches := versionRegex.FindStringSubmatch(currentTag)
 
 	major, minor, patch := 0, 0, 0
@@ -275,7 +333,58 @@ func (s *ReleaseService) generateBasicNotes(release *models.Release) *models.Rel
 	}
 }
 
-// buildChangelog construye el changelog en formato markdown
+// buildChangelogFromNotes formatea el registro de cambios utilizando destacados generados por IA
+func (s *ReleaseService) buildChangelogFromNotes(ctx context.Context, release *models.Release, notes *models.ReleaseNotes) string {
+	var sb strings.Builder
+
+	tagDate, err := s.git.GetTagDate(ctx, release.Version)
+	if err != nil {
+		tagDate = ""
+	}
+
+	owner, repo, provider, _ := s.git.GetRepoInfo(ctx)
+
+	versionHeader := fmt.Sprintf("## [%s]", release.Version)
+	if tagDate != "" {
+		versionHeader += fmt.Sprintf(" - %s", tagDate)
+	}
+
+	if provider == "github" && owner != "" && repo != "" {
+		compareURL := ""
+		if release.PreviousVersion != "" {
+			compareURL = fmt.Sprintf("https://github.com/%s/%s/compare/%s...%s", owner, repo, release.PreviousVersion, release.Version)
+		} else {
+			compareURL = fmt.Sprintf("https://github.com/%s/%s/releases/tag/%s", owner, repo, release.Version)
+		}
+		versionHeader += fmt.Sprintf("\n\n[%s]: %s", release.Version, compareURL)
+	}
+
+	sb.WriteString(versionHeader + "\n\n")
+
+	if notes.Summary != "" {
+		sb.WriteString(fmt.Sprintf("%s\n\n", notes.Summary))
+	}
+
+	if len(notes.Highlights) > 0 {
+		sb.WriteString("### ✨ Highlights\n\n")
+		for _, highlight := range notes.Highlights {
+			sb.WriteString(fmt.Sprintf("- %s\n", highlight))
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(notes.BreakingChanges) > 0 {
+		sb.WriteString("### ⚠️ Breaking Changes\n\n")
+		for _, bc := range notes.BreakingChanges {
+			sb.WriteString(fmt.Sprintf("- %s\n", bc))
+		}
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
+}
+
+// buildChangelog formatea el registro de cambios a partir de confirmaciones sin procesar (respaldo cuando la IA no está disponible)
 func (s *ReleaseService) buildChangelog(release *models.Release) string {
 	var sb strings.Builder
 
@@ -339,4 +448,82 @@ func (s *ReleaseService) formatReleaseItem(item models.ReleaseItem) string {
 
 	line += "\n"
 	return line
+}
+
+func (s *ReleaseService) CommitChangelog(ctx context.Context, version string) error {
+	mainGoFile := "cmd/main.go"
+	if s.config != nil && s.config.VersionFile != "" {
+		mainGoFile = s.config.VersionFile
+	}
+
+	if _, err := os.Stat(mainGoFile); err == nil {
+		if err := s.git.AddFileToStaging(ctx, mainGoFile); err != nil {
+			return fmt.Errorf("error haciendo git add de archivo de versión (%s): %w", mainGoFile, err)
+		}
+	}
+
+	if !s.git.HasStagedChanges(ctx) {
+		fmt.Println(s.trans.GetMessage("release.commit_no_staged", 0, nil))
+		return nil
+	}
+
+	message := fmt.Sprintf("chore: update changelog and bump version to %s", version)
+	if err := s.git.CreateCommit(ctx, message); err != nil {
+		return fmt.Errorf("%s", s.trans.GetMessage("release.error_committing_changelog", 0, map[string]interface{}{"Error": err}))
+	}
+	return nil
+}
+
+// PushChanges pushes committed changes to the remote repository
+func (s *ReleaseService) PushChanges(ctx context.Context) error {
+	return s.git.Push(ctx)
+}
+
+func (s *ReleaseService) UpdateAppVersion(version string) error {
+	mainGoFile := "cmd/main.go"
+	versionPattern := `Version:\s*".*"`
+
+	if s.config != nil {
+		if s.config.VersionFile != "" {
+			mainGoFile = s.config.VersionFile
+		}
+		if s.config.VersionPattern != "" {
+			versionPattern = s.config.VersionPattern
+		}
+	}
+
+	content, err := os.ReadFile(mainGoFile)
+	if err != nil {
+		return fmt.Errorf("error leyendo archivo de versión (%s): %w", mainGoFile, err)
+	}
+
+	re, err := regexp.Compile(versionPattern)
+	if err != nil {
+		return fmt.Errorf("patrón de versión inválido (%s): %w", versionPattern, err)
+	}
+
+	currentContent := string(content)
+	if !re.MatchString(currentContent) {
+		return fmt.Errorf("no se encontró el patrón de versión en %s", mainGoFile)
+	}
+
+	match := re.FindString(currentContent)
+
+	valueRe := regexp.MustCompile(`"(.*)"`)
+	valMatch := valueRe.FindStringIndex(match)
+
+	if valMatch == nil {
+		return fmt.Errorf("no se encontró una cadena entre comillas en el patrón coincidente")
+	}
+
+	cleanVersion := strings.TrimPrefix(version, "v")
+	newMatch := match[:valMatch[0]] + fmt.Sprintf(`"%s"`, cleanVersion) + match[valMatch[1]:]
+
+	newContent := strings.Replace(currentContent, match, newMatch, 1)
+
+	if err := os.WriteFile(mainGoFile, []byte(newContent), 0644); err != nil {
+		return fmt.Errorf("error escribiendo archivo de versión: %w", err)
+	}
+
+	return nil
 }

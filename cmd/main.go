@@ -6,19 +6,26 @@ import (
 	"log"
 	"os"
 
+	"github.com/Tomas-vilte/MateCommit/internal/cli/command/completion"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/config"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/handler"
+	"github.com/Tomas-vilte/MateCommit/internal/cli/command/issues"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/pull_requests"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/release"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/suggests_commits"
+	"github.com/Tomas-vilte/MateCommit/internal/cli/command/update"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/registry"
 	cfg "github.com/Tomas-vilte/MateCommit/internal/config"
+	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/ai/gemini"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/di"
+	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/factory"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/git"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/tickets/jira"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/vcs/github"
+	"github.com/Tomas-vilte/MateCommit/internal/services"
+	"github.com/Tomas-vilte/MateCommit/internal/version"
 	"github.com/urfave/cli/v3"
 )
 
@@ -57,15 +64,15 @@ func initializeApp() (*cli.Command, error) {
 	container := di.NewContainer(cfgApp, translations)
 
 	if err := container.RegisterAIProvider("gemini", gemini.NewGeminiProviderFactory()); err != nil {
-		log.Printf("Warning: failed to register Gemini provider: %v", err)
+		log.Printf("Warning: no se pudo registrar el proveedor Gemini: %v", err)
 	}
 
 	if err := container.RegisterVCSProvider("github", github.NewGitHubProviderFactory()); err != nil {
-		log.Printf("Warning: failed to register GitHub provider: %v", err)
+		log.Printf("Warning: no se pudo registrar el proveedor de GitHub: %v", err)
 	}
 
 	if err := container.RegisterTicketProvider("jira", jira.NewJiraProviderFactory()); err != nil {
-		log.Printf("Warning: failed to register Jira provider: %v", err)
+		log.Printf("Warning: no se pudo registrar el proveedor Jira: %v", err)
 	}
 
 	gitService := git.NewGitService(translations)
@@ -74,24 +81,34 @@ func initializeApp() (*cli.Command, error) {
 	ctx := context.Background()
 	commitService, err := container.GetCommitService(ctx)
 	if err != nil {
-		log.Printf("Warning: commit service initialization failed: %v", err)
+		log.Printf("Warning: la inicialización del servicio de confirmación falló: %v", err)
 		log.Println("La IA no está configurada. Podés configurarla con 'matecommit config init'")
 	}
 
 	var vcsClient = container.GetVCSRegistry()
 	vcsClientInstance, _ := vcsClient.CreateClientFromConfig(ctx, gitService, cfgApp, translations)
 	commitHandler := handler.NewSuggestionHandler(gitService, vcsClientInstance, translations)
-
-	prService, err := container.GetPRService(ctx)
+	aiSummarizer, err := container.GetPRSummarizer(ctx)
 	if err != nil {
-		log.Println("La IA no está configurada para PRs. Podés configurarla con 'matecommit config init'")
+		log.Printf("Warning: no se pudo crear el servicio de IA para PRs: %v", err)
+		aiSummarizer = nil
 	}
-	prCommand := pull_requests.NewSummarizeCommand(prService)
+
+	prServiceFactory := factory.NewPrServiceFactory(cfgApp, translations, aiSummarizer, gitService)
+	prCommand := pull_requests.NewSummarizeCommand(prServiceFactory)
 
 	registerCommand := registry.NewRegistry(cfgApp, translations)
 
 	if err := registerCommand.Register("suggest", suggests_commits.NewSuggestCommandFactory(commitService, commitHandler)); err != nil {
 		log.Fatalf("Error al registrar el comando 'suggest': %v", err)
+	}
+
+	issueServiceProvider := func(ctx context.Context) (ports.IssueGeneratorService, error) {
+		return container.GetIssueGeneratorService(ctx)
+	}
+
+	if err := registerCommand.Register("issue", issues.NewIssuesCommandFactory(issueServiceProvider, container.GetIssueTemplateService())); err != nil {
+		log.Fatalf("Error al registrar el comando 'issue': %v", err)
 	}
 
 	if err := registerCommand.Register("config", config.NewConfigCommandFactory()); err != nil {
@@ -110,7 +127,13 @@ func initializeApp() (*cli.Command, error) {
 		log.Fatalf("Error al registrar el comando 'release': %v", err)
 	}
 
+	if err := registerCommand.Register("update", update.NewUpdateCommandFactory("v1.4.0")); err != nil {
+		log.Fatalf("Error al registrar el comando 'update': %v", err)
+	}
+
 	commands := registerCommand.CreateCommands()
+	commands = append(commands, completion.NewCompletionCommand(translations))
+
 	helpCommand := &cli.Command{
 		Name:    "help",
 		Aliases: []string{"h"},
@@ -121,11 +144,17 @@ func initializeApp() (*cli.Command, error) {
 	}
 	commands = append(commands, helpCommand)
 
+	go func() {
+		checker := services.NewVersionUpdater(version.FullVersion(), translations)
+		checker.CheckForUpdates(context.Background())
+	}()
+
 	return &cli.Command{
-		Name:        "mate-commit",
-		Usage:       translations.GetMessage("app_usage", 0, nil),
-		Version:     "1.4.0",
-		Description: translations.GetMessage("app_description", 0, nil),
-		Commands:    commands,
+		Name:                  "mate-commit",
+		Usage:                 translations.GetMessage("app_usage", 0, nil),
+		Version:               version.Version,
+		Description:           translations.GetMessage("app_description", 0, nil),
+		Commands:              commands,
+		EnableShellCompletion: true,
 	}, nil
 }

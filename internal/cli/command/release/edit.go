@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/Tomas-vilte/MateCommit/internal/cli/completion_helper"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
@@ -37,6 +38,7 @@ func (r *ReleaseCommandFactory) newEditCommand(trans *i18n.Translations) *cli.Co
 				Value:   false,
 			},
 		},
+		ShellComplete: completion_helper.DefaultFlagComplete,
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			service, err := r.createReleaseService(ctx, trans)
 			if err != nil {

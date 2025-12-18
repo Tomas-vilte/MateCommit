@@ -276,6 +276,16 @@ vcs_provider_auto_detected_not_configured = "Proveedor de VCS '%s' detectado aut
 release_already_exists = "Esta release {{.Version}} ya existe"
 repo_or_tag_not_found = "No se encontró el repositorio o la etiqueta. Asegurate de que la etiqueta {{.Version}} exista"
 create_release = "Error creando release"
+upload_binaries = "Error subiendo binarios: {{.Error}}"
+create_temp_dir = "Error creando directorio temporal: {{.Error}}"
+build_binaries = "Error construyendo binarios: {{.Error}}"
+open_file = "Error abriendo archivo: {{.File}}: {{.Error}}"
+upload_asset = "Error subiendo asset {{.Asset}}: {{.Error}}"
+compile_target = "Error compilando para {{.GOOS}}/{{.GOARCH}}: {{.Output}}"
+create_zip = "Error creando zip: {{.Error}}"
+create_targz = "Error creando tar.gz: {{.Error}}"
+archive_format_not_supported = "Formato de archivo no soportado: {{.Format}}"
+binary_not_found_archive = "Binario no encontrado en el archivo"
 pr_number_required = "Debes especificar el número del PR con -n o --number"
 
 [warning]
@@ -445,6 +455,17 @@ create_push_help = "   3. Opcional: matecommit release push"
 
 # Common
 version_calculated = "📦 Nueva versión calculada: {{.Version}}"
+changelog_update_started = "📝 Actualizando CHANGELOG.md..."
+changelog_updated = "✅ CHANGELOG.md Actualizado exitosamente"
+error_committing_changelog = "Error al enviar el Changelog: {{.Error}}"
+error_updating_app_version = "Error al actualizar la versión de la aplicación: {{.Error}}"
+app_version_updated = "✅ Versión de la aplicación actualizada a {{.Version}}"
+commit_no_staged = "No hay cambios que confirmar. Se omite el paso de confirmación."
+changelog_committed = "✅ Changelog confirmado con éxito"
+pushing_changes = "Subiendo cambios al repositorio remoto..."
+error_pushing_changes = "Error al subir cambios: {{.Error}}"
+changes_pushed = "✅ Cambios subidos con éxito"
+
 highlights_section = "### Highlights"
 # Generate Markdown
 md_version = "Versión"
@@ -458,6 +479,7 @@ push_success = "✅ Tag {{.Version}} subido exitosamente"
 
 flag_publish_usage = "Publicar release en el proveedor VCS (ej: GitHub)"
 flag_draft_usage = "Publicar como borrador (requiere --publish)"
+flag_changelog_usage = "Actualizar CHANGELOG.md y crear commit automáticamente"
 publishing_release = "🚀 Publicando release..."
 release_published = "✅ Release publicado exitosamente"
 error_publishing_release = "Error al publicar la release: {{.Error}}"
@@ -684,4 +706,250 @@ full_setup_option = "2. Configuración completa"
 exit_option = "3. Salir"
 prompt_choice = "Selecciona [1]: "
 setup_cancelled = "Configuración cancelada"
-invalid_choice = "Opción inválida"
+[completion]
+command_usage = "Generar script de autocompletado"
+command_description = "Muestra el script de autocompletado para tu shell"
+bash_usage = "Generar script de autocompletado para Bash"
+zsh_usage = "Generar script de autocompletado para Zsh"
+install_usage = "Instalar script de autocompletado en tu configuración de shell"
+error_home_dir = "no se pudo obtener el directorio del usuario: {{.Error}}"
+error_unsupported_shell = "shell no soportada: {{.Shell}}. Solo bash y zsh son soportados para la instalación automática"
+error_open_config = "no se pudo abrir el archivo de configuración: {{.Error}}"
+error_write_config = "no se pudo escribir en el archivo de configuración: {{.Error}}"
+already_installed = "✅ Autocompletado ya instalado en {{.File}}"
+restart_shell = "Por favor reinicia tu terminal o ejecuta:"
+installed_success = "✅ Autocompletado instalado en {{.File}}"
+
+[token_usage]
+header = "📊 Uso de Tokens"
+input = "Tokens de Entrada"
+output = "Tokens de Salida"
+total = "Tokens Totales"
+
+[update]
+usage = "Actualizar MateCommit a la última versión"
+box_top = "╭──────────────────────────────────────────────╮"
+box_bottom = "╰──────────────────────────────────────────────╯"
+available = "  ¡Actualización disponible! {{.Current}} -> {{.Latest}}"
+command = "  Ejecuta: {{.Command}} para actualizar"
+updating = "🔄 Actualizando MateCommit..."
+success = "✅ ¡MateCommit actualizado correctamente!"
+error = "Error al actualizar MateCommit"
+
+[update.method_not_detected]
+other = "Método de instalación no detectado. Por favor actualizá manualmente"
+
+[update.go_not_found]
+other = "Go no está instalado. No se puede actualizar via 'go install'"
+
+[update.brew_not_found]
+other = "Homebrew no está instalado. No se puede actualizar via 'brew'"
+
+[update.binary_not_supported]
+other = "Actualización via binario no soportada todavía. Por favor actualizá manualmente:\n  • Via Go: go install github.com/Tomas-vilte/MateCommit@latest\n  • Via Homebrew: brew upgrade matecommit"
+
+[update.downloading]
+other = "Descargando versión {{.Version}}..."
+
+[update.extracting]
+other = "Extrayendo archivos..."
+
+[update.installing]
+other = "Instalando nueva versión..."
+
+
+
+[build]
+compiling_binaries = "Compilando binarios para múltiples plataformas..."
+uploading_binaries = "Subiendo {{.Count}} binarios al release..."
+
+[build.errors]
+upload_binaries = "Error subiendo binarios: {{.Error}}"
+create_zip = "Error creando zip: {{.Error}}"
+create_targz = "Error creando tar.gz: {{.Error}}"
+compile_target = "Error compilando para {{.GOOS}}/{{.GOARCH}}: {{.Output}}"
+build_binaries = "Error construyendo y empaquetando binarios: {{.Error}}"
+open_file = "Error abriendo archivo {{.File}}: {{.Error}}"
+upload_asset = "Error subiendo asset {{.Asset}}: {{.Error}}"
+create_temp_dir = "Error creando directorio temporal: {{.Error}}"
+
+[update.errors]
+get_latest = "Error obteniendo ultima version: {{.Error}}"
+arch_not_supported = "Arquitectura no soportada: {{.Arch}}"
+os_not_supported = "Sistema operativo no soportado: {{.OS}}"
+binary_not_found_manual = "Binario no encontrado para {{.OS}}/{{.Arch}}. Descargalo manualmente desde: {{.URL}}"
+create_temp = "Error creando directorio temporal: {{.Error}}"
+download = "Error descargando binario: {{.Error}}"
+download_http = "Error descargando: HTTP {{.StatusCode}}"
+create_temp_file = "Error creando archivo temporal: {{.Error}}"
+save_binary = "Error guardando binario: {{.Error}}"
+extract = "Error extrayendo archivo: {{.Error}}"
+get_executable = "Error obteniendo ruta del ejecutable: {{.Error}}"
+resolve_symlinks = "Error resolviendo symlinks: {{.Error}}"
+create_backup = "Error creando backup: {{.Error}}"
+install_binary = "Error instalando nuevo binario: {{.Error}}"
+chmod = "Error estableciendo permisos: {{.Error}}"
+
+# Comando Generador de Issues
+[issue]
+command_usage = "Gestionar y generar issues"
+generate_usage = "Generar una nueva issue desde cambios de código o descripción"
+flag_from_diff = "Generar issue desde el diff actual de git"
+flag_description = "Descripción manual para la issue"
+flag_hint = "Pista adicional para guiar la generación de la IA"
+flag_no_labels = "Omitir inferencia automática de labels"
+flag_dry_run = "Solo vista previa, no crear la issue"
+banner = "Generador de Issues"
+analyzing = "Analizando cambios y generando contenido..."
+creating = "Creando issue..."
+preview_title = "Vista Previa de la Issue"
+preview_title_label = "Título"
+preview_description_label = "Descripción"
+preview_labels_label = "Labels"
+confirm_prompt = "¿Crear esta issue?"
+created_successfully = "✅ Issue #{{.Number}} creada exitosamente: {{.URL}}"
+cancelled = "Creación de issue cancelada"
+dry_run_complete = "Dry run completado. No se creó ninguna issue."
+error_no_input = "Debés especificar --from-diff o --description"
+error_conflicting_flags = "No podés usar --from-diff y --description juntos"
+error_generating = "Error generando contenido de la issue"
+error_creating = "Error creando la issue"
+flag_assign_me = "Asignarte la issue automáticamente"
+flag_checkout = "Crear y cambiar a un nuevo branch después de crear la issue"
+getting_user = "Obteniendo usuario autenticado..."
+will_assign = "Se asignará a: {{.User}}"
+warn_assignee_failed = "No se pudo asignar la issue automáticamente"
+creating_branch = "Creando branch: {{.Branch}}"
+branch_created = "✅ Cambiado al branch: {{.Branch}}"
+warn_checkout_failed = "No se pudo crear el branch automáticamente"
+flag_from_pr = "Generar issue desde un Pull Request existente"
+analyzing_pr = "Analizando Pull Request #{{.Number}}..."
+error_multiple_sources = "Solo podés especificar una opción: --from-diff, --from-pr, o --description"
+link_success = "Vinculación exitosa: PR #{{.PR}} actualizado para cerrar #{{.Issue}}"
+link_error = "No se pudo vincular la issue al PR #{{.PR}} automáticamente: {{.Error}}"
+# Link Command
+link_usage = "Vincular un PR con una issue existente"
+link_banner = "Vinculador de Issues"
+flag_pr_number = "Número del Pull Request"
+flag_issue_number = "Número de la issue"
+error_pr_required = "Debés especificar el número del PR con --pr"
+error_issue_required = "Debés especificar el número de la issue con --issue"
+error_invalid_pr = "El número de PR es inválido"
+error_invalid_issue = "El número de issue es inválido"
+error_linking = "Error vinculando PR con issue"
+linking = "Vinculando PR #{{.PR}} con issue #{{.Issue}}..."
+link_updated = "✅ PR #{{.PR}} actualizado exitosamente. Ahora cierra #{{.Issue}}"
+# Gestión de Templates
+flag_template = "Usar un template específico de issue"
+template_usage = "Gestionar templates de issues"
+template_init_usage = "Inicializar templates de issues por defecto"
+template_init_banner = "Inicialización de Templates"
+template_init_info = "Creando templates de issues por defecto en .github/ISSUE_TEMPLATE/"
+template_init_success = "✅ Templates creados exitosamente en: {{.Dir}}"
+template_init_error = "Error creando templates"
+template_force_flag = "Sobrescribir templates existentes"
+template_list_usage = "Listar templates de issues disponibles"
+template_list_banner = "Templates de Issues Disponibles"
+template_list_empty = "No se encontraron templates"
+template_list_hint = "Ejecutá 'matecommit issue template init' para crear templates por defecto"
+template_list_usage_hint = "Usá --template <filename> con el comando generate"
+template_list_error = "Error listando templates"
+
+[issue_generator]
+ai_not_configured = "El proveedor de IA no está configurado. Por favor ejecutá 'matecommit config init' primero."
+error_getting_diff = "Error obteniendo git diff"
+no_changes_detected = "No se detectaron cambios. Hacé algunos cambios primero o usá --description."
+error_getting_files = "Error obteniendo archivos modificados"
+error_generating_content = "Error generando contenido con IA"
+description_required = "La descripción es requerida cuando no se usa --from-diff"
+vcs_not_configured = "El proveedor VCS no está configurado. Por favor ejecutá 'matecommit config init' primero."
+error_getting_pr = "Error obteniendo Pull Request"
+error_loading_template = "Error cargando template"
+
+[issue_template]
+bug_report_name = "Reporte de Error"
+bug_report_about = "Crea un reporte para ayudarnos a mejorar"
+bug_report_title = "[BUG] "
+bug_report_body = """
+**Descripción del error**
+Una descripción clara y concisa de lo que es el error.
+
+**Para Reproducir**
+Pasos para reproducir el comportamiento:
+1. Ir a '...'
+2. Hacer clic en '....'
+3. Ver el error
+
+**Comportamiento esperado**
+Una descripción clara y concisa de lo que esperabas que sucediera.
+
+**Capturas de pantalla**
+Si corresponde, agrega capturas de pantalla para ayudar a explicar el problema.
+
+**Contexto adicional**
+Agrega cualquier otro contexto sobre el problema aquí.
+"""
+
+feature_request_name = "Solicitud de Funcionalidad"
+feature_request_about = "Sugiere una idea para este proyecto"
+feature_request_title = "[FEATURE] "
+feature_request_body = """
+**¿Tu solicitud de funcionalidad está relacionada con un problema? Por favor descríbelo.**
+Una descripción clara y concisa de cuál es el problema. Ej. Siempre me frustra cuando [...]
+
+**Describe la solución que te gustaría**
+Una descripción clara y concisa de lo que quieres que suceda.
+
+**Describe las alternativas que has considerado**
+Una descripción clara y concisa de cualquier solución o funcionalidad alternativa que hayas considerado.
+
+**Contexto adicional**
+Agrega cualquier otro contexto o capturas de pantalla sobre la solicitud de funcionalidad aquí.
+"""
+
+custom_issue_name = "Issue Personalizada"
+custom_issue_about = "Crea una issue personalizada"
+custom_issue_title = "[ISSUE] "
+custom_issue_body = """
+**Contexto**
+Proporciona contexto sobre esta issue.
+
+**Detalles**
+Agrega información detallada aquí.
+"""
+
+# GitHub Issue Forms - Reporte de Error
+bug_report_intro = "Gracias por reportar este problema, tu feedback ayuda a mejorar el proyecto."
+bug_description_label = "¿Qué pasó?"
+bug_description_help = "Contame con tus palabras qué problema encontraste"
+bug_description_placeholder = "Cuando intento guardar los cambios, la aplicación deja de responder..."
+bug_steps_label = "¿Cómo lo reproduzco?"
+bug_steps_help = "Detallá los pasos para que pueda reproducir el error"
+bug_expected_label = "¿Qué esperabas que pasara?"
+bug_expected_placeholder = "Esperaba que se guardaran los cambios sin problemas"
+bug_actual_label = "¿Qué pasó en realidad?"
+bug_actual_placeholder = "La aplicación se quedó trabada y tuve que cerrarla"
+bug_version_label = "Versión"
+bug_additional_label = "Información extra"
+bug_additional_help = "Screenshots, logs, o cualquier detalle que pueda ayudar a entender el problema"
+
+# GitHub Issue Forms - Solicitud de Funcionalidad
+feature_intro = "Gracias por contribuir con ideas para mejorar el proyecto."
+feature_problem_label = "¿Qué problema querés resolver?"
+feature_problem_help = "Contame qué necesidad o dificultad tenés actualmente"
+feature_problem_placeholder = "Me cuesta mucho hacer X porque no hay forma de Y..."
+feature_solution_label = "¿Qué solución proponés?"
+feature_solution_help = "Describí cómo te imaginás que debería funcionar"
+feature_solution_placeholder = "Estaría bueno poder hacer X desde Y para que sea más rápido..."
+feature_alternatives_label = "¿Pensaste en otras opciones?"
+feature_alternatives_help = "Si consideraste alternativas, contame cuáles"
+feature_additional_label = "Contexto adicional"
+feature_additional_help = "Screenshots, ejemplos, o links que puedan ayudar a entender la propuesta"
+
+# GitHub Issue Forms - Issue Personalizada
+custom_intro = "Describí el tema que querés reportar o discutir."
+custom_description_label = "Descripción"
+custom_description_help = "Contame de qué se trata"
+custom_description_placeholder = "Quisiera proponer/reportar/discutir..."
+custom_additional_label = "Información adicional"
+custom_additional_help = "Cualquier detalle extra que sea relevante"

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Tomas-vilte/MateCommit/internal/cli/completion_helper"
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
@@ -28,12 +29,13 @@ func NewSuggestCommandFactory(commitService ports.CommitService, commitHandler p
 
 func (f *SuggestCommandFactory) CreateCommand(t *i18n.Translations, cfg *config.Config) *cli.Command {
 	return &cli.Command{
-		Name:        "suggest",
-		Aliases:     []string{"s"},
-		Usage:       t.GetMessage("suggest_command_usage", 0, nil),
-		Description: t.GetMessage("suggest_command_description", 0, nil),
-		Flags:       f.createFlags(cfg, t),
-		Action:      f.createAction(cfg, t),
+		Name:          "suggest",
+		Aliases:       []string{"s"},
+		Usage:         t.GetMessage("suggest_command_usage", 0, nil),
+		Description:   t.GetMessage("suggest_command_description", 0, nil),
+		Flags:         f.createFlags(cfg, t),
+		ShellComplete: completion_helper.DefaultFlagComplete,
+		Action:        f.createAction(cfg, t),
 	}
 }
 

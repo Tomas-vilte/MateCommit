@@ -50,7 +50,7 @@ func (s *PRService) SummarizePR(ctx context.Context, prNumber int, progress func
 		commitMessages = append(commitMessages, commit.Message)
 	}
 
-	issues, err := s.vcsClient.GetPRIssues(ctx, prData.BranchName, commitMessages, prData.PRDescription)
+	issues, err := s.vcsClient.GetPRIssues(ctx, prData.BranchName, commitMessages, prData.Description)
 	if err == nil && len(issues) > 0 {
 		prData.RelatedIssues = issues
 

@@ -19,7 +19,8 @@ type VCSClient interface {
 	// AddLabelsToPR agrega labels específicas a un PR
 	AddLabelsToPR(ctx context.Context, prNumber int, labels []string) error
 	// CreateRelease crea una nueva release en el repositorio
-	CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool) error
+	// buildBinaries indica si se deben compilar y subir binarios (opcional, solo algunos proveedores lo soportan)
+	CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool) error
 	// GetRelease obtiene la release del repositorio
 	GetRelease(ctx context.Context, version string) (*models.VCSRelease, error)
 	// UpdateRelease actualiza una release del repositorio
@@ -40,4 +41,8 @@ type VCSClient interface {
 	GetPRIssues(ctx context.Context, branchName string, commits []string, prDescription string) ([]models.Issue, error)
 	// UpdateIssueChecklist actualiza el checklist de un issue marcando elementos como completados
 	UpdateIssueChecklist(ctx context.Context, issueNumber int, indices []int) error
+	// CreateIssue crea una nueva issue en el repositorio
+	CreateIssue(ctx context.Context, title string, body string, labels []string, assignees []string) (*models.Issue, error)
+	// GetAuthenticatedUser obtiene el usuario autenticado actual
+	GetAuthenticatedUser(ctx context.Context) (string, error)
 }

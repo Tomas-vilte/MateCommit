@@ -276,16 +276,6 @@ func (s *CommitService) detectIssueFromCommits(ctx context.Context) int {
 		}
 	}
 
-	simplePattern := regexp.MustCompile(`#(\d+)`)
-	matches := simplePattern.FindAllStringSubmatch(commitMessages, -1)
-	for _, match := range matches {
-		if len(match) > 1 {
-			if num, err := strconv.Atoi(match[1]); err == nil {
-				return num
-			}
-		}
-	}
-
 	return 0
 }
 

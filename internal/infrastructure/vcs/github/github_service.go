@@ -4,14 +4,18 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
+	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/builder"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/httpclient"
 	"github.com/google/go-github/v80/github"
 	"golang.org/x/oauth2"
@@ -34,6 +38,7 @@ type IssuesService interface {
 	ListByRepo(ctx context.Context, owner, repo string, opts *github.IssueListByRepoOptions) ([]*github.Issue, *github.Response, error)
 	Get(ctx context.Context, owner, repo string, number int) (*github.Issue, *github.Response, error)
 	Edit(ctx context.Context, owner, repo string, number int, issue *github.IssueRequest) (*github.Issue, *github.Response, error)
+	Create(ctx context.Context, owner, repo string, issue *github.IssueRequest) (*github.Issue, *github.Response, error) // ← NUEVO
 }
 
 type RepositoriesService interface {
@@ -46,18 +51,26 @@ type ReleasesService interface {
 	CreateRelease(ctx context.Context, owner, repo string, release *github.RepositoryRelease) (*github.RepositoryRelease, *github.Response, error)
 	GetReleaseByTag(ctx context.Context, owner, repo, tag string) (*github.RepositoryRelease, *github.Response, error)
 	EditRelease(ctx context.Context, owner, repo string, id int64, release *github.RepositoryRelease) (*github.RepositoryRelease, *github.Response, error)
+	UploadReleaseAsset(ctx context.Context, owner, repo string, id int64, opt *github.UploadOptions, file *os.File) (*github.ReleaseAsset, *github.Response, error)
+}
+
+type UsersService interface {
+	Get(ctx context.Context, user string) (*github.User, *github.Response, error)
 }
 
 type GitHubClient struct {
-	prService      PullRequestsService
-	issuesService  IssuesService
-	repoService    RepositoriesService
-	releaseService ReleasesService
-	owner          string
-	repo           string
-	trans          *i18n.Translations
-	token          string
-	httpClient     httpclient.HTTPClient
+	prService            PullRequestsService
+	issuesService        IssuesService
+	repoService          RepositoriesService
+	releaseService       ReleasesService
+	usersService         UsersService
+	owner                string
+	repo                 string
+	trans                *i18n.Translations
+	token                string
+	httpClient           httpclient.HTTPClient
+	mainPath             string
+	binaryBuilderFactory ports.BinaryBuilderFactory
 }
 
 var allowedLabels = map[string]struct {
@@ -81,15 +94,18 @@ func NewGitHubClient(owner, repo, token string, trans *i18n.Translations) *GitHu
 
 	client := github.NewClient(httpClient)
 	return &GitHubClient{
-		prService:      client.PullRequests,
-		issuesService:  client.Issues,
-		repoService:    client.Repositories,
-		releaseService: client.Repositories,
-		owner:          owner,
-		repo:           repo,
-		trans:          trans,
-		token:          token,
-		httpClient:     httpClient,
+		prService:            client.PullRequests,
+		issuesService:        client.Issues,
+		repoService:          client.Repositories,
+		releaseService:       client.Repositories,
+		usersService:         client.Users,
+		owner:                owner,
+		repo:                 repo,
+		trans:                trans,
+		token:                token,
+		httpClient:           httpClient,
+		mainPath:             "./cmd/main.go",
+		binaryBuilderFactory: &builder.DefaultBinaryBuilderFactory{},
 	}
 }
 
@@ -98,20 +114,24 @@ func NewGitHubClientWithServices(
 	issuesService IssuesService,
 	repoService RepositoriesService,
 	releaseService ReleasesService,
+	usersService UsersService,
 	owner string,
 	repo string,
 	trans *i18n.Translations,
 ) *GitHubClient {
 	return &GitHubClient{
-		prService:      prService,
-		issuesService:  issuesService,
-		repoService:    repoService,
-		releaseService: releaseService,
-		owner:          owner,
-		repo:           repo,
-		trans:          trans,
-		token:          "",
-		httpClient:     &http.Client{},
+		prService:            prService,
+		issuesService:        issuesService,
+		repoService:          repoService,
+		usersService:         usersService,
+		releaseService:       releaseService,
+		owner:                owner,
+		repo:                 repo,
+		trans:                trans,
+		token:                "",
+		httpClient:           &http.Client{},
+		mainPath:             "./cmd/main.go",
+		binaryBuilderFactory: &builder.DefaultBinaryBuilderFactory{},
 	}
 }
 
@@ -186,13 +206,15 @@ func (ghc *GitHubClient) GetPR(ctx context.Context, prNumber int) (models.PRData
 	}
 
 	return models.PRData{
-		ID:            prNumber,
-		Creator:       pr.GetUser().GetLogin(),
-		Commits:       prCommits,
-		Diff:          diff,
-		BranchName:    pr.GetHead().GetRef(),
-		PRDescription: pr.GetBody(),
+		ID:          prNumber,
+		Title:       pr.GetTitle(),
+		Creator:     pr.GetUser().GetLogin(),
+		Commits:     prCommits,
+		Diff:        diff,
+		BranchName:  pr.GetHead().GetRef(),
+		Description: pr.GetBody(),
 	}, nil
+
 }
 
 func (ghc *GitHubClient) AddLabelsToPR(ctx context.Context, prNumber int, labels []string) error {
@@ -235,7 +257,7 @@ func (ghc *GitHubClient) CreateLabel(ctx context.Context, name, color, descripti
 	return err
 }
 
-func (ghc *GitHubClient) CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool) error {
+func (ghc *GitHubClient) CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool) error {
 	body := notes.Changelog
 	if body == "" {
 		body = fmt.Sprintf("# %s\n\n%s\n\n", notes.Title, notes.Summary)
@@ -256,7 +278,7 @@ func (ghc *GitHubClient) CreateRelease(ctx context.Context, release *models.Rele
 		MakeLatest: github.Ptr("true"),
 	}
 
-	_, resp, err := ghc.releaseService.CreateRelease(ctx, ghc.owner, ghc.repo, releaseRequest)
+	createdRelease, resp, err := ghc.releaseService.CreateRelease(ctx, ghc.owner, ghc.repo, releaseRequest)
 	if err != nil {
 		if resp != nil {
 			if resp.StatusCode == http.StatusUnprocessableEntity {
@@ -268,6 +290,13 @@ func (ghc *GitHubClient) CreateRelease(ctx context.Context, release *models.Rele
 		}
 		return fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.create_release", 0, nil), err)
 	}
+
+	if buildBinaries {
+		if err := ghc.uploadBinaries(ctx, createdRelease.GetID(), release.Version); err != nil {
+			return fmt.Errorf("%s", ghc.trans.GetMessage("build.errors.upload_binaries", 0, map[string]interface{}{"Error": err}))
+		}
+	}
+
 	return nil
 }
 
@@ -520,6 +549,51 @@ func (ghc *GitHubClient) GetIssue(ctx context.Context, issueNumber int) (*models
 	}, nil
 }
 
+func (ghc *GitHubClient) CreateIssue(ctx context.Context, title string, body string, labels []string, assignees []string) (*models.Issue, error) {
+	issueRequest := &github.IssueRequest{
+		Title:     github.Ptr(title),
+		Body:      github.Ptr(body),
+		Labels:    &labels,
+		Assignees: &assignees,
+	}
+
+	ghIssue, _, err := ghc.issuesService.Create(ctx, ghc.owner, ghc.repo, issueRequest)
+	if err != nil {
+		return nil, fmt.Errorf("error creando issue: %w", err)
+	}
+
+	issue := &models.Issue{
+		ID:          int(*ghIssue.ID),
+		Number:      *ghIssue.Number,
+		Title:       *ghIssue.Title,
+		Description: getStringValue(ghIssue.Body),
+		State:       *ghIssue.State,
+		Author:      *ghIssue.User.Login,
+		URL:         *ghIssue.HTMLURL,
+		Labels:      make([]string, 0),
+	}
+
+	for _, label := range ghIssue.Labels {
+		if label.Name != nil {
+			issue.Labels = append(issue.Labels, label.GetName())
+		}
+	}
+	return issue, nil
+}
+
+func (ghc *GitHubClient) GetAuthenticatedUser(ctx context.Context) (string, error) {
+	user, _, err := ghc.usersService.Get(ctx, "")
+	if err != nil {
+		return "", fmt.Errorf("error obteniendo usuario autenticado: %w", err)
+	}
+
+	if user.Login == nil {
+		return "", fmt.Errorf("usuario autenticado no tiene login")
+	}
+
+	return *user.Login, nil
+}
+
 func extractAcceptanceCriteria(body string) []string {
 	var criteria []string
 	lines := strings.Split(body, "\n")
@@ -531,7 +605,7 @@ func extractAcceptanceCriteria(body string) []string {
 	// \[([ xX])\] - Checkbox: [ ], [x], [X]
 	// \s+ - Espacio obligatorio
 	// (.+) - El texto del criterio
-	re := regexp.MustCompile(`^\s*[\-\*\+]\s+\[([ xX])\]\s+(.+)`)
+	re := regexp.MustCompile(`^\s*[\-*+]\s+\[([ xX])]\s+(.+)`)
 
 	for _, line := range lines {
 		matches := re.FindStringSubmatch(line)
@@ -657,7 +731,6 @@ func (ghc *GitHubClient) addLabelsToIssue(ctx context.Context, prNumber int, lab
 }
 
 func (ghc *GitHubClient) UpdateIssueChecklist(ctx context.Context, issueNumber int, checkedIndices []int) error {
-	// 1. Obtener el issue actual
 	issue, _, err := ghc.issuesService.Get(ctx, ghc.owner, ghc.repo, issueNumber)
 	if err != nil {
 		return fmt.Errorf("error obteniendo issue #%d: %w", issueNumber, err)
@@ -665,9 +738,8 @@ func (ghc *GitHubClient) UpdateIssueChecklist(ctx context.Context, issueNumber i
 
 	body := issue.GetBody()
 	lines := strings.Split(body, "\n")
-	re := regexp.MustCompile(`^(\s*[\-\*\+]\s+)\[([ xX])\](\s+.+)`)
+	re := regexp.MustCompile(`^(\s*[\-*+]\s+)\[([ xX])](\s+.+)`)
 
-	// 2. Mapear indices lógicos a líneas físicas
 	var checklistLineIndices []int
 	for i, line := range lines {
 		if re.MatchString(line) {
@@ -675,14 +747,12 @@ func (ghc *GitHubClient) UpdateIssueChecklist(ctx context.Context, issueNumber i
 		}
 	}
 
-	// 3. Actualizar líneas
 	updated := false
 	for _, idx := range checkedIndices {
 		if idx >= 0 && idx < len(checklistLineIndices) {
 			lineIdx := checklistLineIndices[idx]
 			line := lines[lineIdx]
 
-			// Si no está ya chequeado, marcarlo
 			if matches := re.FindStringSubmatch(line); len(matches) > 3 {
 				if matches[2] == " " {
 					lines[lineIdx] = matches[1] + "[x]" + matches[3]
@@ -696,7 +766,6 @@ func (ghc *GitHubClient) UpdateIssueChecklist(ctx context.Context, issueNumber i
 		return nil
 	}
 
-	// 4. Enviar actualización
 	newBody := strings.Join(lines, "\n")
 	issueRequest := &github.IssueRequest{
 		Body: github.Ptr(newBody),
@@ -778,4 +847,73 @@ func (ghc *GitHubClient) validateAndFilterLabels(labels []string) []string {
 func (ghc *GitHubClient) isAllowedLabel(label string) bool {
 	_, exists := allowedLabels[label]
 	return exists
+}
+
+func (ghc *GitHubClient) uploadBinaries(ctx context.Context, releaseID int64, version string) error {
+	tempDir, err := os.MkdirTemp("", "matecommit-build-*")
+	if err != nil {
+		return fmt.Errorf("%s", ghc.trans.GetMessage("build.errors.create_temp_dir", 0, map[string]interface{}{"Error": err}))
+	}
+	defer func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			return
+		}
+	}()
+
+	commit, err := ghc.getCommitSHA(ctx)
+	if err != nil {
+		commit = "unknown"
+	}
+	date := time.Now().Format(time.RFC3339)
+
+	builderBinary := ghc.binaryBuilderFactory.NewBuilder(
+		ghc.mainPath,
+		"matecommit",
+		version,
+		commit,
+		date,
+		tempDir,
+		ghc.trans,
+	)
+
+	fmt.Println(ghc.trans.GetMessage("build.compiling_binaries", 0, nil))
+	archives, err := builderBinary.BuildAndPackageAll(ctx)
+	if err != nil {
+		return fmt.Errorf("%s", ghc.trans.GetMessage("build.errors.build_binaries", 0, map[string]interface{}{"Error": err}))
+	}
+
+	fmt.Printf("%s\n", ghc.trans.GetMessage("build.uploading_binaries", 0, map[string]interface{}{"Count": len(archives)}))
+	for _, archivePath := range archives {
+		file, err := os.Open(archivePath)
+		if err != nil {
+			return fmt.Errorf("%s", ghc.trans.GetMessage("build.errors.open_file", 0, map[string]interface{}{"File": archivePath, "Error": err}))
+		}
+
+		uploadOpts := &github.UploadOptions{
+			Name:  filepath.Base(archivePath),
+			Label: filepath.Base(archivePath),
+		}
+
+		_, _, err = ghc.releaseService.UploadReleaseAsset(ctx, ghc.owner, ghc.repo, releaseID, uploadOpts, file)
+		_ = file.Close()
+		if err != nil {
+			return fmt.Errorf("%s", ghc.trans.GetMessage("build.errors.upload_asset", 0, map[string]interface{}{"Asset": archivePath, "Error": err}))
+		}
+	}
+	return nil
+}
+
+func (ghc *GitHubClient) getCommitSHA(ctx context.Context) (string, error) {
+	ref, _, err := ghc.repoService.GetCommit(ctx, ghc.owner, ghc.repo, "HEAD", nil)
+	if err != nil {
+		return "", err
+	}
+	return ref.GetSHA(), nil
+}
+
+func getStringValue(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
