@@ -2,7 +2,10 @@ package github
 
 import (
 	"context"
+	"os"
 
+	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
+	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/google/go-github/v80/github"
 	"github.com/stretchr/testify/mock"
 )
@@ -109,4 +112,33 @@ func (m *MockReleaseService) GetReleaseByTag(ctx context.Context, owner, repo, t
 func (m *MockReleaseService) EditRelease(ctx context.Context, owner, repo string, id int64, release *github.RepositoryRelease) (*github.RepositoryRelease, *github.Response, error) {
 	args := m.Called(ctx, owner, repo, id, release)
 	return args.Get(0).(*github.RepositoryRelease), args.Get(1).(*github.Response), args.Error(2)
+}
+
+func (m *MockReleaseService) UploadReleaseAsset(ctx context.Context, owner, repo string, id int64, opt *github.UploadOptions, file *os.File) (*github.ReleaseAsset, *github.Response, error) {
+	args := m.Called(ctx, owner, repo, id, opt, file)
+	return args.Get(0).(*github.ReleaseAsset), args.Get(1).(*github.Response), args.Error(2)
+}
+
+type MockBinaryPackager struct {
+	mock.Mock
+}
+
+func (m *MockBinaryPackager) BuildAndPackageAll(ctx context.Context) ([]string, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
+}
+
+type MockBinaryBuilderFactory struct {
+	mock.Mock
+}
+
+func (m *MockBinaryBuilderFactory) NewBuilder(mainPath, binaryName, version, commit, date, buildDir string, trans *i18n.Translations) ports.BinaryPackager {
+	args := m.Called(mainPath, binaryName, version, commit, date, buildDir, trans)
+	if args.Get(0) == nil {
+		return nil
+	}
+	return args.Get(0).(ports.BinaryPackager)
 }

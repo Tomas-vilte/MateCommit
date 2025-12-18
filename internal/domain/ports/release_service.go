@@ -14,7 +14,8 @@ type ReleaseService interface {
 	GenerateReleaseNotes(ctx context.Context, release *models.Release) (*models.ReleaseNotes, error)
 
 	// PublishRelease crea el release en el VCS (GitHub, GitLab, etc.)
-	PublishRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool) error
+	// buildBinaries indica si se deben compilar y subir binarios al release
+	PublishRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool) error
 
 	// CreateTag crea un tag git con la versión y mensaje especificados
 	CreateTag(ctx context.Context, version, message string) error

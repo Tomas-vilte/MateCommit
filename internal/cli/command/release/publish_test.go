@@ -27,6 +27,7 @@ func runPublishTest(t *testing.T, args []string, mockService *MockReleaseService
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "version"},
 					&cli.BoolFlag{Name: "draft"},
+					&cli.BoolFlag{Name: "build-binaries", Value: true},
 				},
 				Action: func(ctx context.Context, c *cli.Command) error {
 					return publishReleaseAction(mockService, trans)(ctx, c)
@@ -55,7 +56,7 @@ func TestPublishCommand_Success(t *testing.T) {
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
 	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
-	mockService.On("PublishRelease", mock.Anything, release, notes, false).Return(nil)
+	mockService.On("PublishRelease", mock.Anything, release, notes, false, true).Return(nil)
 
 	err := runPublishTest(t, []string{}, mockService)
 	assert.NoError(t, err)
@@ -80,7 +81,7 @@ func TestPublishCommand_WithDraftFlag(t *testing.T) {
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
 	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
-	mockService.On("PublishRelease", mock.Anything, release, notes, true).Return(nil)
+	mockService.On("PublishRelease", mock.Anything, release, notes, true, true).Return(nil)
 
 	err := runPublishTest(t, []string{"--draft"}, mockService)
 	assert.NoError(t, err)
@@ -109,7 +110,7 @@ func TestPublishCommand_WithVersionOverride(t *testing.T) {
 	})).Return(notes, nil)
 	mockService.On("PublishRelease", mock.Anything, mock.MatchedBy(func(r *models.Release) bool {
 		return r.Version == "v2.0.0"
-	}), notes, false).Return(nil)
+	}), notes, false, true).Return(nil)
 
 	err := runPublishTest(t, []string{"--version", "v2.0.0"}, mockService)
 	assert.NoError(t, err)
@@ -166,7 +167,7 @@ func TestPublishCommand_PublishError(t *testing.T) {
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
 	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
-	mockService.On("PublishRelease", mock.Anything, release, notes, false).Return(errors.New("publish failed"))
+	mockService.On("PublishRelease", mock.Anything, release, notes, false, true).Return(errors.New("publish failed"))
 
 	err := runPublishTest(t, []string{}, mockService)
 	assert.Error(t, err)

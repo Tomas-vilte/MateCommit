@@ -4,14 +4,18 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
+	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/builder"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/httpclient"
 	"github.com/google/go-github/v80/github"
 	"golang.org/x/oauth2"
@@ -46,18 +50,21 @@ type ReleasesService interface {
 	CreateRelease(ctx context.Context, owner, repo string, release *github.RepositoryRelease) (*github.RepositoryRelease, *github.Response, error)
 	GetReleaseByTag(ctx context.Context, owner, repo, tag string) (*github.RepositoryRelease, *github.Response, error)
 	EditRelease(ctx context.Context, owner, repo string, id int64, release *github.RepositoryRelease) (*github.RepositoryRelease, *github.Response, error)
+	UploadReleaseAsset(ctx context.Context, owner, repo string, id int64, opt *github.UploadOptions, file *os.File) (*github.ReleaseAsset, *github.Response, error)
 }
 
 type GitHubClient struct {
-	prService      PullRequestsService
-	issuesService  IssuesService
-	repoService    RepositoriesService
-	releaseService ReleasesService
-	owner          string
-	repo           string
-	trans          *i18n.Translations
-	token          string
-	httpClient     httpclient.HTTPClient
+	prService            PullRequestsService
+	issuesService        IssuesService
+	repoService          RepositoriesService
+	releaseService       ReleasesService
+	owner                string
+	repo                 string
+	trans                *i18n.Translations
+	token                string
+	httpClient           httpclient.HTTPClient
+	mainPath             string
+	binaryBuilderFactory ports.BinaryBuilderFactory
 }
 
 var allowedLabels = map[string]struct {
@@ -81,15 +88,17 @@ func NewGitHubClient(owner, repo, token string, trans *i18n.Translations) *GitHu
 
 	client := github.NewClient(httpClient)
 	return &GitHubClient{
-		prService:      client.PullRequests,
-		issuesService:  client.Issues,
-		repoService:    client.Repositories,
-		releaseService: client.Repositories,
-		owner:          owner,
-		repo:           repo,
-		trans:          trans,
-		token:          token,
-		httpClient:     httpClient,
+		prService:            client.PullRequests,
+		issuesService:        client.Issues,
+		repoService:          client.Repositories,
+		releaseService:       client.Repositories,
+		owner:                owner,
+		repo:                 repo,
+		trans:                trans,
+		token:                token,
+		httpClient:           httpClient,
+		mainPath:             "./cmd/main.go",
+		binaryBuilderFactory: &builder.DefaultBinaryBuilderFactory{},
 	}
 }
 
@@ -103,15 +112,17 @@ func NewGitHubClientWithServices(
 	trans *i18n.Translations,
 ) *GitHubClient {
 	return &GitHubClient{
-		prService:      prService,
-		issuesService:  issuesService,
-		repoService:    repoService,
-		releaseService: releaseService,
-		owner:          owner,
-		repo:           repo,
-		trans:          trans,
-		token:          "",
-		httpClient:     &http.Client{},
+		prService:            prService,
+		issuesService:        issuesService,
+		repoService:          repoService,
+		releaseService:       releaseService,
+		owner:                owner,
+		repo:                 repo,
+		trans:                trans,
+		token:                "",
+		httpClient:           &http.Client{},
+		mainPath:             "./cmd/main.go",
+		binaryBuilderFactory: &builder.DefaultBinaryBuilderFactory{},
 	}
 }
 
@@ -235,7 +246,7 @@ func (ghc *GitHubClient) CreateLabel(ctx context.Context, name, color, descripti
 	return err
 }
 
-func (ghc *GitHubClient) CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool) error {
+func (ghc *GitHubClient) CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool) error {
 	body := notes.Changelog
 	if body == "" {
 		body = fmt.Sprintf("# %s\n\n%s\n\n", notes.Title, notes.Summary)
@@ -256,7 +267,7 @@ func (ghc *GitHubClient) CreateRelease(ctx context.Context, release *models.Rele
 		MakeLatest: github.Ptr("true"),
 	}
 
-	_, resp, err := ghc.releaseService.CreateRelease(ctx, ghc.owner, ghc.repo, releaseRequest)
+	createdRelease, resp, err := ghc.releaseService.CreateRelease(ctx, ghc.owner, ghc.repo, releaseRequest)
 	if err != nil {
 		if resp != nil {
 			if resp.StatusCode == http.StatusUnprocessableEntity {
@@ -268,6 +279,13 @@ func (ghc *GitHubClient) CreateRelease(ctx context.Context, release *models.Rele
 		}
 		return fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.create_release", 0, nil), err)
 	}
+
+	if buildBinaries {
+		if err := ghc.uploadBinaries(ctx, createdRelease.GetID(), release.Version); err != nil {
+			return fmt.Errorf("%s", ghc.trans.GetMessage("build.errors.upload_binaries", 0, map[string]interface{}{"Error": err}))
+		}
+	}
+
 	return nil
 }
 
@@ -773,4 +791,66 @@ func (ghc *GitHubClient) validateAndFilterLabels(labels []string) []string {
 func (ghc *GitHubClient) isAllowedLabel(label string) bool {
 	_, exists := allowedLabels[label]
 	return exists
+}
+
+func (ghc *GitHubClient) uploadBinaries(ctx context.Context, releaseID int64, version string) error {
+	tempDir, err := os.MkdirTemp("", "matecommit-build-*")
+	if err != nil {
+		return fmt.Errorf("%s", ghc.trans.GetMessage("build.errors.create_temp_dir", 0, map[string]interface{}{"Error": err}))
+	}
+	defer func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			return
+		}
+	}()
+
+	commit, err := ghc.getCommitSHA(ctx)
+	if err != nil {
+		commit = "unknown"
+	}
+	date := time.Now().Format(time.RFC3339)
+
+	builder := ghc.binaryBuilderFactory.NewBuilder(
+		ghc.mainPath,
+		"matecommit",
+		version,
+		commit,
+		date,
+		tempDir,
+		ghc.trans,
+	)
+
+	fmt.Println(ghc.trans.GetMessage("build.compiling_binaries", 0, nil))
+	archives, err := builder.BuildAndPackageAll(ctx)
+	if err != nil {
+		return fmt.Errorf("%s", ghc.trans.GetMessage("build.errors.build_binaries", 0, map[string]interface{}{"Error": err}))
+	}
+
+	fmt.Printf("%s\n", ghc.trans.GetMessage("build.uploading_binaries", 0, map[string]interface{}{"Count": len(archives)}))
+	for _, archivePath := range archives {
+		file, err := os.Open(archivePath)
+		if err != nil {
+			return fmt.Errorf("%s", ghc.trans.GetMessage("build.errors.open_file", 0, map[string]interface{}{"File": archivePath, "Error": err}))
+		}
+
+		uploadOpts := &github.UploadOptions{
+			Name:  filepath.Base(archivePath),
+			Label: filepath.Base(archivePath),
+		}
+
+		_, _, err = ghc.releaseService.UploadReleaseAsset(ctx, ghc.owner, ghc.repo, releaseID, uploadOpts, file)
+		_ = file.Close()
+		if err != nil {
+			return fmt.Errorf("%s", ghc.trans.GetMessage("build.errors.upload_asset", 0, map[string]interface{}{"Asset": archivePath, "Error": err}))
+		}
+	}
+	return nil
+}
+
+func (ghc *GitHubClient) getCommitSHA(ctx context.Context) (string, error) {
+	ref, _, err := ghc.repoService.GetCommit(ctx, ghc.owner, ghc.repo, "HEAD", nil)
+	if err != nil {
+		return "", err
+	}
+	return ref.GetSHA(), nil
 }

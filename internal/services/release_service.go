@@ -94,11 +94,12 @@ func (s *ReleaseService) GenerateReleaseNotes(ctx context.Context, release *mode
 	return s.notesGen.GenerateNotes(ctx, release)
 }
 
-func (s *ReleaseService) PublishRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool) error {
+func (s *ReleaseService) PublishRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool) error {
 	if s.vcsClient == nil {
 		return fmt.Errorf("cliente VCS no configurado. Configura un proveedor VCS con 'matecommit config set-vcsClient'")
 	}
-	return s.vcsClient.CreateRelease(ctx, release, notes, draft)
+
+	return s.vcsClient.CreateRelease(ctx, release, notes, draft, buildBinaries)
 }
 
 func (s *ReleaseService) CreateTag(ctx context.Context, version, message string) error {
