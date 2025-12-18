@@ -18,6 +18,9 @@ type AIProviderFactory interface {
 	// CreatePRSummarizer crea un servicio para resumir Pull Requests
 	CreatePRSummarizer(ctx context.Context, cfg *config.Config, trans *i18n.Translations) (ports.PRSummarizer, error)
 
+	// CreateIssueContentGenerator crea un servicio para generar contenido de issues
+	CreateIssueContentGenerator(ctx context.Context, cfg *config.Config, trans *i18n.Translations) (ports.IssueContentGenerator, error)
+
 	// ValidateConfig valida la configuración para este proveedor
 	ValidateConfig(cfg *config.Config) error
 

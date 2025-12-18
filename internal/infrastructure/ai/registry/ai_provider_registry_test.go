@@ -24,6 +24,10 @@ func (m *MockAIProviderFactory) CreatePRSummarizer(_ context.Context, _ *config.
 	return nil, nil
 }
 
+func (m *MockAIProviderFactory) CreateIssueContentGenerator(_ context.Context, _ *config.Config, _ *i18n.Translations) (ports.IssueContentGenerator, error) {
+	return nil, nil
+}
+
 func (m *MockAIProviderFactory) ValidateConfig(_ *config.Config) error {
 	return nil
 }

@@ -225,7 +225,7 @@ func TestGetMessage(t *testing.T) {
 		result := trans.GetMessage("NonExistent", 1, nil)
 
 		// assert
-		expected := "Translation missing: NonExistent"
+		expected := "Falta la traducción: NonExistent"
 		if result != expected {
 			t.Errorf("GetMessage() = %v, quiere %v", result, expected)
 		}

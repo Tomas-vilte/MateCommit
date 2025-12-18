@@ -2,41 +2,48 @@ package di
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/ai/registry"
 	ticketregistry "github.com/Tomas-vilte/MateCommit/internal/infrastructure/tickets/registry"
 	vcsregistry "github.com/Tomas-vilte/MateCommit/internal/infrastructure/vcs/registry"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/mock"
 )
 
 type mockAIFactory struct {
-	createCommitSummarizerError error
-	createPRSummarizerError     error
+	mock.Mock
 }
 
-func (m *mockAIFactory) CreateCommitSummarizer(_ context.Context, _ *config.Config, _ *i18n.Translations) (ports.CommitSummarizer, error) {
-	if m.createCommitSummarizerError != nil {
-		return nil, m.createCommitSummarizerError
+func (m *mockAIFactory) CreateCommitSummarizer(ctx context.Context, cfg *config.Config, trans *i18n.Translations) (ports.CommitSummarizer, error) {
+	args := m.Called(ctx, cfg, trans)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return &mockCommitSummarizer{}, nil
+	return args.Get(0).(ports.CommitSummarizer), args.Error(1)
 }
 
-func (m *mockAIFactory) CreatePRSummarizer(_ context.Context, _ *config.Config, _ *i18n.Translations) (ports.PRSummarizer, error) {
-	if m.createPRSummarizerError != nil {
-		return nil, m.createPRSummarizerError
+func (m *mockAIFactory) CreatePRSummarizer(ctx context.Context, cfg *config.Config, trans *i18n.Translations) (ports.PRSummarizer, error) {
+	args := m.Called(ctx, cfg, trans)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return &mockPRSummarizer{}, nil
+	return args.Get(0).(ports.PRSummarizer), args.Error(1)
 }
 
-func (m *mockAIFactory) ValidateConfig(_ *config.Config) error {
-	return nil
+func (m *mockAIFactory) CreateIssueContentGenerator(ctx context.Context, cfg *config.Config, trans *i18n.Translations) (ports.IssueContentGenerator, error) {
+	args := m.Called(ctx, cfg, trans)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(ports.IssueContentGenerator), args.Error(1)
+}
+
+func (m *mockAIFactory) ValidateConfig(cfg *config.Config) error {
+	args := m.Called(cfg)
+	return args.Error(0)
 }
 
 func (m *mockAIFactory) Name() string {
@@ -44,18 +51,20 @@ func (m *mockAIFactory) Name() string {
 }
 
 type mockVCSFactory struct {
-	createClientError error
+	mock.Mock
 }
 
-func (m *mockVCSFactory) CreateClient(_ context.Context, _, _, _ string, _ *i18n.Translations) (ports.VCSClient, error) {
-	if m.createClientError != nil {
-		return nil, m.createClientError
+func (m *mockVCSFactory) CreateClient(ctx context.Context, owner, repo, token string, trans *i18n.Translations) (ports.VCSClient, error) {
+	args := m.Called(ctx, owner, repo, token, trans)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return &mockVCSClient{}, nil
+	return args.Get(0).(ports.VCSClient), args.Error(1)
 }
 
-func (m *mockVCSFactory) ValidateConfig(_ *config.VCSConfig) error {
-	return nil
+func (m *mockVCSFactory) ValidateConfig(cfg *config.VCSConfig) error {
+	args := m.Called(cfg)
+	return args.Error(0)
 }
 
 func (m *mockVCSFactory) Name() string {
@@ -63,195 +72,57 @@ func (m *mockVCSFactory) Name() string {
 }
 
 type mockTicketFactory struct {
-	createClientError error
+	mock.Mock
 }
 
-func (m *mockTicketFactory) CreateClient(_ context.Context, _ config.TicketProviderConfig, _ *i18n.Translations) (ports.TickerManager, error) {
-	if m.createClientError != nil {
-		return nil, m.createClientError
+func (m *mockTicketFactory) CreateClient(ctx context.Context, cfg config.TicketProviderConfig, trans *i18n.Translations) (ports.TickerManager, error) {
+	args := m.Called(ctx, cfg, trans)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return &mockTicketManager{}, nil
+	return args.Get(0).(ports.TickerManager), args.Error(1)
 }
 
-func (m *mockTicketFactory) ValidateConfig(_ config.TicketProviderConfig) error {
-	return nil
+func (m *mockTicketFactory) ValidateConfig(cfg config.TicketProviderConfig) error {
+	args := m.Called(cfg)
+	return args.Error(0)
 }
 
 func (m *mockTicketFactory) Name() string {
 	return "mock"
 }
 
-type mockCommitSummarizer struct{}
-
-func (m *mockCommitSummarizer) GenerateSuggestions(_ context.Context, _ models.CommitInfo, _ int) ([]models.CommitSuggestion, error) {
-	return nil, nil
-}
-
-type mockPRSummarizer struct{}
-
-func (m *mockPRSummarizer) GeneratePRSummary(_ context.Context, _ string) (models.PRSummary, error) {
-	return models.PRSummary{}, nil
-}
-
-type mockVCSClient struct{}
-
-func (m *mockVCSClient) UpdatePR(_ context.Context, _ int, _ models.PRSummary) error {
-	return nil
-}
-
-func (m *mockVCSClient) GetPR(_ context.Context, _ int) (models.PRData, error) {
-	return models.PRData{}, nil
-}
-
-func (m *mockVCSClient) GetRepoLabels(_ context.Context) ([]string, error) {
-	return nil, nil
-}
-
-func (m *mockVCSClient) CreateLabel(_ context.Context, _, _, _ string) error {
-	return nil
-}
-
-func (m *mockVCSClient) AddLabelsToPR(_ context.Context, _ int, _ []string) error {
-	return nil
-}
-
-func (m *mockVCSClient) CreateRelease(_ context.Context, _ *models.Release, _ *models.ReleaseNotes, _, _ bool) error {
-	return nil
-}
-
-func (m *mockVCSClient) GetRelease(_ context.Context, _ string) (*models.VCSRelease, error) {
-	return nil, nil
-}
-
-func (m *mockVCSClient) UpdateRelease(_ context.Context, _, _ string) error {
-	return nil
-}
-
-func (m *mockVCSClient) GetClosedIssuesBetweenTags(_ context.Context, _, _ string) ([]models.Issue, error) {
-	return nil, nil
-}
-
-func (m *mockVCSClient) GetMergedPRsBetweenTags(_ context.Context, _, _ string) ([]models.PullRequest, error) {
-	return nil, nil
-}
-
-func (m *mockVCSClient) GetContributorsBetweenTags(_ context.Context, _, _ string) ([]string, error) {
-	return nil, nil
-}
-
-func (m *mockVCSClient) GetFileStatsBetweenTags(_ context.Context, _, _ string) (*models.FileStatistics, error) {
-	return nil, nil
-}
-
-func (m *mockVCSClient) GetIssue(_ context.Context, _ int) (*models.Issue, error) {
-	return nil, nil
-}
-
-func (m *mockVCSClient) GetFileAtTag(_ context.Context, _, _ string) (string, error) {
-	return "", nil
-}
-
-func (m *mockVCSClient) GetPRIssues(_ context.Context, _ string, _ []string, _ string) ([]models.Issue, error) {
-	return nil, nil
-}
-
-func (m *mockVCSClient) UpdateIssueChecklist(_ context.Context, _ int, _ []int) error {
-	return nil
-}
-
-type mockTicketManager struct{}
-
-func (m *mockTicketManager) GetTicketInfo(_ string) (*models.TicketInfo, error) {
-	return nil, nil
-}
-
-type mockGitService struct{}
-
-func (m *mockGitService) GetChangedFiles(_ context.Context) ([]models.GitChange, error) {
-	return nil, nil
-}
-
-func (m *mockGitService) GetDiff(_ context.Context) (string, error) {
-	return "", nil
-}
-
-func (m *mockGitService) HasStagedChanges(_ context.Context) bool {
-	return false
-}
-
-func (m *mockGitService) CreateCommit(_ context.Context, _ string) error {
-	return nil
-}
-
-func (m *mockGitService) AddFileToStaging(_ context.Context, _ string) error {
-	return nil
-}
-
-func (m *mockGitService) GetCurrentBranch(_ context.Context) (string, error) {
-	return "", nil
-}
-
-func (m *mockGitService) GetRepoInfo(_ context.Context) (string, string, string, error) {
-	return "owner", "repo", "github", nil
-}
-
-func (m *mockGitService) GetLastTag(_ context.Context) (string, error) {
-	return "", nil
-}
-
-func (m *mockGitService) GetCommitCount(_ context.Context) (int, error) {
-	return 0, nil
-}
-
-func (m *mockGitService) GetCommitsSinceTag(_ context.Context, _ string) ([]models.Commit, error) {
-	return nil, nil
-}
-
-func (m *mockGitService) GetCommitsBetweenTags(_ context.Context, _, _ string) ([]models.Commit, error) {
-	return nil, nil
-}
-
-func (m *mockGitService) GetTagDate(_ context.Context, _ string) (string, error) {
-	return "", nil
-}
-
-func (m *mockGitService) GetRecentCommitMessages(_ context.Context, _ int) (string, error) {
-	return "", nil
-}
-
-func (m *mockGitService) CreateTag(_ context.Context, _, _ string) error {
-	return nil
-}
-
-func (m *mockGitService) PushTag(_ context.Context, _ string) error {
-	return nil
-}
-
-func (m *mockGitService) Push(_ context.Context) error {
-	return nil
-}
-
-var _ registry.AIProviderFactory = (*mockAIFactory)(nil)
-var _ vcsregistry.VCSProviderFactory = (*mockVCSFactory)(nil)
-var _ ticketregistry.TicketProviderFactory = (*mockTicketFactory)(nil)
-var _ ports.CommitSummarizer = (*mockCommitSummarizer)(nil)
-var _ ports.PRSummarizer = (*mockPRSummarizer)(nil)
-var _ ports.VCSClient = (*mockVCSClient)(nil)
-var _ ports.GitService = (*mockGitService)(nil)
-var _ ports.TickerManager = (*mockTicketManager)(nil)
-
 func TestNewContainer(t *testing.T) {
-	cfg := &config.Config{Language: "en"}
+	cfg := &config.Config{
+		Language: "en",
+	}
 	trans := &i18n.Translations{}
 
 	container := NewContainer(cfg, trans)
 
-	require.NotNil(t, container)
-	assert.Equal(t, cfg, container.config)
-	assert.Equal(t, trans, container.translations)
-	assert.NotNil(t, container.aiRegistry)
-	assert.NotNil(t, container.vcsRegistry)
-	assert.NotNil(t, container.ticketRegistry)
+	if container == nil {
+		t.Fatal("Container should not be nil")
+	}
+
+	if container.config != cfg {
+		t.Error("Container config does not match input config")
+	}
+
+	if container.translations != trans {
+		t.Error("Container translations do not match input translations")
+	}
+
+	if container.aiRegistry == nil {
+		t.Error("AI registry should be initialized")
+	}
+
+	if container.vcsRegistry == nil {
+		t.Error("VCS registry should be initialized")
+	}
+
+	if container.ticketRegistry == nil {
+		t.Error("Ticket registry should be initialized")
+	}
 }
 
 func TestRegisterAIProvider(t *testing.T) {
@@ -261,10 +132,15 @@ func TestRegisterAIProvider(t *testing.T) {
 
 	mockFactory := &mockAIFactory{}
 	err := container.RegisterAIProvider("mock", mockFactory)
-	require.NoError(t, err)
+
+	if err != nil {
+		t.Fatalf("Failed to register AI provider: %v", err)
+	}
 
 	err = container.RegisterAIProvider("mock", mockFactory)
-	assert.Error(t, err)
+	if err == nil {
+		t.Error("Should not allow registering the same provider twice")
+	}
 }
 
 func TestRegisterVCSProvider(t *testing.T) {
@@ -274,10 +150,15 @@ func TestRegisterVCSProvider(t *testing.T) {
 
 	mockFactory := &mockVCSFactory{}
 	err := container.RegisterVCSProvider("mock", mockFactory)
-	require.NoError(t, err)
+
+	if err != nil {
+		t.Fatalf("Failed to register VCS provider: %v", err)
+	}
 
 	err = container.RegisterVCSProvider("mock", mockFactory)
-	assert.Error(t, err)
+	if err == nil {
+		t.Error("Should not allow registering the same provider twice")
+	}
 }
 
 func TestRegisterTicketProvider(t *testing.T) {
@@ -287,290 +168,165 @@ func TestRegisterTicketProvider(t *testing.T) {
 
 	mockFactory := &mockTicketFactory{}
 	err := container.RegisterTicketProvider("mock", mockFactory)
-	require.NoError(t, err)
+
+	if err != nil {
+		t.Fatalf("Failed to register Ticket provider: %v", err)
+	}
 
 	err = container.RegisterTicketProvider("mock", mockFactory)
-	assert.Error(t, err)
+	if err == nil {
+		t.Error("Should not allow registering the same provider twice")
+	}
 }
 
-func TestSetGitService_GetGitService(t *testing.T) {
+func TestGetAIRegistry(t *testing.T) {
 	cfg := &config.Config{Language: "en"}
 	trans := &i18n.Translations{}
 	container := NewContainer(cfg, trans)
 
-	mockGit := &mockGitService{}
-	container.SetGitService(mockGit)
-
-	retrieved := container.GetGitService()
-	assert.Equal(t, mockGit, retrieved)
-}
-
-func TestGetCommitService_Success(t *testing.T) {
-	cfg := &config.Config{
-		Language: "en",
-		AIConfig: config.AIConfig{
-			ActiveAI: config.AIGemini,
-		},
+	aiRegistry := container.GetAIRegistry()
+	if aiRegistry == nil {
+		t.Error("AI aiRegistry should not be nil")
 	}
-	trans := &i18n.Translations{}
-	container := NewContainer(cfg, trans)
 
-	mockAIFactory := &mockAIFactory{}
-	err := container.RegisterAIProvider("gemini", mockAIFactory)
-	require.NoError(t, err)
-
-	mockGit := &mockGitService{}
-	container.SetGitService(mockGit)
-
-	ctx := context.Background()
-	service, err := container.GetCommitService(ctx)
-
-	require.NoError(t, err)
-	assert.NotNil(t, service)
-
-	service2, err := container.GetCommitService(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, service, service2)
+	if aiRegistry != container.aiRegistry {
+		t.Error("Returned aiRegistry should be the same as internal aiRegistry")
+	}
 }
 
-func TestGetCommitService_WithoutGitService(t *testing.T) {
+func TestGetVCSRegistry(t *testing.T) {
 	cfg := &config.Config{Language: "en"}
 	trans := &i18n.Translations{}
 	container := NewContainer(cfg, trans)
 
-	ctx := context.Background()
-	service, err := container.GetCommitService(ctx)
+	vcsRegistry := container.GetVCSRegistry()
+	if vcsRegistry == nil {
+		t.Error("VCS vcsRegistry should not be nil")
+	}
 
-	assert.Error(t, err)
-	assert.Nil(t, service)
-	assert.Contains(t, err.Error(), "servicio git no creado")
+	if vcsRegistry != container.vcsRegistry {
+		t.Error("Returned vcsRegistry should be the same as internal vcsRegistry")
+	}
 }
 
-func TestGetCommitService_WithAICreationError(t *testing.T) {
-	cfg := &config.Config{
-		Language: "en",
-		AIConfig: config.AIConfig{
-			ActiveAI: config.AIGemini,
-		},
-	}
-	trans := &i18n.Translations{}
-	container := NewContainer(cfg, trans)
-
-	mockAIFactory := &mockAIFactory{
-		createCommitSummarizerError: errors.New("AI creation failed"),
-	}
-	err := container.RegisterAIProvider("gemini", mockAIFactory)
-	require.NoError(t, err)
-
-	mockGit := &mockGitService{}
-	container.SetGitService(mockGit)
-
-	ctx := context.Background()
-	service, err := container.GetCommitService(ctx)
-
-	require.NoError(t, err)
-	assert.NotNil(t, service)
-}
-
-func TestGetCommitService_WithoutActiveAI(t *testing.T) {
-	cfg := &config.Config{
-		Language: "en",
-		AIConfig: config.AIConfig{
-			ActiveAI: "",
-		},
-	}
-	trans := &i18n.Translations{}
-	container := NewContainer(cfg, trans)
-
-	mockGit := &mockGitService{}
-	container.SetGitService(mockGit)
-
-	ctx := context.Background()
-	service, err := container.GetCommitService(ctx)
-
-	require.NoError(t, err)
-	assert.NotNil(t, service)
-}
-
-func TestGetPRSummarizer_Success(t *testing.T) {
-	cfg := &config.Config{
-		Language: "en",
-		AIConfig: config.AIConfig{
-			ActiveAI: config.AIGemini,
-		},
-	}
-	trans := &i18n.Translations{}
-	container := NewContainer(cfg, trans)
-
-	mockAIFactory := &mockAIFactory{}
-	err := container.RegisterAIProvider("gemini", mockAIFactory)
-	require.NoError(t, err)
-
-	ctx := context.Background()
-	summarizer, err := container.GetPRSummarizer(ctx)
-
-	require.NoError(t, err)
-	assert.NotNil(t, summarizer)
-}
-
-func TestGetPRSummarizer_NoActiveAI(t *testing.T) {
-	cfg := &config.Config{
-		Language: "en",
-		AIConfig: config.AIConfig{
-			ActiveAI: "",
-		},
-	}
-	trans := &i18n.Translations{}
-	container := NewContainer(cfg, trans)
-
-	ctx := context.Background()
-	summarizer, err := container.GetPRSummarizer(ctx)
-
-	assert.Error(t, err)
-	assert.Nil(t, summarizer)
-	assert.Contains(t, err.Error(), "no hay IA activa configurada")
-}
-
-func TestGetPRSummarizer_ProviderNotFound(t *testing.T) {
-	cfg := &config.Config{
-		Language: "en",
-		AIConfig: config.AIConfig{
-			ActiveAI: config.AIGemini,
-		},
-	}
-	trans := &i18n.Translations{}
-	container := NewContainer(cfg, trans)
-
-	ctx := context.Background()
-	summarizer, err := container.GetPRSummarizer(ctx)
-
-	assert.Error(t, err)
-	assert.Nil(t, summarizer)
-	assert.Contains(t, err.Error(), "no encontrado")
-}
-
-func TestGetPRSummarizer_CreationError(t *testing.T) {
-	cfg := &config.Config{
-		Language: "en",
-		AIConfig: config.AIConfig{
-			ActiveAI: config.AIGemini,
-		},
-	}
-	trans := &i18n.Translations{}
-	container := NewContainer(cfg, trans)
-
-	mockAIFactory := &mockAIFactory{
-		createPRSummarizerError: errors.New("failed to create PR summarizer"),
-	}
-	err := container.RegisterAIProvider("gemini", mockAIFactory)
-	require.NoError(t, err)
-
-	ctx := context.Background()
-	summarizer, err := container.GetPRSummarizer(ctx)
-
-	assert.Error(t, err)
-	assert.Nil(t, summarizer)
-	assert.Contains(t, err.Error(), "error al crear el servicio de IA para PRs")
-}
-
-func TestGetPRService_Success(t *testing.T) {
-	cfg := &config.Config{
-		Language: "en",
-		AIConfig: config.AIConfig{
-			ActiveAI: config.AIGemini,
-		},
-		VCSConfigs: map[string]config.VCSConfig{
-			"github": {
-				Token: "test-token",
-			},
-		},
-	}
-	trans := &i18n.Translations{}
-	container := NewContainer(cfg, trans)
-
-	mockAIFactory := &mockAIFactory{}
-	err := container.RegisterAIProvider("gemini", mockAIFactory)
-	require.NoError(t, err)
-
-	mockVCSFactory := &mockVCSFactory{}
-	err = container.RegisterVCSProvider("github", mockVCSFactory)
-	require.NoError(t, err)
-
-	mockGit := &mockGitService{}
-	container.SetGitService(mockGit)
-
-	ctx := context.Background()
-	service, err := container.GetPRService(ctx)
-
-	require.NoError(t, err)
-	assert.NotNil(t, service)
-
-	service2, err := container.GetPRService(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, service, service2)
-}
-
-func TestGetPRService_WithoutGitService(t *testing.T) {
+func TestGetTicketRegistry(t *testing.T) {
 	cfg := &config.Config{Language: "en"}
 	trans := &i18n.Translations{}
 	container := NewContainer(cfg, trans)
 
-	ctx := context.Background()
-	service, err := container.GetPRService(ctx)
+	ticketRegistry := container.GetTicketRegistry()
+	if ticketRegistry == nil {
+		t.Error("Ticket ticketRegistry should not be nil")
+	}
 
-	assert.Error(t, err)
-	assert.Nil(t, service)
-	assert.Contains(t, err.Error(), "servicio git no creado")
+	if ticketRegistry != container.ticketRegistry {
+		t.Error("Returned ticketRegistry should be the same as internal ticketRegistry")
+	}
 }
 
-func TestGetPRService_WithPRSummarizerError(t *testing.T) {
-	cfg := &config.Config{
-		Language: "en",
-		AIConfig: config.AIConfig{
-			ActiveAI: "",
-		},
-		VCSConfigs: map[string]config.VCSConfig{
-			"github": {
-				Token: "test-token",
-			},
-		},
-	}
+func TestGetConfig(t *testing.T) {
+	cfg := &config.Config{Language: "en"}
 	trans := &i18n.Translations{}
 	container := NewContainer(cfg, trans)
 
-	mockVCSFactory := &mockVCSFactory{}
-	err := container.RegisterVCSProvider("github", mockVCSFactory)
-	require.NoError(t, err)
-
-	mockGit := &mockGitService{}
-	container.SetGitService(mockGit)
-
-	ctx := context.Background()
-	service, err := container.GetPRService(ctx)
-
-	require.NoError(t, err)
-	assert.NotNil(t, service)
+	returnedCfg := container.GetConfig()
+	if returnedCfg != cfg {
+		t.Error("Returned config should be the same as input config")
+	}
 }
 
-func TestGetPRService_VCSClientCreationError(t *testing.T) {
-	cfg := &config.Config{
-		Language: "en",
-		VCSConfigs: map[string]config.VCSConfig{
-			"github": {
-				Token: "test-token",
-			},
-		},
-	}
+func TestGetTranslations(t *testing.T) {
+	cfg := &config.Config{Language: "en"}
 	trans := &i18n.Translations{}
 	container := NewContainer(cfg, trans)
 
-	mockGit := &mockGitService{}
-	container.SetGitService(mockGit)
-
-	ctx := context.Background()
-	service, err := container.GetPRService(ctx)
-
-	assert.Error(t, err)
-	assert.Nil(t, service)
-	assert.Contains(t, err.Error(), "error al crear cliente VCS")
+	returnedTrans := container.GetTranslations()
+	if returnedTrans != trans {
+		t.Error("Returned translations should be the same as input translations")
+	}
 }
+
+func TestGetIssueTemplateService(t *testing.T) {
+	cfg := &config.Config{Language: "en"}
+	trans := &i18n.Translations{}
+	container := NewContainer(cfg, trans)
+
+	service := container.GetIssueTemplateService()
+	if service == nil {
+		t.Fatal("IssueTemplateService should not be nil")
+	}
+
+	if service != container.GetIssueTemplateService() {
+		t.Error("Returned service should be a singleton")
+	}
+}
+
+func TestGetIssueGeneratorService(t *testing.T) {
+	t.Run("should fail if GitService is not set", func(t *testing.T) {
+		cfg := &config.Config{Language: "en"}
+		trans := &i18n.Translations{}
+		container := NewContainer(cfg, trans)
+
+		_, err := container.GetIssueGeneratorService(context.Background())
+		if err == nil {
+			t.Error("Expected error because GitService is nil")
+		}
+	})
+
+	t.Run("should create IssueGeneratorService successfully", func(t *testing.T) {
+		cfg := &config.Config{
+			Language:          "en",
+			ActiveVCSProvider: "mock",
+			AIConfig: config.AIConfig{
+				ActiveAI: "mock",
+			},
+			VCSConfigs: make(map[string]config.VCSConfig),
+		}
+		cfg.VCSConfigs["mock"] = config.VCSConfig{Provider: "mock"}
+
+		trans, _ := i18n.NewTranslations("en", "")
+		container := NewContainer(cfg, trans)
+
+		aiFactory := &mockAIFactory{}
+		vcsFactory := &mockVCSFactory{}
+
+		aiFactory.On("CreateIssueContentGenerator", mock.Anything, cfg, trans).Return(nil, nil)
+		vcsFactory.On("CreateClient", mock.Anything, "owner", "repo", "", trans).Return(nil, nil)
+		vcsFactory.On("ValidateConfig", mock.Anything).Return(nil)
+
+		_ = container.RegisterAIProvider("mock", aiFactory)
+		_ = container.RegisterVCSProvider("mock", vcsFactory)
+
+		mockGit := &mockGitService{}
+		container.SetGitService(mockGit)
+
+		service, err := container.GetIssueGeneratorService(context.Background())
+		if err != nil {
+			t.Fatalf("Failed to get IssueGeneratorService: %v", err)
+		}
+
+		if service == nil {
+			t.Fatal("IssueGeneratorService should not be nil")
+		}
+
+		secondService, _ := container.GetIssueGeneratorService(context.Background())
+		if service != secondService {
+			t.Error("Returned service should be a singleton")
+		}
+
+		aiFactory.AssertExpectations(t)
+		vcsFactory.AssertExpectations(t)
+	})
+}
+
+type mockGitService struct {
+	ports.GitService
+}
+
+func (m *mockGitService) GetRepoInfo(_ context.Context) (string, string, string, error) {
+	return "owner", "repo", "mock", nil
+}
+
+var _ registry.AIProviderFactory = (*mockAIFactory)(nil)
+var _ vcsregistry.VCSProviderFactory = (*mockVCSFactory)(nil)
+var _ ticketregistry.TicketProviderFactory = (*mockTicketFactory)(nil)

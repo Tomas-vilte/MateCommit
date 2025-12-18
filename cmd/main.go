@@ -9,12 +9,14 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/completion"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/config"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/handler"
+	"github.com/Tomas-vilte/MateCommit/internal/cli/command/issues"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/pull_requests"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/release"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/suggests_commits"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/update"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/registry"
 	cfg "github.com/Tomas-vilte/MateCommit/internal/config"
+	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/ai/gemini"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/di"
@@ -99,6 +101,14 @@ func initializeApp() (*cli.Command, error) {
 
 	if err := registerCommand.Register("suggest", suggests_commits.NewSuggestCommandFactory(commitService, commitHandler)); err != nil {
 		log.Fatalf("Error al registrar el comando 'suggest': %v", err)
+	}
+
+	issueServiceProvider := func(ctx context.Context) (ports.IssueGeneratorService, error) {
+		return container.GetIssueGeneratorService(ctx)
+	}
+
+	if err := registerCommand.Register("issue", issues.NewIssuesCommandFactory(issueServiceProvider, container.GetIssueTemplateService())); err != nil {
+		log.Fatalf("Error al registrar el comando 'issue': %v", err)
 	}
 
 	if err := registerCommand.Register("config", config.NewConfigCommandFactory()); err != nil {

@@ -664,3 +664,77 @@ func GetReleaseNotesSectionHeaders(locale string) map[string]string {
 	}
 	return releaseHeadersEN
 }
+
+const (
+	issuePromptTemplateEN = `# Task
+  Act as a Senior Tech Lead and generate a high-quality GitHub issue based on the provided inputs.
+
+  # Inputs
+  %s
+
+  # Golden Rules (Constraints)
+  1. **Active Voice:** Write in FIRST PERSON ("I implemented", "I added", "We refactored"). Avoid passive voice like "It was implemented".
+  2. **Context First:** Explain the WHY before the WHAT.
+  3. **Accurate Categorization:** Always choose at least one primary category: 'feature', 'fix', or 'refactor'. Use 'fix' ONLY for bug corrections. Use 'refactor' for code improvements without logic changes. Use 'feature' for new functionality.
+  4. **No Emojis:** Do not use emojis in the title or description. Keep it purely textual and professional.
+  5. **Balanced Labeling:** Aim for 2-4 relevant labels. Ensure you include the primary category plus any relevant file-based labels like 'test', 'docs', or 'infra' if applicable.
+  6. **Format:** Raw JSON only. Do not wrap in markdown blocks.
+
+  # Description Structure
+  The 'description' field must follow this Markdown structure:
+  - ### Context (Motivation)
+  - ### Technical Details (Architectural changes, new models, etc.)
+  - ### Impact (Benefits)
+
+  # Output Format
+  Respond with ONLY valid JSON (no markdown):
+  {
+    "title": "Concise and descriptive title",
+    "description": "Markdown body following the structure above",
+    "labels": ["label1", "label2"]
+  }
+
+  Generate the issue now.`
+
+	issuePromptTemplateES = `# Tarea
+  Actuá como un Tech Lead y generá un issue de GitHub profesional basado en los inputs.
+
+  # Entradas (Inputs)
+  %s
+
+  # Reglas de Oro (Constraints)
+  1. **Voz Activa:** Escribí en PRIMERA PERSONA ("Implementé", "Agregué", "Corregí"). Prohibido usar voz pasiva robótica.
+  2. **Contexto Real:** Explicá el POR QUÉ del cambio, no solo qué líneas tocaste.
+  3. **Categorización Precisa:** Elegí siempre al menos una categoría principal: 'feature', 'fix', o 'refactor'. Solo usá 'fix' si ves una corrección de un bug. Usá 'refactor' para mejoras de código sin cambios lógicos. Usá 'feature' para funcionalidades nuevas.
+  4. **Cero Emojis:** No uses emojis ni en el título ni en el cuerpo del issue. Mantené un estilo sobrio y técnico.
+  5. **Etiquetado Equilibrado:** Buscá entre 2 y 4 etiquetas relevantes. Asegurate de incluir la categoría principal más cualquier etiqueta de tipo de archivo como 'test', 'docs', o 'infra' si corresponde.
+  6. **Formato:** JSON crudo. No incluyas bloques de markdown (como ` + "```json" + `).
+
+  # Estructura de la Descripción
+  El campo "description" tiene que ser Markdown y seguir esta estructura estricta:
+  - ### Contexto (¿Cuál es la motivación o el dolor que resuelve esto?)
+  - ### Detalles Técnicos (Lista de cambios importantes, modelos nuevos, refactors)
+  - ### Impacto (¿Qué gana el usuario o el desarrollador con esto?)
+
+  # Formato de Salida
+  IMPORTANTE: Responde en ESPAÑOL. Todo el contenido del JSON debe estar en español.
+
+  Responde SOLO con JSON válido (sin markdown):
+  {
+    "title": "título descriptivo y con gancho",
+    "description": "Cuerpo en markdown siguiendo la estructura pedida",
+    "labels": ["etiqueta1", "etiqueta2"]
+  }
+
+  Generá el issue ahora.`
+)
+
+// GetIssuePromptTemplate devuelve el template adecuado para generación de issues según el idioma
+func GetIssuePromptTemplate(lang string) string {
+	switch lang {
+	case "es":
+		return issuePromptTemplateES
+	default:
+		return issuePromptTemplateEN
+	}
+}

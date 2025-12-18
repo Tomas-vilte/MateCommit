@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestClient(pr *MockPRService, issues *MockIssuesService, release *MockReleaseService) *GitHubClient {
+func newTestClient(pr *MockPRService, issues *MockIssuesService, release *MockReleaseService, userService *MockUserService) *GitHubClient {
 	trans, _ := i18n.NewTranslations("es", "../../../i18n/locales/")
 	repo := &MockRepoService{}
 	client := NewGitHubClientWithServices(
@@ -24,6 +24,7 @@ func newTestClient(pr *MockPRService, issues *MockIssuesService, release *MockRe
 		issues,
 		repo,
 		release,
+		userService,
 		"test-owner",
 		"test-repo",
 		trans,
@@ -37,7 +38,8 @@ func TestGitHubClient_UpdatePR(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		prNumber := 123
 		summary := models.PRSummary{
@@ -70,7 +72,8 @@ func TestGitHubClient_UpdatePR(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		labelsToAdd := []string{"fix"}
 
@@ -101,7 +104,8 @@ func TestGitHubClient_AddLabelsToPR(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		prNumber := 123
 		labels := []string{"feature", "fix"}
@@ -130,7 +134,8 @@ func TestGitHubClient_GetPR(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		prNumber := 123
 		expectedUser := "test-user"
@@ -164,7 +169,8 @@ func TestGitHubClient_CreateLabel(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		labelName := "new-label"
 		color := "FFFFFF"
@@ -197,7 +203,7 @@ func TestLabelExists(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			client := newTestClient(nil, nil, nil)
+			client := newTestClient(nil, nil, nil, nil)
 			result := client.labelExists(tt.existingLabels, tt.target)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -209,7 +215,8 @@ func TestGitHubClient_UpdatePR_ErrorCases(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		prNumber := 123
 		summary := models.PRSummary{Title: "Title", Body: "Body"}
@@ -227,7 +234,8 @@ func TestGitHubClient_UpdatePR_ErrorCases(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		prNumber := 123
 		summary := models.PRSummary{Labels: []string{"fix"}}
@@ -249,7 +257,8 @@ func TestGitHubClient_UpdatePR_ErrorCases(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		prNumber := 123
 		summary := models.PRSummary{Title: "Title", Body: "Body"}
@@ -282,7 +291,8 @@ func TestGitHubClient_AddLabelsToPR_ErrorCases(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		mockIssues.On("ListLabels", mock.Anything, "test-owner", "test-repo", mock.Anything).
 			Return([]*github.Label{}, &github.Response{}, assert.AnError)
@@ -296,7 +306,8 @@ func TestGitHubClient_AddLabelsToPR_ErrorCases(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		mockIssues.On("ListLabels", mock.Anything, "test-owner", "test-repo", mock.Anything).
 			Return([]*github.Label{}, &github.Response{}, nil)
@@ -313,7 +324,8 @@ func TestGitHubClient_AddLabelsToPR_ErrorCases(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		mockIssues.On("ListLabels", mock.Anything, "test-owner", "test-repo", mock.Anything).
 			Return([]*github.Label{{Name: github.Ptr("fix")}}, &github.Response{}, nil)
@@ -332,7 +344,8 @@ func TestGitHubClient_GetPR_ErrorCases(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		mockPR.On("Get", mock.Anything, "test-owner", "test-repo", 123).
 			Return(&github.PullRequest{}, &github.Response{}, assert.AnError)
@@ -345,7 +358,8 @@ func TestGitHubClient_GetPR_ErrorCases(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		mockPR.On("Get", mock.Anything, "test-owner", "test-repo", 123).
 			Return(&github.PullRequest{}, &github.Response{}, nil)
@@ -360,7 +374,8 @@ func TestGitHubClient_GetPR_ErrorCases(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		mockPR.On("Get", mock.Anything, "test-owner", "test-repo", 123).
 			Return(&github.PullRequest{User: &github.User{Login: github.Ptr("test-user")}}, &github.Response{Response: &http.Response{StatusCode: http.StatusOK}}, nil)
@@ -379,7 +394,8 @@ func TestGitHubClient_CreateRelease(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		release := &models.Release{Version: "v1.0.0"}
 		notes := &models.ReleaseNotes{Title: "Release v1.0.0", Changelog: "Changes"}
@@ -393,6 +409,7 @@ func TestGitHubClient_CreateRelease(t *testing.T) {
 			mockIssues,
 			repo,
 			mockRelease,
+			mockUserService,
 			"test-owner",
 			"test-repo",
 			client.trans,
@@ -432,7 +449,8 @@ func TestGitHubClient_CreateRelease(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		release := &models.Release{Version: "v1.0.0"}
 		notes := &models.ReleaseNotes{}
@@ -450,7 +468,8 @@ func TestGitHubClient_CreateRelease(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		release := &models.Release{Version: "v1.0.0"}
 		notes := &models.ReleaseNotes{}
@@ -468,7 +487,8 @@ func TestGitHubClient_CreateRelease(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		release := &models.Release{Version: "v1.0.0"}
 		notes := &models.ReleaseNotes{}
@@ -487,7 +507,8 @@ func TestGitHubClient_GetRelease(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		expectedRelease := &github.RepositoryRelease{
 			TagName: github.Ptr("v1.0.0"),
@@ -516,7 +537,8 @@ func TestGitHubClient_GetRelease(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		resp := &github.Response{Response: &http.Response{StatusCode: http.StatusNotFound}}
 		mockRelease.On("GetReleaseByTag", mock.Anything, "test-owner", "test-repo", "v1.0.0").
@@ -534,7 +556,8 @@ func TestGitHubClient_GetRelease(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		resp := &github.Response{Response: &http.Response{StatusCode: http.StatusInternalServerError}}
 		mockRelease.On("GetReleaseByTag", mock.Anything, "test-owner", "test-repo", "v1.0.0").
@@ -553,7 +576,8 @@ func TestGitHubClient_UpdateRelease(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		existingRelease := &github.RepositoryRelease{
 			ID: github.Ptr(int64(123)),
@@ -576,7 +600,8 @@ func TestGitHubClient_UpdateRelease(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		resp := &github.Response{Response: &http.Response{StatusCode: http.StatusNotFound}}
 		mockRelease.On("GetReleaseByTag", mock.Anything, "test-owner", "test-repo", "v1.0.0").
@@ -593,7 +618,8 @@ func TestGitHubClient_UpdateRelease(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		existingRelease := &github.RepositoryRelease{
 			ID: github.Ptr(int64(123)),
@@ -617,7 +643,8 @@ func TestGitHubClient_GetIssue(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		issueNumber := 123
 		expectedIssue := &github.Issue{
@@ -656,7 +683,8 @@ func TestGitHubClient_GetIssue(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		issueNumber := 123
 		expectedIssue := &github.Issue{
@@ -683,7 +711,8 @@ func TestGitHubClient_GetIssue(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		issueNumber := 123
 
@@ -703,7 +732,8 @@ func TestGitHubClient_GetClosedIssuesBetweenTags(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		prevTag := "v1.0.0"
 		currTag := "v1.1.0"
@@ -742,7 +772,8 @@ func TestGitHubClient_GetClosedIssuesBetweenTags(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		prevTag := "v1.0.0"
 		prevReleaseDate := github.Timestamp{Time: time.Now().Add(-24 * time.Hour)}
@@ -781,7 +812,8 @@ func TestGitHubClient_GetClosedIssuesBetweenTags(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		mockRelease.On("GetReleaseByTag", mock.Anything, "test-owner", "test-repo", "v1.0.0").
 			Return((*github.RepositoryRelease)(nil), &github.Response{}, assert.AnError)
@@ -795,7 +827,8 @@ func TestGitHubClient_GetClosedIssuesBetweenTags(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		prevRelease := &github.RepositoryRelease{
 			CreatedAt: &github.Timestamp{},
@@ -818,7 +851,8 @@ func TestGitHubClient_GetMergedPRsBetweenTags(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		prevTag := "v1.0.0"
 		currTag := "v1.1.0"
@@ -879,7 +913,8 @@ func TestGitHubClient_GetMergedPRsBetweenTags(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		prevTag := "v1.0.0"
 		prevReleaseDate := github.Timestamp{Time: time.Now().Add(-24 * time.Hour)}
@@ -916,7 +951,8 @@ func TestGitHubClient_GetMergedPRsBetweenTags(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		mockRelease.On("GetReleaseByTag", mock.Anything, "test-owner", "test-repo", "v1.0.0").
 			Return((*github.RepositoryRelease)(nil), &github.Response{}, assert.AnError)
@@ -930,7 +966,8 @@ func TestGitHubClient_GetMergedPRsBetweenTags(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		mockRelease.On("GetReleaseByTag", mock.Anything, "test-owner", "test-repo", "v1.0.0").
 			Return(&github.RepositoryRelease{CreatedAt: &github.Timestamp{}}, &github.Response{}, nil)
@@ -949,7 +986,8 @@ func TestGitHubClient_GetContributorsBetweenTags(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		prevTag := "v1.0.0"
 		currTag := "v1.1.0"
@@ -981,7 +1019,8 @@ func TestGitHubClient_GetContributorsBetweenTags(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		mockRepo := &MockRepoService{}
 		client.repoService = mockRepo
@@ -1000,7 +1039,8 @@ func TestGitHubClient_GetFileStatsBetweenTags(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		prevTag := "v1.0.0"
 		currTag := "v1.1.0"
@@ -1038,7 +1078,8 @@ func TestGitHubClient_GetFileStatsBetweenTags(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		mockRepo := &MockRepoService{}
 		client.repoService = mockRepo
@@ -1057,7 +1098,8 @@ func TestGitHubClient_GetFileAtTag(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 		mockRepo := &MockRepoService{}
 		client.repoService = mockRepo
 
@@ -1083,7 +1125,8 @@ func TestGitHubClient_GetFileAtTag(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 		mockRepo := &MockRepoService{}
 		client.repoService = mockRepo
 
@@ -1103,7 +1146,8 @@ func TestGitHubClient_GetFileAtTag(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 		mockRepo := &MockRepoService{}
 		client.repoService = mockRepo
 
@@ -1123,7 +1167,8 @@ func TestGitHubClient_GetDiffFromCommits(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 		mockRepo := &MockRepoService{}
 		client.repoService = mockRepo
 
@@ -1170,7 +1215,8 @@ func TestGitHubClient_GetDiffFromCommits(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 		mockRepo := &MockRepoService{}
 		client.repoService = mockRepo
 
@@ -1193,7 +1239,8 @@ func TestGitHubClient_GetPRIssues(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		branchName := "feature/123-new-feature"
 		prDescription := "Closes #456"
@@ -1247,7 +1294,8 @@ func TestGitHubClient_GetPRIssues(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		branchName := "feature/123-fix"
 		prDescription := "Fixes #123"
@@ -1271,7 +1319,8 @@ func TestGitHubClient_GetPRIssues(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		branchName := ""
 		prDescription := "Closes #999"
@@ -1291,7 +1340,8 @@ func TestGitHubClient_GetPRIssues(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease)
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		branchName := "issue/111"
 		commits := []string{"(#222)"}
@@ -1304,5 +1354,65 @@ func TestGitHubClient_GetPRIssues(t *testing.T) {
 		issues, err := client.GetPRIssues(context.Background(), branchName, commits, prDescription)
 		assert.NoError(t, err)
 		assert.Len(t, issues, 3)
+	})
+}
+
+func TestGitHubClient_CreateIssue(t *testing.T) {
+	t.Run("should create issue successfully", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
+
+		title := "Bug Title"
+		body := "Bug body description"
+		labels := []string{"bug", "critical"}
+		assignees := []string{"user1"}
+
+		expectedGHIssue := &github.Issue{
+			ID:      github.Ptr(int64(789)),
+			Number:  github.Ptr(42),
+			Title:   github.Ptr(title),
+			Body:    github.Ptr(body),
+			State:   github.Ptr("open"),
+			HTMLURL: github.Ptr("https://github.com/owner/repo/issues/42"),
+			User:    &github.User{Login: github.Ptr("test-user")},
+			Labels: []*github.Label{
+				{Name: github.Ptr("bug")},
+				{Name: github.Ptr("critical")},
+			},
+		}
+
+		mockIssues.On("Create", mock.Anything, "test-owner", "test-repo", mock.MatchedBy(func(req *github.IssueRequest) bool {
+			return *req.Title == title && *req.Body == body && len(*req.Labels) == 2 && len(*req.Assignees) == 1
+		})).Return(expectedGHIssue, &github.Response{}, nil)
+
+		result, err := client.CreateIssue(context.Background(), title, body, labels, assignees)
+
+		assert.NoError(t, err)
+		assert.Equal(t, 42, result.Number)
+		assert.Equal(t, title, result.Title)
+		assert.Equal(t, body, result.Description)
+		assert.Equal(t, "test-user", result.Author)
+		assert.ElementsMatch(t, labels, result.Labels)
+		mockIssues.AssertExpectations(t)
+	})
+
+	t.Run("should return error when Create fails", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
+
+		mockIssues.On("Create", mock.Anything, "test-owner", "test-repo", mock.Anything).
+			Return((*github.Issue)(nil), &github.Response{}, assert.AnError)
+
+		_, err := client.CreateIssue(context.Background(), "Title", "Body", nil, nil)
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "error creando issue")
+		mockIssues.AssertExpectations(t)
 	})
 }
