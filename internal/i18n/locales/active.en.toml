@@ -268,6 +268,16 @@ vcs_provider_auto_detected_not_configured = "VCS provider '%s' auto-detected but
 release_already_exists = "This release {{.Version}} already exists"
 repo_or_tag_not_found = "Repository or tag not found. Make sure tag {{.Version}} exists"
 create_release = "Error creating release"
+upload_binaries = "Error uploading binaries: {{.Error}}"
+create_temp_dir = "Error creating temporary directory: {{.Error}}"
+build_binaries = "Error building binaries: {{.Error}}"
+open_file = "Error opening file: {{.File}}: {{.Error}}"
+upload_asset = "Error uploading asset {{.Asset}}: {{.Error}}"
+compile_target = "Error compiling for {{.GOOS}}/{{.GOARCH}}: {{.Output}}"
+create_zip = "Error creating zip: {{.Error}}"
+create_targz = "Error creating tar.gz: {{.Error}}"
+archive_format_not_supported = "Archive format not supported: {{.Format}}"
+binary_not_found_archive = "Binary not found in archive"
 pr_number_required = "You must specify the PR number with -n or --number"
 
 [warning]
@@ -678,4 +688,74 @@ error_write_config = "could not write to config file: {{.Error}}"
 already_installed = "✅ Completion already installed in {{.File}}"
 restart_shell = "Please restart your shell or run:"
 installed_success = "✅ Completion installed to {{.File}}"
+
+[token_usage]
+header = "📊 Token Usage"
+input = "Input Tokens"
+output = "Output Tokens"
+total = "Total Tokens"
+
+[update]
+usage = "Update MateCommit to the latest version"
+box_top = "╭──────────────────────────────────────────────╮"
+box_bottom = "╰──────────────────────────────────────────────╯"
+available = "  Update available! {{.Current}} -> {{.Latest}}"
+command = "  Run: {{.Command}} to update"
+updating = "🔄 Updating MateCommit..."
+success = "✅ MateCommit updated successfully!"
+error = "Error updating MateCommit"
+
+[update.method_not_detected]
+other = "Installation method not detected. Please update manually"
+
+[update.go_not_found]
+other = "Go is not installed. Cannot update via 'go install'"
+
+[update.brew_not_found]
+other = "Homebrew is not installed. Cannot update via 'brew'"
+
+[update.binary_not_supported]
+other = "Binary update not supported yet. Please update manually:\n  • Via Go: go install github.com/Tomas-vilte/MateCommit@latest\n  • Via Homebrew: brew upgrade matecommit"
+
+[update.downloading]
+other = "Downloading version {{.Version}}..."
+
+[update.extracting]
+other = "Extracting files..."
+
+[update.installing]
+other = "Installing new version..."
+
+
+
+[build]
+compiling_binaries = "Compiling binaries for multiple platforms..."
+uploading_binaries = "Uploading {{.Count}} binaries to release..."
+
+[build.errors]
+upload_binaries = "Error uploading binaries: {{.Error}}"
+create_zip = "Error creating zip: {{.Error}}"
+create_targz = "Error creating tar.gz: {{.Error}}"
+compile_target = "Error compiling for {{.GOOS}}/{{.GOARCH}}: {{.Output}}"
+build_binaries = "Error building and packaging binaries: {{.Error}}"
+open_file = "Error opening file {{.File}}: {{.Error}}"
+upload_asset = "Error uploading asset {{.Asset}}: {{.Error}}"
+create_temp_dir = "Error creating temporary directory: {{.Error}}"
+
+[update.errors]
+get_latest = "Error getting latest version: {{.Error}}"
+arch_not_supported = "Architecture not supported: {{.Arch}}"
+os_not_supported = "Operating system not supported: {{.OS}}"
+binary_not_found_manual = "Binary not found for {{.OS}}/{{.Arch}}. Download it manually from: {{.URL}}"
+create_temp = "Error creating temporary directory: {{.Error}}"
+download = "Error downloading binary: {{.Error}}"
+download_http = "Error downloading: HTTP {{.StatusCode}}"
+create_temp_file = "Error creating temporary file: {{.Error}}"
+save_binary = "Error saving binary: {{.Error}}"
+extract = "Error extracting file: {{.Error}}"
+get_executable = "Error getting executable path: {{.Error}}"
+resolve_symlinks = "Error resolving symlinks: {{.Error}}"
+create_backup = "Error creating backup: {{.Error}}"
+install_binary = "Error installing new binary: {{.Error}}"
+chmod = "Error setting permissions: {{.Error}}"
 

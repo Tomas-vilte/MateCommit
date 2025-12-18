@@ -45,7 +45,7 @@ func (m *MockVCSClient) AddLabelsToPR(ctx context.Context, prNumber int, labels 
 	return args.Error(0)
 }
 
-func (m *MockVCSClient) CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool) error {
+func (m *MockVCSClient) CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool) error {
 	args := m.Called(ctx, release, notes, draft)
 	return args.Error(0)
 }
