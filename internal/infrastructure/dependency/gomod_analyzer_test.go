@@ -104,6 +104,16 @@ func (m *MockVCSClient) UpdateIssueChecklist(ctx context.Context, issueNumber in
 	return args.Error(0)
 }
 
+func (m *MockVCSClient) CreateIssue(ctx context.Context, title string, body string, labels []string, assignees []string) (*models.Issue, error) {
+	args := m.Called(ctx, title, body, labels, assignees)
+	return args.Get(0).(*models.Issue), args.Error(1)
+}
+
+func (m *MockVCSClient) GetAuthenticatedUser(ctx context.Context) (string, error) {
+	args := m.Called(ctx)
+	return args.String(0), args.Error(1)
+}
+
 func TestGoModAnalyzer_Name(t *testing.T) {
 	analyzer := NewGoModAnalyzer()
 	assert.Equal(t, "go.mod", analyzer.Name())

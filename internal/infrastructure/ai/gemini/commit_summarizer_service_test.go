@@ -41,8 +41,8 @@ const (
 ]`
 )
 
-func TestGeminiService(t *testing.T) {
-	t.Run("NewGeminiService with empty API key", func(t *testing.T) {
+func TestGeminiCommitSummarizer(t *testing.T) {
+	t.Run("NewGeminiCommitSummarizer with empty API key", func(t *testing.T) {
 		// arrange
 		ctx := context.Background()
 		cfg := &config.Config{
@@ -53,7 +53,7 @@ func TestGeminiService(t *testing.T) {
 		assert.NoError(t, err)
 
 		// act
-		service, err := NewGeminiService(ctx, cfg, trans)
+		service, err := NewGeminiCommitSummarizer(ctx, cfg, trans)
 
 		// assert
 		if service != nil {
@@ -76,7 +76,7 @@ func TestGeminiService(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error al crear el traductor: %v", err)
 		}
-		service, err := NewGeminiService(ctx, cfg, trans)
+		service, err := NewGeminiCommitSummarizer(ctx, cfg, trans)
 		if err != nil {
 			t.Fatalf("Error creando servicio: %v", err)
 		}
@@ -110,7 +110,7 @@ func TestGeminiService(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error creando traductor: %v", err)
 		}
-		service, err := NewGeminiService(ctx, cfg, trans)
+		service, err := NewGeminiCommitSummarizer(ctx, cfg, trans)
 		if err != nil {
 			t.Fatalf("Error creando servicio: %v", err)
 		}
@@ -141,7 +141,7 @@ func TestGeminiService(t *testing.T) {
 
 		trans, err := i18n.NewTranslations("es", "../../../i18n/locales/")
 		assert.NoError(t, err)
-		service, err := NewGeminiService(ctx, cfg, trans)
+		service, err := NewGeminiCommitSummarizer(ctx, cfg, trans)
 		assert.NoError(t, err)
 
 		resp := &genai.GenerateContentResponse{
@@ -215,7 +215,7 @@ func TestGeminiService(t *testing.T) {
 
 		trans, err := i18n.NewTranslations("es", "../../../i18n/locales/")
 		assert.NoError(t, err)
-		service, err := NewGeminiService(ctx, cfg, trans)
+		service, err := NewGeminiCommitSummarizer(ctx, cfg, trans)
 		assert.NoError(t, err)
 
 		info := models.CommitInfo{
@@ -246,7 +246,7 @@ func TestGeminiService(t *testing.T) {
 
 		trans, err := i18n.NewTranslations("es", "../../../i18n/locales/")
 		assert.NoError(t, err)
-		service, err := NewGeminiService(ctx, cfg, trans)
+		service, err := NewGeminiCommitSummarizer(ctx, cfg, trans)
 		assert.NoError(t, err)
 
 		info := models.CommitInfo{
@@ -277,7 +277,7 @@ func TestGeminiService(t *testing.T) {
 
 		trans, err := i18n.NewTranslations("es", "../../../i18n/locales/")
 		assert.NoError(t, err)
-		service, err := NewGeminiService(ctx, cfg, trans)
+		service, err := NewGeminiCommitSummarizer(ctx, cfg, trans)
 		assert.NoError(t, err)
 
 		info := models.CommitInfo{
@@ -299,7 +299,7 @@ func TestGeminiService(t *testing.T) {
 
 	t.Run("parseSuggestionsJSON with nil response", func(t *testing.T) {
 		// arrange
-		service := &GeminiService{}
+		service := &GeminiCommitSummarizer{}
 		resp := (*genai.GenerateContentResponse)(nil)
 
 		// act
@@ -313,7 +313,7 @@ func TestGeminiService(t *testing.T) {
 
 	t.Run("parseSuggestionsJSON with empty candidates", func(t *testing.T) {
 		// arrange
-		service := &GeminiService{}
+		service := &GeminiCommitSummarizer{}
 		resp := &genai.GenerateContentResponse{
 			Candidates: []*genai.Candidate{},
 		}
@@ -334,7 +334,7 @@ func TestGeminiService(t *testing.T) {
 			AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test-api-key", Model: "gemini-2.5-flash", Temperature: 0.3, MaxTokens: 10000}},
 		}
 		trans, _ := i18n.NewTranslations("es", "../../../i18n/locales/")
-		service, _ := NewGeminiService(ctx, cfg, trans)
+		service, _ := NewGeminiCommitSummarizer(ctx, cfg, trans)
 
 		resp := &genai.GenerateContentResponse{
 			Candidates: []*genai.Candidate{
@@ -356,7 +356,7 @@ func TestGeminiService(t *testing.T) {
 		ctx := context.Background()
 		cfg := &config.Config{AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test-api-key", Model: "gemini-2.5-flash", Temperature: 0.3, MaxTokens: 10000}}}
 		trans, _ := i18n.NewTranslations("es", "../../../i18n/locales/")
-		service, _ := NewGeminiService(ctx, cfg, trans)
+		service, _ := NewGeminiCommitSummarizer(ctx, cfg, trans)
 
 		testCases := []struct {
 			inputStatus    string

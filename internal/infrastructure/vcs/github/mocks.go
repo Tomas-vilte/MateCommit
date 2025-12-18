@@ -76,6 +76,11 @@ func (m *MockIssuesService) Edit(ctx context.Context, owner, repo string, number
 	return args.Get(0).(*github.Issue), args.Get(1).(*github.Response), args.Error(2)
 }
 
+func (m *MockIssuesService) Create(ctx context.Context, owner, repo string, issue *github.IssueRequest) (*github.Issue, *github.Response, error) {
+	args := m.Called(ctx, owner, repo, issue)
+	return args.Get(0).(*github.Issue), args.Get(1).(*github.Response), args.Error(2)
+}
+
 type MockRepoService struct {
 	mock.Mock
 }
@@ -141,4 +146,13 @@ func (m *MockBinaryBuilderFactory) NewBuilder(mainPath, binaryName, version, com
 		return nil
 	}
 	return args.Get(0).(ports.BinaryPackager)
+}
+
+type MockUserService struct {
+	mock.Mock
+}
+
+func (m *MockUserService) Get(ctx context.Context, user string) (*github.User, *github.Response, error) {
+	args := m.Called(ctx, user)
+	return args.Get(0).(*github.User), args.Get(1).(*github.Response), args.Error(2)
 }

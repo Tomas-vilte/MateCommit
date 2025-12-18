@@ -36,7 +36,3 @@ type ReleaseService interface {
 	PushChanges(ctx context.Context) error
 	UpdateAppVersion(version string) error
 }
-
-type ReleaseNotesGenerator interface {
-	GenerateNotes(ctx context.Context, release *models.Release) (*models.ReleaseNotes, error)
-}
