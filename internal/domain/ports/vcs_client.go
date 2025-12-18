@@ -41,4 +41,8 @@ type VCSClient interface {
 	GetPRIssues(ctx context.Context, branchName string, commits []string, prDescription string) ([]models.Issue, error)
 	// UpdateIssueChecklist actualiza el checklist de un issue marcando elementos como completados
 	UpdateIssueChecklist(ctx context.Context, issueNumber int, indices []int) error
+	// CreateIssue crea una nueva issue en el repositorio
+	CreateIssue(ctx context.Context, title string, body string, labels []string, assignees []string) (*models.Issue, error)
+	// GetAuthenticatedUser obtiene el usuario autenticado actual
+	GetAuthenticatedUser(ctx context.Context) (string, error)
 }

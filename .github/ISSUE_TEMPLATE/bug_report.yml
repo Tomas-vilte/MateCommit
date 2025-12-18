@@ -1,0 +1,49 @@
+body:
+    - attributes:
+        value: Gracias por reportar este problema, tu feedback ayuda a mejorar el proyecto.
+      type: markdown
+    - attributes:
+        description: Contame con tus palabras qué problema encontraste
+        label: ¿Qué pasó?
+        placeholder: Cuando intento guardar los cambios, la aplicación deja de responder...
+      id: description
+      type: textarea
+      validations:
+        required: true
+    - attributes:
+        description: Detallá los pasos para que pueda reproducir el error
+        label: ¿Cómo lo reproduzco?
+        placeholder: "1. \n2. \n3. "
+      id: steps
+      type: textarea
+      validations:
+        required: true
+    - attributes:
+        label: ¿Qué esperabas que pasara?
+        placeholder: Esperaba que se guardaran los cambios sin problemas
+      id: expected
+      type: textarea
+      validations:
+        required: true
+    - attributes:
+        label: ¿Qué pasó en realidad?
+        placeholder: La aplicación se quedó trabada y tuve que cerrarla
+      id: actual
+      type: textarea
+      validations:
+        required: true
+    - attributes:
+        label: Versión
+        placeholder: v1.0.0
+      id: version
+      type: input
+    - attributes:
+        description: Screenshots, logs, o cualquier detalle que pueda ayudar a entender el problema
+        label: Información extra
+      id: additional
+      type: textarea
+description: Crea un reporte para ayudarnos a mejorar
+labels:
+    - bug
+name: Reporte de Error
+title: '[BUG] '

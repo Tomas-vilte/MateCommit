@@ -4,12 +4,13 @@ type (
 	// PRData contiene la información extraída de una Pull Request.
 	PRData struct {
 		ID            int
+		Title         string
 		Creator       string
 		Commits       []Commit
 		Diff          string
 		BranchName    string
 		RelatedIssues []Issue
-		PRDescription string
+		Description   string
 	}
 
 	// Commit representa un commit incluido en el PR.

@@ -13,20 +13,19 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/services"
 )
 
-// Container gestiona las dependencias de la aplicación
 type Container struct {
 	config       *config.Config
 	translations *i18n.Translations
 
-	// Registries
 	aiRegistry     *registry.AIProviderRegistry
 	vcsRegistry    *vcsregistry.VCSProviderRegistry
 	ticketRegistry *ticketregistry.TicketProviderRegistry
 
-	// Services (lazy initialized)
-	gitService    ports.GitService
-	commitService ports.CommitService
-	prService     ports.PRService
+	gitService            ports.GitService
+	commitService         ports.CommitService
+	prService             ports.PRService
+	issueTemplateService  ports.IssueTemplateService
+	issueGeneratorService ports.IssueGeneratorService
 }
 
 // NewContainer crea un nuevo contenedor de dependencias
@@ -159,4 +158,54 @@ func (c *Container) GetConfig() *config.Config {
 // GetTranslations retorna las traducciones
 func (c *Container) GetTranslations() *i18n.Translations {
 	return c.translations
+}
+
+// GetIssueTemplateService retorna el servicio de templates de issues (lazy initialization)
+func (c *Container) GetIssueTemplateService() ports.IssueTemplateService {
+	if c.issueTemplateService != nil {
+		return c.issueTemplateService
+	}
+
+	c.issueTemplateService = services.NewIssueTemplateService(c.config, c.translations)
+	return c.issueTemplateService
+}
+
+// GetIssueGeneratorService retorna el servicio de generación de issues (lazy initialization)
+func (c *Container) GetIssueGeneratorService(ctx context.Context) (ports.IssueGeneratorService, error) {
+	if c.issueGeneratorService != nil {
+		return c.issueGeneratorService, nil
+	}
+
+	if c.gitService == nil {
+		return nil, fmt.Errorf("servicio git no creado")
+	}
+
+	templateService := c.GetIssueTemplateService()
+
+	var aiGenerator ports.IssueContentGenerator
+	if c.config.AIConfig.ActiveAI != "" {
+		aiFactory, err := c.aiRegistry.Get(string(c.config.AIConfig.ActiveAI))
+		if err == nil {
+			aiGenerator, err = aiFactory.CreateIssueContentGenerator(ctx, c.config, c.translations)
+			if err != nil {
+				aiGenerator = nil
+			}
+		}
+	}
+
+	vcsClient, err := c.vcsRegistry.CreateClientFromConfig(ctx, c.gitService, c.config, c.translations)
+	if err != nil {
+		return nil, fmt.Errorf("error al crear cliente VCS: %w", err)
+	}
+
+	c.issueGeneratorService = services.NewIssueGeneratorService(
+		c.gitService,
+		aiGenerator,
+		vcsClient,
+		templateService,
+		c.config,
+		c.translations,
+	)
+
+	return c.issueGeneratorService, nil
 }

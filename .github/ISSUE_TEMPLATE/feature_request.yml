@@ -1,0 +1,35 @@
+body:
+    - attributes:
+        value: Gracias por contribuir con ideas para mejorar el proyecto.
+      type: markdown
+    - attributes:
+        description: Contame qué necesidad o dificultad tenés actualmente
+        label: ¿Qué problema querés resolver?
+        placeholder: Me cuesta mucho hacer X porque no hay forma de Y...
+      id: problem
+      type: textarea
+      validations:
+        required: true
+    - attributes:
+        description: Describí cómo te imaginás que debería funcionar
+        label: ¿Qué solución proponés?
+        placeholder: Estaría bueno poder hacer X desde Y para que sea más rápido...
+      id: solution
+      type: textarea
+      validations:
+        required: true
+    - attributes:
+        description: Si consideraste alternativas, contame cuáles
+        label: ¿Pensaste en otras opciones?
+      id: alternatives
+      type: textarea
+    - attributes:
+        description: Screenshots, ejemplos, o links que puedan ayudar a entender la propuesta
+        label: Contexto adicional
+      id: additional
+      type: textarea
+description: Sugiere una idea para este proyecto
+labels:
+    - enhancement
+name: Solicitud de Funcionalidad
+title: '[FEATURE] '

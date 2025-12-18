@@ -759,3 +759,155 @@ create_backup = "Error creating backup: {{.Error}}"
 install_binary = "Error installing new binary: {{.Error}}"
 chmod = "Error setting permissions: {{.Error}}"
 
+# Issue Generator Command
+[issue]
+command_usage = "Manage and generate issues"
+generate_usage = "Generate a new issue from code changes or description"
+flag_from_diff = "Generate issue from current git diff"
+flag_description = "Manual description for the issue"
+flag_hint = "Additional hint to guide AI generation"
+flag_no_labels = "Skip automatic label inference"
+flag_dry_run = "Preview only, don't create the issue"
+banner = "Issue Generator"
+analyzing = "Analyzing changes and generating content..."
+creating = "Creating issue..."
+preview_title = "Issue Preview"
+preview_title_label = "Title"
+preview_description_label = "Description"
+preview_labels_label = "Labels"
+confirm_prompt = "Create this issue?"
+created_successfully = "✅ Issue #{{.Number}} created successfully: {{.URL}}"
+cancelled = "Issue creation cancelled"
+dry_run_complete = "Dry run complete. No issue was created."
+error_no_input = "You must specify either --from-diff or --description"
+error_conflicting_flags = "Cannot use --from-diff and --description together"
+error_generating = "Error generating issue content"
+error_creating = "Error creating issue"
+flag_assign_me = "Assign the issue to yourself"
+flag_checkout = "Create and checkout to a new branch after creating the issue"
+getting_user = "Getting authenticated user..."
+will_assign = "Will assign to: {{.User}}"
+warn_assignee_failed = "Could not assign issue automatically"
+creating_branch = "Creating branch: {{.Branch}}"
+branch_created = "✅ Switched to branch: {{.Branch}}"
+warn_checkout_failed = "Could not create branch automatically"
+flag_from_pr = "Generate issue from an existing Pull Request"
+analyzing_pr = "Analyzing Pull Request #{{.Number}}..."
+error_multiple_sources = "You can only specify one of: --from-diff, --from-pr, or --description"
+link_success = "✅ Link successful: PR #{{.PR}} updated to close #{{.Issue}}"
+link_error = "Could not link issue to PR #{{.PR}} automatically: {{.Error}}"
+# Template Management
+flag_template = "Use a specific issue template"
+template_usage = "Manage issue templates"
+template_init_usage = "Initialize default issue templates"
+template_init_banner = "Template Initialization"
+template_init_info = "Creating default issue templates in .github/ISSUE_TEMPLATE/"
+template_init_success = "✅ Templates created successfully in: {{.Dir}}"
+template_init_error = "Error creating templates"
+template_force_flag = "Overwrite existing templates"
+template_list_usage = "List available issue templates"
+template_list_banner = "Available Issue Templates"
+template_list_empty = "No templates found"
+template_list_hint = "Run 'matecommit issue template init' to create default templates"
+template_list_usage_hint = "Use --template <filename> with the generate command"
+template_list_error = "Error listing templates"
+
+
+[issue_generator]
+ai_not_configured = "AI provider is not configured. Please run 'matecommit config init' first."
+error_getting_diff = "Error getting git diff"
+no_changes_detected = "No changes detected. Make some changes first or use --description instead."
+error_getting_files = "Error getting changed files"
+error_generating_content = "Error generating content with AI"
+description_required = "Description is required when not using --from-diff"
+vcs_not_configured = "VCS provider is not configured. Please run 'matecommit config init' first."
+error_getting_pr = "Error getting Pull Request"
+error_loading_template = "Error loading template"
+
+[issue_template]
+bug_report_name = "Bug Report"
+bug_report_about = "Create a report to help us improve"
+bug_report_title = "[BUG] "
+bug_report_body = """
+**Describe the bug**
+A clear and concise description of what the bug is.
+
+**To Reproduce**
+Steps to reproduce the behavior:
+1. Go to '...'
+2. Click on '....'
+3. See error
+
+**Expected behavior**
+A clear and concise description of what you expected to happen.
+
+**Screenshots**
+If applicable, add screenshots to help explain your problem.
+
+**Additional context**
+Add any other context about the problem here.
+"""
+
+feature_request_name = "Feature Request"
+feature_request_about = "Suggest an idea for this project"
+feature_request_title = "[FEATURE] "
+feature_request_body = """
+**Is your feature request related to a problem? Please describe.**
+A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+
+**Describe the solution you'd like**
+A clear and concise description of what you want to happen.
+
+**Describe alternatives you've considered**
+A clear and concise description of any alternative solutions or features you've considered.
+
+**Additional context**
+Add any other context or screenshots about the feature request here.
+"""
+
+custom_issue_name = "Custom Issue"
+custom_issue_about = "Create a custom issue"
+custom_issue_title = "[ISSUE] "
+custom_issue_body = """
+**Context**
+Provide context about this issue.
+
+**Details**
+Add detailed information here.
+"""
+
+# GitHub Issue Forms - Bug Report
+bug_report_intro = "Thanks for taking the time to fill out this bug report!"
+bug_description_label = "What happened?"
+bug_description_help = "A clear and concise description of what the bug is"
+bug_description_placeholder = "The application crashes when..."
+bug_steps_label = "Steps to reproduce"
+bug_steps_help = "How can we reproduce this issue?"
+bug_expected_label = "Expected behavior"
+bug_expected_placeholder = "What did you expect to happen?"
+bug_actual_label = "Actual behavior"
+bug_actual_placeholder = "What actually happened?"
+bug_version_label = "Version"
+bug_additional_label = "Additional context"
+bug_additional_help = "Add any other context about the problem (screenshots, logs, etc.)"
+
+# GitHub Issue Forms - Feature Request
+feature_intro = "Thanks for suggesting a new feature!"
+feature_problem_label = "Is your feature request related to a problem?"
+feature_problem_help = "Describe the problem you're trying to solve"
+feature_problem_placeholder = "I'm always frustrated when..."
+feature_solution_label = "Describe the solution you'd like"
+feature_solution_help = "What would you like to happen?"
+feature_solution_placeholder = "I would like to be able to..."
+feature_alternatives_label = "Describe alternatives you've considered"
+feature_alternatives_help = "Have you considered any alternative solutions?"
+feature_additional_label = "Additional context"
+feature_additional_help = "Add any other context or screenshots about the feature"
+
+# GitHub Issue Forms - Custom Issue
+custom_intro = "Provide details about your issue"
+custom_description_label = "Description"
+custom_description_help = "Describe your issue"
+custom_description_placeholder = "Please provide details..."
+custom_additional_label = "Additional information"
+custom_additional_help = "Any other relevant details"
