@@ -21,7 +21,12 @@ func (c *ConfigCommandFactory) newShowCommand(t *i18n.Translations, cfg *config.
 
 			fmt.Printf("%s\n", t.GetMessage("emojis_label", 0, map[string]interface{}{"Emoji": cfg.UseEmoji}))
 
-			if cfg.GeminiAPIKey == "" {
+			hasGemini := false
+			if providerCfg, exists := cfg.AIProviders["gemini"]; exists && providerCfg.APIKey != "" {
+				hasGemini = true
+			}
+
+			if !hasGemini {
 				fmt.Println(t.GetMessage("api.key_not_set", 0, nil))
 				fmt.Println(t.GetMessage("api.key_tip", 0, nil))
 				fmt.Println(t.GetMessage("api.key_config_command", 0, nil))
@@ -32,9 +37,10 @@ func (c *ConfigCommandFactory) newShowCommand(t *i18n.Translations, cfg *config.
 			if cfg.UseTicket {
 				fmt.Printf("%s\n", t.GetMessage("config_models.ticket_service_enabled", 0, map[string]interface{}{"Service": cfg.ActiveTicketService}))
 				if cfg.ActiveTicketService == "jira" {
+					jiraCfg := cfg.TicketProviders["jira"]
 					fmt.Printf("%s\n", t.GetMessage("config_models.jira_config_label", 0, map[string]interface{}{
-						"BaseURL": cfg.JiraConfig.BaseURL,
-						"Email":   cfg.JiraConfig.Email,
+						"BaseURL": jiraCfg.BaseURL,
+						"Email":   jiraCfg.Email,
 					}))
 				}
 			} else {

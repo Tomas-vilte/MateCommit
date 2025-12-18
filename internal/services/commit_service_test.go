@@ -41,6 +41,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		changes := []models.GitChange{{Path: "file1.go", Status: "M"}}
 		mockGit.On("GetChangedFiles", mock.Anything).Return(changes, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("some diff", nil)
+		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return("history", nil)
 		mockVCS.On("GetIssue", mock.Anything, 1234).Return(&models.Issue{Number: 1234, Title: "Issue Title"}, nil)
 
 		cfg.VCSConfigs = map[string]config.VCSConfig{
@@ -58,7 +59,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		}), 3).Return(expectedResponse, nil)
 
 		service := NewCommitService(mockGit, mockAI, mockJira, mockVCS, cfg, trans)
-		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
+		suggestions, err := service.GenerateSuggestions(context.Background(), 3, func(s string) {})
 
 		assert.NoError(t, err)
 		assert.Equal(t, expectedResponse, suggestions)
@@ -73,7 +74,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		mockGit.On("GetChangedFiles", mock.Anything).Return([]models.GitChange{}, nil)
 
 		service := NewCommitService(mockGit, mockAI, mockJira, mockVCS, cfg, trans)
-		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
+		suggestions, err := service.GenerateSuggestions(context.Background(), 3, func(s string) {})
 
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
@@ -88,7 +89,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		mockGit.On("GetDiff", mock.Anything).Return("", errors.New("git error"))
 
 		service := NewCommitService(mockGit, mockAI, mockJira, mockVCS, cfg, trans)
-		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
+		suggestions, err := service.GenerateSuggestions(context.Background(), 3, func(s string) {})
 
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
@@ -103,7 +104,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		mockGit.On("GetDiff", mock.Anything).Return("", nil)
 
 		service := NewCommitService(mockGit, mockAI, mockJira, mockVCS, cfg, trans)
-		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
+		suggestions, err := service.GenerateSuggestions(context.Background(), 3, func(s string) {})
 
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
@@ -117,10 +118,11 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 
 		mockGit.On("GetChangedFiles", mock.Anything).Return([]models.GitChange{{Path: "f.go"}}, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("diff", nil)
+		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return("history", nil)
 		mockGit.On("GetCurrentBranch", mock.Anything).Return("", errors.New("branch error"))
 
 		service := NewCommitService(mockGit, mockAI, mockJira, mockVCS, cfg, trans)
-		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
+		suggestions, err := service.GenerateSuggestions(context.Background(), 3, func(s string) {})
 
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
@@ -134,10 +136,11 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 
 		mockGit.On("GetChangedFiles", mock.Anything).Return([]models.GitChange{{Path: "f.go"}}, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("diff", nil)
+		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return("history", nil)
 		mockGit.On("GetCurrentBranch", mock.Anything).Return("main", nil)
 
 		service := NewCommitService(mockGit, mockAI, mockJira, mockVCS, cfg, trans)
-		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
+		suggestions, err := service.GenerateSuggestions(context.Background(), 3, func(s string) {})
 
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
@@ -149,11 +152,12 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 
 		mockGit.On("GetChangedFiles", mock.Anything).Return([]models.GitChange{{Path: "f.go"}}, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("diff", nil)
+		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return("history", nil)
 		mockGit.On("GetCurrentBranch", mock.Anything).Return("feat/PROJ-123", nil)
 		mockJira.On("GetTicketInfo", "PROJ-123").Return(&models.TicketInfo{}, errors.New("jira error"))
 
 		service := NewCommitService(mockGit, mockAI, mockJira, mockVCS, cfg, trans)
-		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
+		suggestions, err := service.GenerateSuggestions(context.Background(), 3, func(s string) {})
 
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
@@ -165,7 +169,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 	t.Run("AI service nil", func(t *testing.T) {
 		mockGit, _, mockJira, mockVCS, cfg, trans := setupTest(t)
 		service := NewCommitService(mockGit, nil, mockJira, mockVCS, cfg, trans)
-		suggestions, err := service.GenerateSuggestions(context.Background(), 3)
+		suggestions, err := service.GenerateSuggestions(context.Background(), 3, func(s string) {})
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
 		assert.Error(t, err)
@@ -179,6 +183,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 
 		mockGit.On("GetChangedFiles", mock.Anything).Return([]models.GitChange{{Path: "f.go"}}, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("diff", nil)
+		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return("history", nil)
 		mockGit.On("GetCurrentBranch", mock.Anything).Return("main", nil)
 		mockGit.On("GetRecentCommitMessages", mock.Anything, 5).Return("", errors.New("git log error"))
 
@@ -187,7 +192,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		}), 3).Return([]models.CommitSuggestion{}, nil)
 
 		service := NewCommitService(mockGit, mockAI, mockJira, mockVCS, cfg, trans)
-		_, err := service.GenerateSuggestions(context.Background(), 3)
+		_, err := service.GenerateSuggestions(context.Background(), 3, func(s string) {})
 		assert.NoError(t, err)
 	})
 
@@ -197,8 +202,9 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 
 		mockGit.On("GetChangedFiles", mock.Anything).Return([]models.GitChange{{Path: "f.go"}}, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("diff", nil)
+		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return("history", nil)
 		mockGit.On("GetCurrentBranch", mock.Anything).Return("main", nil)
-		mockGit.On("GetRecentCommitMessages", mock.Anything, 5).Return("Just a commit #999", nil)
+		mockGit.On("GetRecentCommitMessages", mock.Anything, 5).Return("Just a commit fixes #999", nil)
 
 		mockGit.On("GetRepoInfo", mock.Anything).Return("owner", "repo", "github", nil)
 		cfg.VCSConfigs = map[string]config.VCSConfig{"github": {Token: "token"}}
@@ -210,7 +216,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		}), 3).Return([]models.CommitSuggestion{}, nil)
 
 		service := NewCommitService(mockGit, mockAI, mockJira, mockVCS, cfg, trans)
-		_, err := service.GenerateSuggestions(context.Background(), 3)
+		_, err := service.GenerateSuggestions(context.Background(), 3, func(s string) {})
 		assert.NoError(t, err)
 		mockVCS.AssertCalled(t, "GetIssue", mock.Anything, 999)
 	})
@@ -221,6 +227,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 
 		mockGit.On("GetChangedFiles", mock.Anything).Return([]models.GitChange{{Path: "f.go"}}, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("diff", nil)
+		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return("history", nil)
 		mockGit.On("GetCurrentBranch", mock.Anything).Return("issue/123", nil)
 
 		mockGit.On("GetRepoInfo", mock.Anything).Return("", "", "", errors.New("repo error"))
@@ -230,7 +237,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		}), 3).Return([]models.CommitSuggestion{}, nil)
 
 		service := NewCommitService(mockGit, mockAI, mockJira, nil, cfg, trans)
-		_, err := service.GenerateSuggestions(context.Background(), 3)
+		_, err := service.GenerateSuggestions(context.Background(), 3, func(s string) {})
 		assert.NoError(t, err)
 	})
 
@@ -240,6 +247,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 
 		mockGit.On("GetChangedFiles", mock.Anything).Return([]models.GitChange{{Path: "f.go"}}, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("diff", nil)
+		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return("history", nil)
 		mockGit.On("GetCurrentBranch", mock.Anything).Return("issue/123", nil)
 
 		mockGit.On("GetRepoInfo", mock.Anything).Return("owner", "repo", "gitlab", nil)
@@ -250,7 +258,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		}), 3).Return([]models.CommitSuggestion{}, nil)
 
 		service := NewCommitService(mockGit, mockAI, mockJira, nil, cfg, trans)
-		_, err := service.GenerateSuggestions(context.Background(), 3)
+		_, err := service.GenerateSuggestions(context.Background(), 3, func(s string) {})
 		assert.NoError(t, err)
 	})
 
@@ -260,6 +268,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 
 		mockGit.On("GetChangedFiles", mock.Anything).Return([]models.GitChange{{Path: "f.go"}}, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("diff", nil)
+		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return("history", nil)
 		mockGit.On("GetCurrentBranch", mock.Anything).Return("issue/123", nil)
 
 		mockGit.On("GetRepoInfo", mock.Anything).Return("owner", "repo", "bitbucket", nil)
@@ -270,7 +279,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		}), 3).Return([]models.CommitSuggestion{}, nil)
 
 		service := NewCommitService(mockGit, mockAI, mockJira, nil, cfg, trans)
-		_, err := service.GenerateSuggestions(context.Background(), 3)
+		_, err := service.GenerateSuggestions(context.Background(), 3, func(s string) {})
 		assert.NoError(t, err)
 	})
 
@@ -283,6 +292,7 @@ func TestCommitService_GenerateSuggestionsWithIssue(t *testing.T) {
 
 		mockGit.On("GetChangedFiles", mock.Anything).Return([]models.GitChange{{Path: "f.go"}}, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("diff", nil)
+		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return("history", nil)
 
 		mockVCS.On("GetIssue", mock.Anything, 100).Return(&models.Issue{Number: 100, Title: "Explicit Issue"}, nil)
 
@@ -291,7 +301,7 @@ func TestCommitService_GenerateSuggestionsWithIssue(t *testing.T) {
 		}), 3).Return([]models.CommitSuggestion{}, nil)
 
 		service := NewCommitService(mockGit, mockAI, mockJira, mockVCS, cfg, trans)
-		suggestions, err := service.GenerateSuggestionsWithIssue(context.Background(), 3, 100)
+		suggestions, err := service.GenerateSuggestionsWithIssue(context.Background(), 3, 100, func(s string) {})
 
 		assert.NoError(t, err)
 		assert.NotNil(t, suggestions)
@@ -303,6 +313,7 @@ func TestCommitService_GenerateSuggestionsWithIssue(t *testing.T) {
 
 		mockGit.On("GetChangedFiles", mock.Anything).Return([]models.GitChange{{Path: "f.go"}}, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("diff", nil)
+		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return("history", nil)
 
 		mockVCS.On("GetIssue", mock.Anything, 100).Return(&models.Issue{}, errors.New("fetch error"))
 
@@ -311,7 +322,7 @@ func TestCommitService_GenerateSuggestionsWithIssue(t *testing.T) {
 		}), 3).Return([]models.CommitSuggestion{}, nil)
 
 		service := NewCommitService(mockGit, mockAI, mockJira, mockVCS, cfg, trans)
-		_, err := service.GenerateSuggestionsWithIssue(context.Background(), 3, 100)
+		_, err := service.GenerateSuggestionsWithIssue(context.Background(), 3, 100, func(s string) {})
 
 		assert.NoError(t, err)
 	})
@@ -325,6 +336,7 @@ func TestCommitService_IssueDetection(t *testing.T) {
 		mockGit.On("GetCurrentBranch", mock.Anything).Return("issue/123-fix", nil)
 		mockGit.On("GetChangedFiles", mock.Anything).Return([]models.GitChange{{Path: "f"}}, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("d", nil)
+		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return("history", nil)
 		mockVCS.On("GetIssue", mock.Anything, 123).Return(&models.Issue{Number: 123}, nil)
 
 		mockAI.On("GenerateSuggestions", mock.Anything, mock.MatchedBy(func(info models.CommitInfo) bool {
@@ -332,7 +344,7 @@ func TestCommitService_IssueDetection(t *testing.T) {
 		}), 3).Return([]models.CommitSuggestion{}, nil)
 
 		service := NewCommitService(mockGit, mockAI, mockJira, mockVCS, cfg, trans)
-		_, err := service.GenerateSuggestions(context.Background(), 3)
+		_, err := service.GenerateSuggestions(context.Background(), 3, func(s string) {})
 		assert.NoError(t, err)
 		mockVCS.AssertCalled(t, "GetIssue", mock.Anything, 123)
 	})

@@ -11,26 +11,12 @@ import (
 	"google.golang.org/genai"
 )
 
-const (
-	prResponseText = `## PR Title
-Fix image loading error in gallery component
-
-## Suggested Tags
-fix,performance
-
-## Key Changes
-- Fixed memory leak in image loading process
-- Optimized cache usage to improve performance
-- Added error handling for network failures
-`
-)
-
 func TestGeminiPRSummarizer(t *testing.T) {
 	t.Run("NewGeminiPRSummarizer with empty API key", func(t *testing.T) {
 		// Arrange
 		ctx := context.Background()
 		cfg := &config.Config{
-			GeminiAPIKey: "",
+			AIProviders: map[string]config.AIProviderConfig{},
 		}
 
 		trans, err := i18n.NewTranslations("es", "../../../i18n/locales/")
@@ -48,7 +34,7 @@ func TestGeminiPRSummarizer(t *testing.T) {
 		// Arrange
 		ctx := context.Background()
 		cfg := &config.Config{
-			GeminiAPIKey: "test-api-key",
+			AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test-api-key", Model: "gemini-2.5-flash", Temperature: 0.3, MaxTokens: 10000}},
 			AIConfig: config.AIConfig{
 				Models: map[config.AI]config.Model{
 					config.AIGemini: "gemini-pro",
@@ -70,66 +56,12 @@ func TestGeminiPRSummarizer(t *testing.T) {
 		assert.Error(t, err, "Debería retornar un error con prompt vacío")
 	})
 
-	t.Run("parseSummary correct format", func(t *testing.T) {
-		// Arrange
-		ctx := context.Background()
-		cfg := &config.Config{
-			GeminiAPIKey: "test-api-key",
-			Language:     "en",
-		}
-
-		trans, err := i18n.NewTranslations("en", "../../../i18n/locales/")
-		assert.NoError(t, err)
-
-		summarizer, err := NewGeminiPRSummarizer(ctx, cfg, trans)
-		assert.NoError(t, err)
-
-		// Act
-		summary, err := summarizer.parseSummary(prResponseText)
-
-		// Assert
-		assert.NoError(t, err)
-		assert.Equal(t, "Fix image loading error in gallery component", summary.Title)
-		assert.ElementsMatch(t, []string{"fix", "performance"}, summary.Labels)
-		assert.Contains(t, summary.Body, "Fixed memory leak in image loading process")
-		assert.Contains(t, summary.Body, "Optimized cache usage to improve performance")
-		assert.Contains(t, summary.Body, "Added error handling for network failures")
-	})
-
-	t.Run("parseSummary with missing title", func(t *testing.T) {
-		// Arrange
-		ctx := context.Background()
-		cfg := &config.Config{
-			GeminiAPIKey: "test-api-key",
-			Language:     "en",
-		}
-
-		trans, err := i18n.NewTranslations("en", "../../../i18n/locales/")
-		assert.NoError(t, err)
-
-		summarizer, err := NewGeminiPRSummarizer(ctx, cfg, trans)
-		assert.NoError(t, err)
-
-		missingTitleText := `## Suggested Tags
-		fix,performance
-		
-		## Key Changes
-		- Some change`
-
-		// Act
-		summary, err := summarizer.parseSummary(missingTitleText)
-
-		// Assert
-		assert.Error(t, err, "Debería retornar un error con título faltante")
-		assert.Equal(t, "", summary.Title)
-	})
-
 	t.Run("generatePRPrompt should format correctly", func(t *testing.T) {
 		// Arrange
 		ctx := context.Background()
 		cfg := &config.Config{
-			GeminiAPIKey: "test-api-key",
-			Language:     "en",
+			AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test-api-key", Model: "gemini-2.5-flash", Temperature: 0.3, MaxTokens: 10000}},
+			Language:    "en",
 		}
 
 		trans, err := i18n.NewTranslations("en", "../../../i18n/locales/")
@@ -145,9 +77,9 @@ func TestGeminiPRSummarizer(t *testing.T) {
 
 		// Assert
 		assert.Contains(t, prompt, "Some PR content to summarize", "El prompt debe contener el contenido del PR")
-		assert.Contains(t, prompt, "PR Title", "El prompt debe solicitar un título para el PR")
+		assert.Contains(t, prompt, "Catchy but descriptive", "El prompt debe solicitar un título descriptivo")
 		assert.Contains(t, prompt, "Key Changes", "El prompt debe solicitar cambios clave")
-		assert.Contains(t, prompt, "Suggested Tags", "El prompt debe solicitar etiquetas sugeridas")
+		assert.Contains(t, prompt, "Labels: Choose wisely", "El prompt debe solicitar etiquetas con criterio")
 	})
 
 	t.Run("formatResponse", func(t *testing.T) {

@@ -3,14 +3,15 @@ package suggests_commits
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
+	"github.com/Tomas-vilte/MateCommit/internal/cli/completion_helper"
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"github.com/Tomas-vilte/MateCommit/internal/ui"
 	"github.com/urfave/cli/v3"
 )
 
@@ -28,12 +29,13 @@ func NewSuggestCommandFactory(commitService ports.CommitService, commitHandler p
 
 func (f *SuggestCommandFactory) CreateCommand(t *i18n.Translations, cfg *config.Config) *cli.Command {
 	return &cli.Command{
-		Name:        "suggest",
-		Aliases:     []string{"s"},
-		Usage:       t.GetMessage("suggest_command_usage", 0, nil),
-		Description: t.GetMessage("suggest_command_description", 0, nil),
-		Flags:       f.createFlags(cfg, t),
-		Action:      f.createAction(cfg, t),
+		Name:          "suggest",
+		Aliases:       []string{"s"},
+		Usage:         t.GetMessage("suggest_command_usage", 0, nil),
+		Description:   t.GetMessage("suggest_command_description", 0, nil),
+		Flags:         f.createFlags(cfg, t),
+		ShellComplete: completion_helper.DefaultFlagComplete,
+		Action:        f.createAction(cfg, t),
 	}
 }
 
@@ -80,127 +82,93 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 				"Min": 1,
 				"Max": 10,
 			})
+			ui.PrintError(msg)
 			return fmt.Errorf("%s", msg)
 		}
 
 		cfg.Language = command.String("lang")
 
+		if err := t.SetLanguage(cfg.Language); err != nil {
+			_ = t.SetLanguage("en")
+		}
+
 		if err := config.SaveConfig(cfg); err != nil {
+			ui.PrintError(t.GetMessage("ui_error.error_saving_config", 0, nil))
 			return fmt.Errorf("error al guardar la configuración: %w", err)
 		}
 
+		ui.PrintSectionBanner(t.GetMessage("ui.generating_suggestions_banner", 0, nil))
+
+		spinner := ui.NewSmartSpinner(t.GetMessage("analyzing_changes", 0, nil))
+		spinner.Start()
+
 		issueNumber := command.Int("issue")
+		var suggestions []models.CommitSuggestion
+		var err error
 
-		p := tea.NewProgram(initialModel(f.commitService, ctx, count, issueNumber, t))
-		m, err := p.Run()
-		if err != nil {
-			return fmt.Errorf("error running spinner: %w", err)
-		}
+		start := time.Now()
 
-		model := m.(model)
-		if model.err != nil {
-			msg := t.GetMessage("suggestion_generation_error", 0, map[string]interface{}{"Error": model.err})
-			return fmt.Errorf("%s", msg)
-		}
+		if issueNumber > 0 {
+			spinner.UpdateMessage(t.GetMessage("ui.including_issue_context", 0, map[string]interface{}{
+				"Number": issueNumber,
+			}))
+			time.Sleep(200 * time.Millisecond)
 
-		if len(model.suggestions) == 0 {
-			// Should verify if error was nil but suggestions empty (handled by service usually returning error if empty?)
-			// Service returns error "no suggestions" if empty.
-			return nil
-		}
+			spinner.Stop()
+			ui.PrintInfo(t.GetMessage("ui.detected_issue", 0, map[string]interface{}{
+				"Number": issueNumber,
+			}))
 
-		return f.commitHandler.HandleSuggestions(ctx, model.suggestions)
-	}
-}
+			spinner = ui.NewSmartSpinner(t.GetMessage("ui.generating_with_issue", 0, nil))
+			spinner.Start()
 
-// Bubble Tea Model for Spinner
-
-type model struct {
-	commitService ports.CommitService
-	ctx           context.Context
-	count         int
-	issueNumber   int
-	trans         *i18n.Translations
-
-	spinner     spinner.Model
-	loading     bool
-	suggestions []models.CommitSuggestion
-	err         error
-}
-
-type suggestionsMsg []models.CommitSuggestion
-type errMsg error
-
-func initialModel(cs ports.CommitService, ctx context.Context, count, issue int, t *i18n.Translations) model {
-	s := spinner.New()
-	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
-	return model{
-		commitService: cs,
-		ctx:           ctx,
-		count:         count,
-		issueNumber:   issue,
-		trans:         t,
-		spinner:       s,
-		loading:       true,
-	}
-}
-
-func (m model) Init() tea.Cmd {
-	return tea.Batch(m.spinner.Tick, m.fetchSuggestions)
-}
-
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case spinner.TickMsg:
-		var cmd tea.Cmd
-		m.spinner, cmd = m.spinner.Update(msg)
-		return m, cmd
-	case suggestionsMsg:
-		m.suggestions = msg
-		m.loading = false
-		return m, tea.Quit
-	case errMsg:
-		m.err = msg
-		m.loading = false
-		return m, tea.Quit
-	case tea.KeyMsg:
-		if msg.String() == "ctrl+c" {
-			m.err = fmt.Errorf("cancelled by user")
-			return m, tea.Quit
-		}
-	}
-	return m, nil
-}
-
-func (m model) View() string {
-	if m.err != nil {
-		return ""
-	}
-	if m.loading {
-		msg := m.trans.GetMessage("analyzing_changes", 0, nil)
-		if m.issueNumber > 0 {
-			msg = m.trans.GetMessage("issue_including_context", 0, map[string]interface{}{
-				"Number": m.issueNumber,
+			suggestions, err = f.commitService.GenerateSuggestionsWithIssue(ctx, count, issueNumber, func(msg string) {
+				spinner.Log(msg)
+			})
+		} else {
+			spinner.UpdateMessage(t.GetMessage("ui.generating_with_ai", 0, nil))
+			suggestions, err = f.commitService.GenerateSuggestions(ctx, count, func(msg string) {
+				spinner.Log(msg)
 			})
 		}
-		return fmt.Sprintf("\n %s %s\n\n", m.spinner.View(), msg)
+
+		duration := time.Since(start)
+
+		if err != nil {
+			spinner.Error(t.GetMessage("ui.error_generating_suggestions", 0, nil))
+
+			errStr := err.Error()
+			if containsStr(errStr, "GEMINI_API_KEY") || containsStr(errStr, "API key") {
+				ui.PrintErrorWithSuggestion(
+					t.GetMessage("ui_error.ai_api_key_missing_generic", 0, nil),
+					t.GetMessage("ui_error.run_config_init", 0, nil),
+				)
+				return err
+			} else if containsStr(errStr, "GITHUB_TOKEN") {
+				ui.PrintErrorWithSuggestion(
+					t.GetMessage("ui_error.github_token_missing", 0, nil),
+					t.GetMessage("ui_error.run_config_init", 0, nil),
+				)
+			} else if containsStr(errStr, "no differences detected") || containsStr(errStr, "no se detectaron cambios") {
+				ui.PrintWarning(t.GetMessage("ui_error.no_changes_detected", 0, nil))
+				ui.PrintInfo(t.GetMessage("ui_error.ensure_modified_files", 0, nil))
+			} else {
+				ui.PrintError(errStr)
+			}
+
+			return fmt.Errorf("%s", t.GetMessage("suggestion_generation_error", 0, map[string]interface{}{
+				"Error": err,
+			}))
+		}
+
+		spinner.Stop()
+		ui.PrintDuration(t.GetMessage("ui.suggestions_generated", 0, map[string]interface{}{
+			"Count": len(suggestions),
+		}), duration)
+		return f.commitHandler.HandleSuggestions(ctx, suggestions)
 	}
-	return ""
 }
 
-func (m model) fetchSuggestions() tea.Msg {
-	var suggestions []models.CommitSuggestion
-	var err error
-
-	if m.issueNumber > 0 {
-		suggestions, err = m.commitService.GenerateSuggestionsWithIssue(m.ctx, m.count, m.issueNumber)
-	} else {
-		suggestions, err = m.commitService.GenerateSuggestions(m.ctx, m.count)
-	}
-
-	if err != nil {
-		return errMsg(err)
-	}
-	return suggestionsMsg(suggestions)
+func containsStr(s, substr string) bool {
+	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }

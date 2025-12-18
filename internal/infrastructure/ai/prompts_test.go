@@ -145,3 +145,29 @@ func TestGetReleasePromptTemplate(t *testing.T) {
 		assert.Equal(t, releasePromptTemplateEN, result)
 	})
 }
+
+func TestGetIssuePromptTemplate(t *testing.T) {
+	t.Run("returns English template for 'en'", func(t *testing.T) {
+		lang := "en"
+		result := GetIssuePromptTemplate(lang)
+		assert.Equal(t, issuePromptTemplateEN, result)
+	})
+
+	t.Run("returns Spanish template for 'es'", func(t *testing.T) {
+		lang := "es"
+		result := GetIssuePromptTemplate(lang)
+		assert.Equal(t, issuePromptTemplateES, result)
+	})
+
+	t.Run("defaults to English for unknown language", func(t *testing.T) {
+		lang := "fr"
+		result := GetIssuePromptTemplate(lang)
+		assert.Equal(t, issuePromptTemplateEN, result)
+	})
+
+	t.Run("defaults to English for empty language", func(t *testing.T) {
+		lang := ""
+		result := GetIssuePromptTemplate(lang)
+		assert.Equal(t, issuePromptTemplateEN, result)
+	})
+}
