@@ -290,7 +290,6 @@ func TestGetIssueGeneratorService(t *testing.T) {
 		aiFactory := &mockAIFactory{}
 		vcsFactory := &mockVCSFactory{}
 
-		// Set expectations - Return nil client/generator is fine for basic instantiation test
 		aiFactory.On("CreateIssueContentGenerator", mock.Anything, cfg, trans).Return(nil, nil)
 		vcsFactory.On("CreateClient", mock.Anything, "owner", "repo", "", trans).Return(nil, nil)
 		vcsFactory.On("ValidateConfig", mock.Anything).Return(nil)

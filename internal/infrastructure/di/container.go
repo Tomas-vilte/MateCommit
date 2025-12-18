@@ -118,6 +118,25 @@ func (c *Container) GetCommitService(ctx context.Context) (ports.CommitService, 
 	return c.commitService, nil
 }
 
+// GetPRSummarizer retorna el servicio de IA para resumir PRs (lazy initialization)
+func (c *Container) GetPRSummarizer(ctx context.Context) (ports.PRSummarizer, error) {
+	if c.config.AIConfig.ActiveAI == "" {
+		return nil, fmt.Errorf("no hay IA activa configurada")
+	}
+
+	aiFactory, err := c.aiRegistry.Get(string(c.config.AIConfig.ActiveAI))
+	if err != nil {
+		return nil, fmt.Errorf("proveedor de IA '%s' no encontrado: %w", c.config.AIConfig.ActiveAI, err)
+	}
+
+	aiSummarizer, err := aiFactory.CreatePRSummarizer(ctx, c.config, c.translations)
+	if err != nil {
+		return nil, fmt.Errorf("error al crear el servicio de IA para PRs: %w", err)
+	}
+
+	return aiSummarizer, nil
+}
+
 // GetPRService retorna el servicio de PRs (lazy initialization)
 func (c *Container) GetPRService(ctx context.Context) (ports.PRService, error) {
 	if c.prService != nil {
@@ -129,15 +148,9 @@ func (c *Container) GetPRService(ctx context.Context) (ports.PRService, error) {
 	}
 
 	var aiSummarizer ports.PRSummarizer
-	if c.config.AIConfig.ActiveAI != "" {
-		aiFactory, err := c.aiRegistry.Get(string(c.config.AIConfig.ActiveAI))
-		if err == nil {
-			aiSummarizer, err = aiFactory.CreatePRSummarizer(ctx, c.config, c.translations)
-			if err != nil {
-				// Log warning pero continuar sin AI
-				aiSummarizer = nil
-			}
-		}
+	aiSummarizer, err := c.GetPRSummarizer(ctx)
+	if err != nil {
+		aiSummarizer = nil
 	}
 
 	vcsClient, err := c.vcsRegistry.CreateClientFromConfig(ctx, c.gitService, c.config, c.translations)

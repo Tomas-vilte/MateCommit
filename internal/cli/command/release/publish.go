@@ -7,6 +7,7 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/cli/completion_helper"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
+	"github.com/Tomas-vilte/MateCommit/internal/ui"
 	"github.com/urfave/cli/v3"
 )
 
@@ -93,6 +94,11 @@ func publishReleaseAction(releaseService ports.ReleaseService,
 		fmt.Println(trans.GetMessage("release.publish_success", 0, map[string]interface{}{
 			"Version": release.Version,
 		}))
+
+		if notes.Usage != nil {
+			fmt.Println()
+			ui.PrintTokenUsage(notes.Usage, trans)
+		}
 
 		return nil
 	}

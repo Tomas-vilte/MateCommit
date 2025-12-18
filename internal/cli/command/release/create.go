@@ -201,6 +201,11 @@ func createReleaseAction(releaseService ports.ReleaseService, trans *i18n.Transl
 			fmt.Println(trans.GetMessage("release.create_push_help", 0, nil))
 		}
 
+		if notes.Usage != nil {
+			fmt.Println()
+			ui.PrintTokenUsage(notes.Usage, trans)
+		}
+
 		fmt.Println()
 
 		return nil

@@ -88,8 +88,13 @@ func initializeApp() (*cli.Command, error) {
 	var vcsClient = container.GetVCSRegistry()
 	vcsClientInstance, _ := vcsClient.CreateClientFromConfig(ctx, gitService, cfgApp, translations)
 	commitHandler := handler.NewSuggestionHandler(gitService, vcsClientInstance, translations)
+	aiSummarizer, err := container.GetPRSummarizer(ctx)
+	if err != nil {
+		log.Printf("Warning: no se pudo crear el servicio de IA para PRs: %v", err)
+		aiSummarizer = nil
+	}
 
-	prServiceFactory := factory.NewPrServiceFactory(cfgApp, translations, nil, gitService)
+	prServiceFactory := factory.NewPrServiceFactory(cfgApp, translations, aiSummarizer, gitService)
 	prCommand := pull_requests.NewSummarizeCommand(prServiceFactory)
 
 	registerCommand := registry.NewRegistry(cfgApp, translations)
