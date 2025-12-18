@@ -52,8 +52,7 @@ func TestLoadConfig(t *testing.T) {
 
 		// Crear configuración inválida
 		config := &Config{
-			GeminiAPIKey: "key",
-			Language:     "",
+			Language: "",
 		}
 
 		data, _ := json.MarshalIndent(config, "", "  ")
@@ -76,7 +75,7 @@ func TestLoadConfig(t *testing.T) {
 
 	t.Run("debería manejar errores al guardar configuración", func(t *testing.T) {
 		config := &Config{
-			GeminiAPIKey: "key",
+			Language: "",
 		}
 
 		err := SaveConfig(config)
@@ -156,10 +155,17 @@ func TestSaveConfig(t *testing.T) {
 		configPath := filepath.Join(tmpDir, "direct-config.json")
 
 		initialConfig := &Config{
-			GeminiAPIKey: "test-key",
-			Language:     "es",
-			UseEmoji:     true,
-			PathFile:     configPath,
+			Language: "es",
+			UseEmoji: true,
+			PathFile: configPath,
+			AIProviders: map[string]AIProviderConfig{
+				"gemini": {
+					APIKey:      "test-key",
+					Model:       "gemini-2.5-flash",
+					Temperature: 0.3,
+					MaxTokens:   10000,
+				},
+			},
 		}
 
 		defer func() {
@@ -185,8 +191,8 @@ func TestSaveConfig(t *testing.T) {
 			t.Errorf("LoadConfig() con path directo error = %v", err)
 		}
 
-		if loadedConfig.GeminiAPIKey != initialConfig.GeminiAPIKey {
-			t.Errorf("GeminiAPIKey = %v, want %v", loadedConfig.GeminiAPIKey, initialConfig.GeminiAPIKey)
+		if providerCfg, exists := loadedConfig.AIProviders["gemini"]; !exists || providerCfg.APIKey != "test-key" {
+			t.Errorf("Gemini APIKey not properly loaded")
 		}
 
 		if loadedConfig.PathFile != configPath {
@@ -261,10 +267,17 @@ func TestSaveConfig(t *testing.T) {
 
 		configPath := filepath.Join(configDir, "config.json")
 		config := &Config{
-			GeminiAPIKey: "new-key",
-			Language:     "fr",
-			UseEmoji:     false,
-			PathFile:     configPath,
+			Language: "fr",
+			UseEmoji: false,
+			PathFile: configPath,
+			AIProviders: map[string]AIProviderConfig{
+				"gemini": {
+					APIKey:      "new-key",
+					Model:       "gemini-2.5-flash",
+					Temperature: 0.3,
+					MaxTokens:   10000,
+				},
+			},
 		}
 
 		// Act
@@ -285,8 +298,8 @@ func TestSaveConfig(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if savedConfig.GeminiAPIKey != config.GeminiAPIKey {
-			t.Errorf("Saved GeminiAPIKey = %v, want %v", savedConfig.GeminiAPIKey, config.GeminiAPIKey)
+		if providerCfg, exists := savedConfig.AIProviders["gemini"]; !exists || providerCfg.APIKey != "new-key" {
+			t.Errorf("Gemini APIKey not properly saved")
 		}
 		if savedConfig.Language != config.Language {
 			t.Errorf("Saved DefaultLang = %v, want %v", savedConfig.Language, config.Language)
@@ -372,9 +385,8 @@ func TestCreateDefaultConfig(t *testing.T) {
 
 		configPath := filepath.Join(configDir, "config.json")
 		config := &Config{
-			GeminiAPIKey: "test-key",
-			Language:     "es",
-			PathFile:     configPath,
+			Language: "es",
+			PathFile: configPath,
 		}
 
 		// Act

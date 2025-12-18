@@ -14,8 +14,8 @@ func TestNewReleaseNotesGenerator(t *testing.T) {
 	// Arrange
 	ctx := context.Background()
 	cfg := &config.Config{
-		GeminiAPIKey: "test-api-key",
-		Language:     "en",
+		AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test-api-key", Model: "gemini-2.5-flash", Temperature: 0.3, MaxTokens: 10000}},
+		Language:    "en",
 		AIConfig: config.AIConfig{
 			Models: map[config.AI]config.Model{
 				config.AIGemini: "gemini-pro",
@@ -40,7 +40,7 @@ func TestNewReleaseNotesGenerator_MissingKey(t *testing.T) {
 	// Arrange
 	ctx := context.Background()
 	cfg := &config.Config{
-		GeminiAPIKey: "",
+		AIProviders: map[string]config.AIProviderConfig{},
 	}
 	trans, err := i18n.NewTranslations("en", "")
 	assert.NoError(t, err)
@@ -51,7 +51,7 @@ func TestNewReleaseNotesGenerator_MissingKey(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 	assert.Nil(t, generator)
-	assert.Contains(t, err.Error(), "The GEMINI_API_KEY is not configured")
+	assert.Contains(t, err.Error(), "The gemini API key is not configured")
 }
 
 func TestBuildPrompt(t *testing.T) {
@@ -72,11 +72,9 @@ func TestBuildPrompt(t *testing.T) {
 		prompt := generator.buildPrompt(release)
 
 		// Assert
-		assert.Contains(t, prompt, "Previous version: v0.9.0")
-		assert.Contains(t, prompt, "New version: v1.0.0")
-		assert.Contains(t, prompt, "Bump type: major")
+		// Assert
+		assert.Contains(t, prompt, "Versions: v0.9.0 -> v1.0.0 (major)")
 
-		// Check for sections
 		assert.Contains(t, prompt, "BREAKING CHANGES:")
 		assert.Contains(t, prompt, "- breaking: Breaking change")
 		assert.Contains(t, prompt, "NEW FEATURES:")
@@ -97,9 +95,9 @@ func TestBuildPrompt(t *testing.T) {
 		// Act
 		prompt := generator.buildPrompt(release)
 
-		assert.Contains(t, prompt, "Versión anterior:")
-		assert.Contains(t, prompt, "Nueva versión:")
-		assert.Contains(t, prompt, "Tipo de bump:")
+		assert.Contains(t, prompt, "- Versiones:")
+		assert.Contains(t, prompt, "->")
+		assert.Contains(t, prompt, "(")
 	})
 
 	t.Run("handles empty changes", func(t *testing.T) {
@@ -118,20 +116,22 @@ func TestBuildPrompt(t *testing.T) {
 	})
 }
 
-func TestParseResponse(t *testing.T) {
+func TestParseJSONResponse(t *testing.T) {
 	generator := &ReleaseNotesGenerator{}
 	release := &models.Release{Version: "v1.0.0", VersionBump: "minor"}
 
-	t.Run("parses English response correctly", func(t *testing.T) {
+	t.Run("parses JSON response correctly", func(t *testing.T) {
 		// Arrange
-		content := `TITLE: Release v1.0.0
-SUMMARY: This is a summary.
-HIGHLIGHTS:
-- Highlight 1
-- Highlight 2`
+		content := `{
+			"title": "Release v1.0.0",
+			"summary": "This is a summary.",
+			"highlights": ["Highlight 1", "Highlight 2"],
+			"breaking_changes": [],
+			"contributors": ""
+		}`
 
 		// Act
-		notes, err := generator.parseResponse(content, release)
+		notes, err := generator.parseJSONResponse(content, release)
 
 		// Assert
 		assert.NoError(t, err)
@@ -141,53 +141,57 @@ HIGHLIGHTS:
 		assert.Equal(t, models.VersionBump("minor"), notes.Recommended)
 	})
 
-	t.Run("parses Spanish response correctly", func(t *testing.T) {
+	t.Run("parses JSON with breaking changes", func(t *testing.T) {
 		// Arrange
-		content := `TÍTULO: Lanzamiento v1.0.0
-RESUMEN: Este es un resumen.
-HIGHLIGHTS:
-- Destacado 1
-- Destacado 2`
+		content := `{
+			"title": "Release v2.0.0",
+			"summary": "Major release with breaking changes.",
+			"highlights": ["New API", "Better performance"],
+			"breaking_changes": ["Removed old API", "Changed config format"],
+			"contributors": "https://github.com/test/repo/graphs/contributors"
+		}`
 
 		// Act
-		notes, err := generator.parseResponse(content, release)
+		notes, err := generator.parseJSONResponse(content, release)
 
 		// Assert
 		assert.NoError(t, err)
-		assert.Equal(t, "Lanzamiento v1.0.0", notes.Title)
-		assert.Equal(t, "Este es un resumen.", notes.Summary)
-		assert.Equal(t, []string{"Destacado 1", "Destacado 2"}, notes.Highlights)
+		assert.Equal(t, "Release v2.0.0", notes.Title)
+		assert.Equal(t, "Major release with breaking changes.", notes.Summary)
+		assert.Equal(t, []string{"New API", "Better performance"}, notes.Highlights)
+		assert.Equal(t, []string{"Removed old API", "Changed config format"}, notes.BreakingChanges)
+		assert.Equal(t, "https://github.com/test/repo/graphs/contributors", notes.Links["Contributors"])
 	})
 
-	t.Run("handles missing title by using default", func(t *testing.T) {
+	t.Run("handles invalid JSON", func(t *testing.T) {
 		// Arrange
-		content := `SUMMARY: Just a summary.`
+		content := `invalid json`
 
 		// Act
-		notes, err := generator.parseResponse(content, release)
+		notes, err := generator.parseJSONResponse(content, release)
 
 		// Assert
-		assert.NoError(t, err)
-		assert.Equal(t, "Version v1.0.0", notes.Title) // Default behavior
-		assert.Equal(t, "Just a summary.", notes.Summary)
+		assert.Error(t, err)
+		assert.Nil(t, notes)
+		assert.Contains(t, err.Error(), "parsear JSON")
 	})
 
-	t.Run("handles extra whitespace", func(t *testing.T) {
+	t.Run("handles JSON with code fences", func(t *testing.T) {
 		// Arrange
-		content := `
-TITLE:   Release v1.0.0  
-SUMMARY:  Summary with spaces.  
-HIGHLIGHTS:
--   Highlight 1   
-`
+		content := "```json\n" + `{
+			"title": "Test",
+			"summary": "Summary",
+			"highlights": [],
+			"breaking_changes": [],
+			"contributors": ""
+		}` + "\n```"
 
 		// Act
-		notes, err := generator.parseResponse(content, release)
+		notes, err := generator.parseJSONResponse(content, release)
 
 		// Assert
 		assert.NoError(t, err)
-		assert.Equal(t, "Release v1.0.0", notes.Title)
-		assert.Equal(t, "Summary with spaces.", notes.Summary)
-		assert.Equal(t, []string{"Highlight 1"}, notes.Highlights)
+		assert.Equal(t, "Test", notes.Title)
+		assert.Equal(t, "Summary", notes.Summary)
 	})
 }

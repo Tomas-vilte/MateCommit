@@ -32,10 +32,12 @@ func runCreateTest(t *testing.T, userInput string, args []string, mockService *M
 					&cli.StringFlag{Name: "version", Aliases: []string{"v"}},
 					&cli.BoolFlag{Name: "publish"},
 					&cli.BoolFlag{Name: "draft"},
+					&cli.BoolFlag{Name: "changelog"},
+					&cli.BoolFlag{Name: "build-binaries", Value: true},
 				},
 				Action: func(ctx context.Context, c *cli.Command) error {
 					reader := bufio.NewReader(bytes.NewBufferString(userInput))
-					return createReleaseAction(mockService, trans, reader)(ctx, c)
+					return createReleaseAction(mockService, trans, reader, nil)(ctx, c)
 				},
 			},
 		},
@@ -176,8 +178,8 @@ func TestCreateCommand_WithPublish(t *testing.T) {
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
 	mockService.On("CreateTag", mock.Anything, "v1.0.0", mock.Anything).Return(nil)
 
-	// Expect PublishRelease
-	mockService.On("PublishRelease", mock.Anything, release, notes, false).Return(nil)
+	// Expect PublishRelease with buildBinaries=true (default)
+	mockService.On("PublishRelease", mock.Anything, release, notes, false, true).Return(nil)
 
 	err := runCreateTest(t, "y\n", []string{"--publish"}, mockService)
 	assert.NoError(t, err)
@@ -195,8 +197,8 @@ func TestCreateCommand_WithPublishDraft(t *testing.T) {
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
 	mockService.On("CreateTag", mock.Anything, "v1.0.0", mock.Anything).Return(nil)
 
-	// Expect PublishRelease with draft=true
-	mockService.On("PublishRelease", mock.Anything, release, notes, true).Return(nil)
+	// Expect PublishRelease with draft=true and buildBinaries=true (default)
+	mockService.On("PublishRelease", mock.Anything, release, notes, true, true).Return(nil)
 
 	err := runCreateTest(t, "y\n", []string{"--publish", "--draft"}, mockService)
 	assert.NoError(t, err)
@@ -215,9 +217,31 @@ func TestCreateCommand_PublishError(t *testing.T) {
 	mockService.On("CreateTag", mock.Anything, "v1.0.0", mock.Anything).Return(nil)
 
 	// Expect PublishRelease error
-	mockService.On("PublishRelease", mock.Anything, release, notes, false).Return(errors.New("publish error"))
+	mockService.On("PublishRelease", mock.Anything, release, notes, false, true).Return(errors.New("publish error"))
 
 	err := runCreateTest(t, "y\n", []string{"--publish"}, mockService)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "publish error")
+}
+
+func TestCreateCommand_WithChangelog(t *testing.T) {
+	mockService := new(MockReleaseService)
+	release := &models.Release{Version: "v1.0.0"}
+	notes := &models.ReleaseNotes{Title: "Title"}
+
+	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
+	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
+	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
+
+	mockService.On("UpdateLocalChangelog", release, notes).Return(nil)
+	mockService.On("UpdateAppVersion", "v1.0.0").Return(nil)
+	mockService.On("CommitChangelog", mock.Anything, "v1.0.0").Return(nil)
+	mockService.On("PushChanges", mock.Anything).Return(nil)
+
+	mockService.On("CreateTag", mock.Anything, "v1.0.0", mock.Anything).Return(nil)
+
+	err := runCreateTest(t, "y\n", []string{"--changelog"}, mockService)
+	assert.NoError(t, err)
+
+	mockService.AssertExpectations(t)
 }

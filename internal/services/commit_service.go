@@ -41,23 +41,23 @@ func NewCommitService(
 	}
 }
 
-func (s *CommitService) GenerateSuggestions(ctx context.Context, count int) ([]models.CommitSuggestion, error) {
-	commitInfo, err := s.buildCommitInfo(ctx, 0)
+func (s *CommitService) GenerateSuggestions(ctx context.Context, count int, progress func(string)) ([]models.CommitSuggestion, error) {
+	commitInfo, err := s.buildCommitInfo(ctx, 0, progress)
 	if err != nil {
 		return nil, err
 	}
 	return s.ai.GenerateSuggestions(ctx, commitInfo, count)
 }
 
-func (s *CommitService) GenerateSuggestionsWithIssue(ctx context.Context, count int, issueNumber int) ([]models.CommitSuggestion, error) {
-	commitInfo, err := s.buildCommitInfo(ctx, issueNumber)
+func (s *CommitService) GenerateSuggestionsWithIssue(ctx context.Context, count int, issueNumber int, progress func(string)) ([]models.CommitSuggestion, error) {
+	commitInfo, err := s.buildCommitInfo(ctx, issueNumber, progress)
 	if err != nil {
 		return nil, err
 	}
 	return s.ai.GenerateSuggestions(ctx, commitInfo, count)
 }
 
-func (s *CommitService) buildCommitInfo(ctx context.Context, issueNumber int) (models.CommitInfo, error) {
+func (s *CommitService) buildCommitInfo(ctx context.Context, issueNumber int, progress func(string)) (models.CommitInfo, error) {
 	var commitInfo models.CommitInfo
 
 	if s.ai == nil {
@@ -93,9 +93,12 @@ func (s *CommitService) buildCommitInfo(ctx context.Context, issueNumber int) (m
 		files = append(files, change.Path)
 	}
 
+	recentHistory, _ := s.git.GetRecentCommitMessages(ctx, 10)
+
 	commitInfo = models.CommitInfo{
-		Files: files,
-		Diff:  diff,
+		Files:         files,
+		Diff:          diff,
+		RecentHistory: recentHistory,
 	}
 
 	if s.config.UseTicket {
@@ -129,7 +132,9 @@ func (s *CommitService) buildCommitInfo(ctx context.Context, issueNumber int) (m
 			msg := s.trans.GetMessage("issue_vcs_init_error", 0, map[string]interface{}{
 				"Error": err.Error(),
 			})
-			fmt.Println(msg)
+			if progress != nil {
+				progress(msg)
+			}
 		} else {
 			issueInfo, err := vcsClient.GetIssue(ctx, detectedIssue)
 			if err != nil {
@@ -137,7 +142,9 @@ func (s *CommitService) buildCommitInfo(ctx context.Context, issueNumber int) (m
 					"Number": detectedIssue,
 					"Error":  err.Error(),
 				})
-				fmt.Println(msg)
+				if progress != nil {
+					progress(msg)
+				}
 			} else {
 				var msg string
 				if issueNumber == 0 {
@@ -151,8 +158,19 @@ func (s *CommitService) buildCommitInfo(ctx context.Context, issueNumber int) (m
 						"Title":  issueInfo.Title,
 					})
 				}
-				fmt.Println(msg)
+				if progress != nil {
+					progress(msg)
+				}
 				commitInfo.IssueInfo = issueInfo
+
+				if len(issueInfo.Criteria) > 0 && commitInfo.TicketInfo == nil {
+					commitInfo.TicketInfo = &models.TicketInfo{
+						TicketID:    fmt.Sprintf("#%d", issueInfo.Number),
+						TicketTitle: issueInfo.Title,
+						TitleDesc:   issueInfo.Description,
+						Criteria:    issueInfo.Criteria,
+					}
+				}
 			}
 		}
 	}
@@ -252,16 +270,6 @@ func (s *CommitService) detectIssueFromCommits(ctx context.Context) int {
 		pattern := fmt.Sprintf(`(?i)\b%s\s+#(\d+)\b`, keyword)
 		re := regexp.MustCompile(pattern)
 		if match := re.FindStringSubmatch(commitMessages); len(match) > 1 {
-			if num, err := strconv.Atoi(match[1]); err == nil {
-				return num
-			}
-		}
-	}
-
-	simplePattern := regexp.MustCompile(`#(\d+)`)
-	matches := simplePattern.FindAllStringSubmatch(commitMessages, -1)
-	for _, match := range matches {
-		if len(match) > 1 {
 			if num, err := strconv.Atoi(match[1]); err == nil {
 				return num
 			}

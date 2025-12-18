@@ -49,8 +49,8 @@ other = "❌ No staged changes to commit.\nUse 'git add' to stage your changes f
 [invalid_suggestions_count]
 other = "Number of suggestions must be between {{.Min}} and {{.Max}}"
 
-[gemini_init_error]
-other = "❌ Error initializing Gemini: {{.Error}}"
+[ai_init_error]
+other = "❌ Error initializing {{.Provider}}: {{.Error}}"
 
 [analyzing_changes]
 other = "🔍 Analyzing changes..."
@@ -63,6 +63,12 @@ other = "⚙️  Manage configuration"
 
 [config_init_usage]
 other = "🚀 Initialize configuration wizard"
+
+[config_init_quick_flag]
+other = "Quick setup (only essential configuration)"
+
+[config_init_full_flag]
+other = "Full setup (configure everything)"
 
 [config_edit_usage]
 other = "✏️  Open configuration file in editor"
@@ -83,7 +89,7 @@ other = "❌ Unsupported language. Use 'en' or 'es'"
 other = "✅ Language set to: {{.Lang}}"
 
 [error_missing_api_key]
-other = "The GEMINI_API_KEY is not configured"
+other = "The {{.Provider}} API key is not configured"
 
 [error_generating_content]
 other = "Error generating content: {{.Error}}"
@@ -131,10 +137,10 @@ key_config_command = "mate-commit config set-api-key --key <your_api_key>"
 key_set = "🔑 API Key: ✅ Configured"
 
 [commands]
-set_api_key_usage = "🔑 Set the Gemini API Key"
+set_api_key_usage = "🔑 Set the AI provider API Key"
 
 [flags]
-gemini_api_key = "Your Gemini API Key"
+ai_api_key = "Your AI provider API Key"
 [commit]
 prompt_selection = "👉 Enter your selection: "
 operation_canceled = "✨ Operation canceled"
@@ -151,6 +157,10 @@ option_commit = "1-N: Use the corresponding suggestion"
 option_exit = "0: Exit without committing"
 error_creating_commit = "❌ Error creating the commit: {0}"
 factory_already_registered = "❌ The factory with the name '{{.FactoryName}}' is already registered"
+ask_update_issue_criteria = "💡 AI identified {{.Count}} criteria completed in issue #{{.Number}}. Do you want to update the issue?"
+updating_issue = "Updating GitHub issue..."
+error_updating_issue = "Error updating GitHub issue."
+issue_updated_successfully = "GitHub issue updated successfully."
 
 
 [jira_config_command_usage]
@@ -170,7 +180,7 @@ ticket_enabled_success = "Ticket integration has been enabled successfully"
 [config_save]
 error_saving_config = "Error saving configuration: {{.Error}}"
 
-[gemini_service]
+[ai_service]
 modified_files_prefix = "📄 Modified files:"
 explanation_prefix = "Explanation:"
 requirements_analysis_prefix = "🎯 Requirements Analysis:"
@@ -189,12 +199,12 @@ technical_impact_prefix = "- Technical Impact:"
 suggestion_prefix = "=========\\[ Suggestion\\s*\\d*\\s*\\]========="
 technical_analysis_section = "💭 Technical Analysis:"
 improvement_suggestions_label = "Suggested Improvements:"
-criteria_status_full = "⚠️  Criteria Status: {{.Status}}"
+criteria_status_full = "Criteria Status: {{.Status}}"
 missing_criteria_none = "✅ Missing Criteria: None"
 pr_title_section = "PR Title"
 pr_labels_section = "Suggested Tags"
 pr_changes_section = "Key Changes"
-error_gemini_client = "Error creating Gemini client: {{.Error}}"
+error_ai_client = "Error creating AI client: {{.Error}}"
 response_empty = "Empty AI response"
 title_not_found = "The title was not found in the answer"
 error_empty_prompt = "The prompt cannot be empty"
@@ -258,6 +268,17 @@ vcs_provider_auto_detected_not_configured = "VCS provider '%s' auto-detected but
 release_already_exists = "This release {{.Version}} already exists"
 repo_or_tag_not_found = "Repository or tag not found. Make sure tag {{.Version}} exists"
 create_release = "Error creating release"
+upload_binaries = "Error uploading binaries: {{.Error}}"
+create_temp_dir = "Error creating temporary directory: {{.Error}}"
+build_binaries = "Error building binaries: {{.Error}}"
+open_file = "Error opening file: {{.File}}: {{.Error}}"
+upload_asset = "Error uploading asset {{.Asset}}: {{.Error}}"
+compile_target = "Error compiling for {{.GOOS}}/{{.GOARCH}}: {{.Output}}"
+create_zip = "Error creating zip: {{.Error}}"
+create_targz = "Error creating tar.gz: {{.Error}}"
+archive_format_not_supported = "Archive format not supported: {{.Format}}"
+binary_not_found_archive = "Binary not found in archive"
+pr_number_required = "You must specify the PR number with -n or --number"
 
 [warning]
 pr_too_large = "The PR #{{.pr_number}} is too large (>20,000 lines). We're getting diffs commit by commit..."
@@ -310,7 +331,8 @@ error_update_pr = "Error updating PR: {{.Error}}"
 section_welcome = "1. Welcome and AI"
 welcome = "👋 Welcome to the MateCommit setup assistant!"
 ai_intro = "First, let’s configure the AI. (Supported providers: {{.Providers}})"
-prompt_gemini_api_key = "> Enter your Gemini API Key (Enter to skip): "
+prompt_ai_api_key = "> Enter your {{.Provider}} API Key (Enter to skip): "
+prompt_ai_api_key_generic = "> Enter your AI API Key (Enter to skip): "
 model_hint_supported = "> You can specify a model (supported: {{.Models}})."
 prompt_model_with_default = "> Model to use (default: {{.Default}}): "
 
@@ -341,11 +363,11 @@ summary_vcs_none = "No VCS provider configured"
 prompt_run_again = "Do you want to run the wizard again? (y/n): "
 
 [ai_missing]
-for_suggest = "❌ AI is not configured. Set your Gemini API Key to use 'suggest'.\n   👉 matecommit config init"
-for_pr = "❌ AI is not configured. Set your Gemini API Key to use 'summarize-pr'.\n   👉 matecommit config init"
+for_suggest = "❌ AI is not configured. Set your AI provider API Key to use 'suggest'.\n   👉 matecommit config init"
+for_pr = "❌ AI is not configured. Set your AI provider API Key to use 'summarize-pr'.\n   👉 matecommit config init"
 
-ai_missing_for_suggest = "❌ AI is not configured. Set your Gemini API Key to use 'suggest'.\n   👉 matecommit config init"
-ai_missing_for_pr = "❌ AI is not configured. Set your Gemini API Key to use 'summarize-pr'.\n   👉 matecommit config init"
+ai_missing_for_suggest = "❌ AI is not configured. Set your AI provider API Key to use 'suggest'.\n   👉 matecommit config init"
+ai_missing_for_pr = "❌ AI is not configured. Set your AI provider API Key to use 'summarize-pr'.\n   👉 matecommit config init"
 
 [help_command_usage]
 other = "Shows a list of commands or help for one command"
@@ -370,78 +392,65 @@ version_flag = "Override version manually (e.g., v1.2.3)"
 push_version_flag = "Version of tag to push (optional, auto-detects if not specified)"
 publish_usage = "Publish release to GitHub/GitLab"
 draft_flag = "Create as draft"
-as_draft = "(draft)"
-publishing = "📦 Publishing release {{.Version}}{{.Draft}} to GitHub..."
-error_publishing = "Error publishing release: {{.Error}}"
-publish_success = "✅ Release {{.Version}} published successfully to GitHub"
-empty_body_warning = "⚠️  This release has no description. Using a basic template."
-template_warning = "This release has no description in GitHub"
-template_tip = "Tip: You can regenerate notes with 'matecommit release generate'"
-template_changes = "Changes"
-md_contributors = "👥 Contributors"
-new_contributors = "Welcome {Count} new contributors!"
-all_contributors = "All contributors in this release:"
-md_stats = "📊 Statistics"
-files_changed = "Files changed"
-insertions = "Lines added"
-deletions = "Lines deleted"
-warning_enrich_context = "Could not enrich release context: {Error}"
-
-
-# Preview
-preview_usage = "Preview the next release without creating it"
-preview_title = "Release Preview"
-previous_version = "📦 Previous Version: {{.Version}}"
-next_version = "📦 Next Version: {{.Version}} ({{.Bump}} bump)"
-changes_summary = "📊 Changes Summary:"
-breaking_changes = "   ⚠️  Breaking Changes: {{.Count}}"
-new_features = "   ✨ New Features: {{.Count}}"
-bug_fixes = "   🐛 Bug Fixes: {{.Count}}"
-improvements = "   🔧 Improvements: {{.Count}}"
-documentation = "   📚 Documentation: {{.Count}}"
-total_commits = "   📝 Total Commits: {{.Count}}"
-separator = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-next_steps = "💡 To create this release, run:"
-next_steps_cmd = "   matecommit release create"
-
-# Generate
-generate_usage = "Generate release notes and save to a file"
+previous_version = "📦 Previous version: {{.Version}}"
+next_version = "🚀 Next version: {{.Version}} ({{.Bump}})"
+changes_summary = "📊 Changes summary:"
+breaking_changes = "💥 Breaking changes: {{.Count}}"
+new_features = "✨ New features: {{.Count}}"
+bug_fixes = "🐛 Bug fixes: {{.Count}}"
+improvements = "⚡ Improvements: {{.Count}}"
+documentation = "📚 Documentation: {{.Count}}"
+total_commits = "📝 Total commits: {{.Count}}"
+warning_enrich_context = "Warning enriching context: {{.Error}}"
+separator = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+highlights_section = "### ✨ Highlights"
+next_steps = "💡 Next steps:"
+next_steps_cmd = "   matecommit release create    # Create the release\n   matecommit release publish   # Publish to GitHub"
 generating = "📝 Generating release notes..."
-notes_saved = "✅ Release notes saved to: {{.File}}"
-version_label = "📦 Version: {{.Version}}"
-
-# Create
-create_usage = "Create a new release (tag + notes)"
-creating = "🚀 Creating new release..."
-create_preview = "📦 Version: {{.Version}} ({{.Bump}})"
+notes_saved = "✅ Release notes saved to {{.File}}"
+version_label = "🔖 Version: {{.Version}}"
+creating = "🔄 Creating release..."
+create_preview = "📦 Creating release {{.Version}} ({{.Bump}})"
 create_title = "📝 Title: {{.Title}}"
-create_stats = "📊 Changes: {{.Features}} features, {{.Fixes}} fixes, {{.Breaking}} breaking"
-create_confirm = "Create this release? (y/N): "
+create_stats = "📊 Stats: {{.Features}} features, {{.Fixes}} fixes, {{.Breaking}} breaking changes"
+create_confirm = "Do you want to create this release tag? [y/N]: "
 create_cancelled = "❌ Release creation cancelled"
 tag_created = "✅ Tag {{.Version}} created successfully"
+publishing_release = "📤 Publishing release to GitHub..."
+release_published = "✅ Release published successfully"
 create_next_steps = "💡 Next steps:"
-create_review = "   1. Review the tag: git show {{.Version}}"
-create_push = "   2. Push the tag: git push origin {{.Version}}"
-create_push_help = "   3. Optional: matecommit release push"
-
-# Common
+create_review = "1. Review the tag: git show {{.Version}}"
+create_push = "2. Push the tag: git push origin {{.Version}}"
+create_push_help = "   (Or run: matecommit release push)"
+pushing_tag = "⬆️  Pushing tag {{.Version}}..."
+error_pushing_tag = "Error pushing tag: {{.Error}}"
+push_success = "✅ Tag {{.Version}} pushed successfully"
+publishing = "🚀 Publishing release {{.Version}}{{.Draft}}..."
+as_draft = "(as draft)"
+error_publishing = "Error publishing release: {{.Error}}"
+publish_success = "✅ Release {{.Version}} published successfully"
+changelog_update_started = "📝 Updating CHANGELOG.md..."
+error_updating_changelog = "Error updating changelog: {{.Error}}"
+changelog_updated = "✅ CHANGELOG.md updated successfully"
+committing_changelog = "💾 Committing changelog..."
+changelog_committed = "✅ Changelog committed successfully"
+error_committing_changelog = "Error committing changelog: {{.Error}}"
+pushing_changes = "Pushing changes to remote repository..."
+error_pushing_changes = "Error pushing changes: {{.Error}}"
+changes_pushed = "✅ Changes pushed successfully"
 version_calculated = "📦 New version calculated: {{.Version}}"
-highlights_section = "### Highlights"
+error_updating_app_version = "Error updating app version: {{.Error}}"
+app_version_updated = "✅ App version updated to {{.Version}}"
+commit_no_staged = "No changes to commit. Skipping commit step."
+
 # Generate Markdown
 md_version = "Version"
 md_previous = "Previous Version"
 md_summary = "Summary"
 md_highlights = "Highlights"
 
-pushing_tag = "🚀 Pushing tag {{.Version}}..."
-error_pushing_tag = "Error pushing tag: {{.Error}}"
-push_success = "✅ Tag {{.Version}} pushed successfully"
-
-flag_publish_usage = "Publish release to VCS provider (e.g., GitHub)"
-flag_draft_usage = "Publish as draft (requires --publish)"
-publishing_release = "🚀 Publishing release..."
-release_published = "✅ Release published successfully"
 error_publishing_release = "Error publishing release: {{.Error}}"
+flag_changelog_usage = "Update CHANGELOG.md and create commit automatically"
 
 # Edit
 edit_usage = "Edit release notes of an existing release"
@@ -485,3 +494,432 @@ branch_not_detected = "Could not detect branch name"
 get_repo_url = "Error getting repository URL: {{.Error}}"
 get_commits = "Error getting commits: {{.Error}}"
 extract_repo_info = "Could not extract owner and repo from URL: {{.Url}}"
+
+# PR Service - Issue linking
+[pr_detected_issues]
+other = "🔍 Issues detected in PR #{{.Number}}: {{.Issues}}"
+
+[pr_issues_will_close_on_merge]
+other = "✅ {{.Count}} issue(s) will close automatically when PR is merged"
+
+[pr_breaking_changes_detected]
+other = "⚠️  Breaking changes detected in {{.Count}} commits"
+
+[pr_test_plan_generated]
+other = "📋 Test plan generated automatically"
+
+# UI - Spinners and Feedback
+[ui]
+generating_suggestions_banner = "Generating Commit Suggestions"
+generating_with_ai = "Generating suggestions with AI..."
+including_issue_context = "Including issue #{{.Number}} context..."
+generating_with_issue = "Generating suggestions with issue context..."
+adding_to_staging = "Adding files to staging..."
+creating_commit = "Creating commit..."
+files_added_to_staging = "{{.Count}} files added to staging"
+commit_created_successfully = "Commit created successfully"
+suggestions_generated = "{{.Count}} suggestions generated"
+error_generating_suggestions = "Error generating suggestions"
+detected_issue = "Detected issue #{{.Number}}"
+fetching_pr_info = "Fetching PR #{{.Number}} information..."
+error_generating_pr_summary = "Error generating PR summary"
+pr_updated_successfully = "PR #{{.Number}} updated: {{.Title}}"
+
+# UI - Errors with suggestions
+[ui_error]
+ai_api_key_missing = "{{.Provider}} API key not configured"
+ai_api_key_missing_generic = "AI API key not configured"
+github_token_missing = "GitHub token not configured"
+no_changes_detected = "No changes detected in repository"
+ensure_modified_files = "Make sure you have modified files before generating suggestions"
+run_config_init = "Run: matecommit config init"
+error_saving_config = "Error saving configuration"
+
+# UI - Preview and confirmations
+[ui_preview]
+commit_selected = "Commit selected: {{.Title}}"
+modified_files_header = "📄 Modified files"
+files_count = "Files: {{.Count}}"
+changes_header = "Changes"
+ask_show_diff = "Show changes before committing?"
+ask_edit_message = "Edit commit message?"
+ask_confirm_commit = "Confirm commit?"
+commit_cancelled = "Commit cancelled"
+no_changes_to_show = "No changes to show"
+error_showing_diff = "Could not show diff: {{.Error}}"
+error_showing_stats = "Could not show stats: {{.Error}}"
+error_editing_message = "Error editing message: {{.Error}}"
+editor_error = "Editor error"
+message_updated = "Message updated"
+
+# UI - Selection
+[ui_selection]
+select_option = "Select an option:"
+select_suggestion_range = "Select suggestion"
+cancel_operation = "Cancel"
+
+# UI - Labels
+[ui_labels]
+code_analysis = "📊 Code Analysis:"
+changes_overview = "Changes Overview"
+primary_purpose = "Primary Purpose"
+technical_impact = "Technical Impact"
+commit_label = "Commit:"
+modified_files = "📄 Modified files:"
+explanation_label = "💬 Explanation:"
+requirements_analysis = "🎯 Requirements Analysis:"
+status_label = "Status:"
+missing_criteria = "Missing Criteria:"
+improvement_suggestions = "Improvement Suggestions:"
+technical_analysis = "🔧 Technical Analysis:"
+completed = "Completed"
+error = "Error:"
+
+
+# Doctor command
+[doctor]
+command_usage = "Check configuration and dependencies status"
+running_checks = "🔍 Checking Configuration"
+summary = "📋 Summary"
+all_good = "All good! All checks passed"
+has_warnings = "Partially ready (warnings found)"
+has_errors = "Incomplete setup (errors found)"
+available_commands = "Available commands:"
+command_ready = "(ready)"
+command_unavailable = "(unavailable)"
+
+# Checks
+check_config_file = "Configuration file"
+check_git_repo = "Git repository"
+check_git_installed = "Git installed"
+check_ai_key = "{{.Provider}} API key"
+check_ai_key_generic = "AI provider API key"
+check_github_token = "GitHub token"
+check_editor = "Editor configured"
+
+# Results
+config_not_found = "Configuration file not found"
+run_config_init = "Run: matecommit config init"
+not_in_git_repo = "Not in a Git repository"
+git_init_suggestion = "Run: git init"
+git_not_installed = "Git is not installed"
+install_git_suggestion = "Install Git from: https://git-scm.com"
+ai_not_configured = "{{.Provider}} API key not configured"
+ai_key_invalid = "Invalid {{.Provider}} API key or no permissions"
+ai_not_configured_generic = "AI API key not configured"
+ai_key_invalid_generic = "Invalid AI API key or no permissions"
+check_api_key = "Check your API key at: https://makersuite.google.com"
+api_key_valid = "valid and working"
+github_not_configured = "Token not configured"
+github_optional = "Optional - only for PR commands"
+github_configured = "configured"
+editor_not_set = "EDITOR variable not set (detected: {{.Editor}})"
+no_editor_found = "No editor found"
+install_editor = "Install nano, vim or code"
+editor_not_found = "Editor '{{.Editor}}' not found"
+set_valid_editor = "Set a valid editor with: export EDITOR=nano"
+
+# Config improvements
+[config]
+validating_api_key = "Validating API key..."
+testing_connection = "Testing connection with {{.Provider}}"
+testing_connection_generic = "Testing AI connection"
+api_key_invalid = "Invalid API key"
+api_key_valid = "Valid API key"
+check_api_key_error = "Error: {{.Error}}"
+api_key_instructions = "MateCommit uses {{.Provider}} to generate smart commits."
+api_key_instructions_generic = "MateCommit uses AI to generate smart commits."
+get_key_at = "Get your API key at: {{.URL}}"
+get_key_at_generic = "Get your API key from your provider's website"
+api_key_skipped = "API key skipped - you can configure it later"
+api_key_saved_unverified = "API key saved without verification"
+retry_api_key = "Try another API key?"
+
+# Welcome (first run)
+[welcome]
+first_time = "Welcome to MateCommit"
+intro = "Looks like this is your first time using MateCommit. This tool helps you generate smart commits using AI."
+configure_now = "Would you like to configure it now?"
+setup_later = "Setup skipped"
+run_init_hint = "You can configure it later with: matecommit config init"
+
+# Quick setup
+[quick_setup]
+header = "🚀 Quick Setup"
+intro_message = "Get started in 30 seconds with just the essentials"
+ai_provider_intro = "AI Provider: {{.Provider}}"
+get_api_key_at = "Get your free API key at: {{.URL}}"
+prompt_api_key = "> Enter your {{.Provider}} API Key: "
+no_api_key_provided = "No API key provided. You can configure it later with: matecommit config init"
+validating_key = "Validating API key..."
+key_validated = "✅ API key validated successfully"
+key_validation_failed = "⚠️  Could not validate API key, but saving anyway"
+config_saved = "✅ Configuration saved!"
+try_now = "💡 Try it now: matecommit s"
+full_setup_hint = "💡 For full setup: matecommit config init"
+
+# Setup mode selection
+[setup_mode]
+choose_mode = "Choose setup mode:"
+quick_option = "1. Quick (recommended) - Just AI, ready in 30 seconds"
+full_option = "2. Full - Configure everything (AI, VCS, Tickets)"
+prompt_selection = "Select [1]: "
+
+# First run wizard
+[first_run]
+welcome_banner = "👋 Welcome to MateCommit!"
+welcome_message = "Looks like this is your first time. MateCommit uses AI to generate smart commits."
+what_to_do = "What would you like to do?"
+quick_setup_option = "1. Quick setup (30 seconds)"
+full_setup_option = "2. Full setup"
+exit_option = "3. Exit"
+prompt_choice = "Select [1]: "
+setup_cancelled = "Setup cancelled"
+[completion]
+command_usage = "Generate completion script"
+command_description = "Outputs the completion script for your shell"
+bash_usage = "Generate bash completion script"
+zsh_usage = "Generate zsh completion script"
+install_usage = "Install completion script to your shell config"
+error_home_dir = "could not get user home directory: {{.Error}}"
+error_unsupported_shell = "unsupported shell: {{.Shell}}. Only bash and zsh are supported for auto-install"
+error_open_config = "could not open config file: {{.Error}}"
+error_write_config = "could not write to config file: {{.Error}}"
+already_installed = "✅ Completion already installed in {{.File}}"
+restart_shell = "Please restart your shell or run:"
+installed_success = "✅ Completion installed to {{.File}}"
+
+[token_usage]
+header = "📊 Token Usage"
+input = "Input Tokens"
+output = "Output Tokens"
+total = "Total Tokens"
+
+[update]
+usage = "Update MateCommit to the latest version"
+box_top = "╭──────────────────────────────────────────────╮"
+box_bottom = "╰──────────────────────────────────────────────╯"
+available = "  Update available! {{.Current}} -> {{.Latest}}"
+command = "  Run: {{.Command}} to update"
+updating = "🔄 Updating MateCommit..."
+success = "✅ MateCommit updated successfully!"
+error = "Error updating MateCommit"
+
+[update.method_not_detected]
+other = "Installation method not detected. Please update manually"
+
+[update.go_not_found]
+other = "Go is not installed. Cannot update via 'go install'"
+
+[update.brew_not_found]
+other = "Homebrew is not installed. Cannot update via 'brew'"
+
+[update.binary_not_supported]
+other = "Binary update not supported yet. Please update manually:\n  • Via Go: go install github.com/Tomas-vilte/MateCommit@latest\n  • Via Homebrew: brew upgrade matecommit"
+
+[update.downloading]
+other = "Downloading version {{.Version}}..."
+
+[update.extracting]
+other = "Extracting files..."
+
+[update.installing]
+other = "Installing new version..."
+
+
+
+[build]
+compiling_binaries = "Compiling binaries for multiple platforms..."
+uploading_binaries = "Uploading {{.Count}} binaries to release..."
+
+[build.errors]
+upload_binaries = "Error uploading binaries: {{.Error}}"
+create_zip = "Error creating zip: {{.Error}}"
+create_targz = "Error creating tar.gz: {{.Error}}"
+compile_target = "Error compiling for {{.GOOS}}/{{.GOARCH}}: {{.Output}}"
+build_binaries = "Error building and packaging binaries: {{.Error}}"
+open_file = "Error opening file {{.File}}: {{.Error}}"
+upload_asset = "Error uploading asset {{.Asset}}: {{.Error}}"
+create_temp_dir = "Error creating temporary directory: {{.Error}}"
+
+[update.errors]
+get_latest = "Error getting latest version: {{.Error}}"
+arch_not_supported = "Architecture not supported: {{.Arch}}"
+os_not_supported = "Operating system not supported: {{.OS}}"
+binary_not_found_manual = "Binary not found for {{.OS}}/{{.Arch}}. Download it manually from: {{.URL}}"
+create_temp = "Error creating temporary directory: {{.Error}}"
+download = "Error downloading binary: {{.Error}}"
+download_http = "Error downloading: HTTP {{.StatusCode}}"
+create_temp_file = "Error creating temporary file: {{.Error}}"
+save_binary = "Error saving binary: {{.Error}}"
+extract = "Error extracting file: {{.Error}}"
+get_executable = "Error getting executable path: {{.Error}}"
+resolve_symlinks = "Error resolving symlinks: {{.Error}}"
+create_backup = "Error creating backup: {{.Error}}"
+install_binary = "Error installing new binary: {{.Error}}"
+chmod = "Error setting permissions: {{.Error}}"
+
+# Issue Generator Command
+[issue]
+command_usage = "Manage and generate issues"
+generate_usage = "Generate a new issue from code changes or description"
+flag_from_diff = "Generate issue from current git diff"
+flag_description = "Manual description for the issue"
+flag_hint = "Additional hint to guide AI generation"
+flag_no_labels = "Skip automatic label inference"
+flag_dry_run = "Preview only, don't create the issue"
+banner = "Issue Generator"
+analyzing = "Analyzing changes and generating content..."
+creating = "Creating issue..."
+preview_title = "Issue Preview"
+preview_title_label = "Title"
+preview_description_label = "Description"
+preview_labels_label = "Labels"
+confirm_prompt = "Create this issue?"
+created_successfully = "✅ Issue #{{.Number}} created successfully: {{.URL}}"
+cancelled = "Issue creation cancelled"
+dry_run_complete = "Dry run complete. No issue was created."
+error_no_input = "You must specify either --from-diff or --description"
+error_conflicting_flags = "Cannot use --from-diff and --description together"
+error_generating = "Error generating issue content"
+error_creating = "Error creating issue"
+flag_assign_me = "Assign the issue to yourself"
+flag_checkout = "Create and checkout to a new branch after creating the issue"
+getting_user = "Getting authenticated user..."
+will_assign = "Will assign to: {{.User}}"
+warn_assignee_failed = "Could not assign issue automatically"
+creating_branch = "Creating branch: {{.Branch}}"
+branch_created = "✅ Switched to branch: {{.Branch}}"
+warn_checkout_failed = "Could not create branch automatically"
+flag_from_pr = "Generate issue from an existing Pull Request"
+analyzing_pr = "Analyzing Pull Request #{{.Number}}..."
+error_multiple_sources = "You can only specify one of: --from-diff, --from-pr, or --description"
+link_success = "✅ Link successful: PR #{{.PR}} updated to close #{{.Issue}}"
+link_error = "Could not link issue to PR #{{.PR}} automatically: {{.Error}}"
+# Link Command
+link_usage = "Link a PR to an existing issue"
+link_banner = "Issue Linker"
+flag_pr_number = "Pull Request number"
+flag_issue_number = "Issue number"
+error_pr_required = "You must specify the PR number with --pr"
+error_issue_required = "You must specify the issue number with --issue"
+error_invalid_pr = "Invalid PR number"
+error_invalid_issue = "Invalid issue number"
+error_linking = "Error linking PR to issue"
+linking = "Linking PR #{{.PR}} with issue #{{.Issue}}..."
+link_updated = "✅ PR #{{.PR}} updated successfully. Now closes #{{.Issue}}"
+# Template Management
+flag_template = "Use a specific issue template"
+template_usage = "Manage issue templates"
+template_init_usage = "Initialize default issue templates"
+template_init_banner = "Template Initialization"
+template_init_info = "Creating default issue templates in .github/ISSUE_TEMPLATE/"
+template_init_success = "✅ Templates created successfully in: {{.Dir}}"
+template_init_error = "Error creating templates"
+template_force_flag = "Overwrite existing templates"
+template_list_usage = "List available issue templates"
+template_list_banner = "Available Issue Templates"
+template_list_empty = "No templates found"
+template_list_hint = "Run 'matecommit issue template init' to create default templates"
+template_list_usage_hint = "Use --template <filename> with the generate command"
+template_list_error = "Error listing templates"
+
+
+[issue_generator]
+ai_not_configured = "AI provider is not configured. Please run 'matecommit config init' first."
+error_getting_diff = "Error getting git diff"
+no_changes_detected = "No changes detected. Make some changes first or use --description instead."
+error_getting_files = "Error getting changed files"
+error_generating_content = "Error generating content with AI"
+description_required = "Description is required when not using --from-diff"
+vcs_not_configured = "VCS provider is not configured. Please run 'matecommit config init' first."
+error_getting_pr = "Error getting Pull Request"
+error_loading_template = "Error loading template"
+
+[issue_template]
+bug_report_name = "Bug Report"
+bug_report_about = "Create a report to help us improve"
+bug_report_title = "[BUG] "
+bug_report_body = """
+**Describe the bug**
+A clear and concise description of what the bug is.
+
+**To Reproduce**
+Steps to reproduce the behavior:
+1. Go to '...'
+2. Click on '....'
+3. See error
+
+**Expected behavior**
+A clear and concise description of what you expected to happen.
+
+**Screenshots**
+If applicable, add screenshots to help explain your problem.
+
+**Additional context**
+Add any other context about the problem here.
+"""
+
+feature_request_name = "Feature Request"
+feature_request_about = "Suggest an idea for this project"
+feature_request_title = "[FEATURE] "
+feature_request_body = """
+**Is your feature request related to a problem? Please describe.**
+A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+
+**Describe the solution you'd like**
+A clear and concise description of what you want to happen.
+
+**Describe alternatives you've considered**
+A clear and concise description of any alternative solutions or features you've considered.
+
+**Additional context**
+Add any other context or screenshots about the feature request here.
+"""
+
+custom_issue_name = "Custom Issue"
+custom_issue_about = "Create a custom issue"
+custom_issue_title = "[ISSUE] "
+custom_issue_body = """
+**Context**
+Provide context about this issue.
+
+**Details**
+Add detailed information here.
+"""
+
+# GitHub Issue Forms - Bug Report
+bug_report_intro = "Thanks for taking the time to fill out this bug report!"
+bug_description_label = "What happened?"
+bug_description_help = "A clear and concise description of what the bug is"
+bug_description_placeholder = "The application crashes when..."
+bug_steps_label = "Steps to reproduce"
+bug_steps_help = "How can we reproduce this issue?"
+bug_expected_label = "Expected behavior"
+bug_expected_placeholder = "What did you expect to happen?"
+bug_actual_label = "Actual behavior"
+bug_actual_placeholder = "What actually happened?"
+bug_version_label = "Version"
+bug_additional_label = "Additional context"
+bug_additional_help = "Add any other context about the problem (screenshots, logs, etc.)"
+
+# GitHub Issue Forms - Feature Request
+feature_intro = "Thanks for suggesting a new feature!"
+feature_problem_label = "Is your feature request related to a problem?"
+feature_problem_help = "Describe the problem you're trying to solve"
+feature_problem_placeholder = "I'm always frustrated when..."
+feature_solution_label = "Describe the solution you'd like"
+feature_solution_help = "What would you like to happen?"
+feature_solution_placeholder = "I would like to be able to..."
+feature_alternatives_label = "Describe alternatives you've considered"
+feature_alternatives_help = "Have you considered any alternative solutions?"
+feature_additional_label = "Additional context"
+feature_additional_help = "Add any other context or screenshots about the feature"
+
+# GitHub Issue Forms - Custom Issue
+custom_intro = "Provide details about your issue"
+custom_description_label = "Description"
+custom_description_help = "Describe your issue"
+custom_description_placeholder = "Please provide details..."
+custom_additional_label = "Additional information"
+custom_additional_help = "Any other relevant details"

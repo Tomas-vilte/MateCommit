@@ -3,10 +3,14 @@ package models
 type (
 	// PRData contiene la información extraída de una Pull Request.
 	PRData struct {
-		ID      int
-		Creator string
-		Commits []Commit
-		Diff    string
+		ID            int
+		Title         string
+		Creator       string
+		Commits       []Commit
+		Diff          string
+		BranchName    string
+		RelatedIssues []Issue
+		Description   string
 	}
 
 	// Commit representa un commit incluido en el PR.
@@ -19,5 +23,6 @@ type (
 		Title  string
 		Body   string
 		Labels []string
+		Usage  *UsageMetadata
 	}
 )

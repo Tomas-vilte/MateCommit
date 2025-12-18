@@ -10,10 +10,11 @@ const (
 
 type (
 	CommitInfo struct {
-		Files      []string
-		Diff       string
-		TicketInfo *TicketInfo
-		IssueInfo  *Issue
+		Files         []string
+		Diff          string
+		TicketInfo    *TicketInfo
+		IssueInfo     *Issue
+		RecentHistory string
 	}
 
 	GitChange struct {
@@ -22,22 +23,24 @@ type (
 	}
 
 	CommitSuggestion struct {
-		CommitTitle          string               `json:"commit_title"`
-		Explanation          string               `json:"explanation"`
-		Files                []string             `json:"files"`
-		CodeAnalysis         CodeAnalysis         `json:"code_analysis"`
-		RequirementsAnalysis RequirementsAnalysis `json:"requirements_analysis"`
+		CommitTitle          string
+		Explanation          string
+		Files                []string
+		CodeAnalysis         CodeAnalysis
+		RequirementsAnalysis RequirementsAnalysis
+		Usage                *UsageMetadata
 	}
 
 	CodeAnalysis struct {
-		ChangesOverview string `json:"changes_overview"`
-		PrimaryPurpose  string `json:"primary_purpose"`
-		TechnicalImpact string `json:"technical_impact"`
+		ChangesOverview string
+		PrimaryPurpose  string
+		TechnicalImpact string
 	}
 
 	RequirementsAnalysis struct {
-		CriteriaStatus         CriteriaStatus `json:"criteria_status"`
-		MissingCriteria        []string       `json:"missing_criteria"`
-		ImprovementSuggestions []string       `json:"improvement_suggestions"`
+		CriteriaStatus         CriteriaStatus
+		MissingCriteria        []string
+		CompletedIndices       []int
+		ImprovementSuggestions []string
 	}
 )
