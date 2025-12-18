@@ -17,17 +17,20 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+// IssueServiceProvider es una interfaz para obtener el servicio de issues de manera lazy
+type IssueServiceProvider func(ctx context.Context) (ports.IssueGeneratorService, error)
+
 // IssuesCommandFactory es el factory para crear el comando de issues.
 type IssuesCommandFactory struct {
-	issueService    ports.IssueGeneratorService
-	templateService ports.IssueTemplateService
+	issueServiceProvider IssueServiceProvider
+	templateService      ports.IssueTemplateService
 }
 
 // NewIssuesCommandFactory crea una nueva instancia del factory.
-func NewIssuesCommandFactory(issueService ports.IssueGeneratorService, templateService ports.IssueTemplateService) *IssuesCommandFactory {
+func NewIssuesCommandFactory(issueServiceProvider IssueServiceProvider, templateService ports.IssueTemplateService) *IssuesCommandFactory {
 	return &IssuesCommandFactory{
-		issueService:    issueService,
-		templateService: templateService,
+		issueServiceProvider: issueServiceProvider,
+		templateService:      templateService,
 	}
 }
 
@@ -141,6 +144,12 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 
 		ui.PrintSectionBanner(t.GetMessage("issue.banner", 0, nil))
 
+		issueService, err := f.issueServiceProvider(ctx)
+		if err != nil {
+			ui.PrintError(fmt.Sprintf("%s: %v", t.GetMessage("issue.error_generating", 0, nil), err))
+			return err
+		}
+
 		var spinnerMsg string
 		if fromPR > 0 {
 			spinnerMsg = t.GetMessage("issue.analyzing_pr", 0, map[string]interface{}{
@@ -154,16 +163,15 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 		spinner.Start()
 
 		var result *models.IssueGenerationResult
-		var err error
 
 		if templateName != "" {
-			result, err = f.issueService.GenerateWithTemplate(ctx, templateName, hint, fromDiff, description, noLabels)
+			result, err = issueService.GenerateWithTemplate(ctx, templateName, hint, fromDiff, description, noLabels)
 		} else if fromDiff {
-			result, err = f.issueService.GenerateFromDiff(ctx, hint, noLabels)
+			result, err = issueService.GenerateFromDiff(ctx, hint, noLabels)
 		} else if fromPR > 0 {
-			result, err = f.issueService.GenerateFromPR(ctx, fromPR, hint, noLabels)
+			result, err = issueService.GenerateFromPR(ctx, fromPR, hint, noLabels)
 		} else {
-			result, err = f.issueService.GenerateFromDescription(ctx, description, noLabels)
+			result, err = issueService.GenerateFromDescription(ctx, description, noLabels)
 		}
 
 		spinner.Stop()
@@ -191,7 +199,7 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 			spinner = ui.NewSmartSpinner(t.GetMessage("issue.getting_user", 0, nil))
 			spinner.Start()
 
-			username, err := f.issueService.GetAuthenticatedUser(ctx)
+			username, err := issueService.GetAuthenticatedUser(ctx)
 			spinner.Stop()
 
 			if err != nil {
@@ -207,7 +215,7 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 		spinner = ui.NewSmartSpinner(t.GetMessage("issue.creating", 0, nil))
 		spinner.Start()
 
-		issue, err := f.issueService.CreateIssue(ctx, result, assignees)
+		issue, err := issueService.CreateIssue(ctx, result, assignees)
 		spinner.Stop()
 
 		if err != nil {
@@ -221,7 +229,7 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 		}))
 
 		if fromPR > 0 {
-			if err := f.issueService.LinkIssueToPR(ctx, fromPR, issue.Number); err != nil {
+			if err := issueService.LinkIssueToPR(ctx, fromPR, issue.Number); err != nil {
 				ui.PrintWarning(t.GetMessage("issue.link_error", 0, map[string]interface{}{
 					"PR":    fromPR,
 					"Error": err,
@@ -235,7 +243,7 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 		}
 
 		if checkoutBranch {
-			branchName := f.issueService.InferBranchName(issue.Number, result.Labels)
+			branchName := issueService.InferBranchName(issue.Number, result.Labels)
 
 			ui.PrintInfo(t.GetMessage("issue.creating_branch", 0, map[string]interface{}{
 				"Branch": branchName,
