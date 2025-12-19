@@ -2,6 +2,7 @@ package gemini
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
@@ -123,5 +124,66 @@ func TestGeminiPRSummarizer(t *testing.T) {
 
 		// Assert
 		assert.Equal(t, "", result, "formatResponse con candidatos vacíos debería retornar string vacío")
+	})
+}
+
+func TestGeneratePRSummary_HappyPath(t *testing.T) {
+	tmpHome, err := os.MkdirTemp("", "mate-commit-test-pr-*")
+	assert.NoError(t, err)
+	defer func() {
+		if err := os.RemoveAll(tmpHome); err != nil {
+			return
+		}
+	}()
+	oldHome := os.Getenv("HOME")
+	_ = os.Setenv("HOME", tmpHome)
+	defer func() {
+		if err := os.Setenv("HOME", oldHome); err != nil {
+			return
+		}
+	}()
+
+	ctx := context.Background()
+	trans, _ := i18n.NewTranslations("en", "../../../i18n/locales/")
+	cfg := &config.Config{
+		AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test"}},
+		AIConfig:    config.AIConfig{Models: map[config.AI]config.Model{config.AIGemini: "gemini-pro"}},
+	}
+	summarizer, _ := NewGeminiPRSummarizer(ctx, cfg, trans)
+	summarizer.wrapper.SetSkipConfirmation(true)
+
+	t.Run("successful PR summary", func(t *testing.T) {
+		expectedJSON := `{"title": "Awesome Feature", "body": "This PR adds awesome feature", "labels": ["feature"]}`
+		summarizer.generateFn = func(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
+			return &genai.GenerateContentResponse{
+				Candidates: []*genai.Candidate{
+					{Content: &genai.Content{Parts: []*genai.Part{{Text: expectedJSON}}}},
+				},
+			}, &models.TokenUsage{TotalTokens: 50}, nil
+		}
+
+		summary, err := summarizer.GeneratePRSummary(ctx, "content")
+
+		assert.NoError(t, err)
+		assert.Equal(t, "Awesome Feature", summary.Title)
+		assert.Equal(t, "This PR adds awesome feature", summary.Body)
+		assert.Contains(t, summary.Labels, "feature")
+	})
+
+	t.Run("empty title error", func(t *testing.T) {
+		expectedJSON := `{"title": "", "body": "no title", "labels": []}`
+		summarizer.generateFn = func(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
+			return &genai.GenerateContentResponse{
+				Candidates: []*genai.Candidate{
+					{Content: &genai.Content{Parts: []*genai.Part{{Text: expectedJSON}}}},
+				},
+			}, &models.TokenUsage{}, nil
+		}
+
+		summary, err := summarizer.GeneratePRSummary(ctx, "content")
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "respuesta vacía")
+		assert.Empty(t, summary.Title)
 	})
 }

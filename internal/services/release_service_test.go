@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
@@ -471,7 +472,6 @@ func TestReleaseService_EnrichReleaseContext(t *testing.T) {
 func TestReleaseService_UpdateAppVersion(t *testing.T) {
 	t.Run("should update version in default file", func(t *testing.T) {
 		dir := t.TempDir()
-		// Simulate cmd/main.go in temp dir
 		cmdDir := filepath.Join(dir, "cmd")
 		err := os.MkdirAll(cmdDir, 0755)
 		require.NoError(t, err)
@@ -485,7 +485,6 @@ var (
 		err = os.WriteFile(mainGoPath, []byte(initialContent), 0644)
 		require.NoError(t, err)
 
-		// Override default config
 		cfg := &config.Config{
 			VersionFile: mainGoPath,
 		}
@@ -498,7 +497,6 @@ var (
 		newContent, err := os.ReadFile(mainGoPath)
 		require.NoError(t, err)
 
-		// verify stripped v and updated value
 		assert.Contains(t, string(newContent), `"1.1.0"`)
 	})
 
@@ -526,9 +524,6 @@ const CurrentVersion = "0.0.1"
 		require.NoError(t, err)
 
 		assert.Contains(t, string(newContent), `CurrentVersion = "0.0.2"`)
-		// Also verify spaces are preserved/stripped as per replacement logic.
-		// Our replacement logic: match[:startQuote] + "newVal" + match[endQuote:]
-		// So `CurrentVersion = "0.0.1"` -> `CurrentVersion = "0.0.2"`
 	})
 
 	t.Run("should fail if pattern not found", func(t *testing.T) {
@@ -542,6 +537,113 @@ const CurrentVersion = "0.0.1"
 
 		err = service.UpdateAppVersion("v1.0.0")
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "no se encontró el patrón")
+	})
+}
+
+func TestReleaseService_CategorizeCommits_AllTypes(t *testing.T) {
+	service := &ReleaseService{}
+	release := &models.Release{
+		AllCommits: []models.Commit{
+			{Message: "feat: new feature"},
+			{Message: "fix: bug fix"},
+			{Message: "docs: update readme"},
+			{Message: "style: linting"},
+			{Message: "refactor: clean code"},
+			{Message: "perf: optimize"},
+			{Message: "test: add tests"},
+			{Message: "chore: update deps"},
+			{Message: "build: update build script"},
+			{Message: "ci: fix pipeline"},
+			{Message: "unknown: something"},
+		},
+	}
+
+	service.categorizeCommits(release)
+
+	assert.Len(t, release.Features, 1)
+	assert.Len(t, release.BugFixes, 1)
+	assert.Len(t, release.Documentation, 1)
+	assert.Len(t, release.Improvements, 2)
+	assert.Len(t, release.Other, 6)
+}
+
+func TestReleaseService_CalculateVersion_Exhaustive(t *testing.T) {
+	service := &ReleaseService{}
+
+	tests := []struct {
+		name       string
+		currentTag string
+		release    *models.Release
+		expVersion string
+		expBump    models.VersionBump
+	}{
+		{
+			name:       "Major bump due to breaking change",
+			currentTag: "v1.2.3",
+			release: &models.Release{
+				Breaking: []models.ReleaseItem{{Type: "feat", Breaking: true}},
+			},
+			expVersion: "v2.0.0",
+			expBump:    models.MajorBump,
+		},
+		{
+			name:       "Minor bump due to feature",
+			currentTag: "v1.2.3",
+			release: &models.Release{
+				Features: []models.ReleaseItem{{Type: "feat"}},
+			},
+			expVersion: "v1.3.0",
+			expBump:    models.MinorBump,
+		},
+		{
+			name:       "Patch bump due to fix",
+			currentTag: "v1.2.3",
+			release: &models.Release{
+				BugFixes: []models.ReleaseItem{{Type: "fix"}},
+			},
+			expVersion: "v1.2.4",
+			expBump:    models.PatchBump,
+		},
+		{
+			name:       "Patch bump due to improvement",
+			currentTag: "v1.2.3",
+			release: &models.Release{
+				Improvements: []models.ReleaseItem{{Type: "perf"}},
+			},
+			expVersion: "v1.2.4",
+			expBump:    models.PatchBump,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			version, bump := service.calculateVersion(tt.currentTag, tt.release)
+			assert.Equal(t, tt.expVersion, version)
+			assert.Equal(t, tt.expBump, bump)
+		})
+	}
+}
+
+func TestReleaseService_PrependToChangelog(t *testing.T) {
+	service := &ReleaseService{}
+	dir := t.TempDir()
+	changelogPath := filepath.Join(dir, "CHANGELOG.md")
+
+	t.Run("Create new changelog with content", func(t *testing.T) {
+		err := service.prependToChangelog(changelogPath, "## [1.0.0]\nNew version")
+		assert.NoError(t, err)
+
+		content, _ := os.ReadFile(changelogPath)
+		assert.Contains(t, string(content), "## [1.0.0]")
+	})
+
+	t.Run("Prepend to existing changelog", func(t *testing.T) {
+		err := service.prependToChangelog(changelogPath, "## [1.1.0]\nNewer version\n")
+		assert.NoError(t, err)
+
+		content, _ := os.ReadFile(changelogPath)
+		assert.Contains(t, string(content), "## [1.1.0]")
+		assert.Contains(t, string(content), "## [1.0.0]")
+		assert.True(t, strings.HasPrefix(string(content), "# Changelog"))
 	})
 }

@@ -88,7 +88,7 @@ type (
 		BreakingChanges []string
 		Comparisons     []Comparison
 		Links           map[string]string
-		Usage           *UsageMetadata
+		Usage           *TokenUsage
 	}
 
 	// CodeExample representa un ejemplo de código con descripción

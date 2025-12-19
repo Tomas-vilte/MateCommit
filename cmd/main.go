@@ -6,12 +6,14 @@ import (
 	"log"
 	"os"
 
+	"github.com/Tomas-vilte/MateCommit/internal/cli/command/cache"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/completion"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/config"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/handler"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/issues"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/pull_requests"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/release"
+	"github.com/Tomas-vilte/MateCommit/internal/cli/command/stats"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/suggests_commits"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/command/update"
 	"github.com/Tomas-vilte/MateCommit/internal/cli/registry"
@@ -133,6 +135,8 @@ func initializeApp() (*cli.Command, error) {
 
 	commands := registerCommand.CreateCommands()
 	commands = append(commands, completion.NewCompletionCommand(translations))
+	commands = append(commands, stats.NewStatsCommand().CreateCommand(translations, cfgApp))
+	commands = append(commands, cache.NewCacheCommand().CreateCommand(translations, cfgApp))
 
 	helpCommand := &cli.Command{
 		Name:    "help",

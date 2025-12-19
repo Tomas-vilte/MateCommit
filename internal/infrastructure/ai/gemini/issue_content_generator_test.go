@@ -2,6 +2,7 @@ package gemini
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
@@ -105,7 +106,7 @@ func TestParseIssueResponse(t *testing.T) {
 			},
 		}
 
-		result, err := gen.parseIssueResponse(resp)
+		result, err := gen.parseIssueResponse(formatResponse(resp))
 		assert.NoError(t, err)
 		assert.Equal(t, "Bug Fix", result.Title)
 		assert.Equal(t, "Fixed a bug", result.Description)
@@ -125,7 +126,7 @@ func TestParseIssueResponse(t *testing.T) {
 			},
 		}
 
-		result, err := gen.parseIssueResponse(resp)
+		result, err := gen.parseIssueResponse(formatResponse(resp))
 		assert.NoError(t, err)
 		assert.Equal(t, "Generated Issue", result.Title)
 		assert.Equal(t, "This is not JSON but raw text", result.Description)
@@ -136,7 +137,7 @@ func TestParseIssueResponse(t *testing.T) {
 			Candidates: []*genai.Candidate{},
 		}
 
-		result, err := gen.parseIssueResponse(resp)
+		result, err := gen.parseIssueResponse(formatResponse(resp))
 		assert.Error(t, err)
 		assert.Nil(t, result)
 	})
@@ -173,4 +174,49 @@ func TestCleanLabels(t *testing.T) {
 			assert.ElementsMatch(t, tt.expected, result)
 		})
 	}
+}
+
+func TestGenerateIssueContent_HappyPath(t *testing.T) {
+	// Setup temp home
+	tmpHome, err := os.MkdirTemp("", "mate-commit-test-issue-*")
+	assert.NoError(t, err)
+	defer func() {
+		if err := os.RemoveAll(tmpHome); err != nil {
+			return
+		}
+	}()
+	oldHome := os.Getenv("HOME")
+	_ = os.Setenv("HOME", tmpHome)
+	defer func() {
+		if err := os.Setenv("HOME", oldHome); err != nil {
+			return
+		}
+	}()
+
+	ctx := context.Background()
+	trans, _ := i18n.NewTranslations("en", "../../../i18n/locales/")
+	cfg := &config.Config{
+		AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test"}},
+		AIConfig:    config.AIConfig{Models: map[config.AI]config.Model{config.AIGemini: "gemini-pro"}},
+	}
+	gen, _ := NewGeminiIssueContentGenerator(ctx, cfg, trans)
+	gen.wrapper.SetSkipConfirmation(true)
+
+	t.Run("successful issue content generation", func(t *testing.T) {
+		expectedJSON := `{"title": "Issue Title", "description": "Issue Description", "labels": ["fix"]}`
+		gen.generateFn = func(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
+			return &genai.GenerateContentResponse{
+				Candidates: []*genai.Candidate{
+					{Content: &genai.Content{Parts: []*genai.Part{{Text: expectedJSON}}}},
+				},
+			}, &models.TokenUsage{TotalTokens: 30}, nil
+		}
+
+		result, err := gen.GenerateIssueContent(ctx, models.IssueGenerationRequest{})
+
+		assert.NoError(t, err)
+		assert.Equal(t, "Issue Title", result.Title)
+		assert.Equal(t, "Issue Description", result.Description)
+		assert.Contains(t, result.Labels, "fix")
+	})
 }

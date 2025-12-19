@@ -122,8 +122,6 @@ func TestDetectInstallMethod(t *testing.T) {
 			updater := NewVersionUpdater("v1.0.0", trans)
 			method := updater.detectInstallMethod()
 
-			// El test real depende del PATH del ejecutable actual
-			// Solo verificamos que retorna un método válido
 			assert.Contains(t, []string{"go", "brew", "binary", "unknown"}, method)
 		})
 	}
@@ -135,15 +133,9 @@ func TestDetectInstallMethod_Binary(t *testing.T) {
 
 	t.Setenv("GOPATH", "")
 	t.Setenv("GOBIN", "")
-	// We can't easily unset homebrew paths if they are in the executable path,
-	// but in a temp dir environment it should default to binary.
 
 	method := updater.detectInstallMethod()
-	// It relies on os.Executable() which we can't mock easily.
-	// We assert it is at least one of the valid values, and if not go/brew, it should be binary.
-	// Since we unset GOPATH/GOBIN, it shouldn't be "go".
-	// Unless the test binary is in /Cellar/..., it shouldn't be "brew".
-	if method != "brew" { // Start condition
+	if method != "brew" {
 		assert.Equal(t, "binary", method)
 	}
 }
@@ -155,9 +147,6 @@ func TestUpdateCLI(t *testing.T) {
 	t.Run("calls appropriate method", func(t *testing.T) {
 		t.Setenv("GOPATH", "")
 		t.Setenv("GOBIN", "")
-		// Should detect as binary and try update, failing due to no credentials/network
-		// or "binary update not supported" if we reverted to that logic (we didn't).
-		// It should fail with an error.
 		err := updater.UpdateCLI(context.Background())
 		assert.Error(t, err)
 	})
@@ -167,7 +156,6 @@ func TestCacheOperations(t *testing.T) {
 	trans, _ := i18n.NewTranslations("en", "")
 	updater := NewVersionUpdater("v1.0.0", trans)
 
-	// Test save and load
 	cache := UpdateCache{
 		LastCheck:   time.Now(),
 		LatestKnown: "v1.0.1",
@@ -182,7 +170,6 @@ func TestCacheOperations(t *testing.T) {
 	assert.Equal(t, cache.LatestKnown, loaded.LatestKnown)
 	assert.WithinDuration(t, cache.LastCheck, loaded.LastCheck, time.Second)
 
-	// Cleanup
 	cacheDir, _ := updater.getCacheDir()
 	_ = os.RemoveAll(cacheDir)
 }
@@ -193,10 +180,8 @@ func TestCheckForUpdates_WithDisableEnvVar(t *testing.T) {
 
 	t.Setenv("MATECOMMIT_DISABLE_UPDATE_CHECK", "1")
 
-	// Should return immediately without error
 	updater.CheckForUpdates(context.Background())
 
-	// Verify no cache was created
 	_, err := updater.loadCache()
 	assert.Error(t, err, "cache should not exist when checks are disabled")
 }
@@ -205,7 +190,6 @@ func TestCheckForUpdates_WithCache(t *testing.T) {
 	trans, _ := i18n.NewTranslations("en", "")
 	updater := NewVersionUpdater("v1.0.0", trans)
 
-	// Setup cache from 1 hour ago
 	cache := UpdateCache{
 		LastCheck:   time.Now().Add(-1 * time.Hour),
 		LatestKnown: "v1.0.1",
@@ -214,14 +198,11 @@ func TestCheckForUpdates_WithCache(t *testing.T) {
 	err := updater.saveCache(cache)
 	require.NoError(t, err)
 
-	// Should use cache and not hit GitHub
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	// Capture output to verify notification
 	updater.CheckForUpdates(ctx)
 
-	// Cleanup
 	cacheDir, _ := updater.getCacheDir()
 	_ = os.RemoveAll(cacheDir)
 }
@@ -238,7 +219,6 @@ func TestExtractZip(t *testing.T) {
 	trans, _ := i18n.NewTranslations("en", "")
 	updater := NewVersionUpdater("v1.0.0", trans)
 
-	// Create a dummy zip file
 	tmpDir := t.TempDir()
 	zipPath := filepath.Join(tmpDir, "test.zip")
 
@@ -247,27 +227,23 @@ func TestExtractZip(t *testing.T) {
 
 	w := zip.NewWriter(f)
 
-	// Add a file
 	fileW, err := w.Create("matecommit.exe")
 	require.NoError(t, err)
 	_, err = fileW.Write([]byte("dummy content"))
 	require.NoError(t, err)
 
-	// Add a directory (should be handled)
 	_, err = w.Create("some-dir/")
 	require.NoError(t, err)
 
 	require.NoError(t, w.Close())
 	require.NoError(t, f.Close())
 
-	// Test extraction
 	destDir := t.TempDir()
 	binPath, err := updater.extractZip(zipPath, destDir)
 
 	require.NoError(t, err)
 	assert.Equal(t, filepath.Join(destDir, "matecommit.exe"), binPath)
 
-	// Verify content
 	content, err := os.ReadFile(binPath)
 	require.NoError(t, err)
 	assert.Equal(t, "dummy content", string(content))
@@ -277,7 +253,6 @@ func TestExtractTarGz(t *testing.T) {
 	trans, _ := i18n.NewTranslations("en", "")
 	updater := NewVersionUpdater("v1.0.0", trans)
 
-	// Create a dummy tar.gz file
 	tmpDir := t.TempDir()
 	tarPath := filepath.Join(tmpDir, "test.tar.gz")
 
@@ -302,15 +277,35 @@ func TestExtractTarGz(t *testing.T) {
 	require.NoError(t, gw.Close())
 	require.NoError(t, f.Close())
 
-	// Test extraction
 	destDir := t.TempDir()
 	binPath, err := updater.extractTarGz(tarPath, destDir)
 
 	require.NoError(t, err)
 	assert.Equal(t, filepath.Join(destDir, "matecommit"), binPath)
 
-	// Verify content
 	content, err := os.ReadFile(binPath)
 	require.NoError(t, err)
 	assert.Equal(t, "dummy content", string(content))
+}
+func TestVersionUpdater_IsUpdateAvailable_EdgeCases(t *testing.T) {
+	trans, _ := i18n.NewTranslations("en", "")
+	updater := NewVersionUpdater("v1.0.0", trans)
+
+	assert.False(t, updater.isUpdateAvailable("v1.0.0-rc.1"))
+	assert.True(t, NewVersionUpdater("v1.0.0-rc.1", trans).isUpdateAvailable("v1.0.0"))
+}
+
+func TestVersionUpdater_LoadCache_InvalidJSON(t *testing.T) {
+	trans, _ := i18n.NewTranslations("en", "")
+	updater := NewVersionUpdater("v1.0.0", trans)
+
+	cacheDir, _ := updater.getCacheDir()
+	_ = os.MkdirAll(cacheDir, 0755)
+	cacheFile := filepath.Join(cacheDir, "update_cache.json")
+	_ = os.WriteFile(cacheFile, []byte("invalid json"), 0644)
+
+	_, err := updater.loadCache()
+	assert.Error(t, err)
+
+	_ = os.RemoveAll(cacheDir)
 }

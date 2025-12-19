@@ -29,6 +29,9 @@ var (
 	StatsEmoji   = Accent.Sprint("📊")
 )
 
+var activeSpinner *SmartSpinner
+var suspendedSpinner *SmartSpinner
+
 // SmartSpinner es un spinner con capacidades mejoradas
 type SmartSpinner struct {
 	spinner *spinner.Spinner
@@ -45,12 +48,47 @@ func NewSmartSpinner(initialMessage string) *SmartSpinner {
 	return &SmartSpinner{spinner: s}
 }
 
+// Start inicia el spinner y lo registra como el spinner activo globalmente.
 func (s *SmartSpinner) Start() {
+	activeSpinner = s
 	s.spinner.Start()
 }
 
+// Stop detiene el spinner y limpia el registro del spinner activo.
 func (s *SmartSpinner) Stop() {
 	s.spinner.Stop()
+	if activeSpinner == s {
+		activeSpinner = nil
+	}
+	if suspendedSpinner == s {
+		suspendedSpinner = nil
+	}
+}
+
+// StopActiveSpinner detiene el spinner que esté activo actualmente en la sesión de terminal.
+func StopActiveSpinner() {
+	if activeSpinner != nil {
+		activeSpinner.Stop()
+	}
+}
+
+// SuspendActiveSpinner detiene temporalmente el spinner activo sin borrar su referencia,
+// permitiendo que sea reanudado después de una interacción del usuario.
+func SuspendActiveSpinner() {
+	if activeSpinner != nil {
+		suspendedSpinner = activeSpinner
+		activeSpinner.spinner.Stop()
+		activeSpinner = nil
+	}
+}
+
+// ResumeSuspendedSpinner reanuda el spinner que fue suspendido previamente.
+func ResumeSuspendedSpinner() {
+	if suspendedSpinner != nil {
+		activeSpinner = suspendedSpinner
+		activeSpinner.spinner.Start()
+		suspendedSpinner = nil
+	}
 }
 
 func (s *SmartSpinner) UpdateMessage(msg string) {
@@ -58,24 +96,24 @@ func (s *SmartSpinner) UpdateMessage(msg string) {
 }
 
 func (s *SmartSpinner) Success(msg string) {
-	s.spinner.Stop()
+	s.Stop()
 	PrintSuccess(msg)
 }
 
 func (s *SmartSpinner) Error(msg string) {
-	s.spinner.Stop()
+	s.Stop()
 	PrintError(msg)
 }
 
 func (s *SmartSpinner) Warning(msg string) {
-	s.spinner.Stop()
+	s.Stop()
 	PrintWarning(msg)
 }
 
 func (s *SmartSpinner) Log(msg string) {
-	s.spinner.Stop()
+	s.Stop()
 	fmt.Println(msg)
-	s.spinner.Start()
+	s.Start()
 }
 
 // SpinnerBuilder permite construir spinners con configuración flexible

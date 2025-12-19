@@ -254,3 +254,34 @@ func TestIssueTemplateService_MergeWithGeneratedContent(t *testing.T) {
 		assert.Contains(t, result.Labels, "ui")
 	})
 }
+func TestIssueTemplateService_GetTemplateByName_NotFound(t *testing.T) {
+	cfg := &config.Config{ActiveVCSProvider: "github"}
+	service := NewIssueTemplateService(cfg, nil)
+	_, err := service.GetTemplateByName("ghost")
+	assert.Error(t, err)
+}
+
+func TestIssueTemplateService_MergeWithGeneratedContent_Realistic(t *testing.T) {
+	cfg := &config.Config{}
+	service := NewIssueTemplateService(cfg, nil)
+	template := &models.IssueTemplate{
+		Title: "[BUG] ",
+		Body: []interface{}{
+			map[string]interface{}{
+				"type": "textarea",
+				"id":   "repro",
+				"attributes": map[string]interface{}{
+					"label": "Steps to reproduce",
+				},
+			},
+		},
+	}
+	generated := &models.IssueGenerationResult{
+		Title:       "Server error 500",
+		Description: "- Go to /home\n- Click login",
+	}
+
+	result := service.MergeWithGeneratedContent(template, generated)
+	assert.Equal(t, "[BUG] Server error 500", result.Title)
+	assert.Contains(t, result.Description, "- Go to /home")
+}

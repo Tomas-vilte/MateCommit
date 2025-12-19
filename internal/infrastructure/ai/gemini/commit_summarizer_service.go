@@ -9,15 +9,20 @@ import (
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
+	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/ai"
 	"google.golang.org/genai"
 )
 
+var _ ports.CommitSummarizer = (*GeminiCommitSummarizer)(nil)
+
 type GeminiCommitSummarizer struct {
-	client *genai.Client
-	config *config.Config
-	trans  *i18n.Translations
+	*GeminiProvider
+	wrapper    *ai.CostAwareWrapper
+	generateFn ai.GenerateFunc
+	config     *config.Config
+	trans      *i18n.Translations
 }
 
 type (
@@ -60,11 +65,45 @@ func NewGeminiCommitSummarizer(ctx context.Context, cfg *config.Config, trans *i
 		return nil, fmt.Errorf("%s", msg)
 	}
 
-	return &GeminiCommitSummarizer{
-		client: client,
-		config: cfg,
-		trans:  trans,
-	}, nil
+	modelName := string(cfg.AIConfig.Models[config.AIGemini])
+
+	budgetDaily := 0.0
+	if cfg.AIConfig.BudgetDaily != nil {
+		budgetDaily = *cfg.AIConfig.BudgetDaily
+	}
+
+	service := &GeminiCommitSummarizer{
+		GeminiProvider: NewGeminiProvider(client, modelName),
+		config:         cfg,
+		trans:          trans,
+	}
+
+	wrapper, err := ai.NewCostAwareWrapper(ai.WrapperConfig{
+		Provider:              service,
+		BudgetDaily:           budgetDaily,
+		Trans:                 trans,
+		EstimatedOutputTokens: 800,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error creando wrapper: %w", err)
+	}
+
+	service.wrapper = wrapper
+	service.generateFn = service.defaultGenerate
+
+	return service, nil
+}
+
+func (s *GeminiCommitSummarizer) defaultGenerate(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
+	genConfig := GetGenerateConfig(mName, "application/json")
+
+	resp, err := s.Client.Models.GenerateContent(ctx, mName, genai.Text(p), genConfig)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	usage := extractUsage(resp)
+	return resp, usage, nil
 }
 
 func (s *GeminiCommitSummarizer) GenerateSuggestions(ctx context.Context, info models.CommitInfo, count int) ([]models.CommitSuggestion, error) {
@@ -79,16 +118,8 @@ func (s *GeminiCommitSummarizer) GenerateSuggestions(ctx context.Context, info m
 	}
 
 	prompt := s.generatePrompt(s.config.Language, info, count)
-	modelName := string(s.config.AIConfig.Models[config.AIGemini])
 
-	genConfig := &genai.GenerateContentConfig{
-		Temperature:      float32Ptr(0.3),
-		MaxOutputTokens:  int32(10000),
-		ResponseMIMEType: "application/json",
-		MediaResolution:  genai.MediaResolutionHigh,
-	}
-
-	resp, err := s.client.Models.GenerateContent(ctx, modelName, genai.Text(prompt), genConfig)
+	resp, usage, err := s.wrapper.WrapGenerate(ctx, "suggest-commits", prompt, s.generateFn)
 	if err != nil {
 		msg := s.trans.GetMessage("error_generating_content", 0, map[string]interface{}{
 			"Error": err.Error(),
@@ -96,50 +127,45 @@ func (s *GeminiCommitSummarizer) GenerateSuggestions(ctx context.Context, info m
 		return nil, fmt.Errorf("%s", msg)
 	}
 
-	suggestions, err := s.parseSuggestionsJSON(resp)
+	var responseText string
+	if geminiResp, ok := resp.(*genai.GenerateContentResponse); ok {
+		responseText = formatResponse(geminiResp)
+	} else if s, ok := resp.(string); ok {
+		responseText = s
+	}
+
+	if responseText == "" {
+		return nil, fmt.Errorf("respuesta vacía de la IA")
+	}
+
+	suggestions, err := s.parseSuggestionsJSON(responseText)
 	if err != nil {
-		rawResp := formatResponse(resp)
-		respLen := len(rawResp)
-		preview := rawResp
+		respLen := len(responseText)
+		preview := responseText
 		if respLen > 500 {
-			preview = rawResp[:500] + "..."
+			preview = responseText[:500] + "..."
 		}
 		return nil, fmt.Errorf("error al parsear respuesta JSON de la IA (longitud: %d caracteres): %w\nPrimeros caracteres: %s",
 			respLen, err, preview)
 	}
-
-	usage := extractUsage(resp)
-
 	if len(suggestions) == 0 {
 		return nil, fmt.Errorf("la IA no generó ninguna sugerencia")
 	}
-
 	for i := range suggestions {
 		suggestions[i].Usage = usage
 	}
-
 	if info.IssueInfo != nil && info.IssueInfo.Number > 0 {
 		suggestions = s.ensureIssueReference(suggestions, info.IssueInfo.Number)
 	}
-
 	return suggestions, nil
 }
 
-func (s *GeminiCommitSummarizer) parseSuggestionsJSON(resp *genai.GenerateContentResponse) ([]models.CommitSuggestion, error) {
-	if resp == nil || len(resp.Candidates) == 0 {
-		return nil, fmt.Errorf("respuesta vacía de la IA")
-	}
-
-	responseText := formatResponse(resp)
+func (s *GeminiCommitSummarizer) parseSuggestionsJSON(responseText string) ([]models.CommitSuggestion, error) {
 	if responseText == "" {
 		return nil, fmt.Errorf("texto de respuesta vacío de la IA")
 	}
 
-	responseText = strings.TrimSpace(responseText)
-	responseText = strings.TrimPrefix(responseText, "```json")
-	responseText = strings.TrimPrefix(responseText, "```")
-	responseText = strings.TrimSuffix(responseText, "```")
-	responseText = strings.TrimSpace(responseText)
+	responseText = ExtractJSON(responseText)
 
 	var jsonSuggestions []CommitSuggestionJSON
 	if err := json.Unmarshal([]byte(responseText), &jsonSuggestions); err != nil {
@@ -309,8 +335,4 @@ func (s *GeminiCommitSummarizer) ensureIssueReference(suggestions []models.Commi
 	}
 
 	return suggestions
-}
-
-func float32Ptr(f float32) *float32 {
-	return &f
 }
