@@ -3,6 +3,7 @@ package gemini
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
@@ -157,7 +158,7 @@ func TestGeminiCommitSummarizer(t *testing.T) {
 		}
 
 		// act
-		suggestions, err := service.parseSuggestionsJSON(resp)
+		suggestions, err := service.parseSuggestionsJSON(formatResponse(resp))
 
 		// assert
 		assert.NoError(t, err)
@@ -303,12 +304,12 @@ func TestGeminiCommitSummarizer(t *testing.T) {
 		resp := (*genai.GenerateContentResponse)(nil)
 
 		// act
-		suggestions, err := service.parseSuggestionsJSON(resp)
+		suggestions, err := service.parseSuggestionsJSON(formatResponse(resp))
 
 		// assert
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
-		assert.Contains(t, err.Error(), "respuesta vacía")
+		assert.Contains(t, err.Error(), "texto de respuesta vacío")
 	})
 
 	t.Run("parseSuggestionsJSON with empty candidates", func(t *testing.T) {
@@ -319,12 +320,12 @@ func TestGeminiCommitSummarizer(t *testing.T) {
 		}
 
 		// act
-		suggestions, err := service.parseSuggestionsJSON(resp)
+		suggestions, err := service.parseSuggestionsJSON(formatResponse(resp))
 
 		// assert
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
-		assert.Contains(t, err.Error(), "respuesta vacía")
+		assert.Contains(t, err.Error(), "texto de respuesta vacío")
 	})
 
 	t.Run("parseSuggestionsJSON with invalid JSON", func(t *testing.T) {
@@ -343,7 +344,7 @@ func TestGeminiCommitSummarizer(t *testing.T) {
 		}
 
 		// act
-		suggestions, err := service.parseSuggestionsJSON(resp)
+		suggestions, err := service.parseSuggestionsJSON(formatResponse(resp))
 
 		// assert
 		assert.Error(t, err)
@@ -387,12 +388,121 @@ func TestGeminiCommitSummarizer(t *testing.T) {
 			}
 
 			// act
-			suggestions, err := service.parseSuggestionsJSON(resp)
+			suggestions, err := service.parseSuggestionsJSON(formatResponse(resp))
 
 			// assert
 			assert.NoError(t, err)
 			assert.NotEmpty(t, suggestions)
 			assert.Equal(t, tc.expectedStatus, suggestions[0].RequirementsAnalysis.CriteriaStatus, "Fallo passthrough para: %s", tc.inputStatus)
 		}
+	})
+
+	t.Run("ensureIssueReference", func(t *testing.T) {
+		service := &GeminiCommitSummarizer{}
+		issueNum := 123
+		suggestions := []models.CommitSuggestion{
+			{CommitTitle: "feat: something"},
+			{CommitTitle: "fix: bug (#123)"},
+			{CommitTitle: "docs: update (#456)"},
+			{CommitTitle: "refactor: code fixes #123"},
+		}
+
+		result := service.ensureIssueReference(suggestions, issueNum)
+
+		assert.Equal(t, "feat: something (#123)", result[0].CommitTitle)
+		assert.Equal(t, "fix: bug (#123)", result[1].CommitTitle)
+		assert.Equal(t, "docs: update (#123)", result[2].CommitTitle)
+		assert.Equal(t, "refactor: code fixes #123", result[3].CommitTitle)
+	})
+}
+
+func TestGenerateSuggestions_HappyPath(t *testing.T) {
+	tmpHome, err := os.MkdirTemp("", "mate-commit-test-suggestions-*")
+	assert.NoError(t, err)
+	defer func() {
+		if err := os.RemoveAll(tmpHome); err != nil {
+			return
+		}
+	}()
+	oldHome := os.Getenv("HOME")
+	_ = os.Setenv("HOME", tmpHome)
+	defer func() {
+		if err := os.Setenv("HOME", oldHome); err != nil {
+			return
+		}
+	}()
+
+	ctx := context.Background()
+	trans, _ := i18n.NewTranslations("en", "../../../i18n/locales/")
+	cfg := &config.Config{
+		AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test"}},
+		AIConfig:    config.AIConfig{Models: map[config.AI]config.Model{config.AIGemini: "gemini-pro"}},
+		Language:    "en",
+	}
+	service, _ := NewGeminiCommitSummarizer(ctx, cfg, trans)
+	service.wrapper.SetSkipConfirmation(true)
+
+	t.Run("successful suggestions generation", func(t *testing.T) {
+		service.generateFn = func(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
+			return &genai.GenerateContentResponse{
+				Candidates: []*genai.Candidate{
+					{Content: &genai.Content{Parts: []*genai.Part{{Text: responseJSON}}}},
+				},
+			}, &models.TokenUsage{TotalTokens: 200}, nil
+		}
+
+		info := models.CommitInfo{
+			Files: []string{"main.go"},
+			Diff:  "some diff",
+		}
+		suggestions, err := service.GenerateSuggestions(ctx, info, 1)
+
+		assert.NoError(t, err)
+		assert.NotEmpty(t, suggestions)
+		assert.Equal(t, 1, len(suggestions))
+		assert.Contains(t, suggestions[0].CommitTitle, "Mejoras")
+	})
+}
+
+func TestGeneratePrompt_WithCriteria(t *testing.T) {
+	trans, _ := i18n.NewTranslations("en", "../../../i18n/locales/")
+	cfg := &config.Config{
+		AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test"}},
+	}
+	service := &GeminiCommitSummarizer{trans: trans, config: cfg}
+
+	t.Run("formats criteria correctly in English", func(t *testing.T) {
+		info := models.CommitInfo{
+			Files: []string{"main.go"},
+			Diff:  "diff",
+			TicketInfo: &models.TicketInfo{
+				TicketTitle: "Test Ticket",
+				TitleDesc:   "Test Description",
+				Criteria:    []string{"Crit 1", "Crit 2"},
+			},
+		}
+		prompt := service.generatePrompt("en", info, 3)
+
+		assert.Contains(t, prompt, "**Title:** Test Ticket")
+		assert.Contains(t, prompt, "**Acceptance Criteria:**")
+		assert.Contains(t, prompt, "- Crit 1")
+		assert.Contains(t, prompt, "- Crit 2")
+	})
+
+	t.Run("formats criteria correctly in Spanish", func(t *testing.T) {
+		info := models.CommitInfo{
+			Files: []string{"main.go"},
+			Diff:  "diff",
+			TicketInfo: &models.TicketInfo{
+				TicketTitle: "Ticket Test",
+				TitleDesc:   "Desc Test",
+				Criteria:    []string{"Crit 1"},
+			},
+		}
+		prompt := service.generatePrompt("es", info, 3)
+
+		assert.Contains(t, prompt, "**Título:** Ticket Test")
+		assert.Contains(t, prompt, "**Criterios de Aceptación:**")
+		assert.Contains(t, prompt, "- Crit 1")
 	})
 }
