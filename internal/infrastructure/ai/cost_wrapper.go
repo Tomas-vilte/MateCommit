@@ -15,6 +15,7 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/cache"
 	cost2 "github.com/Tomas-vilte/MateCommit/internal/services/cost"
 	"github.com/Tomas-vilte/MateCommit/internal/services/routing"
+	"github.com/Tomas-vilte/MateCommit/internal/ui"
 	"github.com/fatih/color"
 )
 
@@ -63,6 +64,11 @@ func NewCostAwareWrapper(cfg WrapperConfig) (*CostAwareWrapper, error) {
 	}, nil
 }
 
+// SetSkipConfirmation permite activar o desactivar la confirmación del usuario manual.
+func (w *CostAwareWrapper) SetSkipConfirmation(skip bool) {
+	w.skipConfirmation = skip
+}
+
 // WrapGenerate envuelve cualquier función de generación con tracking
 func (w *CostAwareWrapper) WrapGenerate(
 	ctx context.Context,
@@ -103,7 +109,9 @@ func (w *CostAwareWrapper) WrapGenerate(
 	estimatedCost := w.calculator.EstimateCost(providerName, originalModel, inputTokens, w.estimatedOutputTokens)
 
 	if hasSuggestion && !w.skipConfirmation {
-		rationaleKey := w.modelSelector.GetRationale(command, suggestedModel)
+		ui.SuspendActiveSpinner()
+		fmt.Println()
+		rationaleKey := w.modelSelector.GetRationale(suggestedModel)
 		rationale := w.trans.GetMessage(rationaleKey, 0, nil)
 		yellow := color.New(color.FgYellow)
 		_, _ = yellow.Println(w.trans.GetMessage("cost.routing_suggestion", 0, map[string]interface{}{
@@ -121,8 +129,10 @@ func (w *CostAwareWrapper) WrapGenerate(
 		return nil, nil, fmt.Errorf("%s: %w", w.trans.GetMessage("cost.budget_exceeded", 0, nil), err)
 	}
 
-	if (estimatedCost > 0.005 || hasSuggestion) && !w.skipConfirmation {
+	if (estimatedCost > 0.0001 || hasSuggestion) && !w.skipConfirmation {
+		ui.SuspendActiveSpinner()
 		choice, proceed := w.askUserConfirmation(estimatedCost, inputTokens, w.estimatedOutputTokens, suggestedModel)
+		ui.ResumeSuspendedSpinner()
 		if !proceed {
 			return nil, nil, fmt.Errorf("operación cancelada por el usuario")
 		}

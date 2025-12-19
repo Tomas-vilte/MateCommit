@@ -28,7 +28,7 @@ func (m *ModelSelector) SelectBestModel(operation string, estimatedTokens int) s
 }
 
 // GetRationale retorna la clave de traducción que explica por qué se eligió un modelo
-func (m *ModelSelector) GetRationale(operation string, selectedModel string) string {
+func (m *ModelSelector) GetRationale(selectedModel string) string {
 	switch selectedModel {
 	case "gemini-1.5-flash":
 		return "routing.reason_balance"

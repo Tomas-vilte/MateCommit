@@ -1,6 +1,7 @@
 package gemini
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
@@ -39,6 +40,27 @@ func GetGenerateConfig(modelName string, responseType string) *genai.GenerateCon
 	}
 
 	return config
+}
+
+// ExtractJSON intenta extraer un bloque JSON válido de un texto, manejando bloques de código markdown
+// y posible texto extra que los modelos con "Thinking" pueden generar.
+func ExtractJSON(text string) string {
+	text = strings.TrimSpace(text)
+
+	re := regexp.MustCompile("(?s)```(?:json)?\n?(.*?)```")
+	matches := re.FindStringSubmatch(text)
+	if len(matches) > 1 {
+		return strings.TrimSpace(matches[1])
+	}
+
+	startIdx := strings.IndexAny(text, "{[")
+	lastIdx := strings.LastIndexAny(text, "}]")
+
+	if startIdx != -1 && lastIdx != -1 && startIdx < lastIdx {
+		return text[startIdx : lastIdx+1]
+	}
+
+	return text
 }
 
 func float32Ptr(f float32) *float32 {

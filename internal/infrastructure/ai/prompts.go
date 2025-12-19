@@ -101,10 +101,15 @@ const (
      - ❌ BAD: "fix: various fixes in login" (Too vague)
      - ✅ GOOD: "fix(auth): handle null token error (#42)" (Precise)
   3. **Scope:** If you touched 'ui' files, scope is (ui). If 'api', then (api).
-  4. **Style:** 
+  4. **Style:**
      - Title: Imperative mood ("add", not "added").
      - Description: First person, professional tone ("I optimized the query...").
-  5. **Validation:** Analyze changes against ticket criteria.
+  5. **Requirements Validation (IMPORTANT):**
+     - Analyze ONLY the current diff changes against ticket criteria.
+     - Mark as "missing" ONLY requirements that are NOT visible in the diff.
+     - If recent history shows something was implemented in previous commits, do NOT mark it as missing.
+     - If you see file names or function names in the diff indicating prior implementation (e.g., "stats.go", "CountTokens"), assume it exists.
+     - Focus on what's missing NOW in the current commit context, not in the entire project.
 
   # Output Format
   Respond with ONLY valid JSON array (no markdown).
@@ -148,7 +153,12 @@ const (
      - ✅ BIEN: "fix(auth): manejo de error en token nulo (#42)" (Preciso)
   3. **Scope:** Si tocaste archivos de 'ui', el scope es (ui). Si es 'api', es (api). Si son muchos, no uses scope.
   4. **Primera Persona:** La descripción ("desc") escribila como si le contaras a un colega (ej: "Optimicé la query para mejorar el tiempo de respuesta").
-  5. **Validación:** Analiza los cambios contra los criterios del ticket.
+  5. **Validación de Requerimientos (IMPORTANTE):**
+     - Analiza SOLO los cambios del diff actual contra los criterios del ticket.
+     - Marca como "missing" ÚNICAMENTE requisitos que NO están visibles en el diff.
+     - Si el historial reciente muestra que algo ya se implementó en commits anteriores, NO lo marques como faltante.
+     - Si ves nombres de archivos o funciones en el diff que indican implementación previa (ej: "stats.go", "CountTokens"), asume que ya existe.
+     - Enfocate en lo que falta AHORA en el contexto del commit actual, no en el proyecto completo.
 
   # Formato de Salida
   IMPORTANTE: Responde en ESPAÑOL. Todo el contenido del JSON debe estar en español.

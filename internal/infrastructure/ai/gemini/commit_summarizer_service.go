@@ -19,9 +19,10 @@ var _ ports.CommitSummarizer = (*GeminiCommitSummarizer)(nil)
 
 type GeminiCommitSummarizer struct {
 	*GeminiProvider
-	wrapper *ai.CostAwareWrapper
-	config  *config.Config
-	trans   *i18n.Translations
+	wrapper    *ai.CostAwareWrapper
+	generateFn ai.GenerateFunc
+	config     *config.Config
+	trans      *i18n.Translations
 }
 
 type (
@@ -88,8 +89,21 @@ func NewGeminiCommitSummarizer(ctx context.Context, cfg *config.Config, trans *i
 	}
 
 	service.wrapper = wrapper
+	service.generateFn = service.defaultGenerate
 
 	return service, nil
+}
+
+func (s *GeminiCommitSummarizer) defaultGenerate(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
+	genConfig := GetGenerateConfig(mName, "application/json")
+
+	resp, err := s.Client.Models.GenerateContent(ctx, mName, genai.Text(p), genConfig)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	usage := extractUsage(resp)
+	return resp, usage, nil
 }
 
 func (s *GeminiCommitSummarizer) GenerateSuggestions(ctx context.Context, info models.CommitInfo, count int) ([]models.CommitSuggestion, error) {
@@ -105,19 +119,7 @@ func (s *GeminiCommitSummarizer) GenerateSuggestions(ctx context.Context, info m
 
 	prompt := s.generatePrompt(s.config.Language, info, count)
 
-	generateFn := func(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
-		genConfig := GetGenerateConfig(mName, "application/json")
-
-		resp, err := s.Client.Models.GenerateContent(ctx, mName, genai.Text(p), genConfig)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		usage := extractUsage(resp)
-		return resp, usage, nil
-	}
-
-	resp, usage, err := s.wrapper.WrapGenerate(ctx, "suggest-commits", prompt, generateFn)
+	resp, usage, err := s.wrapper.WrapGenerate(ctx, "suggest-commits", prompt, s.generateFn)
 	if err != nil {
 		msg := s.trans.GetMessage("error_generating_content", 0, map[string]interface{}{
 			"Error": err.Error(),
@@ -125,14 +127,23 @@ func (s *GeminiCommitSummarizer) GenerateSuggestions(ctx context.Context, info m
 		return nil, fmt.Errorf("%s", msg)
 	}
 
-	geminiResp := resp.(*genai.GenerateContentResponse)
-	suggestions, err := s.parseSuggestionsJSON(geminiResp)
+	var responseText string
+	if geminiResp, ok := resp.(*genai.GenerateContentResponse); ok {
+		responseText = formatResponse(geminiResp)
+	} else if s, ok := resp.(string); ok {
+		responseText = s
+	}
+
+	if responseText == "" {
+		return nil, fmt.Errorf("respuesta vacía de la IA")
+	}
+
+	suggestions, err := s.parseSuggestionsJSON(responseText)
 	if err != nil {
-		rawResp := formatResponse(geminiResp)
-		respLen := len(rawResp)
-		preview := rawResp
+		respLen := len(responseText)
+		preview := responseText
 		if respLen > 500 {
-			preview = rawResp[:500] + "..."
+			preview = responseText[:500] + "..."
 		}
 		return nil, fmt.Errorf("error al parsear respuesta JSON de la IA (longitud: %d caracteres): %w\nPrimeros caracteres: %s",
 			respLen, err, preview)
@@ -149,21 +160,12 @@ func (s *GeminiCommitSummarizer) GenerateSuggestions(ctx context.Context, info m
 	return suggestions, nil
 }
 
-func (s *GeminiCommitSummarizer) parseSuggestionsJSON(resp *genai.GenerateContentResponse) ([]models.CommitSuggestion, error) {
-	if resp == nil || len(resp.Candidates) == 0 {
-		return nil, fmt.Errorf("respuesta vacía de la IA")
-	}
-
-	responseText := formatResponse(resp)
+func (s *GeminiCommitSummarizer) parseSuggestionsJSON(responseText string) ([]models.CommitSuggestion, error) {
 	if responseText == "" {
 		return nil, fmt.Errorf("texto de respuesta vacío de la IA")
 	}
 
-	responseText = strings.TrimSpace(responseText)
-	responseText = strings.TrimPrefix(responseText, "```json")
-	responseText = strings.TrimPrefix(responseText, "```")
-	responseText = strings.TrimSuffix(responseText, "```")
-	responseText = strings.TrimSpace(responseText)
+	responseText = ExtractJSON(responseText)
 
 	var jsonSuggestions []CommitSuggestionJSON
 	if err := json.Unmarshal([]byte(responseText), &jsonSuggestions); err != nil {
