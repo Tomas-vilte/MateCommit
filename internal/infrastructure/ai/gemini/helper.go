@@ -48,7 +48,6 @@ func GetGenerateConfig(modelName string, responseType string) *genai.GenerateCon
 func ExtractJSON(text string) string {
 	text = strings.TrimSpace(text)
 
-	// 1. Intentar encontrar JSON en bloques de código markdown
 	re := regexp.MustCompile("(?s)```(?:json)?\n?(.*?)```")
 	matches := re.FindAllStringSubmatch(text, -1)
 	var bestMarkdown string
@@ -67,7 +66,6 @@ func ExtractJSON(text string) string {
 		return bestMarkdown
 	}
 
-	// 2. Buscar bloques balanceados ({...} o [...]) y quedarse con el más largo que sea JSON válido
 	var bestBlock string
 	for i := 0; i < len(text); {
 		startIdx := strings.IndexAny(text[i:], "{[")
@@ -137,7 +135,6 @@ func ExtractJSON(text string) string {
 		return bestBlock
 	}
 
-	// Fallback: si nada funcionó, sanear y devolver el texto original
 	return SanitizeJSON(text)
 }
 
@@ -146,7 +143,6 @@ var jsonStringRegex = regexp.MustCompile(`"(?:\\.|[^"\\])*"`)
 // SanitizeJSON limpia el JSON malformado que a veces generan los LLMs,
 // como saltos de línea sin escapar dentro de Literales de Cadena.
 func SanitizeJSON(s string) string {
-	// Reemplazar saltos de línea crudos dentro de los strings JSON por \n escapados
 	return jsonStringRegex.ReplaceAllStringFunc(s, func(m string) string {
 		return strings.ReplaceAll(m, "\n", "\\n")
 	})

@@ -2,12 +2,15 @@ package gemini
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"testing"
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/genai"
 )
 
 func TestNewReleaseNotesGenerator(t *testing.T) {
@@ -114,6 +117,56 @@ func TestBuildPrompt(t *testing.T) {
 		assert.NotContains(t, prompt, "BUG FIXES:")
 		assert.NotContains(t, prompt, "IMPROVEMENTS:")
 	})
+
+	t.Run("formats complex release with all sections", func(t *testing.T) {
+		// Arrange
+		generator := &ReleaseNotesGenerator{lang: "en", owner: "owner", repo: "repo"}
+		release := &models.Release{
+			Version:         "v2.0.0",
+			PreviousVersion: "v1.5.0",
+			VersionBump:     "major",
+			ClosedIssues: []models.Issue{
+				{Number: 1, Title: "Issue 1", Author: "user1"},
+			},
+			MergedPRs: []models.PullRequest{
+				{Number: 10, Title: "PR 10", Author: "user2", Description: "Long description\nwith multiple lines"},
+			},
+			Contributors:    []string{"user1", "user2"},
+			NewContributors: []string{"user2"},
+			FileStats: models.FileStatistics{
+				FilesChanged: 5,
+				Insertions:   100,
+				Deletions:    20,
+				TopFiles: []models.FileChange{
+					{Path: "main.go", Additions: 50, Deletions: 10},
+				},
+			},
+			Dependencies: []models.DependencyChange{
+				{Name: "dep1", OldVersion: "1.0", NewVersion: "1.1", Type: "updated"},
+				{Name: "dep2", NewVersion: "2.0", Type: "added"},
+				{Name: "dep3", OldVersion: "0.5", Type: "removed"},
+			},
+		}
+
+		// Act
+		prompt := generator.buildPrompt(release)
+
+		// Assert
+		assert.Contains(t, prompt, "CLOSED ISSUES:")
+		assert.Contains(t, prompt, "- #1: Issue 1 (by @user1)")
+		assert.Contains(t, prompt, "MERGED PULL REQUESTS:")
+		assert.Contains(t, prompt, "- #10: PR 10 (by @user2)")
+		assert.Contains(t, prompt, "Description: Long description")
+		assert.Contains(t, prompt, "CONTRIBUTORS (2 total):")
+		assert.Contains(t, prompt, "New contributors: user2")
+		assert.Contains(t, prompt, "FILE STATISTICS:")
+		assert.Contains(t, prompt, "- Files changed: 5")
+		assert.Contains(t, prompt, "- main.go (+50/-10)")
+		assert.Contains(t, prompt, "DEPENDENCY UPDATES:")
+		assert.Contains(t, prompt, "- dep1: 1.0 → 1.1")
+		assert.Contains(t, prompt, "- Added: dep2 2.0")
+		assert.Contains(t, prompt, "- Removed: dep3 0.5")
+	})
 }
 
 func TestParseJSONResponse(t *testing.T) {
@@ -193,5 +246,90 @@ func TestParseJSONResponse(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "Test", notes.Title)
 		assert.Equal(t, "Summary", notes.Summary)
+	})
+
+	t.Run("handles N/A contributors", func(t *testing.T) {
+		content := `{"title": "T", "summary": "S", "highlights": [], "breaking_changes": [], "contributors": "N/A"}`
+		notes, err := generator.parseJSONResponse(content, release)
+		assert.NoError(t, err)
+		assert.Empty(t, notes.Links["Contributors"])
+	})
+}
+
+func TestGenerateNotes(t *testing.T) {
+	tmpHome, err := os.MkdirTemp("", "mate-commit-test-gen-notes-*")
+	assert.NoError(t, err)
+	defer func() {
+		if err := os.RemoveAll(tmpHome); err != nil {
+			return
+		}
+	}()
+	oldHome := os.Getenv("HOME")
+	_ = os.Setenv("HOME", tmpHome)
+	defer func() {
+		if err := os.Setenv("HOME", oldHome); err != nil {
+			return
+		}
+	}()
+
+	ctx := context.Background()
+	trans, _ := i18n.NewTranslations("en", "../../../i18n/locales/")
+	cfg := &config.Config{
+		AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test"}},
+		AIConfig:    config.AIConfig{Models: map[config.AI]config.Model{config.AIGemini: "gemini-pro"}},
+	}
+	generator, _ := NewReleaseNotesGenerator(ctx, cfg, trans, "owner", "repo")
+	generator.wrapper.SetSkipConfirmation(true)
+
+	t.Run("successful generation", func(t *testing.T) {
+		// Arrange
+		expectedJSON := `{"title": "Release v1.0.0", "summary": "Summary", "highlights": ["H1"], "breaking_changes": []}`
+		generator.generateFn = func(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
+			return &genai.GenerateContentResponse{
+				Candidates: []*genai.Candidate{
+					{Content: &genai.Content{Parts: []*genai.Part{{Text: expectedJSON}}}},
+				},
+				UsageMetadata: &genai.GenerateContentResponseUsageMetadata{TotalTokenCount: 100},
+			}, &models.TokenUsage{TotalTokens: 100}, nil
+		}
+
+		// Act
+		notes, err := generator.GenerateNotes(ctx, &models.Release{Version: "v1.0.0"})
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, "Release v1.0.0", notes.Title)
+		assert.Equal(t, 100, notes.Usage.TotalTokens)
+	})
+
+	t.Run("AI returns error", func(t *testing.T) {
+		// Arrange
+		generator.generateFn = func(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
+			return nil, nil, fmt.Errorf("AI error")
+		}
+
+		// Act
+		notes, err := generator.GenerateNotes(ctx, &models.Release{})
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, notes)
+		assert.Contains(t, err.Error(), "AI error")
+	})
+
+	t.Run("no candidates from AI", func(t *testing.T) {
+		// Arrange
+		generator.generateFn = func(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
+			return &genai.GenerateContentResponse{
+				Candidates: []*genai.Candidate{},
+			}, &models.TokenUsage{}, nil
+		}
+
+		// Act
+		_, err := generator.GenerateNotes(ctx, &models.Release{})
+
+		// Assert
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "No response from AI")
 	})
 }

@@ -18,9 +18,10 @@ var _ ports.PRSummarizer = (*GeminiPRSummarizer)(nil)
 
 type GeminiPRSummarizer struct {
 	*GeminiProvider
-	wrapper *ai.CostAwareWrapper
-	config  *config.Config
-	trans   *i18n.Translations
+	wrapper    *ai.CostAwareWrapper
+	generateFn ai.GenerateFunc
+	config     *config.Config
+	trans      *i18n.Translations
 }
 
 type PRSummaryJSON struct {
@@ -69,40 +70,41 @@ func NewGeminiPRSummarizer(ctx context.Context, cfg *config.Config, trans *i18n.
 	}
 
 	service.wrapper = wrapper
+	service.generateFn = service.defaultGenerate
 
 	return service, nil
+}
+
+func (gps *GeminiPRSummarizer) defaultGenerate(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
+	genConfig := GetGenerateConfig(mName, "application/json")
+
+	resp, err := gps.Client.Models.GenerateContent(ctx, mName, genai.Text(p), genConfig)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	usage := extractUsage(resp)
+	return resp, usage, nil
 }
 
 func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prContent string) (models.PRSummary, error) {
 	prompt := gps.generatePRPrompt(prContent)
 
-	generateFn := func(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
-		genConfig := GetGenerateConfig(mName, "application/json")
-
-		resp, err := gps.Client.Models.GenerateContent(ctx, mName, genai.Text(p), genConfig)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		usage := extractUsage(resp)
-		return resp, usage, nil
-	}
-
-	resp, usage, err := gps.wrapper.WrapGenerate(ctx, "summarize-pr", prompt, generateFn)
+	resp, usage, err := gps.wrapper.WrapGenerate(ctx, "summarize-pr", prompt, gps.generateFn)
 	if err != nil {
 		return models.PRSummary{}, fmt.Errorf("error al generar resumen de PR: %w", err)
 	}
 
-	geminiResp := resp.(*genai.GenerateContentResponse)
-	responseText := formatResponse(geminiResp)
+	var responseText string
+	if geminiResp, ok := resp.(*genai.GenerateContentResponse); ok {
+		responseText = formatResponse(geminiResp)
+	} else if s, ok := resp.(string); ok {
+		responseText = s
+	}
 	if responseText == "" {
 		return models.PRSummary{}, fmt.Errorf("respuesta vacía de la IA")
 	}
-	responseText = strings.TrimSpace(responseText)
-	responseText = strings.TrimPrefix(responseText, "```json")
-	responseText = strings.TrimPrefix(responseText, "```")
-	responseText = strings.TrimSuffix(responseText, "```")
-	responseText = strings.TrimSpace(responseText)
+	responseText = ExtractJSON(responseText)
 	var jsonSummary PRSummaryJSON
 	if err := json.Unmarshal([]byte(responseText), &jsonSummary); err != nil {
 		return models.PRSummary{}, fmt.Errorf("error al parsear JSON de PR: %w", err)

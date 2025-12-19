@@ -111,8 +111,7 @@ func TestShowCommand(t *testing.T) {
 		assert.Contains(t, output, "Servicio de tickets habilitado: jira")
 		assert.Contains(t, output, "Configuración de Jira - BaseURL: https://example.atlassian.net, Email: user@example.com")
 
-		// Check AI models
-		assert.Contains(t, output, "gemini: gemini-2.5-flash")
+		assert.Contains(t, output, "gemini: gemini-1.5-flash")
 		assert.Contains(t, output, "openai: gpt-4o")
 	})
 }
