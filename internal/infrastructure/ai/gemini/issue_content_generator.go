@@ -15,9 +15,10 @@ import (
 )
 
 type GeminiIssueContentGenerator struct {
-	client *genai.Client
-	config *config.Config
-	trans  *i18n.Translations
+	*GeminiProvider
+	wrapper *ai.CostAwareWrapper
+	config  *config.Config
+	trans   *i18n.Translations
 }
 
 var _ ports.IssueContentGenerator = (*GeminiIssueContentGenerator)(nil)
@@ -40,40 +41,67 @@ func NewGeminiIssueContentGenerator(ctx context.Context, cfg *config.Config, tra
 		return nil, fmt.Errorf("%s", msg)
 	}
 
-	return &GeminiIssueContentGenerator{
-		client: client,
-		config: cfg,
-		trans:  trans,
-	}, nil
+	modelName := string(cfg.AIConfig.Models[config.AIGemini])
+
+	budgetDaily := 0.0
+	if cfg.AIConfig.BudgetDaily != nil {
+		budgetDaily = *cfg.AIConfig.BudgetDaily
+	}
+
+	service := &GeminiIssueContentGenerator{
+		GeminiProvider: NewGeminiProvider(client, modelName),
+		config:         cfg,
+		trans:          trans,
+	}
+
+	wrapper, err := ai.NewCostAwareWrapper(ai.WrapperConfig{
+		Provider:              service,
+		BudgetDaily:           budgetDaily,
+		Trans:                 trans,
+		EstimatedOutputTokens: 600,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error creando wrapper: %w", err)
+	}
+
+	service.wrapper = wrapper
+
+	return service, nil
 }
 
 // GenerateIssueContent genera contenido de issue usando Gemini AI.
 func (s *GeminiIssueContentGenerator) GenerateIssueContent(ctx context.Context, request models.IssueGenerationRequest) (*models.IssueGenerationResult, error) {
 	prompt := s.buildIssuePrompt(request)
-	modelName := string(s.config.AIConfig.Models[config.AIGemini])
 
-	genConfig := &genai.GenerateContentConfig{
-		Temperature:      float32Ptr(0.3),
-		MaxOutputTokens:  int32(10000),
-		ResponseMIMEType: "application/json",
-		MediaResolution:  genai.MediaResolutionHigh,
+	generateFn := func(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
+		genConfig := GetGenerateConfig(mName, "application/json")
+
+		resp, err := s.Client.Models.GenerateContent(ctx, mName, genai.Text(p), genConfig)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		usage := extractUsage(resp)
+		return resp, usage, nil
 	}
 
-	resp, err := s.client.Models.GenerateContent(ctx, modelName, genai.Text(prompt), genConfig)
+	resp, usage, err := s.wrapper.WrapGenerate(ctx, "generate-issue", prompt, generateFn)
 	if err != nil {
-		return nil, fmt.Errorf("error al generar contenido de la issue: %w", err)
+		return nil, fmt.Errorf("error generando contenido de issue: %w", err)
 	}
 
-	if len(resp.Candidates) == 0 {
+	geminiResp := resp.(*genai.GenerateContentResponse)
+
+	if len(geminiResp.Candidates) == 0 {
 		return nil, fmt.Errorf("ningún contenido generado por IA")
 	}
 
-	result, err := s.parseIssueResponse(resp)
+	result, err := s.parseIssueResponse(geminiResp)
 	if err != nil {
 		return nil, fmt.Errorf("error al parsear la respuesta de la IA: %w", err)
 	}
 
-	result.Usage = extractUsage(resp)
+	result.Usage = usage
 
 	return result, nil
 }

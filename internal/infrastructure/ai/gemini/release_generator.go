@@ -17,12 +17,12 @@ import (
 var _ ports.ReleaseNotesGenerator = (*ReleaseNotesGenerator)(nil)
 
 type ReleaseNotesGenerator struct {
-	client *genai.Client
-	trans  *i18n.Translations
-	model  string
-	lang   string
-	owner  string
-	repo   string
+	*GeminiProvider
+	wrapper *ai.CostAwareWrapper
+	trans   *i18n.Translations
+	lang    string
+	owner   string
+	repo    string
 }
 
 type ReleaseNotesJSON struct {
@@ -54,45 +54,67 @@ func NewReleaseNotesGenerator(ctx context.Context, cfg *config.Config, trans *i1
 	}
 
 	modelName := string(cfg.AIConfig.Models[config.AIGemini])
-	return &ReleaseNotesGenerator{
-		client: client,
-		model:  modelName,
-		lang:   cfg.Language,
-		trans:  trans,
-		owner:  owner,
-		repo:   repo,
-	}, nil
+
+	budgetDaily := 0.0
+	if cfg.AIConfig.BudgetDaily != nil {
+		budgetDaily = *cfg.AIConfig.BudgetDaily
+	}
+
+	service := &ReleaseNotesGenerator{
+		GeminiProvider: NewGeminiProvider(client, modelName),
+		lang:           cfg.Language,
+		trans:          trans,
+		owner:          owner,
+		repo:           repo,
+	}
+
+	wrapper, err := ai.NewCostAwareWrapper(ai.WrapperConfig{
+		Provider:              service,
+		BudgetDaily:           budgetDaily,
+		Trans:                 trans,
+		EstimatedOutputTokens: 700,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error creando wrapper: %w", err)
+	}
+
+	service.wrapper = wrapper
+
+	return service, nil
 }
 
 func (g *ReleaseNotesGenerator) GenerateNotes(ctx context.Context, release *models.Release) (*models.ReleaseNotes, error) {
 	prompt := g.buildPrompt(release)
 
-	genConfig := &genai.GenerateContentConfig{
-		Temperature:      float32Ptr(0.3),
-		MaxOutputTokens:  int32(10000),
-		ResponseMIMEType: "application/json",
-		MediaResolution:  genai.MediaResolutionHigh,
+	generateFn := func(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
+		genConfig := GetGenerateConfig(mName, "application/json")
+
+		resp, err := g.Client.Models.GenerateContent(ctx, mName, genai.Text(p), genConfig)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		usage := extractUsage(resp)
+		return resp, usage, nil
 	}
 
-	resp, err := g.client.Models.GenerateContent(ctx, g.model, genai.Text(prompt), genConfig)
+	resp, usage, err := g.wrapper.WrapGenerate(ctx, "generate-release", prompt, generateFn)
 	if err != nil {
-		msg := g.trans.GetMessage("ai_service.error_generating_release_notes", 0, map[string]interface{}{
-			"Error": err,
-		})
-		return nil, fmt.Errorf("%s", msg)
+		return nil, fmt.Errorf("error generando release notes: %w", err)
 	}
 
-	if len(resp.Candidates) == 0 {
+	geminiResp := resp.(*genai.GenerateContentResponse)
+
+	if len(geminiResp.Candidates) == 0 {
 		msg := g.trans.GetMessage("ai_service.error_no_ai_response", 0, nil)
 		return nil, fmt.Errorf("%s", msg)
 	}
 
 	content := ""
-	for _, part := range resp.Candidates[0].Content.Parts {
+	for _, part := range geminiResp.Candidates[0].Content.Parts {
 		content += part.Text
 	}
 
-	usage := extractUsage(resp)
 	notes, err := g.parseJSONResponse(content, release)
 	if err != nil {
 		return nil, fmt.Errorf("error al parsear respuesta JSON de release notes: %w", err)

@@ -158,7 +158,7 @@ func configureWelcome(ctx context.Context, reader *bufio.Reader, cfg *config.Con
 
 	cfg.AIProviders["gemini"] = config.AIProviderConfig{
 		APIKey:      apiKey,
-		Model:       selectedModel,
+		Model:       string(config.ModelGeminiV15Flash),
 		Temperature: 0.3,
 		MaxTokens:   10000,
 	}
@@ -366,7 +366,7 @@ func validateGeminiAPIKey(ctx context.Context, apiKey string, t *i18n.Translatio
 		AIProviders: map[string]config.AIProviderConfig{
 			"gemini": {
 				APIKey:      apiKey,
-				Model:       string(config.ModelGeminiV25Flash),
+				Model:       string(config.ModelGeminiV15Flash),
 				Temperature: 0.3,
 				MaxTokens:   10000,
 			},

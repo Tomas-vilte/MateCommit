@@ -9,15 +9,19 @@ import (
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
+	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/ai"
 	"google.golang.org/genai"
 )
 
+var _ ports.CommitSummarizer = (*GeminiCommitSummarizer)(nil)
+
 type GeminiCommitSummarizer struct {
-	client *genai.Client
-	config *config.Config
-	trans  *i18n.Translations
+	*GeminiProvider
+	wrapper *ai.CostAwareWrapper
+	config  *config.Config
+	trans   *i18n.Translations
 }
 
 type (
@@ -60,11 +64,32 @@ func NewGeminiCommitSummarizer(ctx context.Context, cfg *config.Config, trans *i
 		return nil, fmt.Errorf("%s", msg)
 	}
 
-	return &GeminiCommitSummarizer{
-		client: client,
-		config: cfg,
-		trans:  trans,
-	}, nil
+	modelName := string(cfg.AIConfig.Models[config.AIGemini])
+
+	budgetDaily := 0.0
+	if cfg.AIConfig.BudgetDaily != nil {
+		budgetDaily = *cfg.AIConfig.BudgetDaily
+	}
+
+	service := &GeminiCommitSummarizer{
+		GeminiProvider: NewGeminiProvider(client, modelName),
+		config:         cfg,
+		trans:          trans,
+	}
+
+	wrapper, err := ai.NewCostAwareWrapper(ai.WrapperConfig{
+		Provider:              service,
+		BudgetDaily:           budgetDaily,
+		Trans:                 trans,
+		EstimatedOutputTokens: 800,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error creando wrapper: %w", err)
+	}
+
+	service.wrapper = wrapper
+
+	return service, nil
 }
 
 func (s *GeminiCommitSummarizer) GenerateSuggestions(ctx context.Context, info models.CommitInfo, count int) ([]models.CommitSuggestion, error) {
@@ -79,16 +104,20 @@ func (s *GeminiCommitSummarizer) GenerateSuggestions(ctx context.Context, info m
 	}
 
 	prompt := s.generatePrompt(s.config.Language, info, count)
-	modelName := string(s.config.AIConfig.Models[config.AIGemini])
 
-	genConfig := &genai.GenerateContentConfig{
-		Temperature:      float32Ptr(0.3),
-		MaxOutputTokens:  int32(10000),
-		ResponseMIMEType: "application/json",
-		MediaResolution:  genai.MediaResolutionHigh,
+	generateFn := func(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
+		genConfig := GetGenerateConfig(mName, "application/json")
+
+		resp, err := s.Client.Models.GenerateContent(ctx, mName, genai.Text(p), genConfig)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		usage := extractUsage(resp)
+		return resp, usage, nil
 	}
 
-	resp, err := s.client.Models.GenerateContent(ctx, modelName, genai.Text(prompt), genConfig)
+	resp, usage, err := s.wrapper.WrapGenerate(ctx, "suggest-commits", prompt, generateFn)
 	if err != nil {
 		msg := s.trans.GetMessage("error_generating_content", 0, map[string]interface{}{
 			"Error": err.Error(),
@@ -96,9 +125,10 @@ func (s *GeminiCommitSummarizer) GenerateSuggestions(ctx context.Context, info m
 		return nil, fmt.Errorf("%s", msg)
 	}
 
-	suggestions, err := s.parseSuggestionsJSON(resp)
+	geminiResp := resp.(*genai.GenerateContentResponse)
+	suggestions, err := s.parseSuggestionsJSON(geminiResp)
 	if err != nil {
-		rawResp := formatResponse(resp)
+		rawResp := formatResponse(geminiResp)
 		respLen := len(rawResp)
 		preview := rawResp
 		if respLen > 500 {
@@ -107,21 +137,15 @@ func (s *GeminiCommitSummarizer) GenerateSuggestions(ctx context.Context, info m
 		return nil, fmt.Errorf("error al parsear respuesta JSON de la IA (longitud: %d caracteres): %w\nPrimeros caracteres: %s",
 			respLen, err, preview)
 	}
-
-	usage := extractUsage(resp)
-
 	if len(suggestions) == 0 {
 		return nil, fmt.Errorf("la IA no generó ninguna sugerencia")
 	}
-
 	for i := range suggestions {
 		suggestions[i].Usage = usage
 	}
-
 	if info.IssueInfo != nil && info.IssueInfo.Number > 0 {
 		suggestions = s.ensureIssueReference(suggestions, info.IssueInfo.Number)
 	}
-
 	return suggestions, nil
 }
 
@@ -309,8 +333,4 @@ func (s *GeminiCommitSummarizer) ensureIssueReference(suggestions []models.Commi
 	}
 
 	return suggestions
-}
-
-func float32Ptr(f float32) *float32 {
-	return &f
 }

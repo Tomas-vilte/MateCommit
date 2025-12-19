@@ -540,6 +540,7 @@ other = "⚠️  Breaking changes detectados en {{.Count}} commits"
 [pr_test_plan_generated]
 other = "📋 Test plan generado automáticamente"
 # UI - Spinners y Feedback
+
 [ui]
 generating_suggestions_banner = "Generando Sugerencias de Commit"
 generating_with_ai = "Generando sugerencias con IA..."
@@ -555,6 +556,12 @@ detected_issue = "Detectado issue #{{.Number}}"
 fetching_pr_info = "Obteniendo información del PR #{{.Number}}..."
 error_generating_pr_summary = "Error al generar resumen del PR"
 pr_updated_successfully = "PR #{{.Number}} actualizado: {{.Title}}"
+token_usage = "Uso de Tokens"
+input = "Entrada"
+output = "Salida"
+total = "Total"
+cost = "Costo"
+duration = "Duración"
 
 # UI - Errors con sugerencias
 [ui_error]
@@ -953,3 +960,64 @@ custom_description_help = "Contame de qué se trata"
 custom_description_placeholder = "Quisiera proponer/reportar/discutir..."
 custom_additional_label = "Información adicional"
 custom_additional_help = "Cualquier detalle extra que sea relevante"
+
+[stats]
+usage = "Mostrar estadísticas de costo y uso"
+monthly_flag = "Mostrar estadísticas mensuales en lugar de diarias"
+daily_title = "Estadísticas Diarias"
+monthly_title = "Estadísticas Mensuales - {{.Month}}"
+no_activity = "No hay actividad registrada"
+total_today = "Total Hoy"
+total_month = "Total Este Mes"
+error_init = "Error inicializando gestor de costos"
+
+[cache]
+usage = "Gestionar caché local de respuestas"
+clean_usage = "Limpiar todas las respuestas cacheadas"
+error_init = "Error inicializando caché"
+error_clean = "Error limpiando caché"
+cleaned = "Caché limpiado exitosamente"
+
+[cost]
+estimating = "Estimando costo..."
+estimated_cost = "Costo estimado: ${{.Cost}} USD"
+tokens_detected = "Tokens detectados: {{.Tokens}}"
+model_selected = "Modelo seleccionado: {{.Model}}"
+confirm_prompt = "¿Continuar?"
+budget_warning = "⚠️  Advertencia: Esto excede tu límite de presupuesto diario"
+budget_exceeded = "Presupuesto excedido. Operación cancelada"
+cache_hit = "✓ Respuesta encontrada en caché (Costo: $0.00)"
+
+# Diálogo de Confirmación
+confirmation_header = "💰 Estimación de Costo"
+confirmation_separator = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+confirmation_input_tokens = "📊 Tokens de entrada estimados:  {{.Tokens}}"
+confirmation_output_tokens = "📤 Tokens de salida estimados:   {{.Tokens}}"
+confirmation_estimated_cost = "💵 Costo estimado:                {{.Cost}} USD"
+confirmation_prompt = "¿Desea continuar? [Y/n]:"
+confirmation_use_suggested = "¿Usar el modelo sugerido y continuar? [Y/m/c]:"
+confirmation_use_suggested_help = "(Y: sí, usar sugerido | m: mantener actual | c: cancelar)"
+
+# Alertas de Presupuesto
+budget_alert_50 = "⚠️  Has usado {{.Percent}}% de tu presupuesto diario (${{.Spent}} / ${{.Limit}})"
+budget_alert_75_title = "⚠️  ¡Cuidado! Has usado {{.Percent}}% de tu presupuesto diario"
+budget_alert_75_spent = "   Total gastado: ${{.Spent}} / ${{.Limit}}"
+budget_alert_90_title = "🚨 ¡ALERTA! Has usado {{.Percent}}% de tu presupuesto diario"
+budget_alert_90_spent = "   Total gastado: ${{.Spent}} / ${{.Limit}}"
+budget_alert_90_remaining = "   Quedan solo: ${{.Remaining}}"
+budget_exceeded_title = "❌ Presupuesto diario excedido"
+budget_exceeded_spent_today = "   Gastado hoy:      ${{.Spent}}"
+budget_exceeded_estimated = "   Costo estimado:   ${{.Cost}}"
+budget_exceeded_total = "   Total sería:      ${{.Total}}"
+budget_exceeded_limit = "   Límite diario:    ${{.Limit}}"
+budget_exceeded_excess = "   Exceso:           ${{.Excess}}"
+
+# Smart Routing
+routing_suggestion = "💡 Sugerencia: {{.Rationale}}"
+routing_suggested_model = "   Modelo sugerido: {{.Suggested}} (actualmente usando: {{.Current}})"
+[routing]
+reason_small = "Operación pequeña (< 1k tokens), modelo económico suficiente"
+reason_high_quality = "Operación de alta calidad, requiere mejor redacción"
+reason_large = "Operación grande (> 10k tokens), requiere mejor manejo de contexto"
+reason_balance = "Balance óptimo entre costo y calidad"
+reason_default = "Modelo por defecto"

@@ -29,7 +29,6 @@ type (
 		VersionPattern    string               `json:"version_pattern,omitempty"`
 	}
 
-	// AIProviderConfig contiene la configuración específica de cada proveedor de IA
 	AIProviderConfig struct {
 		APIKey      string  `json:"api_key"`
 		Model       string  `json:"model,omitempty"`
@@ -37,18 +36,18 @@ type (
 		MaxTokens   int     `json:"max_tokens,omitempty"`
 	}
 
-	// TicketProviderConfig contiene la configuración específica de cada proveedor de tickets
 	TicketProviderConfig struct {
 		APIKey   string            `json:"api_key"`
 		BaseURL  string            `json:"base_url,omitempty"`
 		Email    string            `json:"email,omitempty"`
 		Username string            `json:"username,omitempty"`
-		Extra    map[string]string `json:"extra,omitempty"` // Para configuraciones específicas del proveedor
+		Extra    map[string]string `json:"extra,omitempty"`
 	}
 
 	AIConfig struct {
-		ActiveAI AI           `json:"active_ai"`
-		Models   map[AI]Model `json:"models"`
+		ActiveAI    AI           `json:"active_ai"`
+		Models      map[AI]Model `json:"models"`
+		BudgetDaily *float64     `json:"budget_daily,omitempty"`
 	}
 
 	VCSConfig struct {

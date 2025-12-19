@@ -524,6 +524,12 @@ detected_issue = "Detected issue #{{.Number}}"
 fetching_pr_info = "Fetching PR #{{.Number}} information..."
 error_generating_pr_summary = "Error generating PR summary"
 pr_updated_successfully = "PR #{{.Number}} updated: {{.Title}}"
+token_usage = "Token Usage"
+input = "Input"
+output = "Output"
+total = "Total"
+cost = "Cost"
+duration = "Duration"
 
 # UI - Errors with suggestions
 [ui_error]
@@ -923,3 +929,64 @@ custom_description_help = "Describe your issue"
 custom_description_placeholder = "Please provide details..."
 custom_additional_label = "Additional information"
 custom_additional_help = "Any other relevant details"
+
+[stats]
+usage = "Show cost and usage statistics"
+monthly_flag = "Show monthly statistics instead of daily"
+daily_title = "Daily Statistics"
+monthly_title = "Monthly Statistics - {{.Month}}"
+no_activity = "No activity recorded"
+total_today = "Total Today"
+total_month = "Total This Month"
+error_init = "Error initializing cost manager"
+
+[cache]
+usage = "Manage local response cache"
+clean_usage = "Clean all cached responses"
+error_init = "Error initializing cache"
+error_clean = "Error cleaning cache"
+cleaned = "Cache cleaned successfully"
+
+[cost]
+estimating = "Estimating cost..."
+estimated_cost = "Estimated cost: ${{.Cost}} USD"
+tokens_detected = "Tokens detected: {{.Tokens}}"
+model_selected = "Model selected: {{.Model}}"
+confirm_prompt = "Continue?"
+budget_warning = "⚠️  Warning: This exceeds your daily budget limit"
+budget_exceeded = "Budget exceeded. Operation cancelled"
+cache_hit = "✓ Response found in cache (Cost: $0.00)"
+
+# Confirmation Dialog
+confirmation_header = "💰 Cost Estimation"
+confirmation_separator = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+confirmation_input_tokens = "📊 Estimated input tokens:  {{.Tokens}}"
+confirmation_output_tokens = "📤 Estimated output tokens:  {{.Tokens}}"
+confirmation_estimated_cost = "💵 Estimated cost:                {{.Cost}} USD"
+confirmation_prompt = "Do you want to continue? [Y/n]:"
+confirmation_use_suggested = "Use suggested model and continue? [Y/s/c]:"
+confirmation_use_suggested_help = "(Y: yes, use suggested | s: stay with current | c: cancel)"
+
+# Budget Alerts
+budget_alert_50 = "⚠️  You have used {{.Percent}}% of your daily budget (${{.Spent}} / ${{.Limit}})"
+budget_alert_75_title = "⚠️  Warning! You have used {{.Percent}}% of your daily budget"
+budget_alert_75_spent = "   Total spent: ${{.Spent}} / ${{.Limit}}"
+budget_alert_90_title = "🚨 ALERT! You have used {{.Percent}}% of your daily budget"
+budget_alert_90_spent = "   Total spent: ${{.Spent}} / ${{.Limit}}"
+budget_alert_90_remaining = "   Only remaining: ${{.Remaining}}"
+budget_exceeded_title = "❌ Daily budget exceeded"
+budget_exceeded_spent_today = "   Spent today:      ${{.Spent}}"
+budget_exceeded_estimated = "   Estimated cost:   ${{.Cost}}"
+budget_exceeded_total = "   Total would be:   ${{.Total}}"
+budget_exceeded_limit = "   Daily limit:      ${{.Limit}}"
+budget_exceeded_excess = "   Excess:           ${{.Excess}}"
+
+# Smart Routing
+routing_suggestion = "💡 Suggestion: {{.Rationale}}"
+routing_suggested_model = "   Suggested model: {{.Suggested}} (currently using: {{.Current}})"
+[routing]
+reason_small = "Small operation (< 1k tokens), sufficient economical model"
+reason_high_quality = "High quality operation, requires better writing"
+reason_large = "Large operation (> 10k tokens), requires better context handling"
+reason_balance = "Optimal balance between cost and quality"
+reason_default = "Default model"

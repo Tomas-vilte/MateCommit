@@ -76,7 +76,7 @@ func TestShowCommand(t *testing.T) {
 		cfg.AIConfig = config.AIConfig{
 			ActiveAI: config.AIGemini,
 			Models: map[config.AI]config.Model{
-				config.AIGemini: config.ModelGeminiV25Flash,
+				config.AIGemini: config.ModelGeminiV15Flash,
 				config.AIOpenAI: config.ModelGPTV4o,
 			},
 		}

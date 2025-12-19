@@ -23,6 +23,6 @@ type (
 		Title  string
 		Body   string
 		Labels []string
-		Usage  *UsageMetadata
+		Usage  *TokenUsage
 	}
 )

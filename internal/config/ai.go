@@ -10,13 +10,14 @@ const (
 type Model string
 
 const (
-	ModelGeminiV25Pro       Model = "gemini-2.5-pro"
-	ModelGeminiV25Flash     Model = "gemini-2.5-flash"
-	ModelGeminiV25FlashLite Model = "gemini-2.5-flash-lite"
+	ModelGeminiV15Pro   Model = "gemini-1.5-pro"
+	ModelGeminiV15Flash Model = "gemini-1.5-flash"
+	ModelGeminiV25Flash Model = "gemini-2.5-flash"
+	ModelGeminiV3Pro    Model = "gemini-3-pro-preview"
+	ModelGeminiV3Flash  Model = "gemini-3-flash-preview"
 
 	// TODO: Agregar mas modelos para openai o otros...
-	ModelGPTV4o     Model = "gpt-4o"
-	ModelGPTV4oMini Model = "gpt-4o-mini"
+	ModelGPTV4o Model = "gpt-4o"
 )
 
 func SupportedAIs() []AI {
@@ -29,9 +30,11 @@ func ModelsForAI(ai AI) []Model {
 	switch ai {
 	case AIGemini:
 		return []Model{
-			ModelGeminiV25Pro,
+			ModelGeminiV15Flash,
 			ModelGeminiV25Flash,
-			ModelGeminiV25FlashLite,
+			ModelGeminiV3Flash,
+			ModelGeminiV15Pro,
+			ModelGeminiV3Pro,
 		}
 	default:
 		return []Model{}

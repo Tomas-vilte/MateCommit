@@ -34,7 +34,7 @@ type IssueGenerationResult struct {
 	Assignees []string
 
 	// Usage contiene los metadatos de uso de tokens de la IA
-	Usage *UsageMetadata
+	Usage *TokenUsage
 }
 
 // DiffAnalysis contiene el análisis estructurado del diff para inferencia de labels.
