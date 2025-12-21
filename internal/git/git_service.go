@@ -101,7 +101,7 @@ func (s *GitService) AddFileToStaging(ctx context.Context, file string) error {
 		return fmt.Errorf("%w: %v", errors.ErrGetRepoRoot, err)
 	}
 
-	cmd := exec.CommandContext(ctx, "git", "add", "--", file)
+	cmd := exec.CommandContext(ctx, "git", "add", "-A", "--", file)
 	cmd.Dir = repoRoot
 	var stderr strings.Builder
 	cmd.Stderr = &stderr

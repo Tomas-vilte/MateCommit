@@ -267,8 +267,9 @@ func (h *SuggestionHandler) processCommit(ctx context.Context, suggestion models
 
 	for _, file := range suggestion.Files {
 		if err := gitSvc.AddFileToStaging(ctx, file); err != nil {
-			spinner.Error(h.t.GetMessage("error_adding_file", 0, map[string]interface{}{
-				"File": file,
+			spinner.Error(h.t.GetMessage("commit.error_add_file_staging", 0, map[string]interface{}{
+				"File":  file,
+				"Error": err,
 			}))
 			return fmt.Errorf("error adding %s: %w", file, err)
 		}
@@ -282,7 +283,9 @@ func (h *SuggestionHandler) processCommit(ctx context.Context, suggestion models
 	spinner.Start()
 
 	if err := gitSvc.CreateCommit(ctx, finalCommitMessage); err != nil {
-		spinner.Error(h.t.GetMessage("error_creating_commit", 0, nil))
+		spinner.Error(h.t.GetMessage("commit.error_creating_commit", 0, map[string]interface{}{
+			"Error": err,
+		}))
 		return fmt.Errorf("error creating commit: %w", err)
 	}
 

@@ -1,40 +1,50 @@
-# Guía de Contribución para MateCommit
+# Cómo contribuir a MateCommit
 
-¡Gracias por tu interés en contribuir a MateCommit! Valoramos mucho el tiempo y esfuerzo dedicados a mejorar este proyecto. Para mantener la calidad del código y la coherencia técnica, solicitamos seguir estas pautas generales.
+¡Gracias por querer aportar a MateCommit! Soy yo, el único que está trabajando en este proyecto por ahora, pero si en algún momento alguien más se suma, estas son las reglas básicas para mantener todo en orden.
+
+## Reglas generales
+
+1. **Creación de tags**:
+    - Los tags los manejo yo (el único admin por ahora jeje), nadie más puede crear, actualizar o borrar tags
+    - Los tags se ponen solo después de que todo pase las verificaciones de estado, o sea, si las pruebas y el CI/CD no se quejan.
+
+2. **Verificación del código**:
+    - Antes de mandar un PR, asegurate de que tu código no esté todo roto. Si no pasa las pruebas, no voy a aceptar el PR xd, hasta que esté todo en ok.
+
+3. **Cómo manejar los PRs**:
+    - **Usá los templates**: Ya armé unos formularios bien pro en GitHub para reportar bugs o pedir nuevas funcionalidades. ¡Usalos! Me ayuda un montón a que no se me pase nada por alto.
+    - Los PRs tienen que estar bien hechos. Asegurate de completar el **Template de Pull Request** que te aparece cuando abrís uno nuevo.
+    - No seas vago, poné una descripción clara de qué hiciste y por qué lo hiciste. Nada de "cambié el código", explicá qué cosas cambiaron, para que el que vea sepa qué hiciste y tenga más contexto.
+
+## Cómo hacer un Pull Request (PR)
+
+Si querés sumar tu cambio, hacé lo siguiente:
+
+1. **Forkea el repo**.
+2. **Clonalo a tu máquina**.
+3. **Creá una rama** con un nombre que se entienda qué vas a hacer (tipo `feature/agregar-nueva-funcionalidad` o `bugfix/corregir-error`).
+4. **Hacés los cambios** y asegurate de que no estés rompiendo todo. ¡Testea bien, no seas pajero!
+5. **Hacé un commit** con un mensaje claro. Usá este formato:
+    - `tipo: descripción corta` (Ejemplo: `feat: agregar nueva funcionalidad` o `fix: corregir bug en validación`).
+    - Si hace falta, explicá un toque más en el cuerpo del mensaje.
+6. **Mandá el PR** desde tu rama hacia `master`.
+    - Revisá que no haya conflictos y que el código esté bien.
+    - Yo lo reviso, y si todo está ok, lo apruebo.
+
+## Buenas prácticas
+
+- **Mantené tu fork actualizado**: Antes de ponerte a cambiar cosas, asegurate de que tu fork esté sincronizado con el repo principal.
+- **Escribí pruebas**: Si estás agregando algo nuevo, escribí pruebas para eso. Si corregís un bug, agregá una prueba para que no vuelva a pasar.
+- **Documentá tus cambios**: Si hacés un cambio importante, ponélo en la documentación para que no dejemos a nadie perdido.
+
+## Resumen
+
+1. **Los tags son exclusivos de los admins**. Si no sos admin, no toques nada de eso.
+2. **Tu código tiene que pasar las verificaciones antes de ser aprobado** Sino tabla.
+3. **Seguí las buenas prácticas al hacer un PR**.
+
+¡Gracias por querer sumar!
 
 ---
-
-## Proceso de Desarrollo
-
-### 1. Preparación
-*   Realiza un **Fork** del repositorio en GitHub.
-*   Clona tu fork localmente.
-*   Asegúrate de tener las dependencias al día ejecutando `go mod tidy`.
-*   Crea una rama descriptiva para tu cambio: `git checkout -b feature/nombre-de-la-funcionalidad`.
-
-### 2. Estándares de Código
-*   **Formato**: El código debe seguir las convenciones estándar de Go (`go fmt`).
-*   **Pruebas**: No se aceptarán cambios que rompan los tests existentes. Si agregas una funcionalidad, se espera que incluyas pruebas unitarias o de integración que la validen.
-*   **Documentación**: Si tu cambio afecta el uso de la herramienta, actualiza los archivos `README.md` o `COMMANDS.md` correspondientes.
-
-### 3. Mensajes de Commit
-Practicamos lo que predicamos. Por favor, utiliza el formato de [Conventional Commits](https://www.conventionalcommits.org/):
-*   `feat: descripción de nueva funcionalidad`
-*   `fix: corrección de un error`
-*   `refactor: mejora del código sin cambios lógicos`
-
----
-
-## Envío de Pull Requests (PR)
-
-Al abrir un PR, asegúrate de proporcionar el contexto suficiente:
-*   **Descripción**: Explica qué cambios realizaste y por qué son necesarios. Evita descripciones genéricas.
-*   **Issues**: Vincula cualquier issue relacionado utilizando palabras clave como "Fixes #34".
-*   **Verificación**: Asegúrate de que todas las comprobaciones del CI (Integración Continua) pasen correctamente.
-
----
-
-## Administración y Versiones
-La gestión de etiquetas (tags) y lanzamientos de versiones (releases) es responsabilidad exclusiva de los mantenedores del proyecto para garantizar la estabilidad de las versiones distribuidas.
-
-¡Esperamos con interés tus propuestas y mejoras! Gracias por ayudarnos a hacer de MateCommit una herramienta profesional para la comunidad.
+PD: perdón que sea tan rompe bolas con esto, pero aprendemos a usar buenas prácticas y aprender obviamente.
+**MateCommit - Por ahora, soy yo. Si algún día alguien más se suma, les cuento las reglas también.**
