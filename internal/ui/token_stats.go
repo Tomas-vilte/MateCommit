@@ -2,8 +2,8 @@ package ui
 
 import (
 	"fmt"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
+	"github.com/thomas-vilte/matecommit/internal/models"
+	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/fatih/color"
 )
 

@@ -11,7 +11,7 @@ Ejemplos:
 """
 
 [suggest_command_usage]
-other = "💡 Generar sugerencias de mensajes de commit"
+other = "Generar sugerencias de mensajes de commit"
 
 [suggest_command_description]
 other = "Analiza tus cambios y sugiere mensajes de commit adecuados"
@@ -44,7 +44,7 @@ other = "🔍 Analizando cambios..."
 other = "❌ Error al generar sugerencias: {{.Error}}"
 
 [config_command_usage]
-other = "⚙️  Administrar configuración"
+other = "Administrar configuración"
 
 [config_init_usage]
 other = "🚀 Iniciar asistente de configuración"
@@ -304,7 +304,7 @@ error_analyzing = "Error al analizar release: {{.Error}}"
 error_generating_notes = "Error al generar notas: {{.Error}}"
 error_creating_tag = "Error al crear tag: {{.Error}}"
 error_writing_file = "Error al escribir archivo: {{.Error}}"
-command_usage = "🚀 Gestionar releases y changelogs del proyecto"
+command_usage = "Gestionar releases y changelogs del proyecto"
 push_usage = "Subir un tag al remoto"
 output_flag = "Archivo de salida (default: RELEASE_NOTES.md)"
 auto_flag = "Saltar confirmación"

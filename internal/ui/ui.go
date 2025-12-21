@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	domainErrors "github.com/Tomas-vilte/MateCommit/internal/domain/errors"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
+	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
+	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/briandowns/spinner"
 	"github.com/fatih/color"
 )

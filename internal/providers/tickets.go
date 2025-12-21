@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Tomas-vilte/MateCommit/internal/config"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
-	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/tickets/jira"
+	"github.com/thomas-vilte/matecommit/internal/config"
+	"github.com/thomas-vilte/matecommit/internal/ports"
+	"github.com/thomas-vilte/matecommit/internal/jira"
 )
 
 // NewTicketManager creates a TicketManager based on the configured provider

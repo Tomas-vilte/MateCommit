@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Tomas-vilte/MateCommit/internal/config"
-	domainErrors "github.com/Tomas-vilte/MateCommit/internal/domain/errors"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
+	"github.com/thomas-vilte/matecommit/internal/config"
+	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
+	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )

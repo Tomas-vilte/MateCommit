@@ -7,11 +7,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Tomas-vilte/MateCommit/internal/config"
-	domainErrors "github.com/Tomas-vilte/MateCommit/internal/domain/errors"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
-	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/vcs/github"
+	"github.com/thomas-vilte/matecommit/internal/config"
+	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
+	"github.com/thomas-vilte/matecommit/internal/models"
+	"github.com/thomas-vilte/matecommit/internal/ports"
+	"github.com/thomas-vilte/matecommit/internal/github"
 )
 
 // commitGitService defines only the methods needed by CommitService.

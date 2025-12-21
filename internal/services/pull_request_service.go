@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Tomas-vilte/MateCommit/internal/config"
-	domainErrors "github.com/Tomas-vilte/MateCommit/internal/domain/errors"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
-	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/ai"
+	"github.com/thomas-vilte/matecommit/internal/config"
+	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
+	"github.com/thomas-vilte/matecommit/internal/models"
+	"github.com/thomas-vilte/matecommit/internal/ai"
 )
 
 // prVCSClient defines the methods needed by PRService from a VCS provider.

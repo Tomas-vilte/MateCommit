@@ -3,7 +3,7 @@ package services
 import (
 	"context"
 
-	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
+	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/stretchr/testify/mock"
 )
 

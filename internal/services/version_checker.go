@@ -20,7 +20,7 @@ import (
 	"github.com/google/go-github/v80/github"
 	"golang.org/x/mod/semver"
 
-	domainErrors "github.com/Tomas-vilte/MateCommit/internal/domain/errors"
+	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 )
 
 type VersionUpdater struct {
@@ -131,7 +131,7 @@ func (v *VersionUpdater) updateViaGo(ctx context.Context) error {
 		return domainErrors.NewAppError(domainErrors.TypeUpdate, "go command not found", err)
 	}
 
-	cmd := exec.CommandContext(ctx, "go", "install", "github.com/Tomas-vilte/MateCommit@latest")
+	cmd := exec.CommandContext(ctx, "go", "install", "github.com/thomas-vilte/matecommit@latest")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return domainErrors.NewAppError(domainErrors.TypeUpdate, "go install failed", fmt.Errorf("%s", string(output)))

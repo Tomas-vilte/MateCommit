@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Tomas-vilte/MateCommit/internal/config"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
-	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/git"
-	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/vcs/github"
+	"github.com/thomas-vilte/matecommit/internal/config"
+	"github.com/thomas-vilte/matecommit/internal/ports"
+	"github.com/thomas-vilte/matecommit/internal/git"
+	"github.com/thomas-vilte/matecommit/internal/github"
 )
 
 // NewVCSClient creates a VCSClient based on the configuration and automatic detection of the remote
