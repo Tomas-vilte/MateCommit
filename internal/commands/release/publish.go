@@ -49,9 +49,7 @@ func publishReleaseAction(releaseSvc releaseService,
 	return func(ctx context.Context, cmd *cli.Command) error {
 		release, err := releaseSvc.AnalyzeNextRelease(ctx)
 		if err != nil {
-			return fmt.Errorf("%s", trans.GetMessage("release.error_analyzing", 0, map[string]interface{}{
-				"Error": err.Error(),
-			}))
+			return fmt.Errorf("%s", trans.GetMessage("release.error_analyzing", 0, struct{ Error string }{err.Error()}))
 		}
 
 		if version := cmd.String("version"); version != "" {
@@ -59,17 +57,13 @@ func publishReleaseAction(releaseSvc releaseService,
 		}
 
 		if err := releaseSvc.EnrichReleaseContext(ctx, release); err != nil {
-			fmt.Printf("⚠️  %s\n", trans.GetMessage("release.warning_enrich_context", 0, map[string]interface{}{
-				"Error": err.Error(),
-			}))
+			fmt.Printf("⚠️  %s\n", trans.GetMessage("release.warning_enrich_context", 0, struct{ Error string }{err.Error()}))
 		}
 
 		notes, err := releaseSvc.GenerateReleaseNotes(ctx, release)
 		if err != nil {
 			ui.HandleAppError(err, trans)
-			return fmt.Errorf("%s", trans.GetMessage("release.error_generating_notes", 0, map[string]interface{}{
-				"Error": err.Error(),
-			}))
+			return fmt.Errorf("%s", trans.GetMessage("release.error_generating_notes", 0, struct{ Error string }{err.Error()}))
 		}
 
 		draft := cmd.Bool("draft")
@@ -79,21 +73,17 @@ func publishReleaseAction(releaseSvc releaseService,
 			draftText = " " + trans.GetMessage("release.as_draft", 0, nil)
 		}
 
-		fmt.Println(trans.GetMessage("release.publishing", 0, map[string]interface{}{
-			"Version": release.Version,
-			"Draft":   draftText,
-		}))
+		fmt.Println(trans.GetMessage("release.publishing", 0, struct {
+			Version string
+			Draft   string
+		}{release.Version, draftText}))
 
 		err = releaseSvc.PublishRelease(ctx, release, notes, draft, buildBinaries)
 		if err != nil {
-			return fmt.Errorf("%s", trans.GetMessage("release.error_publishing", 0, map[string]interface{}{
-				"Error": err.Error(),
-			}))
+			return fmt.Errorf("%s", trans.GetMessage("release.error_publishing", 0, struct{ Error string }{err.Error()}))
 		}
 
-		fmt.Println(trans.GetMessage("release.publish_success", 0, map[string]interface{}{
-			"Version": release.Version,
-		}))
+		fmt.Println(trans.GetMessage("release.publish_success", 0, struct{ Version string }{release.Version}))
 
 		if notes.Usage != nil {
 			fmt.Println()

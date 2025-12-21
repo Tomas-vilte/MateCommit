@@ -43,24 +43,17 @@ func generateReleaseAction(releaseSvc releaseService, trans *i18n.Translations) 
 		release, err := releaseSvc.AnalyzeNextRelease(ctx)
 		if err != nil {
 			ui.HandleAppError(err, trans)
-			return fmt.Errorf("%s", trans.GetMessage("release.error_analyzing", 0, map[string]interface{}{
-				"Error": err.Error(),
-			}))
+			return fmt.Errorf("%s", trans.GetMessage("release.error_analyzing", 0, struct{ Error string }{err.Error()}))
 		}
 
 		if err := releaseSvc.EnrichReleaseContext(ctx, release); err != nil {
-			fmt.Printf("⚠️  %s\n", trans.GetMessage("release.warning_enrich_context", 0, map[string]interface{}{
-				"Error": err.Error(),
-			}))
+			fmt.Printf("⚠️  %s\n", trans.GetMessage("release.warning_enrich_context", 0, struct{ Error string }{err.Error()}))
 		}
 
 		notes, err := releaseSvc.GenerateReleaseNotes(ctx, release)
 		if err != nil {
 			ui.HandleAppError(err, trans)
-			return fmt.Errorf("%s", trans.GetMessage("release.error_generating_notes", 0,
-				map[string]interface{}{
-					"Error": err.Error(),
-				}))
+			return fmt.Errorf("%s", trans.GetMessage("release.error_generating_notes", 0, struct{ Error string }{err.Error()}))
 		}
 
 		content := FormatReleaseMarkdown(release, notes, trans)
@@ -68,17 +61,11 @@ func generateReleaseAction(releaseSvc releaseService, trans *i18n.Translations) 
 		outputFile := cmd.String("output")
 		err = os.WriteFile(outputFile, []byte(content), 0644)
 		if err != nil {
-			return fmt.Errorf("%s", trans.GetMessage("release.error_writing_file", 0, map[string]interface{}{
-				"Error": err.Error(),
-			}))
+			return fmt.Errorf("%s", trans.GetMessage("release.error_writing_file", 0, struct{ Error string }{err.Error()}))
 		}
 
-		fmt.Println(trans.GetMessage("release.notes_saved", 0, map[string]interface{}{
-			"File": outputFile,
-		}))
-		fmt.Println(trans.GetMessage("release.version_label", 0, map[string]interface{}{
-			"Version": release.Version,
-		}))
+		fmt.Println(trans.GetMessage("release.notes_saved", 0, struct{ File string }{outputFile}))
+		fmt.Println(trans.GetMessage("release.version_label", 0, struct{ Version string }{release.Version}))
 
 		if notes.Usage != nil {
 			fmt.Println()

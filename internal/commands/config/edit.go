@@ -15,11 +15,11 @@ func (c *ConfigCommandFactory) newEditCommand(t *i18n.Translations, cfg *config.
 	return &cli.Command{
 		Name:   "edit",
 		Usage:  t.GetMessage("config_edit_usage", 0, nil),
-		Action: editConfigAction(cfg),
+		Action: editConfigAction(cfg, t),
 	}
 }
 
-func editConfigAction(cfg *config.Config) cli.ActionFunc {
+func editConfigAction(cfg *config.Config, t *i18n.Translations) cli.ActionFunc {
 	return func(ctx context.Context, command *cli.Command) error {
 		editor := os.Getenv("EDITOR")
 		if editor == "" {
@@ -28,7 +28,7 @@ func editConfigAction(cfg *config.Config) cli.ActionFunc {
 			} else if _, err := exec.LookPath("vim"); err == nil {
 				editor = "vim"
 			} else {
-				return fmt.Errorf("ningun editor de texto definido. Por favor, configure la variable de entorno $EDITOR")
+				return fmt.Errorf("%s", t.GetMessage("config_save.error_no_editor", 0, nil))
 			}
 		}
 
@@ -38,7 +38,7 @@ func editConfigAction(cfg *config.Config) cli.ActionFunc {
 		cmd.Stderr = os.Stderr
 
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("error opening editor: %w", err)
+			return fmt.Errorf("%s: %w", t.GetMessage("config_save.error_opening_editor", 0, struct{ Error error }{err}), err)
 		}
 
 		return nil

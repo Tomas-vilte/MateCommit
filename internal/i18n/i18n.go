@@ -73,7 +73,7 @@ func (t *Translations) SetLanguage(lang string) error {
 	return fmt.Errorf("unsupported language '%s'", lang)
 }
 
-func (t *Translations) GetMessage(messageID string, count int, templateData map[string]interface{}) string {
+func (t *Translations) GetMessage(messageID string, count int, templateData interface{}) string {
 	localized, err := t.localize.Localize(&i18n.LocalizeConfig{
 		DefaultMessage: &i18n.Message{
 			ID: messageID,

@@ -6,11 +6,11 @@ import (
 	"os"
 	"strings"
 
+	"github.com/fatih/color"
+	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ports"
-	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/thomas-vilte/matecommit/internal/ui"
-	"github.com/fatih/color"
 )
 
 // gitService is a minimal interface for testing purposes
@@ -54,7 +54,7 @@ func (h *SuggestionHandler) displaySuggestions(suggestions []models.CommitSugges
 		separator := color.New(color.FgCyan).Sprint("━━━━━━━━━━━━━━━━━━━━━━━")
 		fmt.Printf("\n%s\n", separator)
 
-		suggestionHeader := color.New(color.FgMagenta, color.Bold).Sprint(h.t.GetMessage("ui_labels.suggestion_number", 0, map[string]interface{}{"Number": i + 1}))
+		suggestionHeader := color.New(color.FgMagenta, color.Bold).Sprint(h.t.GetMessage("ui_labels.suggestion_number", 0, struct{ Number int }{i + 1}))
 		fmt.Printf("%s\n\n", suggestionHeader)
 
 		_, _ = sectionColor.Println(h.t.GetMessage("ui_labels.code_analysis", 0, nil))
@@ -192,7 +192,7 @@ func (h *SuggestionHandler) handleCommitSelection(ctx context.Context, suggestio
 	fmt.Print(prompt + " ")
 
 	if _, err := fmt.Scan(&selection); err != nil {
-		msg := h.t.GetMessage("commit.error_reading_selection", 0, map[string]interface{}{"Error": err})
+		msg := h.t.GetMessage("commit.error_reading_selection", 0, struct{ Error error }{err})
 		ui.PrintError(os.Stdout, msg)
 		return fmt.Errorf("%s", msg)
 	}
@@ -203,7 +203,7 @@ func (h *SuggestionHandler) handleCommitSelection(ctx context.Context, suggestio
 	}
 
 	if selection < 1 || selection > len(suggestions) {
-		msg := h.t.GetMessage("commit.invalid_selection", 0, map[string]interface{}{"Number": len(suggestions)})
+		msg := h.t.GetMessage("commit.invalid_selection", 0, struct{ Number int }{len(suggestions)})
 		ui.PrintError(os.Stdout, msg)
 		return fmt.Errorf("%s", msg)
 	}
@@ -216,30 +216,22 @@ func (h *SuggestionHandler) processCommit(ctx context.Context, suggestion models
 	commitTitle := strings.TrimSpace(strings.TrimPrefix(suggestion.CommitTitle, "Commit: "))
 
 	fmt.Println()
-	ui.PrintInfo(h.t.GetMessage("ui_preview.commit_selected", 0, map[string]interface{}{
-		"Title": commitTitle,
-	}))
+	ui.PrintInfo(h.t.GetMessage("ui_preview.commit_selected", 0, struct{ Title string }{commitTitle}))
 
 	treeHeader := h.t.GetMessage("ui_preview.modified_files_header", 0, nil)
 	if err := ui.ShowFilesTree(suggestion.Files, treeHeader); err != nil {
-		ui.PrintInfo(h.t.GetMessage("ui_preview.files_count", 0, map[string]interface{}{
-			"Count": len(suggestion.Files),
-		}))
+		ui.PrintInfo(h.t.GetMessage("ui_preview.files_count", 0, struct{ Count int }{len(suggestion.Files)}))
 	}
 
 	statsHeader := h.t.GetMessage("ui_preview.changes_header", 0, nil)
 	if err := ui.ShowDiffStats(suggestion.Files, statsHeader); err != nil {
-		ui.PrintWarning(h.t.GetMessage("ui_preview.error_showing_stats", 0, map[string]interface{}{
-			"Error": err,
-		}))
+		ui.PrintWarning(h.t.GetMessage("ui_preview.error_showing_stats", 0, struct{ Error error }{err}))
 	}
 
 	if ui.AskConfirmation(h.t.GetMessage("ui_preview.ask_show_diff", 0, nil)) {
 		fmt.Println()
 		if err := ui.ShowDiff(suggestion.Files); err != nil {
-			ui.PrintWarning(h.t.GetMessage("ui_preview.error_showing_diff", 0, map[string]interface{}{
-				"Error": err,
-			}))
+			ui.PrintWarning(h.t.GetMessage("ui_preview.error_showing_diff", 0, struct{ Error error }{err}))
 		}
 	}
 
@@ -248,9 +240,7 @@ func (h *SuggestionHandler) processCommit(ctx context.Context, suggestion models
 		editorError := h.t.GetMessage("ui_preview.editor_error", 0, nil)
 		editedMessage, err := ui.EditCommitMessage(commitTitle, editorError)
 		if err != nil {
-			ui.PrintError(os.Stdout, h.t.GetMessage("ui_preview.error_editing_message", 0, map[string]interface{}{
-				"Error": err,
-			}))
+			ui.PrintError(os.Stdout, h.t.GetMessage("ui_preview.error_editing_message", 0, struct{ Error error }{err}))
 			return err
 		}
 		finalCommitMessage = editedMessage
@@ -267,25 +257,21 @@ func (h *SuggestionHandler) processCommit(ctx context.Context, suggestion models
 
 	for _, file := range suggestion.Files {
 		if err := gitSvc.AddFileToStaging(ctx, file); err != nil {
-			spinner.Error(h.t.GetMessage("commit.error_add_file_staging", 0, map[string]interface{}{
-				"File":  file,
-				"Error": err,
-			}))
+			spinner.Error(h.t.GetMessage("commit.error_add_file_staging", 0, struct {
+				File  string
+				Error error
+			}{file, err}))
 			return fmt.Errorf("error adding %s: %w", file, err)
 		}
 	}
 
-	spinner.Success(h.t.GetMessage("ui.files_added_to_staging", 0, map[string]interface{}{
-		"Count": len(suggestion.Files),
-	}))
+	spinner.Success(h.t.GetMessage("ui.files_added_to_staging", 0, struct{ Count int }{len(suggestion.Files)}))
 
 	spinner = ui.NewSmartSpinner(h.t.GetMessage("ui.creating_commit", 0, nil))
 	spinner.Start()
 
 	if err := gitSvc.CreateCommit(ctx, finalCommitMessage); err != nil {
-		spinner.Error(h.t.GetMessage("commit.error_creating_commit", 0, map[string]interface{}{
-			"Error": err,
-		}))
+		spinner.Error(h.t.GetMessage("commit.error_creating_commit", 0, struct{ Error error }{err}))
 		return fmt.Errorf("error creating commit: %w", err)
 	}
 

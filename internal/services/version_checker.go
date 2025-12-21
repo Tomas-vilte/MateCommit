@@ -154,7 +154,7 @@ func (v *VersionUpdater) updateViaBrew(ctx context.Context) error {
 
 func (v *VersionUpdater) updateViaBinary(ctx context.Context) error {
 	client := github.NewClient(nil)
-	release, _, err := client.Repositories.GetLatestRelease(ctx, "Tomas-vilte", "MateCommit")
+	release, _, err := client.Repositories.GetLatestRelease(ctx, "thomas-vilte", "matecommit")
 	if err != nil {
 		return domainErrors.NewAppError(domainErrors.TypeUpdate, "failed to get latest release info", err)
 	}

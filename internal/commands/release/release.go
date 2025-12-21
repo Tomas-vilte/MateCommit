@@ -78,7 +78,7 @@ func (r *ReleaseCommandFactory) CreateCommand(t *i18n.Translations, _ *cfg.Confi
 	}
 }
 
-func (r *ReleaseCommandFactory) createReleaseService(ctx context.Context, t *i18n.Translations) (*services.ReleaseService, error) {
+func (r *ReleaseCommandFactory) createReleaseService(ctx context.Context, _ *i18n.Translations) (*services.ReleaseService, error) {
 	var vcsClient ports.VCSClient
 	if r.config.ActiveVCSProvider != "" {
 		if vcsConfig, ok := r.config.VCSConfigs[r.config.ActiveVCSProvider]; ok {
@@ -93,7 +93,7 @@ func (r *ReleaseCommandFactory) createReleaseService(ctx context.Context, t *i18
 	if r.config.AIConfig.ActiveAI == "gemini" {
 		owner, repo, _, err := r.gitService.GetRepoInfo(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("error obteniendo informacion del repositorio: %w", err)
+			return nil, fmt.Errorf("error retrieving information from repository: %w", err)
 		}
 
 		gen, err := gemini.NewReleaseNotesGenerator(ctx, r.config, nil, owner, repo)

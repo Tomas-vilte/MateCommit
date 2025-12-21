@@ -58,11 +58,15 @@ other = "Configuración completa (configurar todo)"
 [config_edit_usage]
 other = "✏️  Abrir archivo de configuración en el editor"
 
+[config_show_usage]
+other = "📋 Mostrar configuración actual"
+
+
+
+
 [language_set_success]
 other = "✅ Idioma configurado a: {{.Lang}}"
 
-[config_show_usage]
-other = "📋 Mostrar configuración actual"
 
 [current_config]
 other = "📋 Configuración actual"
@@ -72,6 +76,8 @@ other = "🌍 Idioma: {{.Lang}}"
 
 [emojis_label]
 other = "😊 Emojis: {{.Emoji}}"
+
+
 
 [invalid_selection]
 other = "Selección inválida: tiene que estar entre 1 y {{.Max}}"
@@ -120,6 +126,8 @@ improvement_suggestions_prefix = "Sugerencias de Mejora:"
 
 [config_save]
 error_saving_config = "Error al guardar la configuración: {{.Error}}"
+error_no_editor = "ningún editor de texto definido. Por favor, configura la variable de entorno $EDITOR"
+error_opening_editor = "error al abrir el editor: {{.Error}}"
 
 [ai_service]
 modified_files_prefix = "📄 Archivos modificados:"
@@ -170,9 +178,9 @@ jira_config_label = "Configuración de Jira - BaseURL: {{.BaseURL}}, Email: {{.E
 active_ai_label = "IA Activa: {{.IA}}"
 ai_models_label = "Modelos de IA configurados:"
 no_ai_models_configured = "No hay modelos de IA configurados"
-error_invalid_language = "Lenguaje invalido: {{.Language}}"
-
 [error]
+pr_service_creation_error = "Error al crear el servicio de PR: {{.Error}}"
+pr_summary_error = "Error al generar el resumen del PR: {{.Error}}"
 get_labels = "Error al obtener las etiquetas"
 create_label = "Error al crear la etiqueta '{{.label}}'"
 update_pr = "Error al actualizar el PR #{{.pr_number}}"
@@ -198,7 +206,6 @@ Para actualizar PRs en repositorios personales, tu token necesita estos scopes:
 Nota: Los tokens de organizaciones pueden tener diferentes requisitos de permisos."""
 add_labels = "Error al añadir las etiquetas al repo #{{.pr_number}}"
 invalid_repo_format = "Formato de repositorio inválido"
-pr_summary_error = "Error generando el resumen del PR"
 no_repo_configured = "No se ha configurado ningún repositorio. Usa --repo o configura un proveedor VCS activo"
 vcs_provider_not_configured = "El proveedor VCS '{{.Provider}}' no está configurado"
 vcs_provider_auto_detected_not_configured = "Proveedor de VCS '%s' detectado automáticamente pero no configurado. Use 'matecommit config set-vcs --provider %s --token <token>' para configurarlo"
@@ -258,19 +265,19 @@ error_update_pr = "Error al actualizar el PR: {{.Error}}"
 section_welcome = "1. Bienvenida e IA"
 welcome = "👋 ¡Bienvenido al asistente de configuración de MateCommit!"
 ai_intro = "Primero, configuremos la IA. (Proveedores soportados: {{.Providers}})"
-prompt_ai_api_key = "> Introduce tu API Key de {{.Provider}} (Enter para omitir): "
-prompt_ai_api_key_generic = "> Introduce tu API Key de IA (Enter para omitir): "
-model_hint_supported = "> Puedes especificar un modelo (soportados: {{.Models}})."
+prompt_ai_api_key = "> Ingresá tu API Key de {{.Provider}} (Enter para omitir): "
+prompt_ai_api_key_generic = "> Ingresá tu API Key de IA (Enter para omitir): "
+model_hint_supported = "> Podés especificar un modelo (soportados: {{.Models}})."
 prompt_model_with_default = "> Modelo a usar (por defecto: {{.Default}}): "
 
 section_language = "2. Idioma"
 language_supported_with_current = "Ahora, el idioma. (Soportados: en, es) Actual: {{.Current}}"
-prompt_language_blank_keeps = "> Elige tu idioma preferido (en/es). Enter mantiene el actual: "
-error_invalid_language = "Idioma inválido. Por favor ingresa 'en' o 'es'."
+prompt_language_blank_keeps = "> Elegí tu idioma preferido (en/es). Enter mantiene el actual: "
+error_invalid_language = "Idioma inválido. Por favor ingresá 'en' o 'es'."
 
 section_vcs = "3. Control de Versiones (VCS)"
-prompt_vcs_enable_blank_no = "¿Configurar VCS para funciones como resúmenes de PRs? (Soportado: {{.Providers}}) (s/n, Enter = no): "
-prompt_github_token_blank_skip = "> Introduce tu token de acceso de GitHub (Enter para omitir): "
+prompt_vcs_enable_blank_no = "¿Configuramos VCS para funciones como resúmenes de PRs? (Soportado: {{.Providers}}) (s/n, Enter = no): "
+prompt_github_token_blank_skip = "> Ingresá tu token de acceso de GitHub (Enter para omitir): "
 info_vcs_skipped = "Se omitió la configuración de VCS."
 
 section_tickets = "4. Gestor de Tickets"
@@ -350,6 +357,11 @@ generate_usage = "Generar release notes y guardarlas en un archivo"
 generating = "📝 Generando notas del release..."
 notes_saved = "✅ Release notes guardadas en: {{.File}}"
 version_label = "📦 Versión: {{.Version}}"
+flag_publish_usage = "Publicar release en el proveedor VCS (ej: GitHub)"
+flag_draft_usage = "Publicar como borrador (requiere --publish)"
+flag_changelog_usage = "Actualizar CHANGELOG.md y crear commit automáticamente"
+flag_build_binaries_usage = "Construir y subir binarios para este release"
+build_binaries_flag = "Construir y subir binarios"
 
 # Create
 create_usage = "Crear un nuevo release (tag + notes)"
@@ -377,6 +389,8 @@ changelog_committed = "✅ Changelog confirmado con éxito"
 pushing_changes = "Subiendo cambios al repositorio remoto..."
 error_pushing_changes = "Error al subir cambios: {{.Error}}"
 changes_pushed = "✅ Cambios subidos con éxito"
+committing_changelog = "💾 Guardando cambios en el changelog..."
+error_updating_changelog = "Error al actualizar el changelog: {{.Error}}"
 
 highlights_section = "### Highlights"
 # Generate Markdown
@@ -389,9 +403,6 @@ pushing_tag = "🚀 Subiendo tag {{.Version}}..."
 error_pushing_tag = "Error subiendo tag: {{.Error}}"
 push_success = "✅ Tag {{.Version}} subido exitosamente"
 
-flag_publish_usage = "Publicar release en el proveedor VCS (ej: GitHub)"
-flag_draft_usage = "Publicar como borrador (requiere --publish)"
-flag_changelog_usage = "Actualizar CHANGELOG.md y crear commit automáticamente"
 publishing_release = "🚀 Publicando release..."
 release_published = "✅ Release publicado exitosamente"
 error_publishing_release = "Error al publicar la release: {{.Error}}"
@@ -408,18 +419,18 @@ ai_editing = "🤖 Generando release notes mejoradas con IA..."
 error_creating_temp = "Error al crear archivo temporal: {{.Error}}"
 error_writing_temp = "Error al escribir archivo temporal: {{.Error}}"
 opening_editor = "✏️  Abriendo {{.Editor}}..."
-error_running_editor = "Error al ejecutar editor: {{.Error}}"
-error_reading_temp = "Error al leer archivo temporal: {{.Error}}"
+error_running_editor = "Error al ejecutar el editor: {{.Error}}"
+error_reading_temp = "Error al leer el archivo temporal: {{.Error}}"
 updating_release = "💾 Actualizando release {{.Version}}..."
 error_updating_release = "Error al actualizar release: {{.Error}}"
-edit_success = "✅ Release {{.Version}} actualizado exitosamente"
-empty_body_regenerating = "⚠️  Release sin contenido. Regenerando con IA..."
-regenerating_with_ai = "🤖 Regenerando release notes con IA..."
-error_calculating_previous = "Error al calcular versión anterior: {{.Error}}"
+edit_success = "✅ Release {{.Version}} actualizado con éxito"
+empty_body_regenerating = "⚠️  La release no tiene contenido. Regenerando con IA..."
+regenerating_with_ai = "🤖 Regenerando notas del release con IA..."
+error_calculating_previous = "Error al calcular la versión anterior: {{.Error}}"
 error_getting_commits = "Error al obtener commits: {{.Error}}"
-error_analyzing_for_regen = "No se pudo analizar commits: {{.Error}}"
+error_analyzing_for_regen = "No se pudieron analizar los commits: {{.Error}}"
 error_generating_for_regen = "No se pudo generar con IA: {{.Error}}"
-notes_regenerated = "✅ Release notes regeneradas con IA exitosamente"
+notes_regenerated = "✅ Notas del release regeneradas con IA con éxito"
 
 # New sections for enhanced release notes
 quick_start_title = "Inicio Rápido"
@@ -535,6 +546,9 @@ check_ai_key = "API key de {{.Provider}}"
 check_ai_key_generic = "API key del proveedor de IA"
 check_github_token = "Token de GitHub"
 check_editor = "Editor configurado"
+
+gemini_key_invalid = "API key de Gemini inválida o sin permisos"
+gemini_not_configured = "API key de Gemini no configurada"
 
 # Results
 config_not_found = "Archivo de configuración no encontrado"
@@ -753,6 +767,7 @@ budget_exceeded_estimated = "   Costo estimado:   ${{.Cost}}"
 budget_exceeded_total = "   Total sería:      ${{.Total}}"
 budget_exceeded_limit = "   Límite diario:    ${{.Limit}}"
 budget_exceeded_excess = "   Exceso:           ${{.Excess}}"
+
 
 # Smart Routing
 routing_suggestion = "💡 Sugerencia: {{.Rationale}}"

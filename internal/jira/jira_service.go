@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"regexp"
 	"strings"
 
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/models"
+	"github.com/thomas-vilte/matecommit/internal/regex"
 )
 
 // Constants for acceptance criteria patterns
@@ -246,7 +246,7 @@ func extractCriteriaFromCustomField(fields map[string]CustomField, fieldID strin
 			if strings.HasPrefix(criterion, "- ") || strings.HasPrefix(criterion, "* ") {
 				criterion = strings.TrimPrefix(criterion, "- ")
 				criterion = strings.TrimPrefix(criterion, "* ")
-			} else if matches := regexp.MustCompile(`^\d+\.\s*`).FindStringSubmatch(criterion); len(matches) > 0 {
+			} else if matches := regex.NumberedList.FindStringSubmatch(criterion); len(matches) > 0 {
 				criterion = strings.TrimPrefix(criterion, matches[0])
 			}
 			filteredCriteria = append(filteredCriteria, criterion)
@@ -355,15 +355,8 @@ func extractAndRemoveCriteria(text string) ([]string, string) {
 
 // removeCriteriaFromDescription removes acceptance criteria from the description.
 func removeCriteriaFromDescription(description string) string {
-	patterns := []string{
-		"Acceptance criteria:.*(\n.*)*",    // Removes everything following "Acceptance criteria:"
-		"Criterio de aceptacion:.*(\n.*)*", // Removes everything following "Criterio de aceptacion:"
-	}
-
-	for _, pattern := range patterns {
-		re := regexp.MustCompile(pattern)
-		description = re.ReplaceAllString(description, "")
-	}
+	description = regex.AcceptanceCriteriaEN.ReplaceAllString(description, "")
+	description = regex.AcceptanceCriteriaES.ReplaceAllString(description, "")
 
 	return strings.TrimSpace(description)
 }

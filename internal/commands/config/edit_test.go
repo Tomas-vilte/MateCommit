@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/thomas-vilte/matecommit/internal/config"
-	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thomas-vilte/matecommit/internal/config"
+	"github.com/thomas-vilte/matecommit/internal/i18n"
 )
 
 func setupEditTest(t *testing.T) (*config.Config, *i18n.Translations, func()) {
@@ -147,7 +147,7 @@ func TestEditCommand(t *testing.T) {
 
 		// Assert
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "ningun editor de texto definido")
+		assert.Contains(t, err.Error(), translations.GetMessage("config_save.error_no_editor", 0, nil))
 	})
 
 	t.Run("should return error if editor fails to run", func(t *testing.T) {
@@ -166,6 +166,6 @@ func TestEditCommand(t *testing.T) {
 
 		// Assert
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "error opening editor")
+		assert.Contains(t, err.Error(), translations.GetMessage("config_save.error_opening_editor", 0, struct{ Error error }{fmt.Errorf("error")})[:10])
 	})
 }

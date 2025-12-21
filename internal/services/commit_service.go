@@ -9,9 +9,10 @@ import (
 
 	"github.com/thomas-vilte/matecommit/internal/config"
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
+	"github.com/thomas-vilte/matecommit/internal/github"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ports"
-	"github.com/thomas-vilte/matecommit/internal/github"
+	"github.com/thomas-vilte/matecommit/internal/regex"
 )
 
 // commitGitService defines only the methods needed by CommitService.
@@ -137,9 +138,9 @@ func (s *CommitService) buildCommitInfo(ctx context.Context, issueNumber int, pr
 				if progress != nil {
 					progress(models.ProgressEvent{
 						Type: models.ProgressGeneric,
-						Data: map[string]interface{}{
-							"Error":   err.Error(),
-							"IssueID": detectedIssue,
+						Data: &models.ProgressData{
+							Error:  err.Error(),
+							Number: detectedIssue,
 						},
 					})
 				}
@@ -147,10 +148,10 @@ func (s *CommitService) buildCommitInfo(ctx context.Context, issueNumber int, pr
 				if progress != nil {
 					progress(models.ProgressEvent{
 						Type: models.ProgressIssuesDetected,
-						Data: map[string]interface{}{
-							"IssueID": detectedIssue,
-							"Title":   issueInfo.Title,
-							"IsAuto":  issueNumber == 0,
+						Data: &models.ProgressData{
+							Number: detectedIssue,
+							Title:  issueInfo.Title,
+							IsAuto: issueNumber == 0,
 						},
 					})
 				}
@@ -229,16 +230,13 @@ func (s *CommitService) detectIssueFromBranch(ctx context.Context) int {
 		return 0
 	}
 
-	patterns := []string{
-		`#(\d+)`,         // #123
-		`issue[/-](\d+)`, // issue-123, issue/123
-		`^(\d+)-`,        // 123-feature
-		`/(\d+)-`,        // feature/123-desc
-		`-(\d+)-`,        // bugfix-123-description
-	}
-
-	for _, pattern := range patterns {
-		re := regexp.MustCompile(pattern)
+	for _, re := range []*regexp.Regexp{
+		regex.BranchIssueSharp,
+		regex.BranchIssueName,
+		regex.BranchIssueStart,
+		regex.BranchIssueFolder,
+		regex.BranchIssueMid,
+	} {
 		if match := re.FindStringSubmatch(branchName); len(match) > 1 {
 			if num, err := strconv.Atoi(match[1]); err == nil {
 				return num
@@ -258,20 +256,10 @@ func (s *CommitService) detectIssueFromCommits(ctx context.Context) int {
 	}
 
 	// https://docs.github.com/en/issues/tracking-your-work-with-issues/linking-a-pull-request-to-an-issue
-	keywords := []string{
-		"fix", "fixes", "fixed",
-		"close", "closes", "closed",
-		"resolve", "resolves", "resolved",
-	}
-
-	for _, keyword := range keywords {
-		pattern := fmt.Sprintf(`(?i)\b%s\s+#(\d+)\b`, keyword)
-		re := regexp.MustCompile(pattern)
-		for _, msg := range commitMessages {
-			if match := re.FindStringSubmatch(msg); len(match) > 1 {
-				if num, err := strconv.Atoi(match[1]); err == nil {
-					return num
-				}
+	for _, msg := range commitMessages {
+		if match := regex.GitHubClosedLink.FindStringSubmatch(msg); len(match) > 1 {
+			if num, err := strconv.Atoi(match[1]); err == nil {
+				return num
 			}
 		}
 	}
@@ -285,8 +273,7 @@ func (s *CommitService) getTicketIDFromBranch(ctx context.Context) (string, erro
 		return "", domainErrors.NewAppError(domainErrors.TypeGit, "error getting branch name", err)
 	}
 
-	re := regexp.MustCompile(`([A-Za-z]+-\d+)`)
-	match := re.FindString(branchName)
+	match := regex.JiraTicket.FindString(branchName)
 	if match == "" {
 		return "", domainErrors.NewAppError(domainErrors.TypeGit, "ticket ID not found in branch", nil)
 	}

@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/thomas-vilte/matecommit/internal/services/cost"
-	"github.com/fatih/color"
 	"github.com/urfave/cli/v3"
 )
 
@@ -107,9 +107,7 @@ func (c *StatsCommand) showMonthlyStats(manager *cost.Manager, t *i18n.Translati
 	}
 	cyan := color.New(color.FgCyan, color.Bold)
 	yellow := color.New(color.FgYellow)
-	_, _ = cyan.Printf("\n📅 %s\n", t.GetMessage("stats.monthly_title", 0, map[string]interface{}{
-		"Month": time.Now().Format("January 2006"),
-	}))
+	_, _ = cyan.Printf("\n📅 %s\n", t.GetMessage("stats.monthly_title", 0, struct{ Month string }{time.Now().Format("January 2006")}))
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	if len(monthRecords) == 0 {
 		fmt.Printf("\n%s\n\n", t.GetMessage("stats.no_activity", 0, nil))

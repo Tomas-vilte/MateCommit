@@ -21,17 +21,11 @@ func runQuickSetup(ctx context.Context, reader *bufio.Reader, cfg *config.Config
 	providerKey := config.AIGemini
 	apiURL := "https://makersuite.google.com/app/apikey"
 
-	fmt.Println(t.GetMessage("quick_setup.ai_provider_intro", 0, map[string]interface{}{
-		"Provider": provider,
-	}))
-	fmt.Println(t.GetMessage("quick_setup.get_api_key_at", 0, map[string]interface{}{
-		"URL": apiURL,
-	}))
+	fmt.Println(t.GetMessage("quick_setup.ai_provider_intro", 0, struct{ Provider string }{provider}))
+	fmt.Println(t.GetMessage("quick_setup.get_api_key_at", 0, struct{ URL string }{apiURL}))
 	fmt.Println()
 
-	fmt.Print(t.GetMessage("quick_setup.prompt_api_key", 0, map[string]interface{}{
-		"Provider": provider,
-	}))
+	fmt.Print(t.GetMessage("quick_setup.prompt_api_key", 0, struct{ Provider string }{provider}))
 	apiKey, err := reader.ReadString('\n')
 	if err != nil {
 		return fmt.Errorf("error reading API_KEY: %w", err)

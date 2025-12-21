@@ -3,13 +3,13 @@ package services
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/thomas-vilte/matecommit/internal/config"
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ports"
+	"github.com/thomas-vilte/matecommit/internal/regex"
 )
 
 // issueGitService defines only the methods needed by IssueGeneratorService.
@@ -379,17 +379,13 @@ func (s *IssueGeneratorService) analyzeDiff(diff string, changedFiles []string) 
 		}
 	}
 
-	fixPattern := regexp.MustCompile(`(?i)(fix|bug|resolve|close)`)
-	featPattern := regexp.MustCompile(`(?i)(feat|feature|add|implement)`)
-	refactorPattern := regexp.MustCompile(`(?i)(refactor|restructure|reorganize)`)
-
-	if fixPattern.MatchString(diff) {
+	if regex.FixKeywords.MatchString(diff) {
 		analysis.Keywords["fix"] = true
 	}
-	if featPattern.MatchString(diff) {
+	if regex.FeatKeywords.MatchString(diff) {
 		analysis.Keywords["feat"] = true
 	}
-	if refactorPattern.MatchString(diff) {
+	if regex.RefactorKeywords.MatchString(diff) {
 		analysis.Keywords["refactor"] = true
 	}
 

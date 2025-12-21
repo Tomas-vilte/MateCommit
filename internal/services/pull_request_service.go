@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/thomas-vilte/matecommit/internal/ai"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/thomas-vilte/matecommit/internal/ai"
 )
 
 // prVCSClient defines the methods needed by PRService from a VCS provider.
@@ -84,9 +84,9 @@ func (s *PRService) SummarizePR(ctx context.Context, prNumber int, progress func
 		if progress != nil {
 			progress(models.ProgressEvent{
 				Type: models.ProgressIssuesDetected,
-				Data: map[string]interface{}{
-					"PRNumber": prNumber,
-					"Issues":   issueNums,
+				Data: &models.ProgressData{
+					PRNumber: prNumber,
+					Issues:   issueNums,
 				},
 			})
 		}
@@ -104,8 +104,8 @@ func (s *PRService) SummarizePR(ctx context.Context, prNumber int, progress func
 		if progress != nil {
 			progress(models.ProgressEvent{
 				Type: models.ProgressIssuesClosing,
-				Data: map[string]interface{}{
-					"Count": len(prData.RelatedIssues),
+				Data: &models.ProgressData{
+					Count: len(prData.RelatedIssues),
 				},
 			})
 		}
@@ -116,8 +116,8 @@ func (s *PRService) SummarizePR(ctx context.Context, prNumber int, progress func
 		if progress != nil {
 			progress(models.ProgressEvent{
 				Type: models.ProgressBreakingChanges,
-				Data: map[string]interface{}{
-					"Count": len(breakingChanges),
+				Data: &models.ProgressData{
+					Count: len(breakingChanges),
 				},
 			})
 		}

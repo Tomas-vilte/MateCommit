@@ -2,13 +2,13 @@ package dependency
 
 import (
 	"context"
-	"regexp"
 	"strconv"
 	"strings"
 
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ports"
+	"github.com/thomas-vilte/matecommit/internal/regex"
 )
 
 var _ ports.DependencyAnalyzer = (*GoModAnalyzer)(nil)
@@ -60,11 +60,6 @@ type goDep struct {
 func (g *GoModAnalyzer) parseGoMod(content string) map[string]goDep {
 	deps := make(map[string]goDep)
 
-	// Regex for lines inside require()
-	requireRegex := regexp.MustCompile(`^\s+(\S+)\s+v?(\S+)(\s+//\s*indirect)?`)
-	// Regex for individual require lines
-	singleRequireRegex := regexp.MustCompile(`^require\s+(\S+)\s+v?(\S+)(\s+//\s*indirect)?`)
-
 	inRequire := false
 	lines := strings.Split(content, "\n")
 
@@ -82,7 +77,7 @@ func (g *GoModAnalyzer) parseGoMod(content string) map[string]goDep {
 		}
 
 		if inRequire {
-			matches := requireRegex.FindStringSubmatch(line)
+			matches := regex.GoModRequireBlock.FindStringSubmatch(line)
 			if len(matches) >= 3 {
 				module := matches[1]
 				version := matches[2]
@@ -94,7 +89,7 @@ func (g *GoModAnalyzer) parseGoMod(content string) map[string]goDep {
 				}
 			}
 		} else if strings.HasPrefix(trimmedLine, "require ") {
-			matches := singleRequireRegex.FindStringSubmatch(trimmedLine)
+			matches := regex.GoModRequireSingle.FindStringSubmatch(trimmedLine)
 			if len(matches) >= 3 {
 				module := matches[1]
 				version := matches[2]
