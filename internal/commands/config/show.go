@@ -17,9 +17,9 @@ func (c *ConfigCommandFactory) newShowCommand(t *i18n.Translations, cfg *config.
 			fmt.Println(t.GetMessage("current_config", 0, nil))
 			fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━\n")
 
-			fmt.Printf("%s\n", t.GetMessage("language_label", 0, map[string]interface{}{"Lang": cfg.Language}))
+			fmt.Printf("%s\n", t.GetMessage("language_label", 0, struct{ Lang string }{cfg.Language}))
 
-			fmt.Printf("%s\n", t.GetMessage("emojis_label", 0, map[string]interface{}{"Emoji": cfg.UseEmoji}))
+			fmt.Printf("%s\n", t.GetMessage("emojis_label", 0, struct{ Emoji bool }{cfg.UseEmoji}))
 
 			hasGemini := false
 			if providerCfg, exists := cfg.AIProviders["gemini"]; exists && providerCfg.APIKey != "" {
@@ -35,19 +35,22 @@ func (c *ConfigCommandFactory) newShowCommand(t *i18n.Translations, cfg *config.
 			}
 
 			if cfg.UseTicket {
-				fmt.Printf("%s\n", t.GetMessage("config_models.ticket_service_enabled", 0, map[string]interface{}{"Service": cfg.ActiveTicketService}))
+				fmt.Printf("%s\n", t.GetMessage("config_models.ticket_service_enabled", 0, struct{ Service string }{cfg.ActiveTicketService}))
 				if cfg.ActiveTicketService == "jira" {
 					jiraCfg := cfg.TicketProviders["jira"]
-					fmt.Printf("%s\n", t.GetMessage("config_models.jira_config_label", 0, map[string]interface{}{
-						"BaseURL": jiraCfg.BaseURL,
-						"Email":   jiraCfg.Email,
+					fmt.Printf("%s\n", t.GetMessage("config_models.jira_config_label", 0, struct {
+						BaseURL string
+						Email   string
+					}{
+						BaseURL: jiraCfg.BaseURL,
+						Email:   jiraCfg.Email,
 					}))
 				}
 			} else {
 				fmt.Println(t.GetMessage("config_models.ticket_service_disabled", 0, nil))
 			}
 
-			fmt.Printf("%s\n", t.GetMessage("config_models.active_ai_label", 0, map[string]interface{}{"IA": cfg.AIConfig.ActiveAI}))
+			fmt.Printf("%s\n", t.GetMessage("config_models.active_ai_label", 0, struct{ IA config.AI }{cfg.AIConfig.ActiveAI}))
 
 			if len(cfg.AIConfig.Models) > 0 {
 				fmt.Println(t.GetMessage("config_models.ai_models_label", 0, nil))

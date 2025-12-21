@@ -33,56 +33,35 @@ func previewReleaseAction(releaseSvc releaseService, trans *i18n.Translations) c
 
 		release, err := releaseSvc.AnalyzeNextRelease(ctx)
 		if err != nil {
-			return fmt.Errorf("%s", trans.GetMessage("release.error_analyzing", 0, map[string]interface{}{
-				"Error": err.Error(),
-			}))
+			return fmt.Errorf("%s", trans.GetMessage("release.error_analyzing", 0, struct{ Error string }{err.Error()}))
 		}
 
-		fmt.Println(trans.GetMessage("release.previous_version", 0, map[string]interface{}{
-			"Version": release.PreviousVersion,
-		}))
-		fmt.Println(trans.GetMessage("release.next_version", 0, map[string]interface{}{
-			"Version": release.Version,
-			"Bump":    release.VersionBump,
-		}))
+		fmt.Println(trans.GetMessage("release.previous_version", 0, struct{ Version string }{release.PreviousVersion}))
+		fmt.Println(trans.GetMessage("release.next_version", 0, struct {
+			Version string
+			Bump    string
+		}{release.Version, string(release.VersionBump)}))
 		fmt.Println()
 
 		fmt.Println(trans.GetMessage("release.changes_summary", 0, nil))
 		if len(release.Breaking) > 0 {
-			fmt.Println(trans.GetMessage("release.breaking_changes", 0, map[string]interface{}{
-				"Count": len(release.Breaking),
-			}))
+			fmt.Println(trans.GetMessage("release.breaking_changes", 0, struct{ Count int }{len(release.Breaking)}))
 		}
-		fmt.Println(trans.GetMessage("release.new_features", 0, map[string]interface{}{
-			"Count": len(release.Features),
-		}))
-		fmt.Println(trans.GetMessage("release.bug_fixes", 0, map[string]interface{}{
-			"Count": len(release.BugFixes),
-		}))
-		fmt.Println(trans.GetMessage("release.improvements", 0, map[string]interface{}{
-			"Count": len(release.Improvements),
-		}))
-		fmt.Println(trans.GetMessage("release.documentation", 0, map[string]interface{}{
-			"Count": len(release.Documentation),
-		}))
-		fmt.Println(trans.GetMessage("release.total_commits", 0, map[string]interface{}{
-			"Count": len(release.AllCommits),
-		}))
+		fmt.Println(trans.GetMessage("release.new_features", 0, struct{ Count int }{len(release.Features)}))
+		fmt.Println(trans.GetMessage("release.bug_fixes", 0, struct{ Count int }{len(release.BugFixes)}))
+		fmt.Println(trans.GetMessage("release.improvements", 0, struct{ Count int }{len(release.Improvements)}))
+		fmt.Println(trans.GetMessage("release.documentation", 0, struct{ Count int }{len(release.Documentation)}))
+		fmt.Println(trans.GetMessage("release.total_commits", 0, struct{ Count int }{len(release.AllCommits)}))
 		fmt.Println()
 
 		if err := releaseSvc.EnrichReleaseContext(ctx, release); err != nil {
-			fmt.Printf("⚠️  %s\n", trans.GetMessage("release.warning_enrich_context", 0, map[string]interface{}{
-				"Error": err.Error(),
-			}))
+			fmt.Printf("⚠️  %s\n", trans.GetMessage("release.warning_enrich_context", 0, struct{ Error string }{err.Error()}))
 		}
 
 		notes, err := releaseSvc.GenerateReleaseNotes(ctx, release)
 		if err != nil {
 			ui.HandleAppError(err, trans)
-			return fmt.Errorf("%s", trans.GetMessage("release.error_generating_notes", 0,
-				map[string]interface{}{
-					"Error": err.Error(),
-				}))
+			return fmt.Errorf("%s", trans.GetMessage("release.error_generating_notes", 0, struct{ Error string }{err.Error()}))
 		}
 
 		fmt.Println(trans.GetMessage("release.separator", 0, nil))

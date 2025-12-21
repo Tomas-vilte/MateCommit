@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
-	"regexp"
 	"strings"
 
 	"github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/models"
+	"github.com/thomas-vilte/matecommit/internal/regex"
 )
 
 type GitService struct{}
@@ -281,14 +281,11 @@ func (s *GitService) GetTagDate(ctx context.Context, tag string) (string, error)
 }
 
 func parseRepoURL(url string) (string, string, string, error) {
-	sshRegex := regexp.MustCompile(`git@([^:]+):([^/]+)/(.+)\.git$`)
-	httpsRegex := regexp.MustCompile(`https://([^/]+)/([^/]+)/(.+?)(?:\.git)?$`)
-
 	var matches []string
-	if sshRegex.MatchString(url) {
-		matches = sshRegex.FindStringSubmatch(url)
-	} else if httpsRegex.MatchString(url) {
-		matches = httpsRegex.FindStringSubmatch(url)
+	if regex.SSHRepo.MatchString(url) {
+		matches = regex.SSHRepo.FindStringSubmatch(url)
+	} else if regex.HTTPSRepo.MatchString(url) {
+		matches = regex.HTTPSRepo.FindStringSubmatch(url)
 	}
 
 	if len(matches) >= 4 {

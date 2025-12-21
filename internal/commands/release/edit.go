@@ -7,8 +7,8 @@ import (
 	"os/exec"
 
 	"github.com/thomas-vilte/matecommit/internal/commands/completion_helper"
-	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
+	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ui"
 	"github.com/urfave/cli/v3"
 )
@@ -55,16 +55,12 @@ func editReleaseAction(releaseSvc releaseService, gitSvc gitService, trans *i18n
 		editor := cmd.String("editor")
 		useAI := cmd.Bool("ai")
 
-		fmt.Println(trans.GetMessage("release.fetching_release", 0, map[string]interface{}{
-			"Version": version,
-		}))
+		fmt.Println(trans.GetMessage("release.fetching_release", 0, struct{ Version string }{version}))
 
 		existingRelease, err := releaseSvc.GetRelease(ctx, version)
 		if err != nil {
 			ui.HandleAppError(err, trans)
-			return fmt.Errorf("%s", trans.GetMessage("release.error_fetching_release", 0, map[string]interface{}{
-				"Error": err.Error(),
-			}))
+			return fmt.Errorf("%s", trans.GetMessage("release.error_fetching_release", 0, struct{ Error string }{err.Error()}))
 		}
 
 		content := existingRelease.Body
@@ -78,18 +74,14 @@ func editReleaseAction(releaseSvc releaseService, gitSvc gitService, trans *i18n
 
 			previousVersion, err := getPreviousVersion(version)
 			if err != nil {
-				fmt.Printf("⚠️  %s\n", trans.GetMessage("release.error_calculating_previous", 0, map[string]interface{}{
-					"Error": err.Error(),
-				}))
+				fmt.Printf("⚠️  %s\n", trans.GetMessage("release.error_calculating_previous", 0, struct{ Error string }{err.Error()}))
 				if content == "" {
 					content = generateReleaseTemplate(existingRelease.Name, trans)
 				}
 			} else {
 				commits, err := gitSvc.GetCommitsSinceTag(ctx, previousVersion)
 				if err != nil {
-					fmt.Printf("⚠️  %s\n", trans.GetMessage("release.error_getting_commits", 0, map[string]interface{}{
-						"Error": err.Error(),
-					}))
+					fmt.Printf("⚠️  %s\n", trans.GetMessage("release.error_getting_commits", 0, struct{ Error string }{err.Error()}))
 					if content == "" {
 						content = generateReleaseTemplate(existingRelease.Name, trans)
 					}
@@ -101,16 +93,12 @@ func editReleaseAction(releaseSvc releaseService, gitSvc gitService, trans *i18n
 					}
 
 					if err := releaseSvc.EnrichReleaseContext(ctx, release); err != nil {
-						fmt.Printf("⚠️  %s\n", trans.GetMessage("release.warning_enrich_context", 0, map[string]interface{}{
-							"Error": err.Error(),
-						}))
+						fmt.Printf("⚠️  %s\n", trans.GetMessage("release.warning_enrich_context", 0, struct{ Error string }{err.Error()}))
 					}
 
 					notes, err := releaseSvc.GenerateReleaseNotes(ctx, release)
 					if err != nil {
-						fmt.Printf("⚠️  %s\n", trans.GetMessage("release.error_generating_for_regen", 0, map[string]interface{}{
-							"Error": err.Error(),
-						}))
+						fmt.Printf("⚠️  %s\n", trans.GetMessage("release.error_generating_for_regen", 0, struct{ Error string }{err.Error()}))
 						if content == "" {
 							content = generateReleaseTemplate(existingRelease.Name, trans)
 						}
@@ -123,9 +111,7 @@ func editReleaseAction(releaseSvc releaseService, gitSvc gitService, trans *i18n
 		}
 		tmpFile, err := os.CreateTemp("", fmt.Sprintf("release-%s-*.md", version))
 		if err != nil {
-			return fmt.Errorf("%s", trans.GetMessage("release.error_creating_temp", 0, map[string]interface{}{
-				"Error": err.Error(),
-			}))
+			return fmt.Errorf("%s", trans.GetMessage("release.error_creating_temp", 0, struct{ Error string }{err.Error()}))
 		}
 		defer func() {
 			if err := os.Remove(tmpFile.Name()); err != nil {
@@ -134,41 +120,27 @@ func editReleaseAction(releaseSvc releaseService, gitSvc gitService, trans *i18n
 		}()
 		_, err = tmpFile.WriteString(content)
 		if err != nil {
-			return fmt.Errorf("%s", trans.GetMessage("release.error_writing_temp", 0, map[string]interface{}{
-				"Error": err.Error(),
-			}))
+			return fmt.Errorf("%s", trans.GetMessage("release.error_writing_temp", 0, struct{ Error string }{err.Error()}))
 		}
 		_ = tmpFile.Close()
-		fmt.Println(trans.GetMessage("release.opening_editor", 0, map[string]interface{}{
-			"Editor": editor,
-		}))
+		fmt.Println(trans.GetMessage("release.opening_editor", 0, struct{ Editor string }{editor}))
 		editorCmd := exec.CommandContext(ctx, editor, tmpFile.Name())
 		editorCmd.Stdin = os.Stdin
 		editorCmd.Stdout = os.Stdout
 		editorCmd.Stderr = os.Stderr
 		if err := editorCmd.Run(); err != nil {
-			return fmt.Errorf("%s", trans.GetMessage("release.error_running_editor", 0, map[string]interface{}{
-				"Error": err.Error(),
-			}))
+			return fmt.Errorf("%s", trans.GetMessage("release.error_running_editor", 0, struct{ Error string }{err.Error()}))
 		}
 		editedContent, err := os.ReadFile(tmpFile.Name())
 		if err != nil {
-			return fmt.Errorf("%s", trans.GetMessage("release.error_reading_temp", 0, map[string]interface{}{
-				"Error": err.Error(),
-			}))
+			return fmt.Errorf("%s", trans.GetMessage("release.error_reading_temp", 0, struct{ Error string }{err.Error()}))
 		}
-		fmt.Println(trans.GetMessage("release.updating_release", 0, map[string]interface{}{
-			"Version": version,
-		}))
+		fmt.Println(trans.GetMessage("release.updating_release", 0, struct{ Version string }{version}))
 		err = releaseSvc.UpdateRelease(ctx, version, string(editedContent))
 		if err != nil {
-			return fmt.Errorf("%s", trans.GetMessage("release.error_updating_release", 0, map[string]interface{}{
-				"Error": err.Error(),
-			}))
+			return fmt.Errorf("%s", trans.GetMessage("release.error_updating_release", 0, struct{ Error string }{err.Error()}))
 		}
-		fmt.Println(trans.GetMessage("release.edit_success", 0, map[string]interface{}{
-			"Version": version,
-		}))
+		fmt.Println(trans.GetMessage("release.edit_success", 0, struct{ Version string }{version}))
 		return nil
 	}
 }

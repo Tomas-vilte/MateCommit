@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
+	"github.com/thomas-vilte/matecommit/internal/models"
 )
 
-// FormatReleaseMarkdown generates the full release markdown with all sections
+// FormatReleaseMarkdown generates the full release Markdown with all sections
 func FormatReleaseMarkdown(release *models.Release, notes *models.ReleaseNotes, trans *i18n.Translations) string {
 	content := fmt.Sprintf("# %s\n\n", notes.Title)
 	var md strings.Builder
@@ -106,9 +106,7 @@ func FormatReleaseMarkdown(release *models.Release, notes *models.ReleaseNotes, 
 		md.WriteString("\n\n")
 
 		if len(release.NewContributors) > 0 {
-			md.WriteString(trans.GetMessage("release.new_contributors", 0, map[string]interface{}{
-				"Count": len(release.NewContributors),
-			}))
+			md.WriteString(trans.GetMessage("release.new_contributors", 0, struct{ Count int }{len(release.NewContributors)}))
 			md.WriteString(" ")
 			for i, contributor := range release.NewContributors {
 				md.WriteString(fmt.Sprintf("@%s", contributor))

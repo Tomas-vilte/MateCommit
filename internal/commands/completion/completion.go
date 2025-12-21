@@ -81,7 +81,7 @@ func NewCompletionCommand(t *i18n.Translations) *cli.Command {
 					shell := os.Getenv("SHELL")
 					home, err := os.UserHomeDir()
 					if err != nil {
-						return fmt.Errorf("%s", t.GetMessage("completion.error_home_dir", 0, map[string]interface{}{"Error": err.Error()}))
+						return fmt.Errorf("%s", t.GetMessage("completion.error_home_dir", 0, struct{ Error string }{err.Error()}))
 					}
 
 					var configFile string
@@ -94,14 +94,14 @@ func NewCompletionCommand(t *i18n.Translations) *cli.Command {
 						configFile = filepath.Join(home, ".bashrc")
 						shellName = "bash"
 					} else {
-						return fmt.Errorf("%s", t.GetMessage("completion.error_unsupported_shell", 0, map[string]interface{}{"Shell": shell}))
+						return fmt.Errorf("%s", t.GetMessage("completion.error_unsupported_shell", 0, struct{ Shell string }{shell}))
 					}
 
 					content := fmt.Sprintf(installInfo, shellName)
 
 					fileContent, err := os.ReadFile(configFile)
 					if err == nil && strings.Contains(string(fileContent), "# MateCommit Shell Completion") {
-						fmt.Println(t.GetMessage("completion.already_installed", 0, map[string]interface{}{"File": configFile}))
+						fmt.Println(t.GetMessage("completion.already_installed", 0, struct{ File string }{configFile}))
 						fmt.Println(t.GetMessage("completion.restart_shell", 0, nil))
 						fmt.Printf("  source %s\n", configFile)
 						return nil
@@ -109,7 +109,7 @@ func NewCompletionCommand(t *i18n.Translations) *cli.Command {
 
 					f, err := os.OpenFile(configFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
 					if err != nil {
-						return fmt.Errorf("%s", t.GetMessage("completion.error_open_config", 0, map[string]interface{}{"Error": err.Error()}))
+						return fmt.Errorf("%s", t.GetMessage("completion.error_open_config", 0, struct{ Error string }{err.Error()}))
 					}
 					defer func() {
 						if err := f.Close(); err != nil {
@@ -118,10 +118,10 @@ func NewCompletionCommand(t *i18n.Translations) *cli.Command {
 					}()
 
 					if _, err := f.WriteString(content); err != nil {
-						return fmt.Errorf("%s", t.GetMessage("completion.error_write_config", 0, map[string]interface{}{"Error": err.Error()}))
+						return fmt.Errorf("%s", t.GetMessage("completion.error_write_config", 0, struct{ Error string }{err.Error()}))
 					}
 
-					fmt.Println(t.GetMessage("completion.installed_success", 0, map[string]interface{}{"File": configFile}))
+					fmt.Println(t.GetMessage("completion.installed_success", 0, struct{ File string }{configFile}))
 					fmt.Println(t.GetMessage("completion.restart_shell", 0, nil))
 					fmt.Printf("  source %s\n", configFile)
 

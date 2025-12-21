@@ -2,10 +2,10 @@ package gemini
 
 import (
 	"encoding/json"
-	"regexp"
 	"strings"
 
 	"github.com/thomas-vilte/matecommit/internal/models"
+	"github.com/thomas-vilte/matecommit/internal/regex"
 	"google.golang.org/genai"
 )
 
@@ -48,8 +48,7 @@ func GetGenerateConfig(modelName string, responseType string) *genai.GenerateCon
 func ExtractJSON(text string) string {
 	text = strings.TrimSpace(text)
 
-	re := regexp.MustCompile("(?s)```(?:json)?\n?(.*?)```")
-	matches := re.FindAllStringSubmatch(text, -1)
+	matches := regex.MarkdownJSONBlock.FindAllStringSubmatch(text, -1)
 	var bestMarkdown string
 	for _, m := range matches {
 		if len(m) > 1 {
@@ -138,12 +137,10 @@ func ExtractJSON(text string) string {
 	return SanitizeJSON(text)
 }
 
-var jsonStringRegex = regexp.MustCompile(`"(?:\\.|[^"\\])*"`)
-
 // SanitizeJSON cleans malformed JSON that LLMs sometimes generate,
 // such as unescaped newlines within String Literals.
 func SanitizeJSON(s string) string {
-	return jsonStringRegex.ReplaceAllStringFunc(s, func(m string) string {
+	return regex.JSONString.ReplaceAllStringFunc(s, func(m string) string {
 		return strings.ReplaceAll(m, "\n", "\\n")
 	})
 }

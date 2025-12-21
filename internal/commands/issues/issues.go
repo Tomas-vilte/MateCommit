@@ -10,8 +10,8 @@ import (
 
 	"github.com/thomas-vilte/matecommit/internal/commands/completion_helper"
 	"github.com/thomas-vilte/matecommit/internal/config"
-	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
+	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ui"
 	"github.com/urfave/cli/v3"
 )
@@ -170,9 +170,7 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 
 		var spinnerMsg string
 		if fromPR > 0 {
-			spinnerMsg = t.GetMessage("issue.analyzing_pr", 0, map[string]interface{}{
-				"Number": fromPR,
-			})
+			spinnerMsg = t.GetMessage("issue.analyzing_pr", 0, struct{ Number int }{fromPR})
 		} else {
 			spinnerMsg = t.GetMessage("issue.analyzing", 0, nil)
 		}
@@ -224,9 +222,7 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 				ui.PrintWarning(fmt.Sprintf("%s: %v", t.GetMessage("issue.warn_assignee_failed", 0, nil), err))
 			} else {
 				assignees = []string{username}
-				ui.PrintInfo(t.GetMessage("issue.will_assign", 0, map[string]interface{}{
-					"User": username,
-				}))
+				ui.PrintInfo(t.GetMessage("issue.will_assign", 0, struct{ User string }{username}))
 			}
 		}
 
@@ -241,38 +237,34 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 			return err
 		}
 
-		ui.PrintSuccess(os.Stdout, t.GetMessage("issue.created_successfully", 0, map[string]interface{}{
-			"Number": issue.Number,
-			"URL":    issue.URL,
-		}))
+		ui.PrintSuccess(os.Stdout, t.GetMessage("issue.created_successfully", 0, struct {
+			Number int
+			URL    string
+		}{issue.Number, issue.URL}))
 
 		if fromPR > 0 {
 			if err := issueService.LinkIssueToPR(ctx, fromPR, issue.Number); err != nil {
-				ui.PrintWarning(t.GetMessage("issue.link_error", 0, map[string]interface{}{
-					"PR":    fromPR,
-					"Error": err,
-				}))
+				ui.PrintWarning(t.GetMessage("issue.link_error", 0, struct {
+					PR    int
+					Error error
+				}{fromPR, err}))
 			} else {
-				ui.PrintInfo(t.GetMessage("issue.link_success", 0, map[string]interface{}{
-					"PR":    fromPR,
-					"Issue": issue.Number,
-				}))
+				ui.PrintInfo(t.GetMessage("issue.link_success", 0, struct {
+					PR    int
+					Issue int
+				}{fromPR, issue.Number}))
 			}
 		}
 
 		if checkoutBranch {
 			branchName := issueService.InferBranchName(issue.Number, result.Labels)
 
-			ui.PrintInfo(t.GetMessage("issue.creating_branch", 0, map[string]interface{}{
-				"Branch": branchName,
-			}))
+			ui.PrintInfo(t.GetMessage("issue.creating_branch", 0, struct{ Branch string }{branchName}))
 
 			if err := f.checkoutBranch(branchName); err != nil {
 				ui.PrintWarning(fmt.Sprintf("%s: %v", t.GetMessage("issue.warn_checkout_failed", 0, nil), err))
 			} else {
-				ui.PrintSuccess(os.Stdout, t.GetMessage("issue.branch_created", 0, map[string]interface{}{
-					"Branch": branchName,
-				}))
+				ui.PrintSuccess(os.Stdout, t.GetMessage("issue.branch_created", 0, struct{ Branch string }{branchName}))
 			}
 		}
 
@@ -385,10 +377,10 @@ func (f *IssuesCommandFactory) createLinkAction(t *i18n.Translations, _ *config.
 			return err
 		}
 
-		spinner := ui.NewSmartSpinner(t.GetMessage("issue.linking", 0, map[string]interface{}{
-			"PR":    prNumber,
-			"Issue": issueNumber,
-		}))
+		spinner := ui.NewSmartSpinner(t.GetMessage("issue.linking", 0, struct {
+			PR    int
+			Issue int
+		}{prNumber, issueNumber}))
 		spinner.Start()
 
 		err = issueService.LinkIssueToPR(ctx, prNumber, issueNumber)
@@ -399,10 +391,10 @@ func (f *IssuesCommandFactory) createLinkAction(t *i18n.Translations, _ *config.
 			return err
 		}
 
-		ui.PrintSuccess(os.Stdout, t.GetMessage("issue.link_success", 0, map[string]interface{}{
-			"PR":    prNumber,
-			"Issue": issueNumber,
-		}))
+		ui.PrintSuccess(os.Stdout, t.GetMessage("issue.link_success", 0, struct {
+			PR    int
+			Issue int
+		}{prNumber, issueNumber}))
 
 		return nil
 	}

@@ -4,17 +4,26 @@ type ProgressEventType string
 
 const (
 	ProgressIssuesDetected  ProgressEventType = "issues_detected"
-	ProgressStatsCalculated ProgressEventType = "stats_calculated"
 	ProgressIssuesClosing   ProgressEventType = "issues_closing"
 	ProgressBreakingChanges ProgressEventType = "breaking_changes"
 	ProgressTestPlan        ProgressEventType = "test_plan_generated"
 	ProgressGeneric         ProgressEventType = "generic_info"
 )
 
+type ProgressData struct {
+	Issues   []string
+	PRNumber int
+	Count    int
+	Title    string
+	Number   int
+	IsAuto   bool
+	Error    string
+}
+
 type ProgressEvent struct {
 	Type    ProgressEventType
 	Message string
-	Data    map[string]interface{}
+	Data    *ProgressData
 }
 
 type (

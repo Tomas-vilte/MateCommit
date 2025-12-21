@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thomas-vilte/matecommit/internal/ai/gemini"
 	"github.com/thomas-vilte/matecommit/internal/commands/completion_helper"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
-	"github.com/thomas-vilte/matecommit/internal/ai/gemini"
 	"github.com/thomas-vilte/matecommit/internal/ui"
 	"github.com/urfave/cli/v3"
 )
@@ -79,7 +79,7 @@ func runFullSetup(ctx context.Context, command *cli.Command, reader *bufio.Reade
 		return err
 	}
 	if err := config.SaveConfig(cfg); err != nil {
-		fmt.Println(t.GetMessage("config_save.error_saving_config", 0, map[string]interface{}{"Error": err.Error()}))
+		fmt.Println(t.GetMessage("config_save.error_saving_config", 0, struct{ Error string }{err.Error()}))
 		return fmt.Errorf("error saving configuration: %w", err)
 	}
 
@@ -109,19 +109,13 @@ func configureWelcome(ctx context.Context, reader *bufio.Reader, cfg *config.Con
 
 	printSection(t.GetMessage("init.section_welcome", 0, nil))
 	fmt.Println(t.GetMessage("init.welcome", 0, nil))
-	fmt.Println(t.GetMessage("init.ai_intro", 0, map[string]interface{}{"Providers": aiProvidersStr}))
+	fmt.Println(t.GetMessage("init.ai_intro", 0, struct{ Providers string }{aiProvidersStr}))
 
-	ui.PrintInfo(t.GetMessage("config.api_key_instructions", 0, map[string]interface{}{
-		"Provider": "Gemini",
-	}))
-	ui.PrintInfo(t.GetMessage("config.get_key_at", 0, map[string]interface{}{
-		"URL": "https://makersuite.google.com/app/apikey",
-	}))
+	ui.PrintInfo(t.GetMessage("config.api_key_instructions", 0, struct{ Provider string }{"Gemini"}))
+	ui.PrintInfo(t.GetMessage("config.get_key_at", 0, struct{ URL string }{"https://makersuite.google.com/app/apikey"}))
 	fmt.Println()
 
-	fmt.Print(t.GetMessage("init.prompt_ai_api_key", 0, map[string]interface{}{
-		"Provider": "Gemini",
-	}))
+	fmt.Print(t.GetMessage("init.prompt_ai_api_key", 0, struct{ Provider string }{"Gemini"}))
 	apiKey, err := reader.ReadString('\n')
 	if err != nil {
 		return fmt.Errorf("error reading API_KEY: %w", err)
@@ -139,8 +133,8 @@ func configureWelcome(ctx context.Context, reader *bufio.Reader, cfg *config.Con
 		}
 	}
 
-	fmt.Println(t.GetMessage("init.model_hint_supported", 0, map[string]interface{}{"Models": geminiModelsStr}))
-	fmt.Print(t.GetMessage("init.prompt_model_with_default", 0, map[string]interface{}{"Default": geminiDefault}))
+	fmt.Println(t.GetMessage("init.model_hint_supported", 0, struct{ Models string }{geminiModelsStr}))
+	fmt.Print(t.GetMessage("init.prompt_model_with_default", 0, struct{ Default string }{geminiDefault}))
 	modelInput, err := reader.ReadString('\n')
 	if err != nil {
 		return fmt.Errorf("error reading model: %w", err)
@@ -174,7 +168,7 @@ func configureWelcome(ctx context.Context, reader *bufio.Reader, cfg *config.Con
 
 func configureLanguage(reader *bufio.Reader, cfg *config.Config, t *i18n.Translations) error {
 	printSection(t.GetMessage("init.section_language", 0, nil))
-	fmt.Println(t.GetMessage("init.language_supported_with_current", 0, map[string]interface{}{"Current": cfg.Language}))
+	fmt.Println(t.GetMessage("init.language_supported_with_current", 0, struct{ Current string }{cfg.Language}))
 	fmt.Print(t.GetMessage("init.prompt_language_blank_keeps", 0, nil))
 
 	lang, err := reader.ReadString('\n')
@@ -199,7 +193,7 @@ func configureVCS(reader *bufio.Reader, cfg *config.Config, t *i18n.Translations
 	vcsProvidersStr := strings.Join(vcsProviders, ", ")
 
 	printSection(t.GetMessage("init.section_vcs", 0, nil))
-	fmt.Print(t.GetMessage("init.prompt_vcs_enable_blank_no", 0, map[string]interface{}{"Providers": vcsProvidersStr}))
+	fmt.Print(t.GetMessage("init.prompt_vcs_enable_blank_no", 0, struct{ Providers string }{vcsProvidersStr}))
 
 	ansVCS, err := reader.ReadString('\n')
 	if err != nil {
@@ -237,7 +231,7 @@ func configureTickets(reader *bufio.Reader, cfg *config.Config, t *i18n.Translat
 	ticketProviders := config.SupportedTicketServices()
 	ticketProvidersStr := strings.Join(ticketProviders, ", ")
 	printSection(t.GetMessage("init.section_tickets", 0, nil))
-	fmt.Print(t.GetMessage("init.prompt_ticket_enable_blank_no", 0, map[string]interface{}{"Providers": ticketProvidersStr}))
+	fmt.Print(t.GetMessage("init.prompt_ticket_enable_blank_no", 0, struct{ Providers string }{ticketProvidersStr}))
 
 	ansJira, err := reader.ReadString('\n')
 	if err != nil {
@@ -319,32 +313,41 @@ func printConfigSummary(cfg *config.Config, t *i18n.Translations) {
 	fmt.Println()
 	fmt.Println(t.GetMessage("init.summary_header", 0, nil))
 
-	langLabel := t.GetMessage("language_label", 0, map[string]interface{}{"Lang": cfg.Language})
+	langLabel := t.GetMessage("language_label", 0, struct{ Lang string }{cfg.Language})
 	activeAI := string(cfg.AIConfig.ActiveAI)
-	fmt.Println(t.GetMessage("config_models.active_ai_label", 0, map[string]interface{}{"IA": activeAI}))
+	fmt.Println(t.GetMessage("config_models.active_ai_label", 0, struct{ IA string }{activeAI}))
 
 	if m, ok := cfg.AIConfig.Models[config.AIGemini]; ok && m != "" {
-		fmt.Println(t.GetMessage("init.summary_model", 0, map[string]interface{}{"AI": "gemini", "Model": string(m)}))
+		fmt.Println(t.GetMessage("init.summary_model", 0, struct {
+			AI    string
+			Model string
+		}{"gemini", string(m)}))
 	} else {
-		fmt.Println(t.GetMessage("init.summary_model_none", 0, map[string]interface{}{"AI": "gemini"}))
+		fmt.Println(t.GetMessage("init.summary_model_none", 0, struct{ AI string }{"gemini"}))
 	}
 
 	apiMask := "❌"
 	if providerCfg, exists := cfg.AIProviders["gemini"]; exists && providerCfg.APIKey != "" {
 		apiMask = "✅"
 	}
-	fmt.Println(t.GetMessage("init.summary_api", 0, map[string]interface{}{"AI": "gemini", "Configured": apiMask}))
+	fmt.Println(t.GetMessage("init.summary_api", 0, struct {
+		AI         string
+		Configured string
+	}{"gemini", apiMask}))
 
 	if cfg.ActiveVCSProvider != "" {
-		fmt.Println(t.GetMessage("vcs_summary.config_active_vcs_updated", 0, map[string]interface{}{"Provider": cfg.ActiveVCSProvider}))
+		fmt.Println(t.GetMessage("vcs_summary.config_active_vcs_updated", 0, struct{ Provider string }{cfg.ActiveVCSProvider}))
 	} else {
 		fmt.Println(t.GetMessage("init.summary_vcs_none", 0, nil))
 	}
 
 	if cfg.UseTicket && cfg.ActiveTicketService == "jira" {
-		fmt.Println(t.GetMessage("config_models.ticket_service_enabled", 0, map[string]interface{}{"Service": "jira"}))
+		fmt.Println(t.GetMessage("config_models.ticket_service_enabled", 0, struct{ Service string }{"jira"}))
 		jiraCfg := cfg.TicketProviders["jira"]
-		fmt.Println(t.GetMessage("config_models.jira_config_label", 0, map[string]interface{}{"BaseURL": jiraCfg.BaseURL, "Email": jiraCfg.Email}))
+		fmt.Println(t.GetMessage("config_models.jira_config_label", 0, struct {
+			BaseURL string
+			Email   string
+		}{jiraCfg.BaseURL, jiraCfg.Email}))
 	} else {
 		fmt.Println(t.GetMessage("config_models.ticket_service_disabled", 0, nil))
 	}
@@ -385,9 +388,7 @@ func validateGeminiAPIKey(ctx context.Context, apiKey string, t *i18n.Translatio
 	_, err := gemini.NewGeminiCommitSummarizer(testCtx, testCfg, nil)
 	if err != nil {
 		spinner.Error(t.GetMessage("config.api_key_invalid", 0, nil))
-		ui.PrintError(os.Stdout, t.GetMessage("config.check_api_key_error", 0, map[string]interface{}{
-			"Error": err.Error(),
-		}))
+		ui.PrintError(os.Stdout, t.GetMessage("config.check_api_key_error", 0, struct{ Error string }{err.Error()}))
 		return false
 	}
 

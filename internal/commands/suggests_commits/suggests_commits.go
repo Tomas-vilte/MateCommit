@@ -8,8 +8,8 @@ import (
 
 	"github.com/thomas-vilte/matecommit/internal/commands/completion_helper"
 	"github.com/thomas-vilte/matecommit/internal/config"
-	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
+	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ui"
 	"github.com/urfave/cli/v3"
 )
@@ -87,10 +87,10 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 		}
 		count := command.Int("count")
 		if count < 1 || count > 10 {
-			msg := t.GetMessage("invalid_suggestions_count", 0, map[string]interface{}{
-				"Min": 1,
-				"Max": 10,
-			})
+			msg := t.GetMessage("invalid_suggestions_count", 0, struct {
+				Min int
+				Max int
+			}{1, 10})
 			ui.PrintError(os.Stdout, msg)
 			return fmt.Errorf("%s", msg)
 		}
@@ -121,14 +121,11 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 			msg := ""
 			switch event.Type {
 			case models.ProgressIssuesDetected:
-				title := event.Data["Title"].(string)
-				id := event.Data["IssueID"].(int)
-				isAuto := event.Data["IsAuto"].(bool)
 				key := "issue_detected_auto"
-				if !isAuto {
+				if !event.Data.IsAuto {
 					key = "issue_using_manual"
 				}
-				msg = fmt.Sprintf("%s: #%d - %s", key, id, title) // TODO: use translations for key
+				msg = t.GetMessage(key, 0, event.Data)
 			case models.ProgressGeneric:
 				msg = event.Message
 			default:
@@ -145,15 +142,11 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 		if err != nil {
 			spinner.Error(t.GetMessage("ui.error_generating_suggestions", 0, nil))
 			ui.HandleAppError(err, t)
-			return fmt.Errorf("%s", t.GetMessage("suggestion_generation_error", 0, map[string]interface{}{
-				"Error": err,
-			}))
+			return fmt.Errorf("%s", t.GetMessage("suggestion_generation_error", 0, struct{ Error error }{err}))
 		}
 
 		spinner.Stop()
-		ui.PrintDuration(t.GetMessage("ui.suggestions_generated", 0, map[string]interface{}{
-			"Count": len(suggestions),
-		}), duration)
+		ui.PrintDuration(t.GetMessage("ui.suggestions_generated", 0, struct{ Count int }{len(suggestions)}), duration)
 		return f.commitHandler.HandleSuggestions(ctx, suggestions)
 	}
 }

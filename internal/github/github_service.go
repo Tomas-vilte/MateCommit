@@ -12,10 +12,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/go-github/v80/github"
+	"github.com/thomas-vilte/matecommit/internal/builder"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ports"
-	"github.com/thomas-vilte/matecommit/internal/builder"
-	"github.com/google/go-github/v80/github"
+	"github.com/thomas-vilte/matecommit/internal/regex"
 	"golang.org/x/oauth2"
 )
 
@@ -603,17 +604,8 @@ func extractAcceptanceCriteria(body string) []string {
 	var criteria []string
 	lines := strings.Split(body, "\n")
 
-	// Regex to capture markdown checkboxes:
-	// ^ - Start of line (allowing leading spaces)
-	// [\-\*\+] - Bullet: - or * or +
-	// \s+ - Required space
-	// \[([ xX])\] - Checkbox: [ ], [x], [X]
-	// \s+ - Required space
-	// (.+) - The criterion text
-	re := regexp.MustCompile(`^\s*[\-*+]\s+\[([ xX])]\s+(.+)`)
-
 	for _, line := range lines {
-		matches := re.FindStringSubmatch(line)
+		matches := regex.MarkdownCheckbox.FindStringSubmatch(line)
 		if len(matches) > 2 {
 			criterion := strings.TrimSpace(matches[2])
 			if criterion != "" {
@@ -649,17 +641,13 @@ func (ghc *GitHubClient) GetFileAtTag(ctx context.Context, tag, filepath string)
 
 func (ghc *GitHubClient) GetPRIssues(ctx context.Context, branchName string, commits []string, prDescription string) ([]models.Issue, error) {
 	issueNumbers := make(map[int]bool)
-
-	branchPatterns := []string{
-		`#(\d+)`,
-		`issue[/-](\d+)`,
-		`^(\d+)-`,
-		`/(\d+)-`,
-		`-(\d+)-`,
-	}
-
-	for _, pattern := range branchPatterns {
-		re := regexp.MustCompile(pattern)
+	for _, re := range []*regexp.Regexp{
+		regex.BranchIssueSharp,
+		regex.BranchIssueName,
+		regex.BranchIssueStart,
+		regex.BranchIssueFolder,
+		regex.BranchIssueMid,
+	} {
 		if matches := re.FindStringSubmatch(branchName); len(matches) > 1 {
 			if num, err := strconv.Atoi(matches[1]); err == nil {
 				issueNumbers[num] = true
@@ -668,39 +656,46 @@ func (ghc *GitHubClient) GetPRIssues(ctx context.Context, branchName string, com
 	}
 
 	if prDescription != "" {
-		descPatterns := []string{
-			`(?i)(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)`,
-			`#(\d+)`,
+		matches := regex.GitHubClosedLink.FindAllStringSubmatch(prDescription, -1)
+		for _, match := range matches {
+			if len(match) > 1 {
+				if num, err := strconv.Atoi(match[1]); err == nil {
+					issueNumbers[num] = true
+				}
+			}
 		}
-
-		for _, pattern := range descPatterns {
-			re := regexp.MustCompile(pattern)
-			matches := re.FindAllStringSubmatch(prDescription, -1)
-			for _, match := range matches {
-				if len(match) > 1 {
-					if num, err := strconv.Atoi(match[1]); err == nil {
-						issueNumbers[num] = true
-					}
+		matchesSharp := regex.BranchIssueSharp.FindAllStringSubmatch(prDescription, -1)
+		for _, match := range matchesSharp {
+			if len(match) > 1 {
+				if num, err := strconv.Atoi(match[1]); err == nil {
+					issueNumbers[num] = true
 				}
 			}
 		}
 	}
 
-	commitPatterns := []string{
-		`(?i)(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)`,
-		`\(#(\d+)\)`,
-		`#(\d+)`,
-	}
-
 	for _, commit := range commits {
-		for _, pattern := range commitPatterns {
-			re := regexp.MustCompile(pattern)
-			matches := re.FindAllStringSubmatch(commit, -1)
-			for _, match := range matches {
-				if len(match) > 1 {
-					if num, err := strconv.Atoi(match[1]); err == nil {
-						issueNumbers[num] = true
-					}
+		matches := regex.GitHubClosedLink.FindAllStringSubmatch(commit, -1)
+		for _, match := range matches {
+			if len(match) > 1 {
+				if num, err := strconv.Atoi(match[1]); err == nil {
+					issueNumbers[num] = true
+				}
+			}
+		}
+		matchesPR := regex.GitHubPR.FindAllStringSubmatch(commit, -1)
+		for _, match := range matchesPR {
+			if len(match) > 1 {
+				if num, err := strconv.Atoi(match[1]); err == nil {
+					issueNumbers[num] = true
+				}
+			}
+		}
+		matchesSharp := regex.BranchIssueSharp.FindAllStringSubmatch(commit, -1)
+		for _, match := range matchesSharp {
+			if len(match) > 1 {
+				if num, err := strconv.Atoi(match[1]); err == nil {
+					issueNumbers[num] = true
 				}
 			}
 		}
@@ -743,11 +738,9 @@ func (ghc *GitHubClient) UpdateIssueChecklist(ctx context.Context, issueNumber i
 
 	body := issue.GetBody()
 	lines := strings.Split(body, "\n")
-	re := regexp.MustCompile(`^(\s*[\-*+]\s+)\[([ xX])](\s+.+)`)
-
 	var checklistLineIndices []int
 	for i, line := range lines {
-		if re.MatchString(line) {
+		if regex.MarkdownCheckboxUpdate.MatchString(line) {
 			checklistLineIndices = append(checklistLineIndices, i)
 		}
 	}
@@ -758,7 +751,7 @@ func (ghc *GitHubClient) UpdateIssueChecklist(ctx context.Context, issueNumber i
 			lineIdx := checklistLineIndices[idx]
 			line := lines[lineIdx]
 
-			if matches := re.FindStringSubmatch(line); len(matches) > 3 {
+			if matches := regex.MarkdownCheckboxUpdate.FindStringSubmatch(line); len(matches) > 3 {
 				if matches[2] == " " {
 					lines[lineIdx] = matches[1] + "[x]" + matches[3]
 					updated = true

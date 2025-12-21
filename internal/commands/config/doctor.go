@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/thomas-vilte/matecommit/internal/ai/gemini"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
-	"github.com/thomas-vilte/matecommit/internal/ai/gemini"
 	"github.com/thomas-vilte/matecommit/internal/ui"
 	"github.com/urfave/cli/v3"
 )
@@ -252,7 +252,7 @@ func (d *DoctorCommand) checkEditor(_ context.Context, t *i18n.Translations, _ *
 			if _, err := exec.LookPath(ed); err == nil {
 				return checkResult{
 					status:     checkStatusWarning,
-					message:    t.GetMessage("doctor.editor_not_set", 0, map[string]interface{}{"Editor": ed}),
+					message:    t.GetMessage("doctor.editor_not_set", 0, struct{ Editor string }{ed}),
 					suggestion: fmt.Sprintf("export EDITOR=%s", ed),
 				}
 			}
@@ -268,7 +268,7 @@ func (d *DoctorCommand) checkEditor(_ context.Context, t *i18n.Translations, _ *
 	if _, err := exec.LookPath(editor); err != nil {
 		return checkResult{
 			status:     checkStatusError,
-			message:    t.GetMessage("doctor.editor_not_found", 0, map[string]interface{}{"Editor": editor}),
+			message:    t.GetMessage("doctor.editor_not_found", 0, struct{ Editor string }{editor}),
 			suggestion: t.GetMessage("doctor.set_valid_editor", 0, nil),
 		}
 	}

@@ -9,16 +9,11 @@ import (
 	"strings"
 
 	"github.com/thomas-vilte/matecommit/internal/config"
+	"github.com/thomas-vilte/matecommit/internal/dependency"
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ports"
-	"github.com/thomas-vilte/matecommit/internal/dependency"
-)
-
-var (
-	conventionalRegex = regexp.MustCompile(`^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(([^)]+)\))?(!)?:\s*(.+)`)
-	breakingRegex     = regexp.MustCompile(`BREAKING[ -]CHANGE:\s*(.+)`)
-	versionRegex      = regexp.MustCompile(`v?(\d+)\.(\d+)\.(\d+)`)
+	"github.com/thomas-vilte/matecommit/internal/regex"
 )
 
 // releaseGitService defines only the methods needed by ReleaseService.
@@ -244,8 +239,7 @@ func (s *ReleaseService) categorizeCommits(release *models.Release) {
 		lines := strings.Split(msg, "\n")
 		firstLine := lines[0]
 
-		prRegex := regexp.MustCompile(`\(#(\d+)\)`)
-		prMatch := prRegex.FindStringSubmatch(firstLine)
+		prMatch := regex.GitHubPR.FindStringSubmatch(firstLine)
 		prNumber := ""
 		if len(prMatch) > 1 {
 			prNumber = prMatch[1]
@@ -253,13 +247,13 @@ func (s *ReleaseService) categorizeCommits(release *models.Release) {
 
 		hasBreaking := false
 		for _, line := range lines[1:] {
-			if breakingRegex.MatchString(line) {
+			if regex.BreakingChange.MatchString(line) {
 				hasBreaking = true
 				break
 			}
 		}
 
-		matches := conventionalRegex.FindStringSubmatch(firstLine)
+		matches := regex.ConventionalCommit.FindStringSubmatch(firstLine)
 		if len(matches) > 0 {
 			commitType := matches[1]
 			scope := matches[3]
@@ -303,7 +297,7 @@ func (s *ReleaseService) categorizeCommits(release *models.Release) {
 
 // calculateVersion calculates the new version based on semantic versioning
 func (s *ReleaseService) calculateVersion(currentTag string, release *models.Release) (string, models.VersionBump) {
-	matches := versionRegex.FindStringSubmatch(currentTag)
+	matches := regex.SemVer.FindStringSubmatch(currentTag)
 
 	major, minor, patch := 0, 0, 0
 	if len(matches) >= 4 {
@@ -529,8 +523,7 @@ func (s *ReleaseService) UpdateAppVersion(version string) error {
 
 	match := re.FindString(currentContent)
 
-	valueRe := regexp.MustCompile(`"(.*)"`)
-	valMatch := valueRe.FindStringIndex(match)
+	valMatch := regex.QuotedString.FindStringIndex(match)
 
 	if valMatch == nil {
 		return domainErrors.NewAppError(domainErrors.TypeInternal, "could not find quoted string in matching pattern", nil)

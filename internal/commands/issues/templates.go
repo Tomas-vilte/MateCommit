@@ -42,9 +42,7 @@ func (f *IssuesCommandFactory) newTemplateCommand(t *i18n.Translations, _ *confi
 					}
 
 					templatesDir, _ := templateService.GetTemplatesDir()
-					ui.PrintSuccess(os.Stdout, t.GetMessage("issue.template_init_success", 0, map[string]interface{}{
-						"Dir": templatesDir,
-					}))
+					ui.PrintSuccess(os.Stdout, t.GetMessage("issue.template_init_success", 0, struct{ Dir string }{templatesDir}))
 
 					return nil
 				},

@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/thomas-vilte/matecommit/internal/config"
-	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/thomas-vilte/matecommit/internal/config"
+	"github.com/thomas-vilte/matecommit/internal/i18n"
+	"github.com/thomas-vilte/matecommit/internal/models"
 )
 
 type MockCommitService struct {
@@ -110,10 +110,10 @@ func TestSuggestCommand(t *testing.T) {
 
 		// Assert
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), translations.GetMessage("invalid_suggestions_count", 0, map[string]interface{}{
-			"Min": 1,
-			"Max": 10,
-		}))
+		assert.Contains(t, err.Error(), translations.GetMessage("invalid_suggestions_count", 0, struct {
+			Min int
+			Max int
+		}{1, 10}))
 		mockService.AssertNotCalled(t, "GenerateSuggestions")
 		mockHandler.AssertNotCalled(t, "HandleSuggestions")
 	})
@@ -207,9 +207,7 @@ func TestSuggestCommand(t *testing.T) {
 
 		// Assert
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), translations.GetMessage("suggestion_generation_error", 0, map[string]interface{}{
-			"Error": expectedError,
-		}))
+		assert.Contains(t, err.Error(), translations.GetMessage("suggestion_generation_error", 0, struct{ Error error }{expectedError}))
 		mockService.AssertExpectations(t)
 		mockHandler.AssertNotCalled(t, "HandleSuggestions")
 	})

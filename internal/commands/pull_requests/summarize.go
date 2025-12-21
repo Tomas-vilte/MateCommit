@@ -6,8 +6,8 @@ import (
 
 	"github.com/thomas-vilte/matecommit/internal/commands/completion_helper"
 	cfg "github.com/thomas-vilte/matecommit/internal/config"
-	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
+	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ui"
 	"github.com/urfave/cli/v3"
 )
@@ -54,28 +54,18 @@ func (c *SummarizeCommand) CreateCommand(t *i18n.Translations, _ *cfg.Config) *c
 				return fmt.Errorf("%s", t.GetMessage("error.pr_number_required", 0, nil))
 			}
 
-			spinner := ui.NewSmartSpinner(t.GetMessage("ui.fetching_pr_info", 0, map[string]interface{}{
-				"Number": prNumber,
-			}))
+			spinner := ui.NewSmartSpinner(t.GetMessage("ui.fetching_pr_info", 0, struct{ Number int }{prNumber}))
 			spinner.Start()
 
 			summary, err := prService.SummarizePR(ctx, prNumber, func(event models.ProgressEvent) {
 				msg := ""
 				switch event.Type {
 				case models.ProgressIssuesDetected:
-					issues := event.Data["Issues"].([]string)
-					msg = t.GetMessage("vcs_summary.issues_detected", 0, map[string]interface{}{
-						"PRNumber": event.Data["PRNumber"],
-						"Issues":   fmt.Sprintf("%v", issues),
-					})
+					msg = t.GetMessage("vcs_summary.issues_detected", 0, event.Data)
 				case models.ProgressIssuesClosing:
-					msg = t.GetMessage("vcs_summary.issues_closing", 0, map[string]interface{}{
-						"Count": event.Data["Count"],
-					})
+					msg = t.GetMessage("vcs_summary.issues_closing", 0, event.Data)
 				case models.ProgressBreakingChanges:
-					msg = t.GetMessage("vcs_summary.breaking_changes_detected", 0, map[string]interface{}{
-						"Count": event.Data["Count"],
-					})
+					msg = t.GetMessage("vcs_summary.breaking_changes_detected", 0, event.Data)
 				case models.ProgressTestPlan:
 					msg = t.GetMessage("vcs_summary.test_plan_generated", 0, nil)
 				default:
@@ -91,10 +81,10 @@ func (c *SummarizeCommand) CreateCommand(t *i18n.Translations, _ *cfg.Config) *c
 				return fmt.Errorf(t.GetMessage("error.pr_summary_error", 0, nil)+": %w", err)
 			}
 
-			spinner.Success(t.GetMessage("ui.pr_updated_successfully", 0, map[string]interface{}{
-				"Number": prNumber,
-				"Title":  summary.Title,
-			}))
+			spinner.Success(t.GetMessage("ui.pr_updated_successfully", 0, struct {
+				Number int
+				Title  string
+			}{prNumber, summary.Title}))
 
 			if summary.Usage != nil {
 				fmt.Println()
