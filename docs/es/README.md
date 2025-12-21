@@ -95,5 +95,3 @@ Si tenés una idea para sumar un proveedor nuevo o mejorar la lógica, mandá tu
 
 Distribuido bajo la Licencia MIT. Consultá [LICENSE](../../LICENSE) para más info.
 ```
-
-*Nota: Acordate de subir la imagen del meme a tu carpeta de assets o usar un link directo donde dice `https://path-to-your-meme/meme-lenny.jpg`.*
