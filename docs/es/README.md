@@ -94,4 +94,3 @@ Si tenés una idea para sumar un proveedor nuevo o mejorar la lógica, mandá tu
 ## Licencia
 
 Distribuido bajo la Licencia MIT. Consultá [LICENSE](../../LICENSE) para más info.
-```
