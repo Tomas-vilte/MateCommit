@@ -1,59 +1,59 @@
 package models
 
-// IssueGenerationRequest contiene la información necesaria para generar una issue.
-// Soporta múltiples fuentes de contexto: descripción manual, diff de git, o ambos.
+// IssueGenerationRequest contains the information needed to generate an issue.
+// Supports multiple context sources: manual description, git diff, or both.
 type IssueGenerationRequest struct {
-	// Description es la descripción manual proporcionada por el usuario (opcional)
+	// Description is the manual description provided by the user (optional)
 	Description string
 
-	// Diff contiene los cambios locales de git (opcional)
+	// Diff contains local git changes (optional)
 	Diff string
 
-	// ChangedFiles es la lista de archivos modificados (opcional)
+	// ChangedFiles is the list of modified files (optional)
 	ChangedFiles []string
 
-	// Hint es contexto adicional proporcionado por el usuario para guiar la generación (opcional)
+	// Hint is additional context provided by the user to guide generation (optional)
 	Hint string
 
-	// Language es el idioma para la generación de contenido (ej: "es", "en")
+	// Language is the language for content generation (e.g.: "es", "en")
 	Language string
 }
 
-// IssueGenerationResult contiene el resultado de la generación de contenido de una issue.
+// IssueGenerationResult contains the result of an issue's content generation.
 type IssueGenerationResult struct {
-	// Title es el título generado para la issue
+	// Title is the generated title for the issue
 	Title string
 
-	// Description es la descripción completa generada para la issue
+	// Description is the full generated description for the issue
 	Description string
 
-	// Labels son las etiquetas sugeridas para la issue
+	// Labels are the suggested labels for the issue
 	Labels []string
 
-	// Assignees son los responsables sugeridos para la issue
+	// Assignees are the suggested assignees for the issue
 	Assignees []string
 
-	// Usage contiene los metadatos de uso de tokens de la IA
+	// Usage contains metadata on token usage by the AI
 	Usage *TokenUsage
 }
 
-// DiffAnalysis contiene el análisis estructurado del diff para inferencia de labels.
+// DiffAnalysis contains the structured analysis of the diff for label inference.
 type DiffAnalysis struct {
-	// HasGoFiles indica si el diff incluye archivos .go
+	// HasGoFiles indicates if the diff includes .go files
 	HasGoFiles bool
 
-	// HasTestFiles indica si el diff incluye archivos de test
+	// HasTestFiles indicates if the diff includes test files
 	HasTestFiles bool
 
-	// HasDocFiles indica si el diff incluye archivos de documentación
+	// HasDocFiles indicates if the diff includes documentation files
 	HasDocFiles bool
 
-	// HasConfigFiles indica si el diff incluye archivos de configuración
+	// HasConfigFiles indicates if the diff includes configuration files
 	HasConfigFiles bool
 
-	// HasUIFiles indica si el diff incluye archivos de UI (CSS, HTML, JSX, etc)
+	// HasUIFiles indicates if the diff includes UI files (CSS, HTML, JSX, etc)
 	HasUIFiles bool
 
-	// Keywords contiene palabras clave encontradas en el diff (fix, feat, refactor, etc)
+	// Keywords contains keywords found in the diff (fix, feat, refactor, etc)
 	Keywords map[string]bool
 }

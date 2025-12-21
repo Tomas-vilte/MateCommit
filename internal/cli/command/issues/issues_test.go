@@ -7,7 +7,6 @@ import (
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -19,7 +18,7 @@ func setupIssuesTest(t *testing.T) (*MockIssueGeneratorService, *MockIssueTempla
 	mockGen := &MockIssueGeneratorService{}
 	mockTemp := &MockIssueTemplateService{}
 
-	provider := func(ctx context.Context) (ports.IssueGeneratorService, error) {
+	provider := func(ctx context.Context) (IssueGeneratorService, error) {
 		return mockGen, nil
 	}
 

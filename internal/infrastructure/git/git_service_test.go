@@ -2,14 +2,14 @@ package git
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
+	domainErrors "github.com/Tomas-vilte/MateCommit/internal/domain/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -68,8 +68,7 @@ func TestGitService(t *testing.T) {
 		tempDir := setupTestRepo(t)
 		defer cleanupTestRepo(t, tempDir)
 
-		trans, _ := i18n.NewTranslations("en", "")
-		service := NewGitService(trans)
+		service := NewGitService()
 
 		// Act - Verificar sin cambios staged
 		hasStagedBefore := service.HasStagedChanges(context.Background())
@@ -103,8 +102,7 @@ func TestGitService(t *testing.T) {
 		tempDir := setupTestRepo(t)
 		defer cleanupTestRepo(t, tempDir)
 
-		trans, _ := i18n.NewTranslations("en", "")
-		service := NewGitService(trans)
+		service := NewGitService()
 
 		// Act - Obtener la branch actual (debería ser 'main' por defecto)
 		branchName, err := service.GetCurrentBranch(context.Background())
@@ -140,8 +138,7 @@ func TestGitService(t *testing.T) {
 		tempDir := setupTestRepo(t)
 		defer cleanupTestRepo(t, tempDir)
 
-		trans, _ := i18n.NewTranslations("en", "")
-		service := NewGitService(trans)
+		service := NewGitService()
 
 		if err := os.WriteFile("test.txt", []byte("test content"), 0644); err != nil {
 			t.Fatalf("Error creando archivo de prueba: %v", err)
@@ -156,17 +153,10 @@ func TestGitService(t *testing.T) {
 		}
 
 		if len(changes) > 0 {
-			expectedChange := models.GitChange{
-				Path:   "test.txt",
-				Status: "??",
-			}
+			expectedPath := "test.txt"
 
-			if changes[0].Path != expectedChange.Path {
-				t.Errorf("Path esperado %s, se obtuvo %s", expectedChange.Path, changes[0].Path)
-			}
-
-			if changes[0].Status != expectedChange.Status {
-				t.Errorf("Status esperado %s, se obtuvo %s", expectedChange.Status, changes[0].Status)
+			if changes[0] != expectedPath {
+				t.Errorf("Path esperado %s, se obtuvo %s", expectedPath, changes[0])
 			}
 		}
 	})
@@ -176,8 +166,7 @@ func TestGitService(t *testing.T) {
 		tempDir := setupTestRepo(t)
 		defer cleanupTestRepo(t, tempDir)
 
-		trans, _ := i18n.NewTranslations("en", "")
-		service := NewGitService(trans)
+		service := NewGitService()
 
 		if err := os.WriteFile("test.txt", []byte("test content"), 0644); err != nil {
 			t.Fatalf("Error creando archivo de prueba: %v", err)
@@ -211,8 +200,7 @@ func TestGitService(t *testing.T) {
 		tempDir := setupTestRepo(t)
 		defer cleanupTestRepo(t, tempDir)
 
-		trans, _ := i18n.NewTranslations("en", "")
-		service := NewGitService(trans)
+		service := NewGitService()
 
 		// Act
 		err := service.CreateCommit(context.Background(), "Test commit")
@@ -221,8 +209,8 @@ func TestGitService(t *testing.T) {
 		if err == nil {
 			t.Error("Se esperaba un error al crear commit sin cambios staged")
 		}
-		if err.Error() != "No staged changes found" {
-			t.Errorf("Mensaje de error inesperado: %v", err)
+		if !errors.Is(err, domainErrors.ErrNoChanges) {
+			t.Errorf("Se esperaba ErrNoChanges, obtuve: %v", err)
 		}
 	})
 
@@ -231,8 +219,7 @@ func TestGitService(t *testing.T) {
 		tempDir := setupTestRepo(t)
 		defer cleanupTestRepo(t, tempDir)
 
-		trans, _ := i18n.NewTranslations("en", "")
-		service := NewGitService(trans)
+		service := NewGitService()
 
 		if err := os.WriteFile("test.txt", []byte("test content"), 0644); err != nil {
 			t.Fatalf("Error creando archivo: %v", err)
@@ -264,8 +251,7 @@ func TestGitService(t *testing.T) {
 		tempDir := setupTestRepo(t)
 		defer cleanupTestRepo(t, tempDir)
 
-		trans, _ := i18n.NewTranslations("en", "")
-		service := NewGitService(trans)
+		service := NewGitService()
 
 		if err := os.WriteFile("test.txt", []byte("test content"), 0644); err != nil {
 			t.Fatalf("Error creando archivo: %v", err)
@@ -306,8 +292,7 @@ func TestGitService(t *testing.T) {
 		tempDir := setupTestRepo(t)
 		defer cleanupTestRepo(t, tempDir)
 
-		trans, _ := i18n.NewTranslations("en", "")
-		service := NewGitService(trans)
+		service := NewGitService()
 
 		if err := os.WriteFile("nuevo.txt", []byte("archivo nuevo"), 0644); err != nil {
 			t.Fatalf("Error creando archivo nuevo: %v", err)
@@ -331,8 +316,7 @@ func TestGitService(t *testing.T) {
 		tempDir := setupTestRepo(t)
 		defer cleanupTestRepo(t, tempDir)
 
-		trans, _ := i18n.NewTranslations("en", "")
-		service := NewGitService(trans)
+		service := NewGitService()
 
 		// Act
 		diff, err := service.GetDiff(context.Background())
@@ -353,8 +337,7 @@ func TestAddFileToStaging(t *testing.T) {
 		tempDir := setupTestRepo(t)
 		defer cleanupTestRepo(t, tempDir)
 
-		trans, _ := i18n.NewTranslations("en", "")
-		service := NewGitService(trans)
+		service := NewGitService()
 		testFile := "newfile.txt"
 		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
 			return
@@ -377,8 +360,7 @@ func TestAddFileToStaging(t *testing.T) {
 		tempDir := setupTestRepo(t)
 		defer cleanupTestRepo(t, tempDir)
 
-		trans, _ := i18n.NewTranslations("en", "")
-		service := NewGitService(trans)
+		service := NewGitService()
 		testFile := "deleted.txt"
 
 		// Crear y committear archivo
@@ -413,8 +395,7 @@ func TestAddFileToStaging(t *testing.T) {
 		tempDir := setupTestRepo(t)
 		defer cleanupTestRepo(t, tempDir)
 
-		trans, _ := i18n.NewTranslations("en", "")
-		service := NewGitService(trans)
+		service := NewGitService()
 		err := service.AddFileToStaging(context.Background(), "fantasma.txt")
 
 		if err == nil {
@@ -443,8 +424,7 @@ func TestAddFileToStaging(t *testing.T) {
 		tempDir := setupTestRepo(t)
 		defer cleanupTestRepo(t, tempDir)
 
-		trans, _ := i18n.NewTranslations("en", "")
-		service := NewGitService(trans)
+		service := NewGitService()
 		testFile := "dir1/dir2/archivos.txt"
 
 		if err := os.MkdirAll(filepath.Dir(testFile), 0755); err != nil {
@@ -519,10 +499,9 @@ func TestGetRepoInfo(t *testing.T) {
 		},
 	}
 
-	trans, _ := i18n.NewTranslations("en", "")
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			owner, repo, provider, err := parseRepoURL(tt.url, trans)
+			owner, repo, provider, err := parseRepoURL(tt.url)
 
 			if tt.expectedError {
 				assert.Error(t, err)
@@ -553,8 +532,7 @@ func TestGitService_NewMethods(t *testing.T) {
 		tempDir := setupTestRepo(t)
 		defer cleanupTestRepo(t, tempDir)
 
-		trans, _ := i18n.NewTranslations("en", "")
-		service := NewGitService(trans)
+		service := NewGitService()
 
 		// Caso 1: Sin tags
 		tag, err := service.GetLastTag(context.Background())
@@ -580,8 +558,7 @@ func TestGitService_NewMethods(t *testing.T) {
 		tempDir := setupTestRepo(t)
 		defer cleanupTestRepo(t, tempDir)
 
-		trans, _ := i18n.NewTranslations("en", "")
-		service := NewGitService(trans)
+		service := NewGitService()
 
 		// Crear historial
 		createCommitHelper(t, "init.txt", "chore: initial commit")
@@ -608,8 +585,7 @@ func TestGitService_NewMethods(t *testing.T) {
 		tempDir := setupTestRepo(t)
 		defer cleanupTestRepo(t, tempDir)
 
-		trans, _ := i18n.NewTranslations("en", "")
-		service := NewGitService(trans)
+		service := NewGitService()
 		createCommitHelper(t, "file.txt", "work done")
 
 		err := service.CreateTag(context.Background(), "v2.0.0", "Release v2.0.0")
@@ -624,8 +600,7 @@ func TestGitService_NewMethods(t *testing.T) {
 		tempDir := setupTestRepo(t)
 		defer cleanupTestRepo(t, tempDir)
 
-		trans, _ := i18n.NewTranslations("en", "")
-		service := NewGitService(trans)
+		service := NewGitService()
 
 		// Repositorio vacío (recién inicializado, sin commits) puede dar error o 0 dependiendo de la versión de git/setup
 		// Vamos a crear al menos uno para asegurar
@@ -666,8 +641,7 @@ func TestGitService_NewMethods(t *testing.T) {
 			t.Fatalf("Error agregando remote: %v", err)
 		}
 
-		trans, _ := i18n.NewTranslations("en", "")
-		service := NewGitService(trans)
+		service := NewGitService()
 		createCommitHelper(t, "code.txt", "ready to release")
 
 		// Push antes de tener el tag debería fallar o no hacer nada relevante, primero creamos el tag

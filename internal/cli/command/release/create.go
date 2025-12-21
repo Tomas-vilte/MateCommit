@@ -9,7 +9,6 @@ import (
 
 	"github.com/Tomas-vilte/MateCommit/internal/cli/completion_helper"
 	cfg "github.com/Tomas-vilte/MateCommit/internal/config"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/ui"
 	"github.com/urfave/cli/v3"
@@ -62,12 +61,12 @@ func (r *ReleaseCommandFactory) newCreateCommand(t *i18n.Translations) *cli.Comm
 	}
 }
 
-func createReleaseAction(releaseService ports.ReleaseService, trans *i18n.Translations, reader *bufio.Reader, config *cfg.Config) cli.ActionFunc {
+func createReleaseAction(releaseSvc releaseService, trans *i18n.Translations, reader *bufio.Reader, config *cfg.Config) cli.ActionFunc {
 	return func(ctx context.Context, cmd *cli.Command) error {
 		fmt.Println(trans.GetMessage("release.creating", 0, nil))
 		fmt.Println()
 
-		release, err := releaseService.AnalyzeNextRelease(ctx)
+		release, err := releaseSvc.AnalyzeNextRelease(ctx)
 		if err != nil {
 			return fmt.Errorf("%s", trans.GetMessage("release.error_analyzing", 0, map[string]interface{}{
 				"Error": err.Error(),
@@ -78,14 +77,15 @@ func createReleaseAction(releaseService ports.ReleaseService, trans *i18n.Transl
 			release.Version = version
 		}
 
-		if err := releaseService.EnrichReleaseContext(ctx, release); err != nil {
+		if err := releaseSvc.EnrichReleaseContext(ctx, release); err != nil {
 			fmt.Printf("⚠️  %s\n", trans.GetMessage("release.warning_enrich_context", 0, map[string]interface{}{
 				"Error": err.Error(),
 			}))
 		}
 
-		notes, err := releaseService.GenerateReleaseNotes(ctx, release)
+		notes, err := releaseSvc.GenerateReleaseNotes(ctx, release)
 		if err != nil {
+			ui.HandleAppError(err, trans)
 			return fmt.Errorf("%s", trans.GetMessage("release.error_generating_notes", 0,
 				map[string]interface{}{
 					"Error": err.Error(),
@@ -101,7 +101,7 @@ func createReleaseAction(releaseService ports.ReleaseService, trans *i18n.Transl
 			s := ui.NewSmartSpinner(trans.GetMessage("release.changelog_update_started", 0, nil))
 			s.Start()
 
-			if err := releaseService.UpdateLocalChangelog(release, notes); err != nil {
+			if err := releaseSvc.UpdateLocalChangelog(release, notes); err != nil {
 				s.Error(trans.GetMessage("release.error_updating_changelog", 0, map[string]interface{}{
 					"Error": err.Error(),
 				}))
@@ -112,31 +112,31 @@ func createReleaseAction(releaseService ports.ReleaseService, trans *i18n.Transl
 
 			sVersion := ui.NewSmartSpinner(trans.GetMessage("release.app_version_update_started", 0, map[string]interface{}{"Version": release.Version}))
 			sVersion.Start()
-			if err := releaseService.UpdateAppVersion(release.Version); err != nil {
+			if err := releaseSvc.UpdateAppVersion(release.Version); err != nil {
 				sVersion.Error(trans.GetMessage("release.error_updating_app_version", 0, map[string]interface{}{"Error": err.Error()}))
-				return fmt.Errorf("error al actualizar la version de la app: %w", err)
+				return fmt.Errorf("error updating app version: %w", err)
 			}
 			sVersion.Success(trans.GetMessage("release.app_version_updated", 0, map[string]interface{}{"Version": release.Version}))
 			fmt.Println()
 
 			sCommit := ui.NewSmartSpinner(trans.GetMessage("release.committing_changelog", 0, nil))
 			sCommit.Start()
-			if err := releaseService.CommitChangelog(ctx, release.Version); err != nil {
+			if err := releaseSvc.CommitChangelog(ctx, release.Version); err != nil {
 				sCommit.Error(trans.GetMessage("release.error_committing_changelog", 0, map[string]interface{}{
 					"Error": err.Error(),
 				}))
-				return fmt.Errorf("error comiteando changelog: %w", err)
+				return fmt.Errorf("error committing changelog: %w", err)
 			}
 			sCommit.Success(trans.GetMessage("release.changelog_committed", 0, nil))
 			fmt.Println()
 
 			sPush := ui.NewSmartSpinner(trans.GetMessage("release.pushing_changes", 0, nil))
 			sPush.Start()
-			if err := releaseService.PushChanges(ctx); err != nil {
+			if err := releaseSvc.PushChanges(ctx); err != nil {
 				sPush.Error(trans.GetMessage("release.error_pushing_changes", 0, map[string]interface{}{
 					"Error": err.Error(),
 				}))
-				return fmt.Errorf("error pusheando cambios: %w", err)
+				return fmt.Errorf("error pushing changes: %w", err)
 			}
 			sPush.Success(trans.GetMessage("release.changes_pushed", 0, nil))
 			fmt.Println()
@@ -168,7 +168,7 @@ func createReleaseAction(releaseService ports.ReleaseService, trans *i18n.Transl
 		}
 
 		message := fmt.Sprintf("%s\n\n%s", notes.Title, notes.Summary)
-		err = releaseService.CreateTag(ctx, release.Version, message)
+		err = releaseSvc.CreateTag(ctx, release.Version, message)
 		if err != nil {
 			return fmt.Errorf("%s", trans.GetMessage("release.error_creating_tag", 0, map[string]interface{}{
 				"Error": err.Error(),
@@ -184,7 +184,7 @@ func createReleaseAction(releaseService ports.ReleaseService, trans *i18n.Transl
 
 			fmt.Println(trans.GetMessage("release.publishing_release", 0, nil))
 			buildBinaries := cmd.Bool("build-binaries")
-			err := releaseService.PublishRelease(ctx, release, notes, cmd.Bool("draft"), buildBinaries)
+			err := releaseSvc.PublishRelease(ctx, release, notes, cmd.Bool("draft"), buildBinaries)
 			if err != nil {
 				return fmt.Errorf("%s", trans.GetMessage("release.error_publishing_release", 0, map[string]interface{}{"Error": err.Error()}))
 			}

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/google/go-github/v80/github"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -17,7 +16,6 @@ import (
 )
 
 func newTestClient(pr *MockPRService, issues *MockIssuesService, release *MockReleaseService, userService *MockUserService) *GitHubClient {
-	trans, _ := i18n.NewTranslations("es", "../../../i18n/locales/")
 	repo := &MockRepoService{}
 	client := NewGitHubClientWithServices(
 		pr,
@@ -27,7 +25,6 @@ func newTestClient(pr *MockPRService, issues *MockIssuesService, release *MockRe
 		userService,
 		"test-owner",
 		"test-repo",
-		trans,
 	)
 	client.mainPath = "../../../../../cmd/main.go"
 	return client
@@ -226,7 +223,8 @@ func TestGitHubClient_UpdatePR_ErrorCases(t *testing.T) {
 
 		err := client.UpdatePR(context.Background(), prNumber, summary)
 
-		assert.ErrorContains(t, err, client.trans.GetMessage("error.update_pr", 0, map[string]interface{}{"pr_number": prNumber}))
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), fmt.Sprintf("failed to update PR #%d", prNumber))
 		mockPR.AssertExpectations(t)
 	})
 
@@ -249,7 +247,7 @@ func TestGitHubClient_UpdatePR_ErrorCases(t *testing.T) {
 		err := client.UpdatePR(context.Background(), prNumber, summary)
 
 		assert.Error(t, err)
-		assert.ErrorContains(t, err, client.trans.GetMessage("error.add_labels", 0, map[string]interface{}{"pr_number": prNumber}))
+		assert.Contains(t, err.Error(), fmt.Sprintf("failed to add labels to PR #%d", prNumber))
 		mockIssues.AssertExpectations(t)
 	})
 
@@ -276,12 +274,8 @@ func TestGitHubClient_UpdatePR_ErrorCases(t *testing.T) {
 		err := client.UpdatePR(context.Background(), prNumber, summary)
 
 		assert.Error(t, err)
-		assert.ErrorContains(t, err, client.trans.GetMessage("error.insufficient_permissions", 0, map[string]interface{}{
-			"pr_number": prNumber,
-			"owner":     "test-owner",
-			"repo":      "test-repo",
-		}))
-		assert.ErrorContains(t, err, client.trans.GetMessage("error.token_scopes_help", 0, nil))
+		assert.Contains(t, err.Error(), "insufficient permissions")
+		assert.Contains(t, err.Error(), "required scopes")
 		mockPR.AssertExpectations(t)
 	})
 }
@@ -299,7 +293,7 @@ func TestGitHubClient_AddLabelsToPR_ErrorCases(t *testing.T) {
 
 		err := client.AddLabelsToPR(context.Background(), 123, []string{"fix"})
 		assert.Error(t, err)
-		assert.ErrorContains(t, err, client.trans.GetMessage("error.get_labels", 0, nil))
+		assert.Contains(t, err.Error(), "failed to get repository labels")
 	})
 
 	t.Run("should return error if CreateLabel fails", func(t *testing.T) {
@@ -317,7 +311,7 @@ func TestGitHubClient_AddLabelsToPR_ErrorCases(t *testing.T) {
 
 		err := client.AddLabelsToPR(context.Background(), 123, []string{"feature"})
 		assert.Error(t, err)
-		assert.ErrorContains(t, err, client.trans.GetMessage("error.create_label", 0, map[string]interface{}{"label": "feature"}))
+		assert.Contains(t, err.Error(), "failed to create label 'feature'")
 	})
 
 	t.Run("should return error if AddLabelsToIssue fails", func(t *testing.T) {
@@ -335,7 +329,7 @@ func TestGitHubClient_AddLabelsToPR_ErrorCases(t *testing.T) {
 
 		err := client.AddLabelsToPR(context.Background(), 123, []string{"fix"})
 		assert.Error(t, err)
-		assert.ErrorContains(t, err, client.trans.GetMessage("error.add_labels", 0, map[string]interface{}{"pr_number": 123}))
+		assert.Contains(t, err.Error(), "failed to add labels to PR #123")
 	})
 }
 
@@ -351,7 +345,7 @@ func TestGitHubClient_GetPR_ErrorCases(t *testing.T) {
 			Return(&github.PullRequest{}, &github.Response{}, assert.AnError)
 
 		_, err := client.GetPR(context.Background(), 123)
-		assert.ErrorContains(t, err, client.trans.GetMessage("error.get_pr", 0, map[string]interface{}{"pr_number": 123}))
+		assert.Contains(t, err.Error(), "failed to get PR #123")
 	})
 
 	t.Run("should return error if ListCommits fails", func(t *testing.T) {
@@ -367,7 +361,7 @@ func TestGitHubClient_GetPR_ErrorCases(t *testing.T) {
 			Return([]*github.RepositoryCommit{}, &github.Response{}, assert.AnError)
 
 		_, err := client.GetPR(context.Background(), 123)
-		assert.ErrorContains(t, err, client.trans.GetMessage("error.get_commits", 0, map[string]interface{}{"pr_number": 123}))
+		assert.Contains(t, err.Error(), "failed to get commits for PR #123")
 	})
 
 	t.Run("should return error if GetRaw fails", func(t *testing.T) {
@@ -385,7 +379,7 @@ func TestGitHubClient_GetPR_ErrorCases(t *testing.T) {
 			Return("", nil, assert.AnError)
 
 		_, err := client.GetPR(context.Background(), 123)
-		assert.ErrorContains(t, err, client.trans.GetMessage("error.get_diff", 0, map[string]interface{}{"pr_number": 123}))
+		assert.Contains(t, err.Error(), "failed to get diff for PR #123")
 	})
 }
 
@@ -395,7 +389,7 @@ func TestGitHubClient_CreateRelease(t *testing.T) {
 		mockIssues := &MockIssuesService{}
 		mockRelease := &MockReleaseService{}
 		mockUserService := &MockUserService{}
-		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
+		var client *GitHubClient
 
 		release := &models.Release{Version: "v1.0.0"}
 		notes := &models.ReleaseNotes{Title: "Release v1.0.0", Changelog: "Changes"}
@@ -412,11 +406,10 @@ func TestGitHubClient_CreateRelease(t *testing.T) {
 			mockUserService,
 			"test-owner",
 			"test-repo",
-			client.trans,
 		)
 		client.binaryBuilderFactory = mockFactory
 
-		mockFactory.On("NewBuilder", mock.Anything, "matecommit", "v1.0.0", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		mockFactory.On("NewBuilder", mock.Anything, "matecommit", mock.Anything).
 			Return(mockPackager)
 
 		tmpFile, err := os.CreateTemp("", "dummy-archive-*.tar.gz")
@@ -461,7 +454,7 @@ func TestGitHubClient_CreateRelease(t *testing.T) {
 
 		err := client.CreateRelease(context.Background(), release, notes, false, true)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), client.trans.GetMessage("error.release_already_exists", 0, map[string]interface{}{"Version": "v1.0.0"}))
+		assert.Contains(t, err.Error(), "release already exists for version v1.0.0")
 	})
 
 	t.Run("should return error if repo or tag not found", func(t *testing.T) {
@@ -480,7 +473,7 @@ func TestGitHubClient_CreateRelease(t *testing.T) {
 
 		err := client.CreateRelease(context.Background(), release, notes, false, true)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), client.trans.GetMessage("error.repo_or_tag_not_found", 0, map[string]interface{}{"Version": "v1.0.0"}))
+		assert.Contains(t, err.Error(), "repository or tag not found for version v1.0.0")
 	})
 
 	t.Run("should return generic error for other failures", func(t *testing.T) {
@@ -498,7 +491,7 @@ func TestGitHubClient_CreateRelease(t *testing.T) {
 
 		err := client.CreateRelease(context.Background(), release, notes, false, true)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), client.trans.GetMessage("error.create_release", 0, nil))
+		assert.Contains(t, err.Error(), "failed to create release")
 	})
 }
 
@@ -548,7 +541,7 @@ func TestGitHubClient_GetRelease(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, release)
-		assert.Contains(t, err.Error(), client.trans.GetMessage("error.repo_or_tag_not_found", 0, map[string]interface{}{"Version": "v1.0.0"}))
+		assert.Contains(t, err.Error(), "repository or tag not found for version v1.0.0")
 		mockRelease.AssertExpectations(t)
 	})
 
@@ -610,7 +603,7 @@ func TestGitHubClient_UpdateRelease(t *testing.T) {
 		err := client.UpdateRelease(context.Background(), "v1.0.0", "Updated body")
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), client.trans.GetMessage("error.repo_or_tag_not_found", 0, map[string]interface{}{"Version": "v1.0.0"}))
+		assert.Contains(t, err.Error(), "repository or tag not found for version v1.0.0")
 		mockRelease.AssertExpectations(t)
 	})
 
@@ -722,7 +715,7 @@ func TestGitHubClient_GetIssue(t *testing.T) {
 		_, err := client.GetIssue(context.Background(), issueNumber)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), fmt.Sprintf("error obteniendo issue #%d", issueNumber))
+		assert.Contains(t, err.Error(), fmt.Sprintf("error getting issue #%d", issueNumber))
 		mockIssues.AssertExpectations(t)
 	})
 }
@@ -1139,7 +1132,7 @@ func TestGitHubClient_GetFileAtTag(t *testing.T) {
 		_, err := client.GetFileAtTag(context.Background(), tag, filepath)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "archivo no encontrado")
+		assert.Contains(t, err.Error(), "file not found")
 	})
 
 	t.Run("should return error if GetContents fails", func(t *testing.T) {
@@ -1412,7 +1405,7 @@ func TestGitHubClient_CreateIssue(t *testing.T) {
 		_, err := client.CreateIssue(context.Background(), "Title", "Body", nil, nil)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "error creando issue")
+		assert.Contains(t, err.Error(), "error creating issue")
 		mockIssues.AssertExpectations(t)
 	})
 }

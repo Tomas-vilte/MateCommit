@@ -7,64 +7,85 @@ import (
 	"strings"
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
+	domainErrors "github.com/Tomas-vilte/MateCommit/internal/domain/errors"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 )
 
-var _ ports.IssueGeneratorService = (*IssueGeneratorService)(nil)
-
-type IssueGeneratorService struct {
-	git             ports.GitService
-	ai              ports.IssueContentGenerator
-	vcsClient       ports.VCSClient
-	templateService ports.IssueTemplateService
-	config          *config.Config
-	trans           *i18n.Translations
+// issueGitService defines only the methods needed by IssueGeneratorService.
+type issueGitService interface {
+	GetDiff(ctx context.Context) (string, error)
+	GetChangedFiles(ctx context.Context) ([]string, error)
 }
 
-func NewIssueGeneratorService(
-	git ports.GitService,
-	ai ports.IssueContentGenerator,
-	vcsClient ports.VCSClient,
-	templateService ports.IssueTemplateService,
-	cfg *config.Config,
-	trans *i18n.Translations,
-) *IssueGeneratorService {
-	return &IssueGeneratorService{
-		git:             git,
-		ai:              ai,
-		vcsClient:       vcsClient,
-		templateService: templateService,
-		config:          cfg,
-		trans:           trans,
+// issueTemplateService is a minimal interface for testing purposes
+type issueTemplateService interface {
+	GetTemplateByName(name string) (*models.IssueTemplate, error)
+	MergeWithGeneratedContent(template *models.IssueTemplate, generated *models.IssueGenerationResult) *models.IssueGenerationResult
+}
+
+type IssueGeneratorService struct {
+	git             issueGitService
+	ai              ports.IssueContentGenerator
+	vcsClient       ports.VCSClient
+	templateService issueTemplateService
+	config          *config.Config
+}
+
+type IssueGeneratorOption func(*IssueGeneratorService)
+
+func WithIssueVCSClient(vcs ports.VCSClient) IssueGeneratorOption {
+	return func(s *IssueGeneratorService) {
+		s.vcsClient = vcs
 	}
 }
 
-// GenerateFromDiff genera contenido de issue basándose en el diff actual de git.
-// Analiza los cambios locales (staged y unstaged) para crear un título, descripción y labels apropiados.
+func WithIssueTemplateService(ts issueTemplateService) IssueGeneratorOption {
+	return func(s *IssueGeneratorService) {
+		s.templateService = ts
+	}
+}
+
+func WithIssueConfig(cfg *config.Config) IssueGeneratorOption {
+	return func(s *IssueGeneratorService) {
+		s.config = cfg
+	}
+}
+
+func NewIssueGeneratorService(
+	gitSvc issueGitService,
+	ai ports.IssueContentGenerator,
+	opts ...IssueGeneratorOption,
+) *IssueGeneratorService {
+	s := &IssueGeneratorService{
+		git: gitSvc,
+		ai:  ai,
+	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
+}
+
+// GenerateFromDiff generates issue content based on the current git diff.
+// It analyzes local changes (staged and unstaged) to create an appropriate title, description, and labels.
 func (s *IssueGeneratorService) GenerateFromDiff(ctx context.Context, hint string, skipLabels bool) (*models.IssueGenerationResult, error) {
 	if s.ai == nil {
-		return nil, fmt.Errorf("%s", s.trans.GetMessage("issue_generator.ai_not_configured", 0, nil))
+		return nil, domainErrors.ErrAPIKeyMissing
 	}
 
 	diff, err := s.git.GetDiff(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", s.trans.GetMessage("issue_generator.error_getting_diff", 0, nil), err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeGit, "failed to get diff", err)
 	}
 
 	if diff == "" {
-		return nil, fmt.Errorf("%s", s.trans.GetMessage("issue_generator.no_changes_detected", 0, nil))
+		return nil, domainErrors.ErrNoChanges
 	}
 
-	changedFilesRaw, err := s.git.GetChangedFiles(ctx)
+	changedFiles, err := s.git.GetChangedFiles(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", s.trans.GetMessage("issue_generator.error_getting_files", 0, nil), err)
-	}
-
-	changedFiles := make([]string, 0, len(changedFilesRaw))
-	for _, change := range changedFilesRaw {
-		changedFiles = append(changedFiles, change.Path)
+		return nil, domainErrors.NewAppError(domainErrors.TypeGit, "failed to get changed files", err)
 	}
 
 	request := models.IssueGenerationRequest{
@@ -76,7 +97,7 @@ func (s *IssueGeneratorService) GenerateFromDiff(ctx context.Context, hint strin
 
 	result, err := s.ai.GenerateIssueContent(ctx, request)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", s.trans.GetMessage("issue_generator.error_generating_content", 0, nil), err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "failed to generate issue content", err)
 	}
 
 	if !skipLabels {
@@ -87,25 +108,27 @@ func (s *IssueGeneratorService) GenerateFromDiff(ctx context.Context, hint strin
 	return result, nil
 }
 
-// GenerateFromDescription genera contenido de issue basándose en una descripción manual.
-// Útil cuando el usuario quiere crear una issue sin tener cambios locales.
+// GenerateFromDescription generates issue content based on a manual description.
+// Useful when the user wants to create an issue without having local changes.
 func (s *IssueGeneratorService) GenerateFromDescription(ctx context.Context, description string, skipLabels bool) (*models.IssueGenerationResult, error) {
 	if s.ai == nil {
-		return nil, fmt.Errorf("%s", s.trans.GetMessage("issue_generator.ai_not_configured", 0, nil))
+		return nil, domainErrors.ErrAPIKeyMissing
 	}
 
 	if description == "" {
-		return nil, fmt.Errorf("%s", s.trans.GetMessage("issue_generator.description_required", 0, nil))
+		return nil, domainErrors.NewAppError(domainErrors.TypeConfiguration, "description is required", nil)
 	}
 
 	request := models.IssueGenerationRequest{
 		Description: description,
-		Language:    s.config.Language,
+	}
+	if s.config != nil {
+		request.Language = s.config.Language
 	}
 
 	result, err := s.ai.GenerateIssueContent(ctx, request)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", s.trans.GetMessage("issue_generator.error_generating_content", 0, nil), err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "failed to generate issue content", err)
 	}
 
 	if skipLabels {
@@ -117,16 +140,16 @@ func (s *IssueGeneratorService) GenerateFromDescription(ctx context.Context, des
 
 func (s *IssueGeneratorService) GenerateFromPR(ctx context.Context, prNumber int, hint string, skipLabels bool) (*models.IssueGenerationResult, error) {
 	if s.ai == nil {
-		return nil, fmt.Errorf("%s", s.trans.GetMessage("issue_generator.ai_not_configured", 0, nil))
+		return nil, domainErrors.ErrAPIKeyMissing
 	}
 
 	if s.vcsClient == nil {
-		return nil, fmt.Errorf("%s", s.trans.GetMessage("issue_generator.vcs_not_configured", 0, nil))
+		return nil, domainErrors.ErrConfigMissing
 	}
 
 	prData, err := s.vcsClient.GetPR(ctx, prNumber)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", s.trans.GetMessage("issue_generator.error_getting_pr", 0, nil), err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeVCS, "failed to get PR", err)
 	}
 
 	var contextBuilder strings.Builder
@@ -158,7 +181,7 @@ func (s *IssueGeneratorService) GenerateFromPR(ctx context.Context, prNumber int
 
 	result, err := s.ai.GenerateIssueContent(ctx, request)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", s.trans.GetMessage("issue_generator.error_generating_content", 0, nil), err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "failed to generate issue content", err)
 	}
 
 	result.Description = fmt.Sprintf("%s\n\n---\n*Related PR: #%d*", result.Description, prNumber)
@@ -173,7 +196,7 @@ func (s *IssueGeneratorService) GenerateFromPR(ctx context.Context, prNumber int
 func (s *IssueGeneratorService) GenerateWithTemplate(ctx context.Context, templateName string, hint string, fromDiff bool, description string, skipLabels bool) (*models.IssueGenerationResult, error) {
 	template, err := s.templateService.GetTemplateByName(templateName)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", s.trans.GetMessage("issue_generator.error_loading_template", 0, nil), err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeConfiguration, fmt.Sprintf("failed to load template: %s", templateName), err)
 	}
 
 	var baseResult *models.IssueGenerationResult
@@ -182,7 +205,7 @@ func (s *IssueGeneratorService) GenerateWithTemplate(ctx context.Context, templa
 	} else if description != "" {
 		baseResult, err = s.GenerateFromDescription(ctx, description, skipLabels)
 	} else {
-		return nil, fmt.Errorf("%s", s.trans.GetMessage("issue.error_no_input", 0, nil))
+		return nil, domainErrors.NewAppError(domainErrors.TypeConfiguration, "no input provided", nil)
 	}
 	if err != nil {
 		return nil, err
@@ -245,13 +268,13 @@ func (s *IssueGeneratorService) extractFilesFromDiff(diff string) []string {
 	return files
 }
 
-// CreateIssue crea una nueva issue en el repositorio usando el VCS client configurado.
-// Retorna la issue creada con su número y URL asignados.
+// CreateIssue creates a new issue in the repository using the configured VCS client.
+// It returns the created issue with its assigned number and URL.
 func (s *IssueGeneratorService) CreateIssue(ctx context.Context, result *models.IssueGenerationResult, assignees []string) (*models.Issue, error) {
 	return s.vcsClient.CreateIssue(ctx, result.Title, result.Description, result.Labels, assignees)
 }
 
-// GetAuthenticatedUser obtiene el username del usuario autenticado actual.
+// GetAuthenticatedUser gets the username of the current authenticated user.
 func (s *IssueGeneratorService) GetAuthenticatedUser(ctx context.Context) (string, error) {
 	return s.vcsClient.GetAuthenticatedUser(ctx)
 }
@@ -280,15 +303,15 @@ func (s *IssueGeneratorService) InferBranchName(issueNumber int, labels []string
 	return fmt.Sprintf("%s/issue-%d", prefix, issueNumber)
 }
 
-// LinkIssueToPR vincula una issue a un Pull Request agregando "Closes #issueNumber" a la descripción del PR.
+// LinkIssueToPR links an issue to a Pull Request by adding "Closes #issueNumber" to the PR description.
 func (s *IssueGeneratorService) LinkIssueToPR(ctx context.Context, prNumber int, issueNumber int) error {
 	if s.vcsClient == nil {
-		return fmt.Errorf("%s", s.trans.GetMessage("issue_generator.vcs_not_configured", 0, nil))
+		return domainErrors.ErrConfigMissing
 	}
 
 	prData, err := s.vcsClient.GetPR(ctx, prNumber)
 	if err != nil {
-		return fmt.Errorf("%s: %w", s.trans.GetMessage("issue_generator.error_getting_pr", 0, nil), err)
+		return domainErrors.NewAppError(domainErrors.TypeVCS, "failed to get PR", err)
 	}
 
 	linkText := fmt.Sprintf("\n\nCloses #%d", issueNumber)
@@ -300,9 +323,7 @@ func (s *IssueGeneratorService) LinkIssueToPR(ctx context.Context, prNumber int,
 	}
 
 	if err := s.vcsClient.UpdatePR(ctx, prNumber, summary); err != nil {
-		return fmt.Errorf("%s: %w", s.trans.GetMessage("error.update_pr", 0, map[string]interface{}{
-			"pr_number": prNumber,
-		}), err)
+		return domainErrors.NewAppError(domainErrors.TypeVCS, "failed to update PR", err)
 	}
 
 	return nil

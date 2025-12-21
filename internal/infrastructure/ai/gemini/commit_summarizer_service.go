@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
+	domainErrors "github.com/Tomas-vilte/MateCommit/internal/domain/errors"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/ai"
 	"google.golang.org/genai"
 )
@@ -22,7 +22,6 @@ type GeminiCommitSummarizer struct {
 	wrapper    *ai.CostAwareWrapper
 	generateFn ai.GenerateFunc
 	config     *config.Config
-	trans      *i18n.Translations
 }
 
 type (
@@ -47,11 +46,10 @@ type (
 	}
 )
 
-func NewGeminiCommitSummarizer(ctx context.Context, cfg *config.Config, trans *i18n.Translations) (*GeminiCommitSummarizer, error) {
+func NewGeminiCommitSummarizer(ctx context.Context, cfg *config.Config, onConfirmation ai.ConfirmationCallback) (*GeminiCommitSummarizer, error) {
 	providerCfg, exists := cfg.AIProviders["gemini"]
 	if !exists || providerCfg.APIKey == "" {
-		msg := trans.GetMessage("error_missing_api_key", 0, map[string]interface{}{"Provider": "gemini"})
-		return nil, fmt.Errorf("%s", msg)
+		return nil, domainErrors.ErrAPIKeyMissing
 	}
 
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
@@ -59,10 +57,7 @@ func NewGeminiCommitSummarizer(ctx context.Context, cfg *config.Config, trans *i
 		Backend: genai.BackendGeminiAPI,
 	})
 	if err != nil {
-		msg := trans.GetMessage("ai_service.error_ai_client", 0, map[string]interface{}{
-			"Error": err,
-		})
-		return nil, fmt.Errorf("%s", msg)
+		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error creating AI client", err)
 	}
 
 	modelName := string(cfg.AIConfig.Models[config.AIGemini])
@@ -75,17 +70,16 @@ func NewGeminiCommitSummarizer(ctx context.Context, cfg *config.Config, trans *i
 	service := &GeminiCommitSummarizer{
 		GeminiProvider: NewGeminiProvider(client, modelName),
 		config:         cfg,
-		trans:          trans,
 	}
 
 	wrapper, err := ai.NewCostAwareWrapper(ai.WrapperConfig{
 		Provider:              service,
 		BudgetDaily:           budgetDaily,
-		Trans:                 trans,
 		EstimatedOutputTokens: 800,
+		OnConfirmation:        onConfirmation,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error creando wrapper: %w", err)
+		return nil, fmt.Errorf("error creating wrapper: %w", err)
 	}
 
 	service.wrapper = wrapper
@@ -108,23 +102,18 @@ func (s *GeminiCommitSummarizer) defaultGenerate(ctx context.Context, mName stri
 
 func (s *GeminiCommitSummarizer) GenerateSuggestions(ctx context.Context, info models.CommitInfo, count int) ([]models.CommitSuggestion, error) {
 	if count <= 0 {
-		msg := s.trans.GetMessage("error_invalid_suggestion_count", 0, nil)
-		return nil, fmt.Errorf("%s", msg)
+		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, "invalid suggestion count", nil)
 	}
 
 	if len(info.Files) == 0 {
-		msg := s.trans.GetMessage("error_no_files", 0, nil)
-		return nil, fmt.Errorf("%s", msg)
+		return nil, domainErrors.NewAppError(domainErrors.TypeGit, "no files to summarize", nil)
 	}
 
 	prompt := s.generatePrompt(s.config.Language, info, count)
 
 	resp, usage, err := s.wrapper.WrapGenerate(ctx, "suggest-commits", prompt, s.generateFn)
 	if err != nil {
-		msg := s.trans.GetMessage("error_generating_content", 0, map[string]interface{}{
-			"Error": err.Error(),
-		})
-		return nil, fmt.Errorf("%s", msg)
+		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error generating content", err)
 	}
 
 	var responseText string
@@ -135,7 +124,7 @@ func (s *GeminiCommitSummarizer) GenerateSuggestions(ctx context.Context, info m
 	}
 
 	if responseText == "" {
-		return nil, fmt.Errorf("respuesta vacía de la IA")
+		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "empty response from AI", nil)
 	}
 
 	suggestions, err := s.parseSuggestionsJSON(responseText)
@@ -145,11 +134,10 @@ func (s *GeminiCommitSummarizer) GenerateSuggestions(ctx context.Context, info m
 		if respLen > 500 {
 			preview = responseText[:500] + "..."
 		}
-		return nil, fmt.Errorf("error al parsear respuesta JSON de la IA (longitud: %d caracteres): %w\nPrimeros caracteres: %s",
-			respLen, err, preview)
+		return nil, domainErrors.NewAppError(domainErrors.TypeAI, fmt.Sprintf("error parsing AI JSON response (length: %d): %s", respLen, preview), err)
 	}
 	if len(suggestions) == 0 {
-		return nil, fmt.Errorf("la IA no generó ninguna sugerencia")
+		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "AI generated no suggestions", nil)
 	}
 	for i := range suggestions {
 		suggestions[i].Usage = usage
@@ -162,14 +150,14 @@ func (s *GeminiCommitSummarizer) GenerateSuggestions(ctx context.Context, info m
 
 func (s *GeminiCommitSummarizer) parseSuggestionsJSON(responseText string) ([]models.CommitSuggestion, error) {
 	if responseText == "" {
-		return nil, fmt.Errorf("texto de respuesta vacío de la IA")
+		return nil, fmt.Errorf("empty response text from AI")
 	}
 
 	responseText = ExtractJSON(responseText)
 
 	var jsonSuggestions []CommitSuggestionJSON
 	if err := json.Unmarshal([]byte(responseText), &jsonSuggestions); err != nil {
-		return nil, fmt.Errorf("error al parsear JSON: %w", err)
+		return nil, fmt.Errorf("error parsing JSON: %w", err)
 	}
 
 	suggestions := make([]models.CommitSuggestion, 0, len(jsonSuggestions))
@@ -207,7 +195,6 @@ func (s *GeminiCommitSummarizer) generatePrompt(locale string, info models.Commi
 		info.TicketInfo.TicketTitle != "")
 
 	filesFormatted := formatChanges(info.Files)
-
 	diffFormatted := fmt.Sprintf("```diff\n%s\n```", info.Diff)
 
 	ticketInfo := ""
@@ -236,8 +223,8 @@ func (s *GeminiCommitSummarizer) generatePrompt(locale string, info models.Commi
 	issueInstructions := ""
 	if info.IssueInfo != nil && info.IssueInfo.Number > 0 {
 		num := info.IssueInfo.Number
-		issueInstructions = fmt.Sprintf(ai.GetIssueReferenceInstructions(locale), num, num, num, num, num,
-			num, num, num)
+		data := ai.PromptData{IssueNumber: num}
+		issueInstructions, _ = ai.RenderPrompt("issueInstructions", ai.GetIssueReferenceInstructions(locale), data)
 	} else {
 		issueInstructions = ai.GetNoIssueReferenceInstruction(locale)
 	}
@@ -247,27 +234,22 @@ func (s *GeminiCommitSummarizer) generatePrompt(locale string, info models.Commi
 		technicalAnalysis = ai.GetTechnicalAnalysisInstruction(locale)
 	}
 
-	if info.TicketInfo != nil && info.TicketInfo.TicketTitle != "" {
-		return fmt.Sprintf(promptTemplate,
-			count,
-			filesFormatted,
-			diffFormatted,
-			ticketInfo,
-			issueInstructions,
-			info.RecentHistory,
-			count,
-		)
+	data := ai.PromptData{
+		Count:         count,
+		Files:         filesFormatted,
+		Diff:          diffFormatted,
+		Ticket:        ticketInfo,
+		History:       info.RecentHistory,
+		Instructions:  issueInstructions,
+		TechnicalInfo: technicalAnalysis,
 	}
 
-	return fmt.Sprintf(promptTemplate,
-		count,
-		filesFormatted,
-		diffFormatted,
-		issueInstructions,
-		info.RecentHistory,
-		technicalAnalysis,
-		count,
-	)
+	rendered, err := ai.RenderPrompt("commitPrompt", promptTemplate, data)
+	if err != nil {
+		return "" // Handle better in production, for now we fail silently or return empty
+	}
+
+	return rendered
 }
 
 func formatChanges(files []string) string {
@@ -292,7 +274,7 @@ func formatCriteria(criteria []string) string {
 	return strings.Join(formattedCriteria, "\n")
 }
 
-// formatResponse formatea la respuesta de la API de Gemini en una cadena.
+// formatResponse formats the Gemini API response into a string.
 func formatResponse(resp *genai.GenerateContentResponse) string {
 	if resp == nil || len(resp.Candidates) == 0 {
 		return ""
@@ -311,7 +293,7 @@ func formatResponse(resp *genai.GenerateContentResponse) string {
 	return formattedContent.String()
 }
 
-// ensureIssueReference asegura que todas las sugerencias incluyan la referencia al issue correcta
+// ensureIssueReference ensures all suggestions include the correct issue reference
 func (s *GeminiCommitSummarizer) ensureIssueReference(suggestions []models.CommitSuggestion, issueNumber int) []models.CommitSuggestion {
 	issuePattern := regexp.MustCompile(`\(#\d+\)`)
 

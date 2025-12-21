@@ -10,13 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestIsUpdateAvailable(t *testing.T) {
-	trans, _ := i18n.NewTranslations("en", "")
 
 	tests := []struct {
 		name     string
@@ -82,7 +80,7 @@ func TestIsUpdateAvailable(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			updater := NewVersionUpdater(tt.current, trans)
+			updater := NewVersionUpdater(WithCurrentVersion(tt.current))
 			got := updater.isUpdateAvailable(tt.latest)
 			assert.Equal(t, tt.expected, got)
 		})
@@ -90,7 +88,6 @@ func TestIsUpdateAvailable(t *testing.T) {
 }
 
 func TestDetectInstallMethod(t *testing.T) {
-	trans, _ := i18n.NewTranslations("en", "")
 
 	tests := []struct {
 		name     string
@@ -119,7 +116,7 @@ func TestDetectInstallMethod(t *testing.T) {
 				t.Setenv("GOBIN", tt.gobin)
 			}
 
-			updater := NewVersionUpdater("v1.0.0", trans)
+			updater := NewVersionUpdater(WithCurrentVersion("v1.0.0"))
 			method := updater.detectInstallMethod()
 
 			assert.Contains(t, []string{"go", "brew", "binary", "unknown"}, method)
@@ -128,8 +125,7 @@ func TestDetectInstallMethod(t *testing.T) {
 }
 
 func TestDetectInstallMethod_Binary(t *testing.T) {
-	trans, _ := i18n.NewTranslations("en", "")
-	updater := NewVersionUpdater("v1.0.0", trans)
+	updater := NewVersionUpdater(WithCurrentVersion("v1.0.0"))
 
 	t.Setenv("GOPATH", "")
 	t.Setenv("GOBIN", "")
@@ -141,20 +137,18 @@ func TestDetectInstallMethod_Binary(t *testing.T) {
 }
 
 func TestUpdateCLI(t *testing.T) {
-	trans, _ := i18n.NewTranslations("en", "")
-	updater := NewVersionUpdater("v1.0.0", trans)
+	updater := NewVersionUpdater(WithCurrentVersion("v1.0.0"))
 
 	t.Run("calls appropriate method", func(t *testing.T) {
 		t.Setenv("GOPATH", "")
 		t.Setenv("GOBIN", "")
 		err := updater.UpdateCLI(context.Background())
-		assert.Error(t, err)
+		assert.ErrorContains(t, err, "UPDATE: failed to update application")
 	})
 }
 
 func TestCacheOperations(t *testing.T) {
-	trans, _ := i18n.NewTranslations("en", "")
-	updater := NewVersionUpdater("v1.0.0", trans)
+	updater := NewVersionUpdater(WithCurrentVersion("v1.0.0"))
 
 	cache := UpdateCache{
 		LastCheck:   time.Now(),
@@ -175,8 +169,7 @@ func TestCacheOperations(t *testing.T) {
 }
 
 func TestCheckForUpdates_WithDisableEnvVar(t *testing.T) {
-	trans, _ := i18n.NewTranslations("en", "")
-	updater := NewVersionUpdater("v1.0.0", trans)
+	updater := NewVersionUpdater(WithCurrentVersion("v1.0.0"))
 
 	t.Setenv("MATECOMMIT_DISABLE_UPDATE_CHECK", "1")
 
@@ -187,8 +180,7 @@ func TestCheckForUpdates_WithDisableEnvVar(t *testing.T) {
 }
 
 func TestCheckForUpdates_WithCache(t *testing.T) {
-	trans, _ := i18n.NewTranslations("en", "")
-	updater := NewVersionUpdater("v1.0.0", trans)
+	updater := NewVersionUpdater(WithCurrentVersion("v1.0.0"))
 
 	cache := UpdateCache{
 		LastCheck:   time.Now().Add(-1 * time.Hour),
@@ -208,16 +200,15 @@ func TestCheckForUpdates_WithCache(t *testing.T) {
 }
 
 func TestUpdateViaBinary_RealCallFails(t *testing.T) {
-	trans, _ := i18n.NewTranslations("en", "")
-	updater := NewVersionUpdater("v1.0.0", trans)
+	updater := NewVersionUpdater(WithCurrentVersion("v1.0.0"))
 
 	err := updater.updateViaBinary(context.Background())
 	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "binary not found for this platform")
 }
 
 func TestExtractZip(t *testing.T) {
-	trans, _ := i18n.NewTranslations("en", "")
-	updater := NewVersionUpdater("v1.0.0", trans)
+	updater := NewVersionUpdater(WithCurrentVersion("v1.0.0"))
 
 	tmpDir := t.TempDir()
 	zipPath := filepath.Join(tmpDir, "test.zip")
@@ -250,8 +241,7 @@ func TestExtractZip(t *testing.T) {
 }
 
 func TestExtractTarGz(t *testing.T) {
-	trans, _ := i18n.NewTranslations("en", "")
-	updater := NewVersionUpdater("v1.0.0", trans)
+	updater := NewVersionUpdater(WithCurrentVersion("v1.0.0"))
 
 	tmpDir := t.TempDir()
 	tarPath := filepath.Join(tmpDir, "test.tar.gz")
@@ -288,16 +278,14 @@ func TestExtractTarGz(t *testing.T) {
 	assert.Equal(t, "dummy content", string(content))
 }
 func TestVersionUpdater_IsUpdateAvailable_EdgeCases(t *testing.T) {
-	trans, _ := i18n.NewTranslations("en", "")
-	updater := NewVersionUpdater("v1.0.0", trans)
+	updater := NewVersionUpdater(WithCurrentVersion("v1.0.0"))
 
 	assert.False(t, updater.isUpdateAvailable("v1.0.0-rc.1"))
-	assert.True(t, NewVersionUpdater("v1.0.0-rc.1", trans).isUpdateAvailable("v1.0.0"))
+	assert.True(t, NewVersionUpdater(WithCurrentVersion("v1.0.0-rc.1")).isUpdateAvailable("v1.0.0"))
 }
 
 func TestVersionUpdater_LoadCache_InvalidJSON(t *testing.T) {
-	trans, _ := i18n.NewTranslations("en", "")
-	updater := NewVersionUpdater("v1.0.0", trans)
+	updater := NewVersionUpdater(WithCurrentVersion("v1.0.0"))
 
 	cacheDir, _ := updater.getCacheDir()
 	_ = os.MkdirAll(cacheDir, 0755)

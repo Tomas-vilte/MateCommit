@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
+	domainErrors "github.com/Tomas-vilte/MateCommit/internal/domain/errors"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/ai"
 	"google.golang.org/genai"
 )
@@ -19,16 +19,14 @@ type GeminiIssueContentGenerator struct {
 	wrapper    *ai.CostAwareWrapper
 	generateFn ai.GenerateFunc
 	config     *config.Config
-	trans      *i18n.Translations
 }
 
 var _ ports.IssueContentGenerator = (*GeminiIssueContentGenerator)(nil)
 
-func NewGeminiIssueContentGenerator(ctx context.Context, cfg *config.Config, trans *i18n.Translations) (*GeminiIssueContentGenerator, error) {
+func NewGeminiIssueContentGenerator(ctx context.Context, cfg *config.Config, onConfirmation ai.ConfirmationCallback) (*GeminiIssueContentGenerator, error) {
 	providerCfg, exists := cfg.AIProviders["gemini"]
 	if !exists || providerCfg.APIKey == "" {
-		msg := trans.GetMessage("error_missing_api_key", 0, map[string]interface{}{"Provider": "gemini"})
-		return nil, fmt.Errorf("%s", msg)
+		return nil, domainErrors.ErrAPIKeyMissing
 	}
 
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
@@ -36,10 +34,7 @@ func NewGeminiIssueContentGenerator(ctx context.Context, cfg *config.Config, tra
 		Backend: genai.BackendGeminiAPI,
 	})
 	if err != nil {
-		msg := trans.GetMessage("ai_service.error_ai_client", 0, map[string]interface{}{
-			"Error": err,
-		})
-		return nil, fmt.Errorf("%s", msg)
+		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error creating AI client", err)
 	}
 
 	modelName := string(cfg.AIConfig.Models[config.AIGemini])
@@ -52,17 +47,16 @@ func NewGeminiIssueContentGenerator(ctx context.Context, cfg *config.Config, tra
 	service := &GeminiIssueContentGenerator{
 		GeminiProvider: NewGeminiProvider(client, modelName),
 		config:         cfg,
-		trans:          trans,
 	}
 
 	wrapper, err := ai.NewCostAwareWrapper(ai.WrapperConfig{
 		Provider:              service,
 		BudgetDaily:           budgetDaily,
-		Trans:                 trans,
 		EstimatedOutputTokens: 600,
+		OnConfirmation:        onConfirmation,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error creando wrapper: %w", err)
+		return nil, fmt.Errorf("error creating wrapper: %w", err)
 	}
 
 	service.wrapper = wrapper
@@ -83,13 +77,13 @@ func (s *GeminiIssueContentGenerator) defaultGenerate(ctx context.Context, mName
 	return resp, usage, nil
 }
 
-// GenerateIssueContent genera contenido de issue usando Gemini AI.
+// GenerateIssueContent generates issue content using Gemini AI.
 func (s *GeminiIssueContentGenerator) GenerateIssueContent(ctx context.Context, request models.IssueGenerationRequest) (*models.IssueGenerationResult, error) {
 	prompt := s.buildIssuePrompt(request)
 
 	resp, usage, err := s.wrapper.WrapGenerate(ctx, "generate-issue", prompt, s.generateFn)
 	if err != nil {
-		return nil, fmt.Errorf("error generando contenido de issue: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error generating issue content", err)
 	}
 
 	var responseText string
@@ -100,12 +94,12 @@ func (s *GeminiIssueContentGenerator) GenerateIssueContent(ctx context.Context, 
 	}
 
 	if responseText == "" {
-		return nil, fmt.Errorf("ningún contenido generado por IA")
+		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "empty response from AI", nil)
 	}
 
 	result, err := s.parseIssueResponse(responseText)
 	if err != nil {
-		return nil, fmt.Errorf("error al parsear la respuesta de la IA: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error parsing AI response", err)
 	}
 
 	result.Usage = usage
@@ -113,7 +107,7 @@ func (s *GeminiIssueContentGenerator) GenerateIssueContent(ctx context.Context, 
 	return result, nil
 }
 
-// buildIssuePrompt construye el prompt para generar contenido de issue.
+// buildIssuePrompt builds the prompt to generate issue content.
 func (s *GeminiIssueContentGenerator) buildIssuePrompt(request models.IssueGenerationRequest) string {
 	var sb strings.Builder
 
@@ -141,14 +135,23 @@ func (s *GeminiIssueContentGenerator) buildIssuePrompt(request models.IssueGener
 		sb.WriteString(fmt.Sprintf("User Hint: %s\n\n", request.Hint))
 	}
 
-	template := ai.GetIssuePromptTemplate(request.Language)
-	return fmt.Sprintf(template, sb.String())
+	templateStr := ai.GetIssuePromptTemplate(request.Language)
+	data := ai.PromptData{
+		IssueInfo: sb.String(),
+	}
+
+	rendered, err := ai.RenderPrompt("issuePrompt", templateStr, data)
+	if err != nil {
+		return ""
+	}
+
+	return rendered
 }
 
-// parseIssueResponse parsea la respuesta JSON de Gemini.
+// parseIssueResponse parses the Gemini JSON response.
 func (s *GeminiIssueContentGenerator) parseIssueResponse(content string) (*models.IssueGenerationResult, error) {
 	if content == "" {
-		return nil, fmt.Errorf("empty response from AI")
+		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "empty response from AI", nil)
 	}
 
 	content = ExtractJSON(content)
@@ -183,7 +186,7 @@ func (s *GeminiIssueContentGenerator) parseIssueResponse(content string) (*model
 	return result, nil
 }
 
-// cleanLabels limpia y valida las labels, mantiene solo las permitidas.
+// cleanLabels cleans and validates labels, keeping only the allowed ones.
 func (s *GeminiIssueContentGenerator) cleanLabels(labels []string) []string {
 	allowedLabels := map[string]bool{
 		"feature":  true,

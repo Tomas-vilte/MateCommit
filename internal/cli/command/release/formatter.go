@@ -8,7 +8,7 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 )
 
-// FormatReleaseMarkdown genera el markdown completo de una release con todas las secciones
+// FormatReleaseMarkdown generates the full release markdown with all sections
 func FormatReleaseMarkdown(release *models.Release, notes *models.ReleaseNotes, trans *i18n.Translations) string {
 	content := fmt.Sprintf("# %s\n\n", notes.Title)
 	var md strings.Builder

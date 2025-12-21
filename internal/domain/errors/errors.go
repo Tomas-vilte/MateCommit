@@ -2,106 +2,102 @@ package errors
 
 import "fmt"
 
-// ConfigError representa un error de configuración
-type ConfigError struct {
-	Field   string
+// ErrorType defines the category of the error
+type ErrorType string
+
+const (
+	TypeConfiguration ErrorType = "CONFIGURATION"
+	TypeAI            ErrorType = "AI"
+	TypeVCS           ErrorType = "VCS"
+	TypeGit           ErrorType = "GIT"
+	TypeInternal      ErrorType = "INTERNAL"
+	TypeUpdate        ErrorType = "UPDATE"
+)
+
+// AppError represents a domain-level error with a type and an underlying error
+type AppError struct {
+	Type    ErrorType
 	Message string
+	Context map[string]interface{}
 	Err     error
 }
 
-func (e *ConfigError) Error() string {
+func (e *AppError) Error() string {
 	if e.Err != nil {
-		return fmt.Sprintf("config error [%s]: %s: %v", e.Field, e.Message, e.Err)
+		return fmt.Sprintf("%s: %s (%v)", e.Type, e.Message, e.Err)
 	}
-	return fmt.Sprintf("config error [%s]: %s", e.Field, e.Message)
+	return fmt.Sprintf("%s: %s", e.Type, e.Message)
 }
 
-func (e *ConfigError) Unwrap() error {
+func (e *AppError) Unwrap() error {
 	return e.Err
 }
 
-// NewConfigError crea un nuevo error de configuración
-func NewConfigError(field, message string, err error) *ConfigError {
-	return &ConfigError{
-		Field:   field,
-		Message: message,
+// NewAppError creates a new AppError
+func NewAppError(t ErrorType, msg string, err error) *AppError {
+	return &AppError{
+		Type:    t,
+		Message: msg,
 		Err:     err,
 	}
 }
 
-// AIProviderNotFoundError indica que un proveedor de IA no fue encontrado
-type AIProviderNotFoundError struct {
-	Provider string
-}
+// Git errors
+var (
+	ErrNoChanges       = NewAppError(TypeGit, "no staged changes detected", nil)
+	ErrGetBranch       = NewAppError(TypeGit, "failed to get current branch", nil)
+	ErrNoBranch        = NewAppError(TypeGit, "no branch detected", nil)
+	ErrGetRepoRoot     = NewAppError(TypeGit, "failed to get repository root", nil)
+	ErrGetRepoURL      = NewAppError(TypeGit, "failed to get repository URL", nil)
+	ErrGetCommits      = NewAppError(TypeGit, "failed to get commits", nil)
+	ErrAddFile         = NewAppError(TypeGit, "failed to add file to staging", nil)
+	ErrExtractRepoInfo = NewAppError(TypeGit, "failed to extract repository info", nil)
+	ErrCreateTag       = NewAppError(TypeGit, "failed to create tag", nil)
+	ErrPushTag         = NewAppError(TypeGit, "failed to push tag", nil)
+	ErrCreateCommit    = NewAppError(TypeGit, "failed to create commit", nil)
+	ErrGetDiff         = NewAppError(TypeGit, "failed to get diff", nil)
+	ErrNoDiff          = NewAppError(TypeGit, "no differences detected", nil)
+)
 
-func (e *AIProviderNotFoundError) Error() string {
-	return fmt.Sprintf("Proveedor de IA '%s' no encontrado en el registro", e.Provider)
-}
+// Configuration errors
+var (
+	ErrAPIKeyMissing = NewAppError(TypeConfiguration, "AI API key is missing", nil)
+	ErrTokenMissing  = NewAppError(TypeConfiguration, "VCS token is missing", nil)
+	ErrConfigMissing = NewAppError(TypeConfiguration, "configuration is missing", nil)
+)
 
-// NewAIProviderNotFoundError crea un nuevo error de proveedor no encontrado
-func NewAIProviderNotFoundError(provider string) *AIProviderNotFoundError {
-	return &AIProviderNotFoundError{Provider: provider}
-}
+// VCS errors
+var (
+	ErrRepositoryNotFound = NewAppError(TypeVCS, "repository not found", nil)
+	ErrVCSNotSupported    = NewAppError(TypeVCS, "VCS provider not supported", nil)
+	ErrCreateRelease      = NewAppError(TypeVCS, "failed to create release", nil)
+	ErrUpdateRelease      = NewAppError(TypeVCS, "failed to update release", nil)
+	ErrGetRelease         = NewAppError(TypeVCS, "failed to get release", nil)
+	ErrUploadAsset        = NewAppError(TypeVCS, "failed to upload release asset", nil)
+)
 
-// AIProviderNotConfiguredError indica que un proveedor de IA no está configurado
-type AIProviderNotConfiguredError struct {
-	Provider string
-	Reason   string
-}
+// AI errors
+var (
+	ErrQuotaExceeded   = NewAppError(TypeAI, "AI quota exceeded or rate limited", nil)
+	ErrAIGeneration    = NewAppError(TypeAI, "AI generation failed", nil)
+	ErrInvalidAIOutput = NewAppError(TypeAI, "invalid AI output format", nil)
+)
 
-func (e *AIProviderNotConfiguredError) Error() string {
-	if e.Reason != "" {
-		return fmt.Sprintf("Proveedor IA '%s' no configurado: %s", e.Provider, e.Reason)
-	}
-	return fmt.Sprintf("Proveedor IA '%s' no configurado: %s", e.Provider, e.Reason)
-}
+// Internal errors
+var (
+	ErrNetwork = NewAppError(TypeInternal, "network error occurred", nil)
+	ErrBuild   = NewAppError(TypeInternal, "build operation failed", nil)
+)
 
-// NewAIProviderNotConfiguredError crea un nuevo error de proveedor no configurado
-func NewAIProviderNotConfiguredError(provider, reason string) *AIProviderNotConfiguredError {
-	return &AIProviderNotConfiguredError{
-		Provider: provider,
-		Reason:   reason,
-	}
-}
+// Update errors
+var (
+	ErrUpdateFailed = NewAppError(TypeUpdate, "failed to update application", nil)
+)
 
-// VCSConfigNotFoundError indica que la configuración de VCS no fue encontrada
-type VCSConfigNotFoundError struct {
-	Provider string
-}
-
-func (e *VCSConfigNotFoundError) Error() string {
-	return fmt.Sprintf("Configuracion VCS para proveedor '%s' no encontrado", e.Provider)
-}
-
-// NewVCSConfigNotFoundError crea un nuevo error de config VCS no encontrada
-func NewVCSConfigNotFoundError(provider string) *VCSConfigNotFoundError {
-	return &VCSConfigNotFoundError{Provider: provider}
-}
-
-// VCSProviderNotConfiguredError indica que un proveedor VCS no está configurado
-type VCSProviderNotConfiguredError struct {
-	Provider string
-}
-
-func (e *VCSProviderNotConfiguredError) Error() string {
-	return fmt.Sprintf("Proveedor VCS '%s' detectado pero no configurado", e.Provider)
-}
-
-// NewVCSProviderNotConfiguredError crea un nuevo error de proveedor VCS no configurado
-func NewVCSProviderNotConfiguredError(provider string) *VCSProviderNotConfiguredError {
-	return &VCSProviderNotConfiguredError{Provider: provider}
-}
-
-// VCSProviderNotSupportedError indica que un proveedor VCS no es soportado
-type VCSProviderNotSupportedError struct {
-	Provider string
-}
-
-func (e *VCSProviderNotSupportedError) Error() string {
-	return fmt.Sprintf("Proveedor VCS '%s' no es soportado", e.Provider)
-}
-
-// NewVCSProviderNotSupportedError crea un nuevo error de proveedor no soportado
-func NewVCSProviderNotSupportedError(provider string) *VCSProviderNotSupportedError {
-	return &VCSProviderNotSupportedError{Provider: provider}
-}
+var (
+	ErrBuildNoVersion  = NewAppError(TypeInternal, "build version not specified", nil)
+	ErrBuildNoCommit   = NewAppError(TypeInternal, "build commit not specified", nil)
+	ErrBuildNoBuildDir = NewAppError(TypeInternal, "build directory not specified", nil)
+	ErrBuildNoDate     = NewAppError(TypeInternal, "build date not specified", nil)
+	ErrBuildFailed     = NewAppError(TypeInternal, "build operation failed", nil)
+)

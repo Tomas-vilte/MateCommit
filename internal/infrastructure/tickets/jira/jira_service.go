@@ -8,26 +8,31 @@ import (
 	"regexp"
 	"strings"
 
+	domainErrors "github.com/Tomas-vilte/MateCommit/internal/domain/errors"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
-	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/httpclient"
 )
 
-// Constantes para patrones de criterios de aceptación
+// Constants for acceptance criteria patterns
 const (
 	AcceptanceCriteriaEN = "Acceptance Criteria"
 	AcceptanceCriteriaES = "Criterio de Aceptación"
 )
 
-// JiraService representa el servicio para interactuar con la API de Jira.
+// httpClient is a minimal interface for testing purposes
+type httpClient interface {
+	Do(req *http.Request) (*http.Response, error)
+}
+
+// JiraService represents the service to interact with the Jira API.
 type JiraService struct {
 	baseURL   string
 	apiKey    string
 	jiraEmail string
-	client    httpclient.HTTPClient
+	client    httpClient
 }
 
-// NewJiraService crea una nueva instancia de JiraService.
-func NewJiraService(baseURL, apiKey, email string, client httpclient.HTTPClient) *JiraService {
+// NewJiraService creates a new instance of JiraService.
+func NewJiraService(baseURL, apiKey, email string, client httpClient) *JiraService {
 	return &JiraService{
 		baseURL:   baseURL,
 		apiKey:    apiKey,
@@ -36,7 +41,7 @@ func NewJiraService(baseURL, apiKey, email string, client httpclient.HTTPClient)
 	}
 }
 
-// JiraFields representa los campos de un ticket de Jira.
+// JiraFields represents the fields of a Jira ticket.
 type (
 	JiraFields struct {
 		Summary     string                 `json:"summary"`
@@ -63,17 +68,17 @@ type (
 	}
 )
 
-// GetTicketInfo obtiene la información de un ticket de Jira.
+// GetTicketInfo gets the information of a Jira ticket.
 func (s *JiraService) GetTicketInfo(ticketID string) (*models.TicketInfo, error) {
 	customFields, err := s.GetCustomFields()
 	if err != nil {
-		return nil, fmt.Errorf("no se pudieron obtener los campos personalizados: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, "failed to get custom fields from Jira", err)
 	}
 
 	criteriaFieldID := findCriteriaFieldID(customFields)
 	ticketFields, err := s.fetchTicketFields(ticketID)
 	if err != nil {
-		return nil, fmt.Errorf("no se pudieron obtener los campos de tickets: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, "failed to fetch ticket fields from Jira", err)
 	}
 
 	description := parseAtlassianDoc(ticketFields.Description.Content)
@@ -89,37 +94,35 @@ func (s *JiraService) GetTicketInfo(ticketID string) (*models.TicketInfo, error)
 	return ticketInfo, nil
 }
 
-// fetchTicketFields obtiene los campos de un ticket de Jira.
+// fetchTicketFields gets the fields of a Jira ticket.
 func (s *JiraService) fetchTicketFields(ticketID string) (*JiraFields, error) {
 	url := fmt.Sprintf("%s/rest/api/3/issue/%s", s.baseURL, ticketID)
 	resp, err := s.makeRequest("GET", url)
 	if err != nil {
-		return nil, fmt.Errorf("error al realizar una solicitud a la API de Jira: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, "failed to make request to Jira API", err)
 	}
 	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			fmt.Println("error al cerrar el cuerpo de la respuesta:", err)
-		}
+		_ = resp.Body.Close()
 	}()
 
 	switch resp.StatusCode {
 	case http.StatusOK:
-		// Todo está bien, continuamos con el procesamiento
+		// OK
 	case http.StatusNotFound:
-		return nil, fmt.Errorf("ticket con ID %s no existe en Jira", ticketID)
+		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, fmt.Sprintf("ticket %s not found in Jira", ticketID), nil)
 	case http.StatusUnauthorized:
-		return nil, fmt.Errorf("no autorizado: verifica tus credenciales de Jira")
+		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, "unauthorized: check Jira credentials", nil)
 	case http.StatusInternalServerError:
-		return nil, fmt.Errorf("error interno del servidor de Jira")
+		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, "jira internal server error", nil)
 	default:
-		return nil, fmt.Errorf("error inesperado al obtener el ticket: %s", resp.Status)
+		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, fmt.Sprintf("unexpected error fetching ticket: %s", resp.Status), nil)
 	}
 
 	var result struct {
 		Fields map[string]json.RawMessage `json:"fields"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("error decodificando respuesta: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, "failed to decode jira response", err)
 	}
 
 	jiraFields := &JiraFields{
@@ -129,7 +132,7 @@ func (s *JiraService) fetchTicketFields(ticketID string) (*JiraFields, error) {
 	if rawSummary, ok := result.Fields["summary"]; ok {
 		var summary string
 		if err := json.Unmarshal(rawSummary, &summary); err != nil {
-			return nil, fmt.Errorf("error decodificando resumen: %w", err)
+			return nil, domainErrors.NewAppError(domainErrors.TypeInternal, "failed to unmarshal ticket summary", err)
 		}
 		jiraFields.Summary = summary
 	}
@@ -137,7 +140,7 @@ func (s *JiraService) fetchTicketFields(ticketID string) (*JiraFields, error) {
 	if rawDescription, ok := result.Fields["description"]; ok {
 		var description AtlassianDoc
 		if err := json.Unmarshal(rawDescription, &description); err != nil {
-			return nil, fmt.Errorf("error decodificando descripcion: %w", err)
+			return nil, domainErrors.NewAppError(domainErrors.TypeInternal, "failed to unmarshal ticket description", err)
 		}
 		jiraFields.Description = description
 	}
@@ -155,7 +158,7 @@ func (s *JiraService) fetchTicketFields(ticketID string) (*JiraFields, error) {
 	return jiraFields, nil
 }
 
-// extractCriteria extrae los criterios de aceptación de los campos del ticket.
+// extractCriteria extracts acceptance criteria from the ticket fields.
 func (s *JiraService) extractCriteria(fields *JiraFields, criteriaFieldID, description string) ([]string, string) {
 	var criteria []string
 
@@ -172,11 +175,11 @@ func (s *JiraService) extractCriteria(fields *JiraFields, criteriaFieldID, descr
 	return criteria, description
 }
 
-// makeRequest realiza una solicitud HTTP a la API de Jira.
+// makeRequest performs an HTTP request to the Jira API.
 func (s *JiraService) makeRequest(method, url string) (*http.Response, error) {
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("error creando requests: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, "failed to create jira request", err)
 	}
 
 	req.Header.Set("Authorization", getBasicAuth(s.jiraEmail, s.apiKey))
@@ -184,19 +187,19 @@ func (s *JiraService) makeRequest(method, url string) (*http.Response, error) {
 
 	resp, err := s.client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("error al realizar la solicitud: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, "failed to perform jira request", err)
 	}
 
 	return resp, nil
 }
 
-// getBasicAuth genera el encabezado de autenticación básica.
+// getBasicAuth generates the basic authentication header.
 func getBasicAuth(username, token string) string {
 	credentials := fmt.Sprintf("%s:%s", username, token)
 	return fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(credentials)))
 }
 
-// findCriteriaFieldID busca el ID del campo de criterios de aceptación.
+// findCriteriaFieldID finds the ID of the acceptance criteria field.
 func findCriteriaFieldID(customFields map[string]string) string {
 	patterns := []string{AcceptanceCriteriaEN, AcceptanceCriteriaES}
 
@@ -211,7 +214,7 @@ func findCriteriaFieldID(customFields map[string]string) string {
 	return ""
 }
 
-// extractCriteriaFromCustomField extrae los criterios de un campo personalizado.
+// extractCriteriaFromCustomField extracts criteria from a custom field.
 func extractCriteriaFromCustomField(fields map[string]CustomField, fieldID string) ([]string, string) {
 	if fieldID == "" {
 		return nil, ""
@@ -219,7 +222,7 @@ func extractCriteriaFromCustomField(fields map[string]CustomField, fieldID strin
 
 	fieldValue, ok := fields[fieldID]
 	if !ok {
-		return nil, "" // Campo no existe en el mapa
+		return nil, "" // Field does not exist in the map
 	}
 
 	var criteriaText string
@@ -253,27 +256,25 @@ func extractCriteriaFromCustomField(fields map[string]CustomField, fieldID strin
 	return filteredCriteria, criteriaText
 }
 
-// GetCustomFields obtiene los campos personalizados de Jira.
+// GetCustomFields gets the custom fields from Jira.
 func (s *JiraService) GetCustomFields() (map[string]string, error) {
 	url := fmt.Sprintf("%s/rest/api/3/field", s.baseURL)
 	resp, err := s.makeRequest("GET", url)
 	if err != nil {
-		return nil, fmt.Errorf("error al obtener campos personalizados: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, "failed to fetch custom fields", err)
 	}
 
 	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			fmt.Println("error al cerrar el cuerpo de la respuesta:", err)
-		}
+		_ = resp.Body.Close()
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("error al obtener campos personalizados: %s", resp.Status)
+		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, fmt.Sprintf("failed to get custom fields: %s", resp.Status), nil)
 	}
 
 	var fields []map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&fields); err != nil {
-		return nil, fmt.Errorf("error al decodificar campos personalizados: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, "failed to decode custom fields", err)
 	}
 
 	customFields := make(map[string]string)
@@ -288,7 +289,7 @@ func (s *JiraService) GetCustomFields() (map[string]string, error) {
 	return customFields, nil
 }
 
-// parseAtlassianDoc convierte el contenido de un documento de Atlassian en una cadena de texto.
+// parseAtlassianDoc converts an Atlassian document content into a string.
 func parseAtlassianDoc(content []DocContent) string {
 	var result strings.Builder
 	parseAtlassianDocRecursive(content, &result)
@@ -317,12 +318,12 @@ func parseAtlassianDocRecursive(content []DocContent, result *strings.Builder) {
 				parseAtlassianDocRecursive(item.Content, result)
 			}
 		default:
-			// Ignora otros tipos o agrega manejo según sea necesario
+			// Ignore other types or add handling as necessary
 		}
 	}
 }
 
-// extractAndRemoveCriteria extrae y elimina los criterios de aceptación de un texto.
+// extractAndRemoveCriteria extracts and removes acceptance criteria from text.
 func extractAndRemoveCriteria(text string) ([]string, string) {
 	lines := strings.Split(text, "\n")
 	var criteria []string
@@ -352,11 +353,11 @@ func extractAndRemoveCriteria(text string) ([]string, string) {
 	return criteria, description
 }
 
-// removeCriteriaFromDescription elimina los criterios de aceptación de la descripción.
+// removeCriteriaFromDescription removes acceptance criteria from the description.
 func removeCriteriaFromDescription(description string) string {
 	patterns := []string{
-		"Acceptance criteria:.*(\n.*)*",    // Elimina todo lo que sigue después de "Acceptance criteria:"
-		"Criterio de aceptacion:.*(\n.*)*", // Elimina todo lo que sigue después de "Criterio de aceptacion:"
+		"Acceptance criteria:.*(\n.*)*",    // Removes everything following "Acceptance criteria:"
+		"Criterio de aceptacion:.*(\n.*)*", // Removes everything following "Criterio de aceptacion:"
 	}
 
 	for _, pattern := range patterns {

@@ -18,9 +18,9 @@ type mockGitService struct {
 	mock.Mock
 }
 
-func (m *mockGitService) GetChangedFiles(ctx context.Context) ([]models.GitChange, error) {
+func (m *mockGitService) GetChangedFiles(ctx context.Context) ([]string, error) {
 	args := m.Called(ctx)
-	return args.Get(0).([]models.GitChange), args.Error(1)
+	return args.Get(0).([]string), args.Error(1)
 }
 
 func (m *mockGitService) GetDiff(ctx context.Context) (string, error) {
@@ -216,7 +216,7 @@ func TestSuggestionHandler_HandleCommitSelection(t *testing.T) {
 		mockGit.On("AddFileToStaging", mock.Anything, "test.go").Return(nil)
 		mockGit.On("CreateCommit", mock.Anything, "feat: test feature").Return(nil)
 
-		// Act - simula: 1 (selección), n (no ver diff), n (no editar mensaje), y (confirmar commit)
+		// Act - simulates: 1 (selection), n (no diff), n (no message edit), y (confirm commit)
 		simulateInput("1\nn\nn\ny\n", func() {
 			err = handler.handleCommitSelection(context.Background(), suggestions)
 		})

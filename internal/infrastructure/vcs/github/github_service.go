@@ -14,9 +14,7 @@ import (
 
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/builder"
-	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/httpclient"
 	"github.com/google/go-github/v80/github"
 	"golang.org/x/oauth2"
 )
@@ -38,7 +36,7 @@ type IssuesService interface {
 	ListByRepo(ctx context.Context, owner, repo string, opts *github.IssueListByRepoOptions) ([]*github.Issue, *github.Response, error)
 	Get(ctx context.Context, owner, repo string, number int) (*github.Issue, *github.Response, error)
 	Edit(ctx context.Context, owner, repo string, number int, issue *github.IssueRequest) (*github.Issue, *github.Response, error)
-	Create(ctx context.Context, owner, repo string, issue *github.IssueRequest) (*github.Issue, *github.Response, error) // ← NUEVO
+	Create(ctx context.Context, owner, repo string, issue *github.IssueRequest) (*github.Issue, *github.Response, error) // ← NEW
 }
 
 type RepositoriesService interface {
@@ -58,6 +56,25 @@ type UsersService interface {
 	Get(ctx context.Context, user string) (*github.User, *github.Response, error)
 }
 
+// binaryBuilder is a minimal interface for testing purposes
+type binaryBuilder interface {
+	BuildAndPackageAll(ctx context.Context) ([]string, error)
+}
+
+// binaryBuilderFactory is a minimal interface for testing purposes
+type binaryBuilderFactory interface {
+	NewBuilder(mainPath, binaryName string, opts ...builder.Option) binaryBuilder
+}
+
+// defaultBinaryBuilderFactoryAdapter adapts builder.DefaultBinaryBuilderFactory to binaryBuilderFactory
+type defaultBinaryBuilderFactoryAdapter struct {
+	*builder.DefaultBinaryBuilderFactory
+}
+
+func (a *defaultBinaryBuilderFactoryAdapter) NewBuilder(mainPath, binaryName string, opts ...builder.Option) binaryBuilder {
+	return a.DefaultBinaryBuilderFactory.NewBuilder(mainPath, binaryName, opts...)
+}
+
 type GitHubClient struct {
 	prService            PullRequestsService
 	issuesService        IssuesService
@@ -66,11 +83,10 @@ type GitHubClient struct {
 	usersService         UsersService
 	owner                string
 	repo                 string
-	trans                *i18n.Translations
 	token                string
-	httpClient           httpclient.HTTPClient
+	httpClient           *http.Client
 	mainPath             string
-	binaryBuilderFactory ports.BinaryBuilderFactory
+	binaryBuilderFactory binaryBuilderFactory
 }
 
 var allowedLabels = map[string]struct {
@@ -85,7 +101,16 @@ var allowedLabels = map[string]struct {
 	"test":     {"8A2BE2", "label.test"},
 }
 
-func NewGitHubClient(owner, repo, token string, trans *i18n.Translations) *GitHubClient {
+var labelDescriptions = map[string]string{
+	"feature":  "New feature",
+	"fix":      "Bug fix",
+	"refactor": "Code refactor",
+	"docs":     "Documentation",
+	"infra":    "Infrastructure",
+	"test":     "Test",
+}
+
+func NewGitHubClient(owner, repo, token string) *GitHubClient {
 	var httpClient *http.Client
 	if token != "" {
 		ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
@@ -101,11 +126,10 @@ func NewGitHubClient(owner, repo, token string, trans *i18n.Translations) *GitHu
 		usersService:         client.Users,
 		owner:                owner,
 		repo:                 repo,
-		trans:                trans,
 		token:                token,
 		httpClient:           httpClient,
 		mainPath:             "./cmd/main.go",
-		binaryBuilderFactory: &builder.DefaultBinaryBuilderFactory{},
+		binaryBuilderFactory: &defaultBinaryBuilderFactoryAdapter{&builder.DefaultBinaryBuilderFactory{}},
 	}
 }
 
@@ -117,7 +141,6 @@ func NewGitHubClientWithServices(
 	usersService UsersService,
 	owner string,
 	repo string,
-	trans *i18n.Translations,
 ) *GitHubClient {
 	return &GitHubClient{
 		prService:            prService,
@@ -127,11 +150,10 @@ func NewGitHubClientWithServices(
 		releaseService:       releaseService,
 		owner:                owner,
 		repo:                 repo,
-		trans:                trans,
 		token:                "",
 		httpClient:           &http.Client{},
 		mainPath:             "./cmd/main.go",
-		binaryBuilderFactory: &builder.DefaultBinaryBuilderFactory{},
+		binaryBuilderFactory: &defaultBinaryBuilderFactoryAdapter{&builder.DefaultBinaryBuilderFactory{}},
 	}
 }
 
@@ -143,26 +165,17 @@ func (ghc *GitHubClient) UpdatePR(ctx context.Context, prNumber int, summary mod
 
 	_, resp, err := ghc.prService.Edit(ctx, ghc.owner, ghc.repo, prNumber, pr)
 	if err != nil {
-		// Detectar error 403 de permisos insuficientes
+		// Detect 403 forbidden error due to insufficient permissions
 		if resp != nil && resp.StatusCode == http.StatusForbidden {
-			return fmt.Errorf("%s\n\n%s",
-				ghc.trans.GetMessage("error.insufficient_permissions", 0, map[string]interface{}{
-					"pr_number": prNumber,
-					"owner":     ghc.owner,
-					"repo":      ghc.repo,
-				}),
-				ghc.trans.GetMessage("error.token_scopes_help", 0, nil))
+			return fmt.Errorf("insufficient permissions to update PR #%d in %s/%s\n\nPlease ensure your token has the required scopes (repo, write:org)",
+				prNumber, ghc.owner, ghc.repo)
 		}
-		return fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.update_pr", 0, map[string]interface{}{
-			"pr_number": prNumber,
-		}), err)
+		return fmt.Errorf("failed to update PR #%d: %w", prNumber, err)
 	}
 
 	if len(summary.Labels) > 0 {
 		if err := ghc.AddLabelsToPR(ctx, prNumber, summary.Labels); err != nil {
-			return fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.add_labels", 0, map[string]interface{}{
-				"pr_number": prNumber,
-			}), err)
+			return fmt.Errorf("failed to add labels to PR #%d: %w", prNumber, err)
 		}
 	}
 
@@ -172,12 +185,12 @@ func (ghc *GitHubClient) UpdatePR(ctx context.Context, prNumber int, summary mod
 func (ghc *GitHubClient) GetPR(ctx context.Context, prNumber int) (models.PRData, error) {
 	pr, _, err := ghc.prService.Get(ctx, ghc.owner, ghc.repo, prNumber)
 	if err != nil {
-		return models.PRData{}, fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.get_pr", 0, map[string]interface{}{"pr_number": prNumber}), err)
+		return models.PRData{}, fmt.Errorf("failed to get PR #%d: %w", prNumber, err)
 	}
 
 	commits, _, err := ghc.prService.ListCommits(ctx, ghc.owner, ghc.repo, prNumber, &github.ListOptions{})
 	if err != nil {
-		return models.PRData{}, fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.get_commits", 0, map[string]interface{}{"pr_number": prNumber}), err)
+		return models.PRData{}, fmt.Errorf("failed to get commits for PR #%d: %w", prNumber, err)
 	}
 
 	prCommits := make([]models.Commit, len(commits))
@@ -189,19 +202,15 @@ func (ghc *GitHubClient) GetPR(ctx context.Context, prNumber int) (models.PRData
 
 	diff, resp, err := ghc.prService.GetRaw(ctx, ghc.owner, ghc.repo, prNumber, github.RawOptions{Type: github.Diff})
 	if err != nil {
-		// Si es error 406 (diff demasiado grande), usar fallback commit por commit
+		// If 406 error (diff too large), use fallback commit by commit
 		if resp != nil && resp.StatusCode == http.StatusNotAcceptable {
-			fmt.Printf("%s\n", ghc.trans.GetMessage("warning.pr_too_large", 0, map[string]interface{}{
-				"pr_number": prNumber,
-			}))
+			fmt.Printf("Warning: PR #%d is too large, fetching diffs commit by commit\n", prNumber)
 			diff, err = ghc.getDiffFromCommits(ctx, commits)
 			if err != nil {
-				return models.PRData{}, fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.get_diff_from_commits", 0, map[string]interface{}{
-					"pr_number": prNumber,
-				}), err)
+				return models.PRData{}, fmt.Errorf("failed to get diff from commits for PR #%d: %w", prNumber, err)
 			}
 		} else {
-			return models.PRData{}, fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.get_diff", 0, map[string]interface{}{"pr_number": prNumber}), err)
+			return models.PRData{}, fmt.Errorf("failed to get diff for PR #%d: %w", prNumber, err)
 		}
 	}
 
@@ -225,7 +234,7 @@ func (ghc *GitHubClient) AddLabelsToPR(ctx context.Context, prNumber int, labels
 
 	existingLabels, err := ghc.GetRepoLabels(ctx)
 	if err != nil {
-		return fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.get_labels", 0, nil), err)
+		return fmt.Errorf("failed to get repository labels: %w", err)
 	}
 
 	if err := ghc.ensureLabelsExist(ctx, existingLabels, validLabels); err != nil {
@@ -238,7 +247,7 @@ func (ghc *GitHubClient) AddLabelsToPR(ctx context.Context, prNumber int, labels
 func (ghc *GitHubClient) GetRepoLabels(ctx context.Context) ([]string, error) {
 	labels, _, err := ghc.issuesService.ListLabels(ctx, ghc.owner, ghc.repo, &github.ListOptions{PerPage: 100})
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.get_repo_labels", 0, nil), err)
+		return nil, fmt.Errorf("failed to list repository labels: %w", err)
 	}
 
 	labelNames := make([]string, len(labels))
@@ -282,18 +291,18 @@ func (ghc *GitHubClient) CreateRelease(ctx context.Context, release *models.Rele
 	if err != nil {
 		if resp != nil {
 			if resp.StatusCode == http.StatusUnprocessableEntity {
-				return fmt.Errorf("%s", ghc.trans.GetMessage("error.release_already_exists", 0, map[string]interface{}{"Version": release.Version}))
+				return fmt.Errorf("release already exists for version %s", release.Version)
 			}
 			if resp.StatusCode == http.StatusNotFound {
-				return fmt.Errorf("%s", ghc.trans.GetMessage("error.repo_or_tag_not_found", 0, map[string]interface{}{"Version": release.Version}))
+				return fmt.Errorf("repository or tag not found for version %s", release.Version)
 			}
 		}
-		return fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.create_release", 0, nil), err)
+		return fmt.Errorf("failed to create release: %w", err)
 	}
 
 	if buildBinaries {
 		if err := ghc.uploadBinaries(ctx, createdRelease.GetID(), release.Version); err != nil {
-			return fmt.Errorf("%s", ghc.trans.GetMessage("build.errors.upload_binaries", 0, map[string]interface{}{"Error": err}))
+			return fmt.Errorf("failed to upload binaries: %w", err)
 		}
 	}
 
@@ -304,9 +313,7 @@ func (ghc *GitHubClient) GetRelease(ctx context.Context, version string) (*model
 	release, resp, err := ghc.releaseService.GetReleaseByTag(ctx, ghc.owner, ghc.repo, version)
 	if err != nil {
 		if resp != nil && resp.StatusCode == 404 {
-			return nil, fmt.Errorf("%s", ghc.trans.GetMessage("error.repo_or_tag_not_found", 0, map[string]interface{}{
-				"Version": version,
-			}))
+			return nil, fmt.Errorf("repository or tag not found for version %s", version)
 		}
 		return nil, err
 	}
@@ -324,9 +331,7 @@ func (ghc *GitHubClient) UpdateRelease(ctx context.Context, version, body string
 	release, resp, err := ghc.releaseService.GetReleaseByTag(ctx, ghc.owner, ghc.repo, version)
 	if err != nil {
 		if resp != nil && resp.StatusCode == 404 {
-			return fmt.Errorf("%s", ghc.trans.GetMessage("error.repo_or_tag_not_found", 0, map[string]interface{}{
-				"Version": version,
-			}))
+			return fmt.Errorf("repository or tag not found for version %s", version)
 		}
 		return err
 	}
@@ -504,7 +509,7 @@ func (ghc *GitHubClient) GetFileStatsBetweenTags(ctx context.Context, previousTa
 func (ghc *GitHubClient) GetIssue(ctx context.Context, issueNumber int) (*models.Issue, error) {
 	issue, _, err := ghc.issuesService.Get(ctx, ghc.owner, ghc.repo, issueNumber)
 	if err != nil {
-		return nil, fmt.Errorf("error obteniendo issue #%d: %w", issueNumber, err)
+		return nil, fmt.Errorf("error getting issue #%d: %w", issueNumber, err)
 	}
 
 	labels := make([]string, 0, len(issue.Labels))
@@ -559,7 +564,7 @@ func (ghc *GitHubClient) CreateIssue(ctx context.Context, title string, body str
 
 	ghIssue, _, err := ghc.issuesService.Create(ctx, ghc.owner, ghc.repo, issueRequest)
 	if err != nil {
-		return nil, fmt.Errorf("error creando issue: %w", err)
+		return nil, fmt.Errorf("error creating issue: %w", err)
 	}
 
 	issue := &models.Issue{
@@ -584,11 +589,11 @@ func (ghc *GitHubClient) CreateIssue(ctx context.Context, title string, body str
 func (ghc *GitHubClient) GetAuthenticatedUser(ctx context.Context) (string, error) {
 	user, _, err := ghc.usersService.Get(ctx, "")
 	if err != nil {
-		return "", fmt.Errorf("error obteniendo usuario autenticado: %w", err)
+		return "", fmt.Errorf("error obtaining authenticated user: %w", err)
 	}
 
 	if user.Login == nil {
-		return "", fmt.Errorf("usuario autenticado no tiene login")
+		return "", fmt.Errorf("authenticated user has no login")
 	}
 
 	return *user.Login, nil
@@ -598,13 +603,13 @@ func extractAcceptanceCriteria(body string) []string {
 	var criteria []string
 	lines := strings.Split(body, "\n")
 
-	// Regex para capturar checkboxes markdown:
-	// ^ - Inicio de linea (permitiendo espacios antes)
-	// [\-\*\+] - Bullet: - o * o +
-	// \s+ - Espacio obligatorio
+	// Regex to capture markdown checkboxes:
+	// ^ - Start of line (allowing leading spaces)
+	// [\-\*\+] - Bullet: - or * or +
+	// \s+ - Required space
 	// \[([ xX])\] - Checkbox: [ ], [x], [X]
-	// \s+ - Espacio obligatorio
-	// (.+) - El texto del criterio
+	// \s+ - Required space
+	// (.+) - The criterion text
 	re := regexp.MustCompile(`^\s*[\-*+]\s+\[([ xX])]\s+(.+)`)
 
 	for _, line := range lines {
@@ -631,12 +636,12 @@ func (ghc *GitHubClient) GetFileAtTag(ctx context.Context, tag, filepath string)
 	}
 
 	if fileContent == nil {
-		return "", fmt.Errorf("archivo no encontrado: %s en %s", filepath, tag)
+		return "", fmt.Errorf("file not found: %s in %s", filepath, tag)
 	}
 
 	content, err := fileContent.GetContent()
 	if err != nil {
-		return "", fmt.Errorf("error decodificando contenido del archivo: %w", err)
+		return "", fmt.Errorf("error decoding file content: %w", err)
 	}
 
 	return content, nil
@@ -725,7 +730,7 @@ func (ghc *GitHubClient) labelExists(existingLabels []string, target string) boo
 func (ghc *GitHubClient) addLabelsToIssue(ctx context.Context, prNumber int, labels []string) error {
 	_, _, err := ghc.issuesService.AddLabelsToIssue(ctx, ghc.owner, ghc.repo, prNumber, labels)
 	if err != nil {
-		return fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.add_labels", 0, map[string]interface{}{"pr_number": prNumber}), err)
+		return fmt.Errorf("failed to add labels to PR #%d: %w", prNumber, err)
 	}
 	return nil
 }
@@ -733,7 +738,7 @@ func (ghc *GitHubClient) addLabelsToIssue(ctx context.Context, prNumber int, lab
 func (ghc *GitHubClient) UpdateIssueChecklist(ctx context.Context, issueNumber int, checkedIndices []int) error {
 	issue, _, err := ghc.issuesService.Get(ctx, ghc.owner, ghc.repo, issueNumber)
 	if err != nil {
-		return fmt.Errorf("error obteniendo issue #%d: %w", issueNumber, err)
+		return fmt.Errorf("error getting issue #%d: %w", issueNumber, err)
 	}
 
 	body := issue.GetBody()
@@ -773,7 +778,7 @@ func (ghc *GitHubClient) UpdateIssueChecklist(ctx context.Context, issueNumber i
 
 	_, _, err = ghc.issuesService.Edit(ctx, ghc.owner, ghc.repo, issueNumber, issueRequest)
 	if err != nil {
-		return fmt.Errorf("error actualizando body del issue #%d: %w", issueNumber, err)
+		return fmt.Errorf("error updating issue body #%d: %w", issueNumber, err)
 	}
 
 	return nil
@@ -784,10 +789,10 @@ func (ghc *GitHubClient) ensureLabelsExist(ctx context.Context, existingLabels [
 		if !ghc.labelExists(existingLabels, label) {
 			meta := allowedLabels[label]
 
-			description := ghc.trans.GetMessage(meta.Key, 0, map[string]interface{}{"label": label})
+			description := labelDescriptions[label]
 			if err := ghc.CreateLabel(ctx, label, meta.Color, description); err != nil {
 				if !strings.Contains(err.Error(), "already_exists") && !strings.Contains(err.Error(), "422") {
-					return fmt.Errorf("%s: %w", ghc.trans.GetMessage("error.create_label", 0, map[string]interface{}{"label": label}), err)
+					return fmt.Errorf("failed to create label '%s': %w", label, err)
 				}
 				fmt.Printf("Label '%s' already exists, continuing...\n", label)
 			}
@@ -796,24 +801,18 @@ func (ghc *GitHubClient) ensureLabelsExist(ctx context.Context, existingLabels [
 	return nil
 }
 
-// getDiffFromCommits obtiene el diff combinado de todos los commits cuando el diff completo del PR es demasiado grande
+// getDiffFromCommits gets the combined diff of all commits when the total PR diff is too large
 func (ghc *GitHubClient) getDiffFromCommits(ctx context.Context, commits []*github.RepositoryCommit) (string, error) {
 	var combinedDiff strings.Builder
 
-	fmt.Printf("%s\n", ghc.trans.GetMessage("info.fetching_commit_diffs", 0, map[string]interface{}{
-		"total": len(commits),
-	}))
+	fmt.Printf("Fetching diffs for %d commits...\n", len(commits))
 
 	for i, commit := range commits {
 		sha := commit.GetSHA()
-		fmt.Printf("%s (%d/%d)\n", ghc.trans.GetMessage("info.processing_commit", 0, map[string]interface{}{
-			"current": i + 1,
-			"total":   len(commits),
-			"sha":     sha[:8],
-		}), i+1, len(commits))
+		fmt.Printf("Processing commit %d/%d (%s)\n", i+1, len(commits), sha[:8])
 		fullCommit, _, err := ghc.repoService.GetCommit(ctx, ghc.owner, ghc.repo, sha, nil)
 		if err != nil {
-			return "", fmt.Errorf("%s %s: %w", ghc.trans.GetMessage("error.get_commit_diff", 0, nil), sha[:8], err)
+			return "", fmt.Errorf("failed to get diff for commit %s: %w", sha[:8], err)
 		}
 
 		if fullCommit.GetStats().GetTotal() > 0 {
@@ -852,7 +851,7 @@ func (ghc *GitHubClient) isAllowedLabel(label string) bool {
 func (ghc *GitHubClient) uploadBinaries(ctx context.Context, releaseID int64, version string) error {
 	tempDir, err := os.MkdirTemp("", "matecommit-build-*")
 	if err != nil {
-		return fmt.Errorf("%s", ghc.trans.GetMessage("build.errors.create_temp_dir", 0, map[string]interface{}{"Error": err}))
+		return fmt.Errorf("failed to create temporary directory for build: %w", err)
 	}
 	defer func() {
 		if err := os.RemoveAll(tempDir); err != nil {
@@ -869,24 +868,23 @@ func (ghc *GitHubClient) uploadBinaries(ctx context.Context, releaseID int64, ve
 	builderBinary := ghc.binaryBuilderFactory.NewBuilder(
 		ghc.mainPath,
 		"matecommit",
-		version,
-		commit,
-		date,
-		tempDir,
-		ghc.trans,
+		builder.WithVersion(version),
+		builder.WithCommit(commit),
+		builder.WithDate(date),
+		builder.WithBuildDir(tempDir),
 	)
 
-	fmt.Println(ghc.trans.GetMessage("build.compiling_binaries", 0, nil))
+	fmt.Println("Compiling binaries...")
 	archives, err := builderBinary.BuildAndPackageAll(ctx)
 	if err != nil {
-		return fmt.Errorf("%s", ghc.trans.GetMessage("build.errors.build_binaries", 0, map[string]interface{}{"Error": err}))
+		return fmt.Errorf("failed to build binaries: %w", err)
 	}
 
-	fmt.Printf("%s\n", ghc.trans.GetMessage("build.uploading_binaries", 0, map[string]interface{}{"Count": len(archives)}))
+	fmt.Printf("Uploading %d binaries to release...\n", len(archives))
 	for _, archivePath := range archives {
 		file, err := os.Open(archivePath)
 		if err != nil {
-			return fmt.Errorf("%s", ghc.trans.GetMessage("build.errors.open_file", 0, map[string]interface{}{"File": archivePath, "Error": err}))
+			return fmt.Errorf("failed to open archive %s: %w", archivePath, err)
 		}
 
 		uploadOpts := &github.UploadOptions{
@@ -897,7 +895,7 @@ func (ghc *GitHubClient) uploadBinaries(ctx context.Context, releaseID int64, ve
 		_, _, err = ghc.releaseService.UploadReleaseAsset(ctx, ghc.owner, ghc.repo, releaseID, uploadOpts, file)
 		_ = file.Close()
 		if err != nil {
-			return fmt.Errorf("%s", ghc.trans.GetMessage("build.errors.upload_asset", 0, map[string]interface{}{"Asset": archivePath, "Error": err}))
+			return fmt.Errorf("failed to upload asset %s: %w", archivePath, err)
 		}
 	}
 	return nil

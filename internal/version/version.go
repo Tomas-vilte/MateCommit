@@ -1,10 +1,10 @@
 package version
 
-// Version es la versión actual de MateCommit
-// Esta versión debe actualizarse en cada release
+// Version is the current version of MateCommit
+// This version should be updated in each release
 const Version = "1.4.0"
 
-// FullVersion retorna la versión con el prefijo v
+// FullVersion returns the version with the v prefix
 func FullVersion() string {
 	return "v" + Version
 }

@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/Tomas-vilte/MateCommit/internal/cli/completion_helper"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
+	"github.com/Tomas-vilte/MateCommit/internal/ui"
 	"github.com/urfave/cli/v3"
 )
 
@@ -32,12 +32,12 @@ func (r *ReleaseCommandFactory) newPushCommand(trans *i18n.Translations) *cli.Co
 	}
 }
 
-func pushReleaseAction(releaseService ports.ReleaseService, trans *i18n.Translations) cli.ActionFunc {
+func pushReleaseAction(releaseSvc releaseService, trans *i18n.Translations) cli.ActionFunc {
 	return func(ctx context.Context, cmd *cli.Command) error {
 		version := cmd.String("version")
 
 		if version == "" {
-			release, err := releaseService.AnalyzeNextRelease(ctx)
+			release, err := releaseSvc.AnalyzeNextRelease(ctx)
 			if err != nil {
 				return fmt.Errorf("%s", trans.GetMessage("release.error_analyzing", 0, map[string]interface{}{"Error": err.Error()}))
 			}
@@ -46,8 +46,9 @@ func pushReleaseAction(releaseService ports.ReleaseService, trans *i18n.Translat
 
 		fmt.Println(trans.GetMessage("release.pushing_tag", 0, map[string]interface{}{"Version": version}))
 
-		err := releaseService.PushTag(ctx, version)
+		err := releaseSvc.PushTag(ctx, version)
 		if err != nil {
+			ui.HandleAppError(err, trans)
 			return fmt.Errorf("%s", trans.GetMessage("release.error_pushing_tag", 0, map[string]interface{}{"Error": err.Error()}))
 		}
 

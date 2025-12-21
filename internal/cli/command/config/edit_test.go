@@ -166,6 +166,6 @@ func TestEditCommand(t *testing.T) {
 
 		// Assert
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "error al abrir el editor")
+		assert.Contains(t, err.Error(), "error opening editor")
 	})
 }

@@ -7,7 +7,6 @@ import (
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/genai"
 )
@@ -20,15 +19,13 @@ func TestGeminiPRSummarizer(t *testing.T) {
 			AIProviders: map[string]config.AIProviderConfig{},
 		}
 
-		trans, err := i18n.NewTranslations("es", "../../../i18n/locales/")
-		assert.NoError(t, err)
-
 		// Act
-		summarizer, err := NewGeminiPRSummarizer(ctx, cfg, trans)
+		summarizer, err := NewGeminiPRSummarizer(ctx, cfg, nil)
 
 		// Assert
-		assert.Nil(t, summarizer, "El summarizer no debería crearse con API key vacía")
-		assert.Error(t, err, "Debería retornar un error con API key vacía")
+		assert.Nil(t, summarizer)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "API key is missing")
 	})
 
 	t.Run("GeneratePRSummary with empty prompt", func(t *testing.T) {
@@ -43,10 +40,7 @@ func TestGeminiPRSummarizer(t *testing.T) {
 			},
 		}
 
-		trans, err := i18n.NewTranslations("es", "../../../i18n/locales/")
-		assert.NoError(t, err)
-
-		summarizer, err := NewGeminiPRSummarizer(ctx, cfg, trans)
+		summarizer, err := NewGeminiPRSummarizer(ctx, cfg, nil)
 		assert.NoError(t, err, "Error creando summarizer")
 
 		// Act
@@ -65,10 +59,7 @@ func TestGeminiPRSummarizer(t *testing.T) {
 			Language:    "en",
 		}
 
-		trans, err := i18n.NewTranslations("en", "../../../i18n/locales/")
-		assert.NoError(t, err)
-
-		summarizer, err := NewGeminiPRSummarizer(ctx, cfg, trans)
+		summarizer, err := NewGeminiPRSummarizer(ctx, cfg, nil)
 		assert.NoError(t, err)
 
 		prContent := "Some PR content to summarize"
@@ -144,12 +135,11 @@ func TestGeneratePRSummary_HappyPath(t *testing.T) {
 	}()
 
 	ctx := context.Background()
-	trans, _ := i18n.NewTranslations("en", "../../../i18n/locales/")
 	cfg := &config.Config{
 		AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test"}},
 		AIConfig:    config.AIConfig{Models: map[config.AI]config.Model{config.AIGemini: "gemini-pro"}},
 	}
-	summarizer, _ := NewGeminiPRSummarizer(ctx, cfg, trans)
+	summarizer, _ := NewGeminiPRSummarizer(ctx, cfg, nil)
 	summarizer.wrapper.SetSkipConfirmation(true)
 
 	t.Run("successful PR summary", func(t *testing.T) {
@@ -162,7 +152,7 @@ func TestGeneratePRSummary_HappyPath(t *testing.T) {
 			}, &models.TokenUsage{TotalTokens: 50}, nil
 		}
 
-		summary, err := summarizer.GeneratePRSummary(ctx, "content")
+		summary, err := summarizer.GeneratePRSummary(ctx, "successful content")
 
 		assert.NoError(t, err)
 		assert.Equal(t, "Awesome Feature", summary.Title)
@@ -180,10 +170,10 @@ func TestGeneratePRSummary_HappyPath(t *testing.T) {
 			}, &models.TokenUsage{}, nil
 		}
 
-		summary, err := summarizer.GeneratePRSummary(ctx, "content")
+		summary, err := summarizer.GeneratePRSummary(ctx, "content with empty title")
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "respuesta vacía")
+		assert.Contains(t, err.Error(), "no PR title")
 		assert.Empty(t, summary.Title)
 	})
 }

@@ -20,12 +20,12 @@ func NewAnalyzerRegistry() *AnalyzerRegistry {
 	}
 }
 
-// RegisterAnalyzer agrega un analyzer personalizado
+// RegisterAnalyzer adds a custom analyzer
 func (r *AnalyzerRegistry) RegisterAnalyzer(analyzer ports.DependencyAnalyzer) {
 	r.analyzers = append(r.analyzers, analyzer)
 }
 
-// AnalyzeAll ejecuta todos los analyzers aplicables y combina los resultados
+// AnalyzeAll executes all applicable analyzers and combines the results
 func (r *AnalyzerRegistry) AnalyzeAll(ctx context.Context, vcsClient ports.VCSClient, previousTag, currentTag string) ([]models.DependencyChange, error) {
 	var allChanges []models.DependencyChange
 
@@ -41,7 +41,7 @@ func (r *AnalyzerRegistry) AnalyzeAll(ctx context.Context, vcsClient ports.VCSCl
 	return allChanges, nil
 }
 
-// GetSupportedAnalyzers retorna lista de analyzers detectados
+// GetSupportedAnalyzers returns a list of detected analyzers
 func (r *AnalyzerRegistry) GetSupportedAnalyzers(ctx context.Context, vcsClient ports.VCSClient, previousTag, currentTag string) []string {
 	var supported []string
 

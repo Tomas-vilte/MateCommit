@@ -8,7 +8,6 @@ import (
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/genai"
 )
@@ -27,10 +26,8 @@ func TestNewReleaseNotesGenerator(t *testing.T) {
 	}
 
 	// Act
-	trans, err := i18n.NewTranslations("en", "")
-	assert.NoError(t, err)
-
-	generator, err := NewReleaseNotesGenerator(ctx, cfg, trans, "test-owner", "test-repo")
+	// Act
+	generator, err := NewReleaseNotesGenerator(ctx, cfg, nil, "test-owner", "test-repo")
 
 	// Assert
 	assert.NoError(t, err)
@@ -45,16 +42,13 @@ func TestNewReleaseNotesGenerator_MissingKey(t *testing.T) {
 	cfg := &config.Config{
 		AIProviders: map[string]config.AIProviderConfig{},
 	}
-	trans, err := i18n.NewTranslations("en", "")
-	assert.NoError(t, err)
-
 	// Act
-	generator, err := NewReleaseNotesGenerator(ctx, cfg, trans, "test-owner", "test-repo")
+	generator, err := NewReleaseNotesGenerator(ctx, cfg, nil, "test-owner", "test-repo")
 
 	// Assert
 	assert.Error(t, err)
 	assert.Nil(t, generator)
-	assert.Contains(t, err.Error(), "The gemini API key is not configured")
+	assert.Contains(t, err.Error(), "API key is missing")
 }
 
 func TestBuildPrompt(t *testing.T) {
@@ -226,7 +220,7 @@ func TestParseJSONResponse(t *testing.T) {
 		// Assert
 		assert.Error(t, err)
 		assert.Nil(t, notes)
-		assert.Contains(t, err.Error(), "parsear JSON")
+		assert.Contains(t, err.Error(), "error parsing AI JSON response")
 	})
 
 	t.Run("handles JSON with code fences", func(t *testing.T) {
@@ -273,12 +267,12 @@ func TestGenerateNotes(t *testing.T) {
 	}()
 
 	ctx := context.Background()
-	trans, _ := i18n.NewTranslations("en", "../../../i18n/locales/")
 	cfg := &config.Config{
 		AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test"}},
 		AIConfig:    config.AIConfig{Models: map[config.AI]config.Model{config.AIGemini: "gemini-pro"}},
 	}
-	generator, _ := NewReleaseNotesGenerator(ctx, cfg, trans, "owner", "repo")
+	// act
+	generator, _ := NewReleaseNotesGenerator(ctx, cfg, nil, "owner", "repo")
 	generator.wrapper.SetSkipConfirmation(true)
 
 	t.Run("successful generation", func(t *testing.T) {
@@ -330,6 +324,6 @@ func TestGenerateNotes(t *testing.T) {
 
 		// Assert
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "No response from AI")
+		assert.Contains(t, err.Error(), "empty response from AI")
 	})
 }

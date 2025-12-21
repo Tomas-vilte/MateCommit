@@ -85,11 +85,11 @@ func (d *DoctorCommand) runHealthCheck(ctx context.Context, t *i18n.Translations
 	ui.PrintSectionBanner(t.GetMessage("doctor.summary", 0, nil))
 
 	if allPassed && len(warnings) == 0 {
-		ui.PrintSuccess(t.GetMessage("doctor.all_good", 0, nil))
+		ui.PrintSuccess(os.Stdout, t.GetMessage("doctor.all_good", 0, nil))
 	} else if len(errors) == 0 {
 		ui.PrintWarning(t.GetMessage("doctor.has_warnings", 0, nil))
 	} else {
-		ui.PrintError(t.GetMessage("doctor.has_errors", 0, nil))
+		ui.PrintError(os.Stdout, t.GetMessage("doctor.has_errors", 0, nil))
 	}
 
 	fmt.Println()
@@ -206,7 +206,7 @@ func (d *DoctorCommand) checkGeminiAPIKey(ctx context.Context, t *i18n.Translati
 	testCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	service, err := gemini.NewGeminiCommitSummarizer(testCtx, cfg, t)
+	service, err := gemini.NewGeminiCommitSummarizer(testCtx, cfg, nil)
 	if err != nil {
 		return checkResult{
 			status:     checkStatusError,

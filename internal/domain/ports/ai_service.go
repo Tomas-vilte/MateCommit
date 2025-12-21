@@ -6,26 +6,26 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 )
 
-// CommitSummarizer es una interfaz que define el servicio para generar sugerencias de commits.
+// CommitSummarizer is an interface that defines the service to generate commit suggestions.
 type CommitSummarizer interface {
-	//GenerateSuggestions genera una lista de sugerencias de mensajes de commit.
+	// GenerateSuggestions generates a list of commit message suggestions.
 	GenerateSuggestions(ctx context.Context, info models.CommitInfo, count int) ([]models.CommitSuggestion, error)
 }
 
-// PRSummarizer define la interfaz para los servicios que resumen Pull Requests.
+// PRSummarizer defines the interface for services that summarize Pull Requests.
 type PRSummarizer interface {
-	// GeneratePRSummary genera un resumen de un Pull Request dado un prompt.
+	// GeneratePRSummary generates a summary of a Pull Request given a prompt.
 	GeneratePRSummary(ctx context.Context, prompt string) (models.PRSummary, error)
 }
 
-// ReleaseNotesGenerator define la interfaz para generar notas de release.
+// ReleaseNotesGenerator defines the interface to generate release notes.
 type ReleaseNotesGenerator interface {
 	GenerateNotes(ctx context.Context, release *models.Release) (*models.ReleaseNotes, error)
 }
 
-// IssueContentGenerator define la interfaz para generar contenido de issues con IA.
+// IssueContentGenerator defines the interface to generate issue content with AI.
 type IssueContentGenerator interface {
-	// GenerateIssueContent genera el título, descripción y labels de una issue
-	// basándose en el contexto proporcionado en el request.
+	// GenerateIssueContent generates the title, description, and labels of an issue
+	// based on the context provided in the request.
 	GenerateIssueContent(ctx context.Context, request models.IssueGenerationRequest) (*models.IssueGenerationResult, error)
 }

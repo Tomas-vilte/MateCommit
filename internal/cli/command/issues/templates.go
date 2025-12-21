@@ -3,6 +3,7 @@ package issues
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
@@ -10,7 +11,7 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// newTemplateCommand crea el subcomando 'template' para gestión de templates.
+// newTemplateCommand creates the 'template' subcommand for template management.
 func (f *IssuesCommandFactory) newTemplateCommand(t *i18n.Translations, _ *config.Config) *cli.Command {
 	templateService := f.templateService
 
@@ -36,12 +37,12 @@ func (f *IssuesCommandFactory) newTemplateCommand(t *i18n.Translations, _ *confi
 					ui.PrintInfo(t.GetMessage("issue.template_init_info", 0, nil))
 
 					if err := templateService.InitializeTemplates(force); err != nil {
-						ui.PrintError(fmt.Sprintf("%s: %v", t.GetMessage("issue.template_init_error", 0, nil), err))
+						ui.PrintError(os.Stdout, fmt.Sprintf("%s: %v", t.GetMessage("issue.template_init_error", 0, nil), err))
 						return err
 					}
 
 					templatesDir, _ := templateService.GetTemplatesDir()
-					ui.PrintSuccess(t.GetMessage("issue.template_init_success", 0, map[string]interface{}{
+					ui.PrintSuccess(os.Stdout, t.GetMessage("issue.template_init_success", 0, map[string]interface{}{
 						"Dir": templatesDir,
 					}))
 
@@ -55,7 +56,7 @@ func (f *IssuesCommandFactory) newTemplateCommand(t *i18n.Translations, _ *confi
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					templates, err := templateService.ListTemplates()
 					if err != nil {
-						ui.PrintError(fmt.Sprintf("%s: %v", t.GetMessage("issue.template_list_error", 0, nil), err))
+						ui.PrintError(os.Stdout, fmt.Sprintf("%s: %v", t.GetMessage("issue.template_list_error", 0, nil), err))
 						return err
 					}
 

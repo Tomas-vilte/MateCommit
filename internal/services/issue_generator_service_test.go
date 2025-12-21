@@ -6,23 +6,21 @@ import (
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
 func TestIssueGeneratorService(t *testing.T) {
 	ctx := context.Background()
-	trans := &i18n.Translations{}
 	cfg := &config.Config{Language: "en"}
 
 	t.Run("GenerateFromDiff - Success", func(t *testing.T) {
 		mockGit := new(MockGitService)
 		mockAI := new(MockIssueContentGenerator)
-		service := NewIssueGeneratorService(mockGit, mockAI, nil, nil, cfg, trans)
+		service := NewIssueGeneratorService(mockGit, mockAI, WithIssueConfig(cfg))
 
 		mockGit.On("GetDiff", ctx).Return("diff content", nil)
-		mockGit.On("GetChangedFiles", ctx).Return([]models.GitChange{{Path: "main.go"}}, nil)
+		mockGit.On("GetChangedFiles", ctx).Return([]string{"main.go"}, nil)
 
 		expectedRequest := models.IssueGenerationRequest{
 			Diff:         "diff content",
@@ -49,7 +47,7 @@ func TestIssueGeneratorService(t *testing.T) {
 
 	t.Run("GenerateFromDescription - Success", func(t *testing.T) {
 		mockAI := new(MockIssueContentGenerator)
-		service := NewIssueGeneratorService(nil, mockAI, nil, nil, cfg, trans)
+		service := NewIssueGeneratorService(nil, mockAI, WithIssueConfig(cfg))
 
 		expectedRequest := models.IssueGenerationRequest{
 			Description: "manual description",
@@ -73,7 +71,7 @@ func TestIssueGeneratorService(t *testing.T) {
 	t.Run("GenerateFromPR - Success", func(t *testing.T) {
 		mockAI := new(MockIssueContentGenerator)
 		mockVCS := new(MockVCSClient)
-		service := NewIssueGeneratorService(nil, mockAI, mockVCS, nil, cfg, trans)
+		service := NewIssueGeneratorService(nil, mockAI, WithIssueVCSClient(mockVCS), WithIssueConfig(cfg))
 
 		prData := models.PRData{
 			Title:       "PR Title",
@@ -104,7 +102,7 @@ func TestIssueGeneratorService(t *testing.T) {
 		mockGit := new(MockGitService)
 		mockAI := new(MockIssueContentGenerator)
 		mockTemplate := new(MockIssueTemplateService)
-		service := NewIssueGeneratorService(mockGit, mockAI, nil, mockTemplate, cfg, trans)
+		service := NewIssueGeneratorService(mockGit, mockAI, WithIssueTemplateService(mockTemplate), WithIssueConfig(cfg))
 
 		template := &models.IssueTemplate{
 			Name:      "bug_report",
@@ -126,7 +124,7 @@ func TestIssueGeneratorService(t *testing.T) {
 
 		mockTemplate.On("GetTemplateByName", "bug_report").Return(template, nil)
 		mockGit.On("GetDiff", ctx).Return("some changes", nil)
-		mockGit.On("GetChangedFiles", ctx).Return([]models.GitChange{{Path: "file.go"}}, nil)
+		mockGit.On("GetChangedFiles", ctx).Return([]string{"file.go"}, nil)
 		mockAI.On("GenerateIssueContent", ctx, mock.Anything).Return(generated, nil)
 		mockTemplate.On("MergeWithGeneratedContent", template, mock.Anything).Return(merged)
 

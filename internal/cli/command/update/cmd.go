@@ -7,6 +7,7 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/services"
+	"github.com/Tomas-vilte/MateCommit/internal/ui"
 	"github.com/urfave/cli/v3"
 )
 
@@ -25,10 +26,11 @@ func (f *UpdateCommandFactory) CreateCommand(trans *i18n.Translations, _ *config
 		Name:  "update",
 		Usage: trans.GetMessage("update.usage", 0, nil),
 		Action: func(ctx context.Context, command *cli.Command) error {
-			updater := services.NewVersionUpdater(f.currentVersion, trans)
+			updater := services.NewVersionUpdater(services.WithCurrentVersion(f.currentVersion))
 
 			fmt.Println(trans.GetMessage("update.updating", 0, nil))
 			if err := updater.UpdateCLI(ctx); err != nil {
+				ui.HandleAppError(err, trans)
 				return err
 			}
 

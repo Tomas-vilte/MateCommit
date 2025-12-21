@@ -204,7 +204,7 @@ require (
 					Return("", errors.New("tag not found"))
 			},
 			expectError: true,
-			errorMsg:    "error leyendo go.mod viejo",
+			errorMsg:    "failed to read old go.mod",
 		},
 		{
 			name: "error reading new go.mod",
@@ -215,7 +215,7 @@ require (
 					Return("", errors.New("tag not found"))
 			},
 			expectError: true,
-			errorMsg:    "error leyendo go.mod nuevo",
+			errorMsg:    "failed to read new go.mod",
 		},
 	}
 

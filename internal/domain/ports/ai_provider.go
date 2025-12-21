@@ -4,20 +4,20 @@ import (
 	"context"
 )
 
-// CostAwareAIProvider define la interfaz para proveedores de IA que soportan tracking de costos.
+// CostAwareAIProvider defines the interface for AI providers that support cost tracking.
 type CostAwareAIProvider interface {
-	// CountTokens cuenta los tokens de un prompt sin hacer la llamada real al modelo.
-	// Esto permite estimar el costo antes de ejecutar la generación.
+	// CountTokens counts the tokens of a prompt without making the actual model call.
+	// This allows estimating the cost before executing the generation.
 	CountTokens(ctx context.Context, prompt string) (int, error)
 
-	// GetModelName retorna el nombre del modelo actual (ej: "gemini-2.5-flash")
+	// GetModelName returns the name of the current model (e.g.: "gemini-2.5-flash")
 	GetModelName() string
 
-	// GetProviderName retorna el nombre del proveedor (ej: "gemini", "openai", "anthropic")
+	// GetProviderName returns the name of the provider (e.g.: "gemini", "openai", "anthropic")
 	GetProviderName() string
 }
 
-// TokenCounter es una interfaz más simple para proveedores que solo necesitan contar tokens.
+// TokenCounter is a simpler interface for providers that only need to count tokens.
 type TokenCounter interface {
 	CountTokens(ctx context.Context, content string) (int, error)
 }

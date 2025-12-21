@@ -7,24 +7,19 @@ import (
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"google.golang.org/genai"
 )
 
 func TestNewGeminiIssueContentGenerator(t *testing.T) {
-	trans, err := i18n.NewTranslations("en", "../../../i18n/locales/")
-	require.NoError(t, err)
-
 	t.Run("should return error if API key is missing", func(t *testing.T) {
 		cfg := &config.Config{
 			AIProviders: map[string]config.AIProviderConfig{},
 		}
-		gen, err := NewGeminiIssueContentGenerator(context.Background(), cfg, trans)
+		gen, err := NewGeminiIssueContentGenerator(context.Background(), cfg, nil)
 		assert.Error(t, err)
 		assert.Nil(t, gen)
-		assert.Contains(t, err.Error(), "API key is not configured")
+		assert.Contains(t, err.Error(), "API key is missing")
 	})
 
 	t.Run("should create generator if API key is present", func(t *testing.T) {
@@ -33,18 +28,16 @@ func TestNewGeminiIssueContentGenerator(t *testing.T) {
 				"gemini": {APIKey: "fake-key"},
 			},
 		}
-		gen, err := NewGeminiIssueContentGenerator(context.Background(), cfg, trans)
+		gen, err := NewGeminiIssueContentGenerator(context.Background(), cfg, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, gen)
 	})
 }
 
 func TestBuildIssuePrompt(t *testing.T) {
-	trans, _ := i18n.NewTranslations("en", "../../../i18n/locales/")
 	cfg := &config.Config{}
 	gen := &GeminiIssueContentGenerator{
 		config: cfg,
-		trans:  trans,
 	}
 
 	tests := []struct {
@@ -140,6 +133,7 @@ func TestParseIssueResponse(t *testing.T) {
 		result, err := gen.parseIssueResponse(formatResponse(resp))
 		assert.Error(t, err)
 		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "empty response from AI")
 	})
 }
 
@@ -194,12 +188,11 @@ func TestGenerateIssueContent_HappyPath(t *testing.T) {
 	}()
 
 	ctx := context.Background()
-	trans, _ := i18n.NewTranslations("en", "../../../i18n/locales/")
 	cfg := &config.Config{
 		AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test"}},
 		AIConfig:    config.AIConfig{Models: map[config.AI]config.Model{config.AIGemini: "gemini-pro"}},
 	}
-	gen, _ := NewGeminiIssueContentGenerator(ctx, cfg, trans)
+	gen, _ := NewGeminiIssueContentGenerator(ctx, cfg, nil)
 	gen.wrapper.SetSkipConfirmation(true)
 
 	t.Run("successful issue content generation", func(t *testing.T) {

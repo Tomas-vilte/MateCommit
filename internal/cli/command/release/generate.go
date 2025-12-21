@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/Tomas-vilte/MateCommit/internal/cli/completion_helper"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/ui"
 	"github.com/urfave/cli/v3"
@@ -36,26 +35,28 @@ func (r *ReleaseCommandFactory) newGenerateCommand(trans *i18n.Translations) *cl
 	}
 }
 
-func generateReleaseAction(releaseService ports.ReleaseService, trans *i18n.Translations) cli.ActionFunc {
+func generateReleaseAction(releaseSvc releaseService, trans *i18n.Translations) cli.ActionFunc {
 	return func(ctx context.Context, cmd *cli.Command) error {
 		fmt.Println(trans.GetMessage("release.generating", 0, nil))
 		fmt.Println()
 
-		release, err := releaseService.AnalyzeNextRelease(ctx)
+		release, err := releaseSvc.AnalyzeNextRelease(ctx)
 		if err != nil {
+			ui.HandleAppError(err, trans)
 			return fmt.Errorf("%s", trans.GetMessage("release.error_analyzing", 0, map[string]interface{}{
 				"Error": err.Error(),
 			}))
 		}
 
-		if err := releaseService.EnrichReleaseContext(ctx, release); err != nil {
+		if err := releaseSvc.EnrichReleaseContext(ctx, release); err != nil {
 			fmt.Printf("⚠️  %s\n", trans.GetMessage("release.warning_enrich_context", 0, map[string]interface{}{
 				"Error": err.Error(),
 			}))
 		}
 
-		notes, err := releaseService.GenerateReleaseNotes(ctx, release)
+		notes, err := releaseSvc.GenerateReleaseNotes(ctx, release)
 		if err != nil {
+			ui.HandleAppError(err, trans)
 			return fmt.Errorf("%s", trans.GetMessage("release.error_generating_notes", 0,
 				map[string]interface{}{
 					"Error": err.Error(),

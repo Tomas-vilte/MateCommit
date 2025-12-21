@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
+	domainErrors "github.com/Tomas-vilte/MateCommit/internal/domain/errors"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/ai"
 	"google.golang.org/genai"
 )
@@ -20,7 +20,6 @@ type ReleaseNotesGenerator struct {
 	*GeminiProvider
 	wrapper    *ai.CostAwareWrapper
 	generateFn ai.GenerateFunc
-	trans      *i18n.Translations
 	lang       string
 	owner      string
 	repo       string
@@ -34,13 +33,10 @@ type ReleaseNotesJSON struct {
 	Contributors    string   `json:"contributors"`
 }
 
-func NewReleaseNotesGenerator(ctx context.Context, cfg *config.Config, trans *i18n.Translations, owner, repo string) (*ReleaseNotesGenerator, error) {
+func NewReleaseNotesGenerator(ctx context.Context, cfg *config.Config, onConfirmation ai.ConfirmationCallback, owner, repo string) (*ReleaseNotesGenerator, error) {
 	providerCfg, exists := cfg.AIProviders["gemini"]
 	if !exists || providerCfg.APIKey == "" {
-		msg := trans.GetMessage("error_missing_api_key", 0, map[string]interface{}{
-			"Provider": "gemini",
-		})
-		return nil, fmt.Errorf("%s", msg)
+		return nil, domainErrors.ErrAPIKeyMissing
 	}
 
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
@@ -48,10 +44,7 @@ func NewReleaseNotesGenerator(ctx context.Context, cfg *config.Config, trans *i1
 		Backend: genai.BackendGeminiAPI,
 	})
 	if err != nil {
-		msg := trans.GetMessage("ai_service.error_ai_client", 0, map[string]interface{}{
-			"Error": err,
-		})
-		return nil, fmt.Errorf("%s", msg)
+		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error creating AI client", err)
 	}
 
 	modelName := string(cfg.AIConfig.Models[config.AIGemini])
@@ -64,7 +57,6 @@ func NewReleaseNotesGenerator(ctx context.Context, cfg *config.Config, trans *i1
 	service := &ReleaseNotesGenerator{
 		GeminiProvider: NewGeminiProvider(client, modelName),
 		lang:           cfg.Language,
-		trans:          trans,
 		owner:          owner,
 		repo:           repo,
 	}
@@ -72,11 +64,11 @@ func NewReleaseNotesGenerator(ctx context.Context, cfg *config.Config, trans *i1
 	wrapper, err := ai.NewCostAwareWrapper(ai.WrapperConfig{
 		Provider:              service,
 		BudgetDaily:           budgetDaily,
-		Trans:                 trans,
 		EstimatedOutputTokens: 700,
+		OnConfirmation:        onConfirmation,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("error creando wrapper: %w", err)
+		return nil, fmt.Errorf("error creating wrapper: %w", err)
 	}
 
 	service.wrapper = wrapper
@@ -102,7 +94,7 @@ func (g *ReleaseNotesGenerator) GenerateNotes(ctx context.Context, release *mode
 
 	resp, usage, err := g.wrapper.WrapGenerate(ctx, "generate-release", prompt, g.generateFn)
 	if err != nil {
-		return nil, fmt.Errorf("error generando release notes: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error generating release notes", err)
 	}
 
 	var responseText string
@@ -113,13 +105,12 @@ func (g *ReleaseNotesGenerator) GenerateNotes(ctx context.Context, release *mode
 	}
 
 	if responseText == "" {
-		msg := g.trans.GetMessage("ai_service.error_no_ai_response", 0, nil)
-		return nil, fmt.Errorf("%s", msg)
+		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "empty response from AI", nil)
 	}
 
 	notes, err := g.parseJSONResponse(responseText, release)
 	if err != nil {
-		return nil, fmt.Errorf("error al parsear respuesta JSON de release notes: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error parsing AI JSON response", err)
 	}
 
 	notes.Usage = usage
@@ -128,18 +119,26 @@ func (g *ReleaseNotesGenerator) GenerateNotes(ctx context.Context, release *mode
 }
 
 func (g *ReleaseNotesGenerator) buildPrompt(release *models.Release) string {
-	template := ai.GetReleasePromptTemplate(g.lang)
+	templateStr := ai.GetReleasePromptTemplate(g.lang)
 
 	changes := g.formatChangesForPrompt(release)
 
-	return fmt.Sprintf(template,
-		g.owner,
-		g.repo,
-		release.PreviousVersion,
-		release.Version,
-		release.VersionBump,
-		changes,
-	)
+	data := ai.PromptData{
+		RepoOwner:       g.owner,
+		RepoName:        g.repo,
+		PreviousVersion: release.PreviousVersion,
+		CurrentVersion:  release.PreviousVersion,
+		LatestVersion:   release.Version,
+		ReleaseDate:     string(release.VersionBump),
+		Changelog:       changes,
+	}
+
+	rendered, err := ai.RenderPrompt("releasePrompt", templateStr, data)
+	if err != nil {
+		return ""
+	}
+
+	return rendered
 }
 
 func (g *ReleaseNotesGenerator) formatChangesForPrompt(release *models.Release) string {
@@ -249,7 +248,7 @@ func (g *ReleaseNotesGenerator) parseJSONResponse(content string, release *model
 
 	var jsonNotes ReleaseNotesJSON
 	if err := json.Unmarshal([]byte(content), &jsonNotes); err != nil {
-		return nil, fmt.Errorf("error al parsear JSON de release notes: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error parsing AI JSON response", err)
 	}
 
 	notes := &models.ReleaseNotes{

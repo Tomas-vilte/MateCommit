@@ -18,15 +18,15 @@ func setupConfigTest(t *testing.T) (*config.Config, *i18n.Translations, string, 
 
 	cfg := &config.Config{
 		PathFile: tmpConfigPath,
-		Language: "es",
+		Language: "en",
 	}
 
-	translations, err := i18n.NewTranslations("es", "../../../../internal/i18n/locales")
+	translations, err := i18n.NewTranslations("en", "../../../../internal/i18n/locales")
 	assert.NoError(t, err)
 
 	cleanup := func() {
 		if err := os.RemoveAll(tmpDir); err != nil {
-			t.Logf("Error al limpiar directorio temporal: %v", err)
+			t.Logf("Error cleaning temporary directory: %v", err)
 		}
 	}
 

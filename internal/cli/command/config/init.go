@@ -80,7 +80,7 @@ func runFullSetup(ctx context.Context, command *cli.Command, reader *bufio.Reade
 	}
 	if err := config.SaveConfig(cfg); err != nil {
 		fmt.Println(t.GetMessage("config_save.error_saving_config", 0, map[string]interface{}{"Error": err.Error()}))
-		return fmt.Errorf("error guardando configuracion: %w", err)
+		return fmt.Errorf("error saving configuration: %w", err)
 	}
 
 	printConfigSummary(cfg, t)
@@ -89,7 +89,7 @@ func runFullSetup(ctx context.Context, command *cli.Command, reader *bufio.Reade
 	fmt.Print(t.GetMessage("init.prompt_run_again", 0, nil))
 	runAgain, err := reader.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("error leyendo input: %w", err)
+		return fmt.Errorf("error reading input: %w", err)
 	}
 
 	if isYes(runAgain) {
@@ -124,7 +124,7 @@ func configureWelcome(ctx context.Context, reader *bufio.Reader, cfg *config.Con
 	}))
 	apiKey, err := reader.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("error leyendo API_KEY: %w", err)
+		return fmt.Errorf("error reading API_KEY: %w", err)
 	}
 	apiKey = strings.TrimSpace(apiKey)
 
@@ -143,7 +143,7 @@ func configureWelcome(ctx context.Context, reader *bufio.Reader, cfg *config.Con
 	fmt.Print(t.GetMessage("init.prompt_model_with_default", 0, map[string]interface{}{"Default": geminiDefault}))
 	modelInput, err := reader.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("error leyendo modelo: %w", err)
+		return fmt.Errorf("error reading model: %w", err)
 	}
 	modelInput = strings.TrimSpace(modelInput)
 
@@ -203,7 +203,7 @@ func configureVCS(reader *bufio.Reader, cfg *config.Config, t *i18n.Translations
 
 	ansVCS, err := reader.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("error al leer la respuesta de VCS: %w", err)
+		return fmt.Errorf("error reading VCS response: %w", err)
 	}
 	ansVCS = strings.TrimSpace(strings.ToLower(ansVCS))
 
@@ -212,7 +212,7 @@ func configureVCS(reader *bufio.Reader, cfg *config.Config, t *i18n.Translations
 		fmt.Print(t.GetMessage("init.prompt_github_token_blank_skip", 0, nil))
 		token, err := reader.ReadString('\n')
 		if err != nil {
-			return fmt.Errorf("error al leer el token de GitHub: %w", err)
+			return fmt.Errorf("error reading GitHub token: %w", err)
 		}
 		token = strings.TrimSpace(token)
 
@@ -241,7 +241,7 @@ func configureTickets(reader *bufio.Reader, cfg *config.Config, t *i18n.Translat
 
 	ansJira, err := reader.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("error al leer la respuesta de Jira: %w", err)
+		return fmt.Errorf("error reading Jira response: %w", err)
 	}
 	ansJira = strings.TrimSpace(strings.ToLower(ansJira))
 
@@ -256,7 +256,7 @@ func configureTickets(reader *bufio.Reader, cfg *config.Config, t *i18n.Translat
 	fmt.Print(t.GetMessage("init.prompt_jira_base_url_blank_cancel", 0, nil))
 	jiraURL, err := reader.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("error al leer la URL de Jira: %w", err)
+		return fmt.Errorf("error reading Jira URL: %w", err)
 	}
 	jiraURL = strings.TrimSpace(jiraURL)
 
@@ -273,7 +273,7 @@ func configureTickets(reader *bufio.Reader, cfg *config.Config, t *i18n.Translat
 	fmt.Print(t.GetMessage("init.prompt_jira_email_blank_cancel", 0, nil))
 	jiraEmail, err := reader.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("error al leer el correo electrónico de Jira: %w", err)
+		return fmt.Errorf("error reading Jira email: %w", err)
 	}
 	jiraEmail = strings.TrimSpace(jiraEmail)
 
@@ -290,7 +290,7 @@ func configureTickets(reader *bufio.Reader, cfg *config.Config, t *i18n.Translat
 	fmt.Print(t.GetMessage("init.prompt_jira_api_token_blank_cancel", 0, nil))
 	jiraToken, err := reader.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("error al leer el token de Jira: %w", err)
+		return fmt.Errorf("error reading Jira token: %w", err)
 	}
 	jiraToken = strings.TrimSpace(jiraToken)
 
@@ -382,10 +382,10 @@ func validateGeminiAPIKey(ctx context.Context, apiKey string, t *i18n.Translatio
 	testCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	_, err := gemini.NewGeminiCommitSummarizer(testCtx, testCfg, t)
+	_, err := gemini.NewGeminiCommitSummarizer(testCtx, testCfg, nil)
 	if err != nil {
 		spinner.Error(t.GetMessage("config.api_key_invalid", 0, nil))
-		ui.PrintError(t.GetMessage("config.check_api_key_error", 0, map[string]interface{}{
+		ui.PrintError(os.Stdout, t.GetMessage("config.check_api_key_error", 0, map[string]interface{}{
 			"Error": err.Error(),
 		}))
 		return false
@@ -402,7 +402,7 @@ func disableTickets(cfg *config.Config) {
 
 func isYes(s string) bool {
 	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "y", "yes", "s", "si", "sí":
+	case "y", "yes", "s":
 		return true
 	default:
 		return false

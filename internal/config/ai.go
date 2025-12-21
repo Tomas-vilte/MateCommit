@@ -16,7 +16,7 @@ const (
 	ModelGeminiV3Pro    Model = "gemini-3-pro-preview"
 	ModelGeminiV3Flash  Model = "gemini-3-flash-preview"
 
-	// TODO: Agregar mas modelos para openai o otros...
+	// TODO: Add more models for OpenAI or others...
 	ModelGPTV4o Model = "gpt-4o"
 )
 

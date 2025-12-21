@@ -108,8 +108,8 @@ func TestShowCommand(t *testing.T) {
 		// assert
 		assert.NoError(t, err)
 
-		assert.Contains(t, output, "Servicio de tickets habilitado: jira")
-		assert.Contains(t, output, "Configuración de Jira - BaseURL: https://example.atlassian.net, Email: user@example.com")
+		assert.Contains(t, output, "Ticket service enabled: jira")
+		assert.Contains(t, output, "Jira Settings - BaseURL: https://example.atlassian.net, Email: user@example.com")
 
 		assert.Contains(t, output, "gemini: gemini-1.5-flash")
 		assert.Contains(t, output, "openai: gpt-4o")

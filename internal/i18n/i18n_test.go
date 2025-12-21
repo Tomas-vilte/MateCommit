@@ -12,7 +12,7 @@ func TestNewTranslations(t *testing.T) {
 		tmpDir := createTempDir(t)
 		defer func() {
 			if err := os.RemoveAll(tmpDir); err != nil {
-				t.Errorf("error al eliminar directorio: %v", err)
+				t.Errorf("error deleting directory: %v", err)
 			}
 		}()
 
@@ -26,11 +26,11 @@ func TestNewTranslations(t *testing.T) {
 
 		// assert
 		if err != nil {
-			t.Errorf("NewTranslations() no debería retornar error, obtuvo: %v", err)
+			t.Errorf("NewTranslations() should not return an error, got: %v", err)
 		}
 
 		if trans == nil {
-			t.Error("NewTranslations() no debería retornar nil")
+			t.Error("NewTranslations() should not return nil")
 		}
 	})
 
@@ -39,7 +39,7 @@ func TestNewTranslations(t *testing.T) {
 		tmpDir := createTempDir(t)
 		defer func() {
 			if err := os.RemoveAll(tmpDir); err != nil {
-				t.Errorf("error al eliminar directorio: %v", err)
+				t.Errorf("error deleting directory: %v", err)
 			}
 		}()
 
@@ -48,11 +48,11 @@ func TestNewTranslations(t *testing.T) {
 
 		// assert
 		if err == nil {
-			t.Error("NewTranslations() debería retornar error con idioma vacío")
+			t.Error("NewTranslations() should return error with empty language")
 		}
 
 		if trans != nil {
-			t.Error("NewTranslations() debería retornar nil cuando falla")
+			t.Error("NewTranslations() should return nil when it fails")
 		}
 	})
 }
@@ -63,7 +63,7 @@ func TestSetLanguage(t *testing.T) {
 		tmpDir := createTempDir(t)
 		defer func() {
 			if err := os.RemoveAll(tmpDir); err != nil {
-				t.Errorf("error al eliminar directorio: %v", err)
+				t.Errorf("error deleting directory: %v", err)
 			}
 		}()
 
@@ -74,7 +74,7 @@ func TestSetLanguage(t *testing.T) {
 
 		trans, err := NewTranslations("en", tmpDir)
 		if err != nil {
-			t.Fatal("Error en la configuración de la prueba:", err)
+			t.Fatal("Error in test setup:", err)
 		}
 
 		// act
@@ -82,7 +82,7 @@ func TestSetLanguage(t *testing.T) {
 
 		// assert
 		if err != nil {
-			t.Errorf("SetLanguage() no debería retornar error, obtuvo: %v", err)
+			t.Errorf("SetLanguage() should not return error, got: %v", err)
 		}
 	})
 
@@ -91,7 +91,7 @@ func TestSetLanguage(t *testing.T) {
 		tmpDir := createTempDir(t)
 		defer func() {
 			if err := os.RemoveAll(tmpDir); err != nil {
-				t.Errorf("error al eliminar directorio: %v", err)
+				t.Errorf("error deleting directory: %v", err)
 			}
 		}()
 
@@ -100,7 +100,7 @@ func TestSetLanguage(t *testing.T) {
 
 		trans, err := NewTranslations("es", tmpDir)
 		if err != nil {
-			t.Fatal("Error en la configuración de la prueba:", err)
+			t.Fatal("Error in test setup:", err)
 		}
 
 		// act
@@ -108,7 +108,7 @@ func TestSetLanguage(t *testing.T) {
 
 		// asssert
 		if err == nil {
-			t.Error("SetLanguage() debería retornar error con idioma no soportado")
+			t.Error("SetLanguage() should return error with unsupported language")
 		}
 	})
 }
@@ -119,7 +119,7 @@ func TestGetMessage(t *testing.T) {
 		tmpDir := createTempDir(t)
 		defer func() {
 			if err := os.RemoveAll(tmpDir); err != nil {
-				t.Errorf("error al eliminar directorio: %v", err)
+				t.Errorf("error deleting directory: %v", err)
 			}
 		}()
 
@@ -130,7 +130,7 @@ func TestGetMessage(t *testing.T) {
 
 		trans, err := NewTranslations("es", tmpDir)
 		if err != nil {
-			t.Fatal("Error en la configuración de la prueba:", err)
+			t.Fatal("Error in test setup:", err)
 		}
 
 		// act
@@ -139,7 +139,7 @@ func TestGetMessage(t *testing.T) {
 		// assert
 		expected := "Bienvenido"
 		if result != expected {
-			t.Errorf("GetMessage() = %v, quiere %v", result, expected)
+			t.Errorf("GetMessage() = %v, want %v", result, expected)
 		}
 	})
 
@@ -148,7 +148,7 @@ func TestGetMessage(t *testing.T) {
 		tmpDir := createTempDir(t)
 		defer func() {
 			if err := os.RemoveAll(tmpDir); err != nil {
-				t.Errorf("error al eliminar directorio: %v", err)
+				t.Errorf("error deleting directory: %v", err)
 			}
 		}()
 
@@ -159,7 +159,7 @@ func TestGetMessage(t *testing.T) {
 
 		trans, err := NewTranslations("es", tmpDir)
 		if err != nil {
-			t.Fatal("Error en la configuración de la prueba:", err)
+			t.Fatal("Error in test setup:", err)
 		}
 
 		// act
@@ -168,7 +168,7 @@ func TestGetMessage(t *testing.T) {
 		// assert
 		expected := "Bienvenidos"
 		if result != expected {
-			t.Errorf("GetMessage() = %v, quiere %v", result, expected)
+			t.Errorf("GetMessage() = %v, want %v", result, expected)
 		}
 	})
 
@@ -177,7 +177,7 @@ func TestGetMessage(t *testing.T) {
 		tmpDir := createTempDir(t)
 		defer func() {
 			if err := os.RemoveAll(tmpDir); err != nil {
-				t.Errorf("error al eliminar directorio: %v", err)
+				t.Errorf("error deleting directory: %v", err)
 			}
 		}()
 
@@ -187,7 +187,7 @@ func TestGetMessage(t *testing.T) {
 
 		trans, err := NewTranslations("es", tmpDir)
 		if err != nil {
-			t.Fatal("Error en la configuración de la prueba:", err)
+			t.Fatal("Error in test setup:", err)
 		}
 
 		templateData := map[string]interface{}{
@@ -200,7 +200,7 @@ func TestGetMessage(t *testing.T) {
 		// assert
 		expected := "¡Hola Juan!"
 		if result != expected {
-			t.Errorf("GetMessage() = %v, quiere %v", result, expected)
+			t.Errorf("GetMessage() = %v, want %v", result, expected)
 		}
 	})
 
@@ -209,7 +209,7 @@ func TestGetMessage(t *testing.T) {
 		tmpDir := createTempDir(t)
 		defer func() {
 			if err := os.RemoveAll(tmpDir); err != nil {
-				t.Errorf("error al eliminar directorio: %v", err)
+				t.Errorf("error deleting directory: %v", err)
 			}
 		}()
 
@@ -218,16 +218,16 @@ func TestGetMessage(t *testing.T) {
 
 		trans, err := NewTranslations("es", tmpDir)
 		if err != nil {
-			t.Fatal("Error en la configuración de la prueba:", err)
+			t.Fatal("Error in test setup:", err)
 		}
 
 		// act
 		result := trans.GetMessage("NonExistent", 1, nil)
 
 		// assert
-		expected := "Falta la traducción: NonExistent"
+		expected := "Missing translation: NonExistent"
 		if result != expected {
-			t.Errorf("GetMessage() = %v, quiere %v", result, expected)
+			t.Errorf("GetMessage() = %v, want %v", result, expected)
 		}
 	})
 }
@@ -238,11 +238,11 @@ func TestNewTranslations_Errors(t *testing.T) {
 		tmpDir := createTempDir(t)
 		defer func() {
 			if err := os.RemoveAll(tmpDir); err != nil {
-				t.Errorf("error al eliminar directorio: %v", err)
+				t.Errorf("error deleting directory: %v", err)
 			}
 		}()
 
-		// Crear múltiples archivos válidos
+		// Create multiple valid files
 		createTestFile(t, tmpDir, "active.es.toml", `
 		[Hello]
 		other = "Hola"`)
@@ -256,10 +256,10 @@ func TestNewTranslations_Errors(t *testing.T) {
 
 		// Assert
 		if err != nil {
-			t.Errorf("NewTranslations() no debería fallar con archivos válidos: %v", err)
+			t.Errorf("NewTranslations() should not fail with valid files: %v", err)
 		}
 		if trans == nil {
-			t.Error("NewTranslations() no debería retornar nil con archivos válidos")
+			t.Error("NewTranslations() should not return nil with valid files")
 		}
 	})
 }
@@ -267,7 +267,7 @@ func TestNewTranslations_Errors(t *testing.T) {
 func createTempDir(t *testing.T) string {
 	tmpDir, err := os.MkdirTemp("", "i18n_test")
 	if err != nil {
-		t.Fatal("No se pudo crear el directorio temporal:", err)
+		t.Fatal("Could not create temporary directory:", err)
 	}
 	return tmpDir
 }
@@ -275,6 +275,6 @@ func createTempDir(t *testing.T) string {
 func createTestFile(t *testing.T, dir, filename, content string) {
 	err := os.WriteFile(filepath.Join(dir, filename), []byte(content), 0644)
 	if err != nil {
-		t.Fatal("No se pudo crear el archivo de prueba:", err)
+		t.Fatal("Could not create test file:", err)
 	}
 }

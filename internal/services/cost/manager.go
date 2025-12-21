@@ -6,9 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
-	"github.com/fatih/color"
 )
 
 type ActivityRecord struct {
@@ -24,31 +21,39 @@ type ActivityRecord struct {
 	Hash         string    `json:"hash"`
 }
 
+type BudgetStatus struct {
+	IsExceeded   bool
+	PercentUsed  float64
+	TodayTotal   float64
+	Estimated    float64
+	Limit        float64
+	IsWarning    bool
+	WarningLevel int // 50, 75, 90
+}
+
 type Manager struct {
 	historyPath string
 	budgetDaily float64
-	trans       *i18n.Translations
 }
 
-func NewManager(budgetDaily float64, trans *i18n.Translations) (*Manager, error) {
+func NewManager(budgetDaily float64) (*Manager, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return nil, fmt.Errorf("error obteniendo home directory: %w", err)
+		return nil, fmt.Errorf("error getting home directory: %w", err)
 	}
 
 	matecommitDir := filepath.Join(homeDir, ".matecommit")
 	if err := os.MkdirAll(matecommitDir, 0755); err != nil {
-		return nil, fmt.Errorf("error creando directorio .matecommit: %w", err)
+		return nil, fmt.Errorf("error creating .matecommit directory: %w", err)
 	}
 
 	return &Manager{
 		historyPath: filepath.Join(matecommitDir, "history.json"),
 		budgetDaily: budgetDaily,
-		trans:       trans,
 	}, nil
 }
 
-// SaveActivity guarda un registro de actividad
+// SaveActivity saves an activity record
 func (m *Manager) SaveActivity(record ActivityRecord) error {
 	records, err := m.loadHistory()
 	if err != nil {
@@ -59,90 +64,53 @@ func (m *Manager) SaveActivity(record ActivityRecord) error {
 
 	data, err := json.MarshalIndent(records, "", "  ")
 	if err != nil {
-		return fmt.Errorf("error serializando historial: %w", err)
+		return fmt.Errorf("error serializing history: %w", err)
 	}
 
 	if err := os.WriteFile(m.historyPath, data, 0644); err != nil {
-		return fmt.Errorf("error guardando historial: %w", err)
+		return fmt.Errorf("error saving history: %w", err)
 	}
 
 	return nil
 }
 
-// CheckBudget verifica si el costo estimado excede el presupuesto diario
-// y muestra alertas visuales cuando se acerca al límite
-func (m *Manager) CheckBudget(estimatedCost float64) error {
+// CheckBudget checks if the estimated cost exceeds the daily budget
+func (m *Manager) CheckBudget(estimatedCost float64) (*BudgetStatus, error) {
 	if m.budgetDaily <= 0 {
-		return nil
+		return &BudgetStatus{}, nil
 	}
 
 	todayTotal, err := m.GetDailyTotal()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	percentUsed := (todayTotal / m.budgetDaily) * 100
 	newPercent := ((todayTotal + estimatedCost) / m.budgetDaily) * 100
 
-	if percentUsed >= 50 && percentUsed < 75 {
-		yellow := color.New(color.FgYellow)
-		_, _ = yellow.Println(m.trans.GetMessage("cost.budget_alert_50", 0, map[string]interface{}{
-			"Percent": fmt.Sprintf("%.0f", percentUsed),
-			"Spent":   fmt.Sprintf("%.4f", todayTotal),
-			"Limit":   fmt.Sprintf("%.2f", m.budgetDaily),
-		}))
-	} else if percentUsed >= 75 && percentUsed < 90 {
-		yellow := color.New(color.FgYellow, color.Bold)
-		_, _ = yellow.Println(m.trans.GetMessage("cost.budget_alert_75_title", 0, map[string]interface{}{
-			"Percent": fmt.Sprintf("%.0f", percentUsed),
-		}))
-		_, _ = yellow.Println(m.trans.GetMessage("cost.budget_alert_75_spent", 0, map[string]interface{}{
-			"Spent": fmt.Sprintf("%.4f", todayTotal),
-			"Limit": fmt.Sprintf("%.2f", m.budgetDaily),
-		}))
-	} else if percentUsed >= 90 {
-		red := color.New(color.FgRed, color.Bold)
-		_, _ = red.Println(m.trans.GetMessage("cost.budget_alert_90_title", 0, map[string]interface{}{
-			"Percent": fmt.Sprintf("%.0f", percentUsed),
-		}))
-		_, _ = red.Println(m.trans.GetMessage("cost.budget_alert_90_spent", 0, map[string]interface{}{
-			"Spent": fmt.Sprintf("%.4f", todayTotal),
-			"Limit": fmt.Sprintf("%.2f", m.budgetDaily),
-		}))
-		_, _ = red.Println(m.trans.GetMessage("cost.budget_alert_90_remaining", 0, map[string]interface{}{
-			"Remaining": fmt.Sprintf("%.4f", m.budgetDaily-todayTotal),
-		}))
+	status := &BudgetStatus{
+		IsExceeded:  newPercent > 100,
+		PercentUsed: percentUsed,
+		TodayTotal:  todayTotal,
+		Estimated:   estimatedCost,
+		Limit:       m.budgetDaily,
 	}
 
-	if newPercent > 100 {
-		red := color.New(color.FgRed, color.Bold)
-		fmt.Println()
-		_, _ = red.Println(m.trans.GetMessage("cost.budget_exceeded_title", 0, nil))
-		fmt.Println(m.trans.GetMessage("cost.budget_exceeded_spent_today", 0, map[string]interface{}{
-			"Spent": fmt.Sprintf("%.4f", todayTotal),
-		}))
-		fmt.Println(m.trans.GetMessage("cost.budget_exceeded_estimated", 0, map[string]interface{}{
-			"Cost": fmt.Sprintf("%.4f", estimatedCost),
-		}))
-		fmt.Println(m.trans.GetMessage("cost.budget_exceeded_total", 0, map[string]interface{}{
-			"Total": fmt.Sprintf("%.4f", todayTotal+estimatedCost),
-		}))
-		fmt.Println(m.trans.GetMessage("cost.budget_exceeded_limit", 0, map[string]interface{}{
-			"Limit": fmt.Sprintf("%.2f", m.budgetDaily),
-		}))
-		fmt.Println(m.trans.GetMessage("cost.budget_exceeded_excess", 0, map[string]interface{}{
-			"Excess": fmt.Sprintf("%.4f", (todayTotal+estimatedCost)-m.budgetDaily),
-		}))
-		fmt.Println()
-
-		return fmt.Errorf("presupuesto diario excedido: actual $%.4f + estimado $%.4f > límite $%.2f",
-			todayTotal, estimatedCost, m.budgetDaily)
+	if percentUsed >= 90 {
+		status.IsWarning = true
+		status.WarningLevel = 90
+	} else if percentUsed >= 75 {
+		status.IsWarning = true
+		status.WarningLevel = 75
+	} else if percentUsed >= 50 {
+		status.IsWarning = true
+		status.WarningLevel = 50
 	}
 
-	return nil
+	return status, nil
 }
 
-// GetDailyTotal obtiene el total gastado hoy
+// GetDailyTotal gets the total spent today
 func (m *Manager) GetDailyTotal() (float64, error) {
 	records, err := m.loadHistory()
 	if err != nil {
@@ -161,7 +129,7 @@ func (m *Manager) GetDailyTotal() (float64, error) {
 	return total, nil
 }
 
-// GetMonthlyTotal obtiene el total gastado este mes
+// GetMonthlyTotal gets the total spent this month
 func (m *Manager) GetMonthlyTotal() (float64, error) {
 	records, err := m.loadHistory()
 	if err != nil {
@@ -180,7 +148,7 @@ func (m *Manager) GetMonthlyTotal() (float64, error) {
 	return total, nil
 }
 
-// GetHistory obtiene todos los registros
+// GetHistory gets all records
 func (m *Manager) GetHistory() ([]ActivityRecord, error) {
 	return m.loadHistory()
 }
@@ -191,12 +159,12 @@ func (m *Manager) loadHistory() ([]ActivityRecord, error) {
 		if os.IsNotExist(err) {
 			return []ActivityRecord{}, nil
 		}
-		return nil, fmt.Errorf("error leyendo historial: %w", err)
+		return nil, fmt.Errorf("error reading history: %w", err)
 	}
 
 	var records []ActivityRecord
 	if err := json.Unmarshal(data, &records); err != nil {
-		return nil, fmt.Errorf("error deserializando historial: %w", err)
+		return nil, fmt.Errorf("error deserializing history: %w", err)
 	}
 
 	return records, nil

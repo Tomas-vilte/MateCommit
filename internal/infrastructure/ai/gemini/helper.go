@@ -9,7 +9,7 @@ import (
 	"google.golang.org/genai"
 )
 
-// extractUsage extrae los metadatos de uso de la respuesta de Gemini
+// extractUsage extracts usage metadata from the Gemini response
 func extractUsage(resp *genai.GenerateContentResponse) *models.TokenUsage {
 	if resp == nil || resp.UsageMetadata == nil {
 		return nil
@@ -21,7 +21,7 @@ func extractUsage(resp *genai.GenerateContentResponse) *models.TokenUsage {
 	}
 }
 
-// GetGenerateConfig retorna la configuración óptima para el modelo, activando Thinking Mode si es compatible.
+// GetGenerateConfig returns the optimal configuration for the model, enabling Thinking Mode if compatible.
 func GetGenerateConfig(modelName string, responseType string) *genai.GenerateContentConfig {
 	config := &genai.GenerateContentConfig{
 		Temperature:     float32Ptr(0.3),
@@ -43,8 +43,8 @@ func GetGenerateConfig(modelName string, responseType string) *genai.GenerateCon
 	return config
 }
 
-// ExtractJSON intenta extraer un bloque JSON válido de un texto, manejando bloques de código markdown
-// y posible texto extra que los modelos con "Thinking" pueden generar.
+// ExtractJSON attempts to extract a valid JSON block from text, handling markdown code blocks
+// and possible extra text that models with "Thinking" mode might generate.
 func ExtractJSON(text string) string {
 	text = strings.TrimSpace(text)
 
@@ -140,8 +140,8 @@ func ExtractJSON(text string) string {
 
 var jsonStringRegex = regexp.MustCompile(`"(?:\\.|[^"\\])*"`)
 
-// SanitizeJSON limpia el JSON malformado que a veces generan los LLMs,
-// como saltos de línea sin escapar dentro de Literales de Cadena.
+// SanitizeJSON cleans malformed JSON that LLMs sometimes generate,
+// such as unescaped newlines within String Literals.
 func SanitizeJSON(s string) string {
 	return jsonStringRegex.ReplaceAllStringFunc(s, func(m string) string {
 		return strings.ReplaceAll(m, "\n", "\\n")

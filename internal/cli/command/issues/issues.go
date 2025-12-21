@@ -11,29 +11,47 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/cli/completion_helper"
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/ui"
 	"github.com/urfave/cli/v3"
 )
 
-type IssueServiceProvider func(ctx context.Context) (ports.IssueGeneratorService, error)
-
-// IssuesCommandFactory es el factory para crear el comando de issues.
-type IssuesCommandFactory struct {
-	issueServiceProvider IssueServiceProvider
-	templateService      ports.IssueTemplateService
+// IssueGeneratorService is a minimal interface for testing purposes
+type IssueGeneratorService interface {
+	GenerateFromDiff(ctx context.Context, hint string, skipLabels bool) (*models.IssueGenerationResult, error)
+	GenerateFromDescription(ctx context.Context, description string, skipLabels bool) (*models.IssueGenerationResult, error)
+	GenerateFromPR(ctx context.Context, prNumber int, hint string, skipLabels bool) (*models.IssueGenerationResult, error)
+	GenerateWithTemplate(ctx context.Context, templateName string, hint string, fromDiff bool, description string, skipLabels bool) (*models.IssueGenerationResult, error)
+	CreateIssue(ctx context.Context, result *models.IssueGenerationResult, assignees []string) (*models.Issue, error)
+	GetAuthenticatedUser(ctx context.Context) (string, error)
+	InferBranchName(issueNumber int, labels []string) string
+	LinkIssueToPR(ctx context.Context, prNumber int, issueNumber int) error
 }
 
-// NewIssuesCommandFactory crea una nueva instancia del factory.
-func NewIssuesCommandFactory(issueServiceProvider IssueServiceProvider, templateService ports.IssueTemplateService) *IssuesCommandFactory {
+// IssueTemplateService is a minimal interface for testing purposes
+type IssueTemplateService interface {
+	InitializeTemplates(force bool) error
+	GetTemplatesDir() (string, error)
+	ListTemplates() ([]models.TemplateMetadata, error)
+}
+
+type IssueServiceProvider func(ctx context.Context) (IssueGeneratorService, error)
+
+// IssuesCommandFactory is the factory to create the issues command.
+type IssuesCommandFactory struct {
+	issueServiceProvider IssueServiceProvider
+	templateService      IssueTemplateService
+}
+
+// NewIssuesCommandFactory creates a new instance of the factory.
+func NewIssuesCommandFactory(issueServiceProvider IssueServiceProvider, templateService IssueTemplateService) *IssuesCommandFactory {
 	return &IssuesCommandFactory{
 		issueServiceProvider: issueServiceProvider,
 		templateService:      templateService,
 	}
 }
 
-// CreateCommand crea el comando principal de issues con sus subcomandos.
+// CreateCommand creates the main issues command with its subcommands.
 func (f *IssuesCommandFactory) CreateCommand(t *i18n.Translations, cfg *config.Config) *cli.Command {
 	return &cli.Command{
 		Name:    "issue",
@@ -47,7 +65,7 @@ func (f *IssuesCommandFactory) CreateCommand(t *i18n.Translations, cfg *config.C
 	}
 }
 
-// newGenerateCommand crea el subcomando 'generate'.
+// newGenerateCommand creates the 'generate' subcommand.
 func (f *IssuesCommandFactory) newGenerateCommand(t *i18n.Translations, cfg *config.Config) *cli.Command {
 	return &cli.Command{
 		Name:          "generate",
@@ -59,7 +77,7 @@ func (f *IssuesCommandFactory) newGenerateCommand(t *i18n.Translations, cfg *con
 	}
 }
 
-// createGenerateFlags define los flags para el comando generate.
+// createGenerateFlags defines the flags for the generate command.
 func (f *IssuesCommandFactory) createGenerateFlags(t *i18n.Translations) []cli.Flag {
 	return []cli.Flag{
 		&cli.BoolFlag{
@@ -133,12 +151,12 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 		}
 
 		if sourcesCount == 0 {
-			ui.PrintError(t.GetMessage("issue.error_no_input", 0, nil))
+			ui.PrintError(os.Stdout, t.GetMessage("issue.error_no_input", 0, nil))
 			return fmt.Errorf("%s", t.GetMessage("issue.error_no_input", 0, nil))
 		}
 
 		if sourcesCount > 1 {
-			ui.PrintError(t.GetMessage("issue.error_multiple_sources", 0, nil))
+			ui.PrintError(os.Stdout, t.GetMessage("issue.error_multiple_sources", 0, nil))
 			return fmt.Errorf("%s", t.GetMessage("issue.error_multiple_sources", 0, nil))
 		}
 
@@ -146,7 +164,7 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 
 		issueService, err := f.issueServiceProvider(ctx)
 		if err != nil {
-			ui.PrintError(fmt.Sprintf("%s: %v", t.GetMessage("issue.error_generating", 0, nil), err))
+			ui.PrintError(os.Stdout, fmt.Sprintf("%s: %v", t.GetMessage("issue.error_generating", 0, nil), err))
 			return err
 		}
 
@@ -177,7 +195,7 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 		spinner.Stop()
 
 		if err != nil {
-			f.handleGenerationError(err, t)
+			ui.HandleAppError(err, t)
 			return err
 		}
 
@@ -219,11 +237,11 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 		spinner.Stop()
 
 		if err != nil {
-			f.handleCreationError(err, t)
+			ui.HandleAppError(err, t)
 			return err
 		}
 
-		ui.PrintSuccess(t.GetMessage("issue.created_successfully", 0, map[string]interface{}{
+		ui.PrintSuccess(os.Stdout, t.GetMessage("issue.created_successfully", 0, map[string]interface{}{
 			"Number": issue.Number,
 			"URL":    issue.URL,
 		}))
@@ -252,7 +270,7 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 			if err := f.checkoutBranch(branchName); err != nil {
 				ui.PrintWarning(fmt.Sprintf("%s: %v", t.GetMessage("issue.warn_checkout_failed", 0, nil), err))
 			} else {
-				ui.PrintSuccess(t.GetMessage("issue.branch_created", 0, map[string]interface{}{
+				ui.PrintSuccess(os.Stdout, t.GetMessage("issue.branch_created", 0, map[string]interface{}{
 					"Branch": branchName,
 				}))
 			}
@@ -262,35 +280,9 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 	}
 }
 
-// handleGenerationError maneja errores durante la generacion de contenido.
-func (f *IssuesCommandFactory) handleGenerationError(err error, t *i18n.Translations) {
-	errStr := err.Error()
+// handleCreationError is now replaced by ui.HandleAppError
 
-	if strings.Contains(strings.ToLower(errStr), "api key") || strings.Contains(errStr, "not configured") {
-		ui.PrintErrorWithSuggestion(
-			t.GetMessage("issue.error_generating", 0, nil)+": "+errStr,
-			t.GetMessage("ui_error.run_config_init", 0, nil),
-		)
-	} else {
-		ui.PrintError(fmt.Sprintf("%s: %v", t.GetMessage("issue.error_generating", 0, nil), err))
-	}
-}
-
-// handleCreationError maneja errores durante la creacion de la issue.
-func (f *IssuesCommandFactory) handleCreationError(err error, t *i18n.Translations) {
-	errStr := err.Error()
-
-	if strings.Contains(strings.ToLower(errStr), "token") {
-		ui.PrintErrorWithSuggestion(
-			t.GetMessage("issue.error_creating", 0, nil)+": "+errStr,
-			t.GetMessage("ui_error.run_config_init", 0, nil),
-		)
-	} else {
-		ui.PrintError(fmt.Sprintf("%s: %v", t.GetMessage("issue.error_creating", 0, nil), err))
-	}
-}
-
-// printPreview muestra un preview de la issue que se va a crear.
+// printPreview shows a preview of the issue to be created.
 func (f *IssuesCommandFactory) printPreview(result *models.IssueGenerationResult, t *i18n.Translations, cfg *config.Config) {
 	separator := strings.Repeat("\u2500", 60)
 
@@ -320,12 +312,12 @@ func (f *IssuesCommandFactory) printPreview(result *models.IssueGenerationResult
 	fmt.Println()
 }
 
-// promptConfirmation solicita confirmacion al usuario para crear la issue.
+// promptConfirmation requests confirmation from the user to create the issue.
 func (f *IssuesCommandFactory) promptConfirmation(t *i18n.Translations) bool {
 	reader := bufio.NewReader(os.Stdin)
 
 	prompt := t.GetMessage("issue.confirm_prompt", 0, nil)
-	fmt.Printf("%s (Y/n): ", prompt)
+	fmt.Printf("%s: ", prompt)
 
 	response, err := reader.ReadString('\n')
 	if err != nil {
@@ -334,15 +326,14 @@ func (f *IssuesCommandFactory) promptConfirmation(t *i18n.Translations) bool {
 
 	response = strings.ToLower(strings.TrimSpace(response))
 
-	return response == "" || response == "y" || response == "yes" ||
-		response == "s" || response == "si"
+	return response == "" || response == "y" || response == "yes"
 }
 
 func (f *IssuesCommandFactory) checkoutBranch(branchName string) error {
 	cmd := exec.Command("git", "checkout", "-b", branchName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("git checkout fallo: %w (output: %s)", err, string(output))
+		return fmt.Errorf("git checkout failed: %w (output: %s)", err, string(output))
 	}
 	return nil
 }
@@ -370,19 +361,19 @@ func (f *IssuesCommandFactory) newLinkCommand(t *i18n.Translations, cfg *config.
 	}
 }
 
-// createLinkAction crea la acción para linkear un PR a una issue.
+// createLinkAction creates the action to link a PR to an issue.
 func (f *IssuesCommandFactory) createLinkAction(t *i18n.Translations, _ *config.Config) cli.ActionFunc {
 	return func(ctx context.Context, command *cli.Command) error {
 		prNumber := command.Int("pr")
 		issueNumber := command.Int("issue")
 
 		if prNumber <= 0 {
-			ui.PrintError(t.GetMessage("issue.error_invalid_pr", 0, nil))
+			ui.PrintError(os.Stdout, t.GetMessage("issue.error_invalid_pr", 0, nil))
 			return fmt.Errorf("invalid PR number")
 		}
 
 		if issueNumber <= 0 {
-			ui.PrintError(t.GetMessage("issue.error_invalid_issue", 0, nil))
+			ui.PrintError(os.Stdout, t.GetMessage("issue.error_invalid_issue", 0, nil))
 			return fmt.Errorf("invalid issue number")
 		}
 
@@ -390,7 +381,7 @@ func (f *IssuesCommandFactory) createLinkAction(t *i18n.Translations, _ *config.
 
 		issueService, err := f.issueServiceProvider(ctx)
 		if err != nil {
-			ui.PrintError(fmt.Sprintf("%s: %v", t.GetMessage("issue.error_linking", 0, nil), err))
+			ui.HandleAppError(err, t)
 			return err
 		}
 
@@ -404,11 +395,11 @@ func (f *IssuesCommandFactory) createLinkAction(t *i18n.Translations, _ *config.
 		spinner.Stop()
 
 		if err != nil {
-			ui.PrintError(fmt.Sprintf("%s: %v", t.GetMessage("issue.error_linking", 0, nil), err))
+			ui.PrintError(os.Stdout, fmt.Sprintf("%s: %v", t.GetMessage("issue.error_linking", 0, nil), err))
 			return err
 		}
 
-		ui.PrintSuccess(t.GetMessage("issue.link_success", 0, map[string]interface{}{
+		ui.PrintSuccess(os.Stdout, t.GetMessage("issue.link_success", 0, map[string]interface{}{
 			"PR":    prNumber,
 			"Issue": issueNumber,
 		}))

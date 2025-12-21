@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
@@ -33,7 +34,7 @@ func runQuickSetup(ctx context.Context, reader *bufio.Reader, cfg *config.Config
 	}))
 	apiKey, err := reader.ReadString('\n')
 	if err != nil {
-		return fmt.Errorf("error leyendo la API_KEY: %w", err)
+		return fmt.Errorf("error reading API_KEY: %w", err)
 	}
 	apiKey = strings.TrimSpace(apiKey)
 
@@ -44,7 +45,7 @@ func runQuickSetup(ctx context.Context, reader *bufio.Reader, cfg *config.Config
 
 	fmt.Println(t.GetMessage("quick_setup.validating_key", 0, nil))
 	if validateGeminiAPIKey(ctx, apiKey, t) {
-		ui.PrintSuccess(t.GetMessage("quick_setup.key_validated", 0, nil))
+		ui.PrintSuccess(os.Stdout, t.GetMessage("quick_setup.key_validated", 0, nil))
 	} else {
 		ui.PrintWarning(t.GetMessage("quick_setup.key_validation_failed", 0, nil))
 	}
@@ -71,11 +72,11 @@ func runQuickSetup(ctx context.Context, reader *bufio.Reader, cfg *config.Config
 	cfg.AIConfig.Models[providerKey] = config.ModelGeminiV25Flash
 
 	if err := config.SaveConfig(cfg); err != nil {
-		return fmt.Errorf("error guardando configuracion: %w", err)
+		return fmt.Errorf("error saving configuration: %w", err)
 	}
 
 	fmt.Println()
-	ui.PrintSuccess(t.GetMessage("quick_setup.config_saved", 0, nil))
+	ui.PrintSuccess(os.Stdout, t.GetMessage("quick_setup.config_saved", 0, nil))
 	fmt.Println()
 	ui.PrintInfo(t.GetMessage("quick_setup.try_now", 0, nil))
 	ui.PrintInfo(t.GetMessage("quick_setup.full_setup_hint", 0, nil))

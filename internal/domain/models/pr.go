@@ -1,7 +1,24 @@
 package models
 
+type ProgressEventType string
+
+const (
+	ProgressIssuesDetected  ProgressEventType = "issues_detected"
+	ProgressStatsCalculated ProgressEventType = "stats_calculated"
+	ProgressIssuesClosing   ProgressEventType = "issues_closing"
+	ProgressBreakingChanges ProgressEventType = "breaking_changes"
+	ProgressTestPlan        ProgressEventType = "test_plan_generated"
+	ProgressGeneric         ProgressEventType = "generic_info"
+)
+
+type ProgressEvent struct {
+	Type    ProgressEventType
+	Message string
+	Data    map[string]interface{}
+}
+
 type (
-	// PRData contiene la información extraída de una Pull Request.
+	// PRData contains information extracted from a Pull Request.
 	PRData struct {
 		ID            int
 		Title         string
@@ -13,12 +30,12 @@ type (
 		Description   string
 	}
 
-	// Commit representa un commit incluido en el PR.
+	// Commit represents a commit included in the PR.
 	Commit struct {
 		Message string
 	}
 
-	// PRSummary es el resumen generado para el PR, con título, cuerpo y etiquetas.
+	// PRSummary is the generated summary for the PR, with title, body, and labels.
 	PRSummary struct {
 		Title  string
 		Body   string

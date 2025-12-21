@@ -11,9 +11,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
-	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
+	"github.com/Tomas-vilte/MateCommit/internal/domain/errors"
 )
 
 type BuildTarget struct {
@@ -28,19 +28,65 @@ type BinaryBuilder struct {
 	commit     string
 	date       string
 	buildDir   string
-	trans      *i18n.Translations
 }
 
-func NewBinaryBuilder(mainPath, binaryName, version, commit, date, buildDir string, trans *i18n.Translations) *BinaryBuilder {
-	return &BinaryBuilder{
+type Option func(*BinaryBuilder)
+
+func WithVersion(version string) Option {
+	return func(b *BinaryBuilder) {
+		b.version = version
+	}
+}
+
+func WithCommit(commit string) Option {
+	return func(b *BinaryBuilder) {
+		b.commit = commit
+	}
+}
+
+func WithBuildDir(dir string) Option {
+	return func(b *BinaryBuilder) {
+		b.buildDir = dir
+	}
+}
+
+func WithDate(date string) Option {
+	return func(b *BinaryBuilder) {
+		b.date = date
+	}
+}
+
+func NewBinaryBuilder(mainPath, binaryName string, opts ...Option) *BinaryBuilder {
+	b := &BinaryBuilder{
 		mainPath:   mainPath,
 		binaryName: binaryName,
-		version:    version,
-		commit:     commit,
-		date:       date,
-		buildDir:   buildDir,
-		trans:      trans,
+		buildDir:   "./dist",
+		date:       time.Now().Format(time.RFC3339),
 	}
+
+	for _, opt := range opts {
+		opt(b)
+	}
+	return b
+}
+
+func (b *BinaryBuilder) Build() error {
+	if b.version == "" {
+		return errors.ErrBuildNoVersion
+	}
+
+	if b.commit == "" {
+		return errors.ErrBuildNoCommit
+	}
+
+	if b.buildDir == "" {
+		return errors.ErrBuildNoBuildDir
+	}
+
+	if b.date == "" {
+		return errors.ErrBuildNoDate
+	}
+	return nil
 }
 
 func (b *BinaryBuilder) GetBuildTargets() []BuildTarget {
@@ -87,7 +133,7 @@ func (b *BinaryBuilder) BuildBinary(ctx context.Context, target BuildTarget) (st
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("%s", b.trans.GetMessage("build.errors.compile_target", 0, map[string]interface{}{"GOOS": target.GOOS, "GOARCH": target.GOARCH, "Output": string(output)}))
+		return "", errors.NewAppError(errors.TypeInternal, fmt.Sprintf("failed to compile for %s/%s: %s", target.GOOS, target.GOARCH, string(output)), err)
 	}
 
 	return outputPath, nil
@@ -106,12 +152,12 @@ func (b *BinaryBuilder) PackageBinary(binaryPath string, target BuildTarget) (st
 	if target.GOOS == "windows" {
 		archivePath = filepath.Join(b.buildDir, fmt.Sprintf("%s_%s_%s_%s.zip", binaryNameLower, version, target.GOOS, b.mapArch(target.GOARCH)))
 		if err := b.createZip(binaryPath, archivePath, binaryName); err != nil {
-			return "", fmt.Errorf("%s", b.trans.GetMessage("build.errors.create_zip", 0, map[string]interface{}{"Error": err}))
+			return "", errors.NewAppError(errors.TypeInternal, "failed to create zip archive", err)
 		}
 	} else {
 		archivePath = filepath.Join(b.buildDir, fmt.Sprintf("%s_%s_%s_%s.tar.gz", binaryNameLower, version, target.GOOS, b.mapArch(target.GOARCH)))
 		if err := b.createTarGz(binaryPath, archivePath, binaryName); err != nil {
-			return "", fmt.Errorf("%s", b.trans.GetMessage("build.errors.create_targz", 0, map[string]interface{}{"Error": err}))
+			return "", errors.NewAppError(errors.TypeInternal, "failed to create tar.gz archive", err)
 		}
 	}
 
@@ -232,6 +278,6 @@ func (b *BinaryBuilder) BuildAndPackageAll(ctx context.Context) ([]string, error
 
 type DefaultBinaryBuilderFactory struct{}
 
-func (f *DefaultBinaryBuilderFactory) NewBuilder(mainPath, binaryName, version, commit, date, buildDir string, trans *i18n.Translations) ports.BinaryPackager {
-	return NewBinaryBuilder(mainPath, binaryName, version, commit, date, buildDir, trans)
+func (f *DefaultBinaryBuilderFactory) NewBuilder(mainPath, binaryName string, opts ...Option) *BinaryBuilder {
+	return NewBinaryBuilder(mainPath, binaryName, opts...)
 }

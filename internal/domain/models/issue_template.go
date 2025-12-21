@@ -1,8 +1,8 @@
 package models
 
-// IssueTemplate representa un template de issue con su metadata.
+// IssueTemplate represents an issue template with its metadata.
 type IssueTemplate struct {
-	// Metadata del frontmatter YAML
+	// YAML frontmatter metadata
 	Name        string   `yaml:"name"`
 	About       string   `yaml:"about,omitempty"`
 	Description string   `yaml:"description,omitempty"`
@@ -10,17 +10,17 @@ type IssueTemplate struct {
 	Labels      []string `yaml:"labels"`
 	Assignees   []string `yaml:"assignees,omitempty"`
 
-	// Contenido del template
-	// Para .md: string con markdown
-	// Para .yml (GitHub Issue Forms): array de campos del formulario
+	// Template content
+	// For .md: Markdown string
+	// For .yml (GitHub Issue Forms): array of form fields
 	Body        interface{} `yaml:"body,omitempty"`
-	BodyContent string      `yaml:"-"` // Para retrocompatibilidad con .md
+	BodyContent string      `yaml:"-"` // For backward compatibility with .md
 
-	// Path al archivo del template
+	// Path to the template file
 	FilePath string `yaml:"-"`
 }
 
-// GetAbout retorna la descripción del template (usa 'description' o 'about')
+// GetAbout returns the template description (uses 'description' or 'about')
 func (t *IssueTemplate) GetAbout() string {
 	if t.Description != "" {
 		return t.Description

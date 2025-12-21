@@ -7,30 +7,35 @@ import (
 	"strings"
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
+	domainErrors "github.com/Tomas-vilte/MateCommit/internal/domain/errors"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"gopkg.in/yaml.v3"
 )
 
-var _ ports.IssueTemplateService = (*IssueTemplateService)(nil)
-
 type IssueTemplateService struct {
 	config *config.Config
-	trans  *i18n.Translations
 }
 
-func NewIssueTemplateService(cfg *config.Config, trans *i18n.Translations) *IssueTemplateService {
-	return &IssueTemplateService{
-		config: cfg,
-		trans:  trans,
+type IssueOption func(*IssueTemplateService)
+
+func WithTemplateConfig(cfg *config.Config) IssueOption {
+	return func(s *IssueTemplateService) {
+		s.config = cfg
 	}
+}
+
+func NewIssueTemplateService(opts ...IssueOption) *IssueTemplateService {
+	s := &IssueTemplateService{}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 func (s *IssueTemplateService) GetTemplatesDir() (string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
-		return "", fmt.Errorf("error obteniendo directorio actual: %w", err)
+		return "", domainErrors.NewAppError(domainErrors.TypeInternal, "failed to get current working directory", err)
 	}
 
 	provider := strings.ToLower(s.config.ActiveVCSProvider)
@@ -60,7 +65,7 @@ func (s *IssueTemplateService) ListTemplates() ([]models.TemplateMetadata, error
 
 	entries, err := os.ReadDir(templatesDir)
 	if err != nil {
-		return nil, fmt.Errorf("error leyendo directorio de templates: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, "failed to read templates directory", err)
 	}
 
 	templates := make([]models.TemplateMetadata, 0)
@@ -88,7 +93,7 @@ func (s *IssueTemplateService) ListTemplates() ([]models.TemplateMetadata, error
 func (s *IssueTemplateService) LoadTemplate(filePath string) (*models.IssueTemplate, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("error leyendo archivo de template: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeConfiguration, fmt.Sprintf("failed to read template file: %s", filePath), err)
 	}
 	return s.parseTemplate(string(content), filePath)
 }
@@ -98,9 +103,9 @@ func (s *IssueTemplateService) parseTemplate(content string, filePath string) (*
 		FilePath: filePath,
 	}
 
-	// Para archivos .yml, parseamos directamente todo el contenido como YAML
+	// For .yml files, we parse all content directly as YAML
 	if err := yaml.Unmarshal([]byte(content), template); err != nil {
-		return nil, fmt.Errorf("error parseando template YAML: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeConfiguration, fmt.Sprintf("failed to parse YAML template: %s", filePath), err)
 	}
 
 	return template, nil
@@ -124,7 +129,7 @@ func (s *IssueTemplateService) GetTemplateByName(name string) (*models.IssueTemp
 		}
 	}
 
-	return nil, fmt.Errorf("template '%s' no encontrado", name)
+	return nil, domainErrors.NewAppError(domainErrors.TypeConfiguration, fmt.Sprintf("template '%s' not found", name), nil)
 }
 
 func (s *IssueTemplateService) InitializeTemplates(force bool) error {
@@ -134,7 +139,7 @@ func (s *IssueTemplateService) InitializeTemplates(force bool) error {
 	}
 
 	if err := os.MkdirAll(templatesDir, 0755); err != nil {
-		return fmt.Errorf("error creando directorio de templates: %w", err)
+		return domainErrors.NewAppError(domainErrors.TypeInternal, "failed to create templates directory", err)
 	}
 
 	templates := map[string]string{
@@ -155,13 +160,13 @@ func (s *IssueTemplateService) InitializeTemplates(force bool) error {
 		}
 
 		if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
-			return fmt.Errorf("error escribiendo template %s: %w", filePath, err)
+			return domainErrors.NewAppError(domainErrors.TypeInternal, fmt.Sprintf("failed to write template: %s", filePath), err)
 		}
 		created++
 	}
 
 	if created == 0 && skipped > 0 {
-		return fmt.Errorf("los templates ya existen, usa --force para sobrescribirlas")
+		return domainErrors.NewAppError(domainErrors.TypeConfiguration, "templates_already_exist", nil)
 	}
 	return nil
 }
@@ -181,24 +186,24 @@ func (s *IssueTemplateService) buildTemplateContent(templateType string) string 
 
 func (s *IssueTemplateService) buildBugReportTemplate() string {
 	template := map[string]interface{}{
-		"name":        s.trans.GetMessage("issue_template.bug_report_name", 0, nil),
-		"description": s.trans.GetMessage("issue_template.bug_report_about", 0, nil),
-		"title":       s.trans.GetMessage("issue_template.bug_report_title", 0, nil),
+		"name":        "Bug report",
+		"description": "Create a report to help us improve",
+		"title":       "[BUG] ",
 		"labels":      []string{"bug"},
 		"body": []map[string]interface{}{
 			{
 				"type": "markdown",
 				"attributes": map[string]string{
-					"value": s.trans.GetMessage("issue_template.bug_report_intro", 0, nil),
+					"value": "Thank you for reporting a bug!",
 				},
 			},
 			{
 				"type": "textarea",
 				"id":   "description",
 				"attributes": map[string]interface{}{
-					"label":       s.trans.GetMessage("issue_template.bug_description_label", 0, nil),
-					"description": s.trans.GetMessage("issue_template.bug_description_help", 0, nil),
-					"placeholder": s.trans.GetMessage("issue_template.bug_description_placeholder", 0, nil),
+					"label":       "Description",
+					"description": "A clear and concise description of what the bug is.",
+					"placeholder": "Enter bug description",
 				},
 				"validations": map[string]bool{
 					"required": true,
@@ -208,8 +213,8 @@ func (s *IssueTemplateService) buildBugReportTemplate() string {
 				"type": "textarea",
 				"id":   "steps",
 				"attributes": map[string]interface{}{
-					"label":       s.trans.GetMessage("issue_template.bug_steps_label", 0, nil),
-					"description": s.trans.GetMessage("issue_template.bug_steps_help", 0, nil),
+					"label":       "Steps to reproduce",
+					"description": "Explain how you encountered the bug.",
 					"placeholder": "1. \n2. \n3. ",
 				},
 				"validations": map[string]bool{
@@ -220,8 +225,8 @@ func (s *IssueTemplateService) buildBugReportTemplate() string {
 				"type": "textarea",
 				"id":   "expected",
 				"attributes": map[string]interface{}{
-					"label":       s.trans.GetMessage("issue_template.bug_expected_label", 0, nil),
-					"placeholder": s.trans.GetMessage("issue_template.bug_expected_placeholder", 0, nil),
+					"label":       "Expected behavior",
+					"placeholder": "What did you expect to happen?",
 				},
 				"validations": map[string]bool{
 					"required": true,
@@ -231,8 +236,8 @@ func (s *IssueTemplateService) buildBugReportTemplate() string {
 				"type": "textarea",
 				"id":   "actual",
 				"attributes": map[string]interface{}{
-					"label":       s.trans.GetMessage("issue_template.bug_actual_label", 0, nil),
-					"placeholder": s.trans.GetMessage("issue_template.bug_actual_placeholder", 0, nil),
+					"label":       "Actual behavior",
+					"placeholder": "What actually happened?",
 				},
 				"validations": map[string]bool{
 					"required": true,
@@ -242,7 +247,7 @@ func (s *IssueTemplateService) buildBugReportTemplate() string {
 				"type": "input",
 				"id":   "version",
 				"attributes": map[string]interface{}{
-					"label":       s.trans.GetMessage("issue_template.bug_version_label", 0, nil),
+					"label":       "Version",
 					"placeholder": "v1.0.0",
 				},
 			},
@@ -250,8 +255,8 @@ func (s *IssueTemplateService) buildBugReportTemplate() string {
 				"type": "textarea",
 				"id":   "additional",
 				"attributes": map[string]interface{}{
-					"label":       s.trans.GetMessage("issue_template.bug_additional_label", 0, nil),
-					"description": s.trans.GetMessage("issue_template.bug_additional_help", 0, nil),
+					"label":       "Additional information",
+					"description": "Add any other context about the problem here.",
 				},
 			},
 		},
@@ -263,24 +268,24 @@ func (s *IssueTemplateService) buildBugReportTemplate() string {
 
 func (s *IssueTemplateService) buildFeatureRequestTemplate() string {
 	template := map[string]interface{}{
-		"name":        s.trans.GetMessage("issue_template.feature_request_name", 0, nil),
-		"description": s.trans.GetMessage("issue_template.feature_request_about", 0, nil),
-		"title":       s.trans.GetMessage("issue_template.feature_request_title", 0, nil),
+		"name":        "Feature request",
+		"description": "Suggest an idea for this project",
+		"title":       "[FEATURE] ",
 		"labels":      []string{"enhancement"},
 		"body": []map[string]interface{}{
 			{
 				"type": "markdown",
 				"attributes": map[string]string{
-					"value": s.trans.GetMessage("issue_template.feature_intro", 0, nil),
+					"value": "Thank you for suggesting a feature!",
 				},
 			},
 			{
 				"type": "textarea",
 				"id":   "problem",
 				"attributes": map[string]interface{}{
-					"label":       s.trans.GetMessage("issue_template.feature_problem_label", 0, nil),
-					"description": s.trans.GetMessage("issue_template.feature_problem_help", 0, nil),
-					"placeholder": s.trans.GetMessage("issue_template.feature_problem_placeholder", 0, nil),
+					"label":       "Problem description",
+					"description": "A clear and concise description of what the problem is.",
+					"placeholder": "I'm always frustrated when...",
 				},
 				"validations": map[string]bool{
 					"required": true,
@@ -290,9 +295,9 @@ func (s *IssueTemplateService) buildFeatureRequestTemplate() string {
 				"type": "textarea",
 				"id":   "solution",
 				"attributes": map[string]interface{}{
-					"label":       s.trans.GetMessage("issue_template.feature_solution_label", 0, nil),
-					"description": s.trans.GetMessage("issue_template.feature_solution_help", 0, nil),
-					"placeholder": s.trans.GetMessage("issue_template.feature_solution_placeholder", 0, nil),
+					"label":       "Proposed solution",
+					"description": "A clear and concise description of what you want to happen.",
+					"placeholder": "I would like to see...",
 				},
 				"validations": map[string]bool{
 					"required": true,
@@ -302,16 +307,16 @@ func (s *IssueTemplateService) buildFeatureRequestTemplate() string {
 				"type": "textarea",
 				"id":   "alternatives",
 				"attributes": map[string]interface{}{
-					"label":       s.trans.GetMessage("issue_template.feature_alternatives_label", 0, nil),
-					"description": s.trans.GetMessage("issue_template.feature_alternatives_help", 0, nil),
+					"label":       "Alternatives considered",
+					"description": "A clear and concise description of any alternative solutions.",
 				},
 			},
 			{
 				"type": "textarea",
 				"id":   "additional",
 				"attributes": map[string]interface{}{
-					"label":       s.trans.GetMessage("issue_template.feature_additional_label", 0, nil),
-					"description": s.trans.GetMessage("issue_template.feature_additional_help", 0, nil),
+					"label":       "Additional information",
+					"description": "Add any other context or screenshots about the feature request here.",
 				},
 			},
 		},
@@ -323,24 +328,24 @@ func (s *IssueTemplateService) buildFeatureRequestTemplate() string {
 
 func (s *IssueTemplateService) buildCustomTemplate() string {
 	template := map[string]interface{}{
-		"name":        s.trans.GetMessage("issue_template.custom_issue_name", 0, nil),
-		"description": s.trans.GetMessage("issue_template.custom_issue_about", 0, nil),
-		"title":       s.trans.GetMessage("issue_template.custom_issue_title", 0, nil),
+		"name":        "Custom issue",
+		"description": "File a custom issue",
+		"title":       "[ISSUE] ",
 		"labels":      []string{},
 		"body": []map[string]interface{}{
 			{
 				"type": "markdown",
 				"attributes": map[string]string{
-					"value": s.trans.GetMessage("issue_template.custom_intro", 0, nil),
+					"value": "Open a custom issue.",
 				},
 			},
 			{
 				"type": "textarea",
 				"id":   "description",
 				"attributes": map[string]interface{}{
-					"label":       s.trans.GetMessage("issue_template.custom_description_label", 0, nil),
-					"description": s.trans.GetMessage("issue_template.custom_description_help", 0, nil),
-					"placeholder": s.trans.GetMessage("issue_template.custom_description_placeholder", 0, nil),
+					"label":       "Description",
+					"description": "Enter the issue description.",
+					"placeholder": "Describe your issue here",
 				},
 				"validations": map[string]bool{
 					"required": true,
@@ -350,8 +355,8 @@ func (s *IssueTemplateService) buildCustomTemplate() string {
 				"type": "textarea",
 				"id":   "additional",
 				"attributes": map[string]interface{}{
-					"label":       s.trans.GetMessage("issue_template.custom_additional_label", 0, nil),
-					"description": s.trans.GetMessage("issue_template.custom_additional_help", 0, nil),
+					"label":       "Additional information",
+					"description": "Any additional context.",
 				},
 			},
 		},
@@ -378,7 +383,7 @@ func (s *IssueTemplateService) MergeWithGeneratedContent(template *models.IssueT
 	descBuilder.WriteString(generated.Description)
 	descBuilder.WriteString("\n\n")
 
-	// Solo para templates .md que tienen Body como string
+	// Only for .md templates that have Body as a string
 	if template.BodyContent != "" {
 		descBuilder.WriteString("---\n\n")
 		descBuilder.WriteString(template.BodyContent)

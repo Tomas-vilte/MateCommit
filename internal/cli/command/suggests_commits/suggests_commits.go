@@ -3,27 +3,36 @@ package suggests_commits
 import (
 	"context"
 	"fmt"
-	"strings"
+	"os"
 	"time"
 
 	"github.com/Tomas-vilte/MateCommit/internal/cli/completion_helper"
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/ui"
 	"github.com/urfave/cli/v3"
 )
 
-type SuggestCommandFactory struct {
-	commitService ports.CommitService
-	commitHandler ports.CommitHandler
+// commitService is a minimal interface for testing purposes
+type commitService interface {
+	GenerateSuggestions(ctx context.Context, count int, issueNumber int, progress func(models.ProgressEvent)) ([]models.CommitSuggestion, error)
 }
 
-func NewSuggestCommandFactory(commitService ports.CommitService, commitHandler ports.CommitHandler) *SuggestCommandFactory {
+// commitHandler is a minimal interface for testing purposes
+type commitHandler interface {
+	HandleSuggestions(ctx context.Context, suggestions []models.CommitSuggestion) error
+}
+
+type SuggestCommandFactory struct {
+	commitService commitService
+	commitHandler commitHandler
+}
+
+func NewSuggestCommandFactory(commitSvc commitService, commitHdlr commitHandler) *SuggestCommandFactory {
 	return &SuggestCommandFactory{
-		commitService: commitService,
-		commitHandler: commitHandler,
+		commitService: commitSvc,
+		commitHandler: commitHdlr,
 	}
 }
 
@@ -82,7 +91,7 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 				"Min": 1,
 				"Max": 10,
 			})
-			ui.PrintError(msg)
+			ui.PrintError(os.Stdout, msg)
 			return fmt.Errorf("%s", msg)
 		}
 
@@ -93,8 +102,8 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 		}
 
 		if err := config.SaveConfig(cfg); err != nil {
-			ui.PrintError(t.GetMessage("ui_error.error_saving_config", 0, nil))
-			return fmt.Errorf("error al guardar la configuración: %w", err)
+			ui.PrintError(os.Stdout, t.GetMessage("ui_error.error_saving_config", 0, nil))
+			return fmt.Errorf("error saving configuration: %w", err)
 		}
 
 		ui.PrintSectionBanner(t.GetMessage("ui.generating_suggestions_banner", 0, nil))
@@ -108,54 +117,34 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 
 		start := time.Now()
 
-		if issueNumber > 0 {
-			spinner.UpdateMessage(t.GetMessage("ui.including_issue_context", 0, map[string]interface{}{
-				"Number": issueNumber,
-			}))
-			time.Sleep(200 * time.Millisecond)
+		suggestions, err = f.commitService.GenerateSuggestions(ctx, count, issueNumber, func(event models.ProgressEvent) {
+			msg := ""
+			switch event.Type {
+			case models.ProgressIssuesDetected:
+				title := event.Data["Title"].(string)
+				id := event.Data["IssueID"].(int)
+				isAuto := event.Data["IsAuto"].(bool)
+				key := "issue_detected_auto"
+				if !isAuto {
+					key = "issue_using_manual"
+				}
+				msg = fmt.Sprintf("%s: #%d - %s", key, id, title) // TODO: use translations for key
+			case models.ProgressGeneric:
+				msg = event.Message
+			default:
+				msg = event.Message
+			}
 
-			spinner.Stop()
-			ui.PrintInfo(t.GetMessage("ui.detected_issue", 0, map[string]interface{}{
-				"Number": issueNumber,
-			}))
-
-			spinner = ui.NewSmartSpinner(t.GetMessage("ui.generating_with_issue", 0, nil))
-			spinner.Start()
-
-			suggestions, err = f.commitService.GenerateSuggestionsWithIssue(ctx, count, issueNumber, func(msg string) {
+			if msg != "" {
 				spinner.Log(msg)
-			})
-		} else {
-			spinner.UpdateMessage(t.GetMessage("ui.generating_with_ai", 0, nil))
-			suggestions, err = f.commitService.GenerateSuggestions(ctx, count, func(msg string) {
-				spinner.Log(msg)
-			})
-		}
+			}
+		})
 
 		duration := time.Since(start)
 
 		if err != nil {
 			spinner.Error(t.GetMessage("ui.error_generating_suggestions", 0, nil))
-
-			errStr := err.Error()
-			if containsStr(errStr, "GEMINI_API_KEY") || containsStr(errStr, "API key") {
-				ui.PrintErrorWithSuggestion(
-					t.GetMessage("ui_error.ai_api_key_missing_generic", 0, nil),
-					t.GetMessage("ui_error.run_config_init", 0, nil),
-				)
-				return err
-			} else if containsStr(errStr, "GITHUB_TOKEN") {
-				ui.PrintErrorWithSuggestion(
-					t.GetMessage("ui_error.github_token_missing", 0, nil),
-					t.GetMessage("ui_error.run_config_init", 0, nil),
-				)
-			} else if containsStr(errStr, "no differences detected") || containsStr(errStr, "no se detectaron cambios") {
-				ui.PrintWarning(t.GetMessage("ui_error.no_changes_detected", 0, nil))
-				ui.PrintInfo(t.GetMessage("ui_error.ensure_modified_files", 0, nil))
-			} else {
-				ui.PrintError(errStr)
-			}
-
+			ui.HandleAppError(err, t)
 			return fmt.Errorf("%s", t.GetMessage("suggestion_generation_error", 0, map[string]interface{}{
 				"Error": err,
 			}))
@@ -167,8 +156,4 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 		}), duration)
 		return f.commitHandler.HandleSuggestions(ctx, suggestions)
 	}
-}
-
-func containsStr(s, substr string) bool {
-	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }

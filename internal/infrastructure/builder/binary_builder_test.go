@@ -9,14 +9,17 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestBinaryBuilder_GetBuildTargets(t *testing.T) {
-	trans, _ := i18n.NewTranslations("en", "../../../i18n/locales")
-	builder := NewBinaryBuilder("main.go", "app", "v1.0.0", "sha", "date", "build", trans)
+	builder := NewBinaryBuilder("main.go", "app",
+		WithVersion("v1.0.0"),
+		WithCommit("sha"),
+		WithDate("date"),
+		WithBuildDir("build"),
+	)
 	targets := builder.GetBuildTargets()
 
 	assert.Len(t, targets, 6)
@@ -34,8 +37,12 @@ func TestBinaryBuilder_PackageBinary_Zip(t *testing.T) {
 		}
 	}()
 
-	trans, _ := i18n.NewTranslations("en", "../../../i18n/locales")
-	builder := NewBinaryBuilder("main.go", "app", "v1.0.0", "sha", "date", tempDir, trans)
+	builder := NewBinaryBuilder("main.go", "app",
+		WithVersion("v1.0.0"),
+		WithCommit("sha"),
+		WithDate("date"),
+		WithBuildDir(tempDir),
+	)
 
 	binaryName := "app.exe"
 	binaryPath := filepath.Join(tempDir, binaryName)
@@ -82,8 +89,12 @@ func TestBinaryBuilder_PackageBinary_TarGz(t *testing.T) {
 		}
 	}()
 
-	trans, _ := i18n.NewTranslations("en", "../../../i18n/locales")
-	builder := NewBinaryBuilder("main.go", "app", "v1.0.0", "sha", "date", tempDir, trans)
+	builder := NewBinaryBuilder("main.go", "app",
+		WithVersion("v1.0.0"),
+		WithCommit("sha"),
+		WithDate("date"),
+		WithBuildDir(tempDir),
+	)
 
 	binaryName := "app"
 	binaryPath := filepath.Join(tempDir, binaryName)

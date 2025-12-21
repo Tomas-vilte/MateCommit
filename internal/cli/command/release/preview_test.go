@@ -16,7 +16,7 @@ import (
 func runPreviewTest(t *testing.T, args []string, mockService *MockReleaseService) error {
 	trans, err := i18n.NewTranslations("en", "../../../../internal/i18n/locales")
 	if err != nil {
-		t.Logf("Advertencia: usando traducciones vacías: %v", err)
+		t.Logf("Warning: using empty translations: %v", err)
 		trans = &i18n.Translations{}
 	}
 

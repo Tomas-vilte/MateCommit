@@ -2,13 +2,11 @@ package ai
 
 import (
 	"context"
-	"io"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/services/cost"
 	"github.com/stretchr/testify/mock"
 )
@@ -62,19 +60,14 @@ func setupTestWrapper(t *testing.T, budget float64) (*CostAwareWrapper, *mockPro
 		}
 	})
 
-	trans, err := i18n.NewTranslations("en", "")
-	if err != nil {
-		t.Fatalf("failed to load translations: %v", err)
-	}
-
 	mockP := new(mockProvider)
 
 	cfg := WrapperConfig{
 		Provider:              mockP,
 		BudgetDaily:           budget,
-		Trans:                 trans,
 		EstimatedOutputTokens: 200,
 		SkipConfirmation:      true,
+		OnConfirmation:        nil,
 	}
 
 	wrapper, err := NewCostAwareWrapper(cfg)
@@ -191,74 +184,46 @@ func TestCostAwareWrapper_WrapGenerate_BudgetExceeded(t *testing.T) {
 	mockP.AssertExpectations(t)
 }
 
-func TestCostAwareWrapper_AskUserConfirmation(t *testing.T) {
-	w, mockP, _ := setupTestWrapper(t, 1.0)
-	w.skipConfirmation = false
-
-	tests := []struct {
-		name      string
-		input     string
-		wantModel string
-		wantProc  bool
-	}{
-		{"Accept suggested", "y\n", "suggested", true},
-		{"Accept suggested caps", "YES\n", "suggested", true},
-		{"Stay with original", "stay\n", "original", true},
-		{"Cancel", "n\n", "", false},
-		{"Invalid stays as cancel", "random\n", "", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			mockP.ExpectedCalls = nil
-			mockP.On("GetModelName").Return("gemini-1.5-flash")
-
-			r, win, err := os.Pipe()
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			oldStdin := os.Stdin
-			os.Stdin = r
-			defer func() { os.Stdin = oldStdin }()
-
-			go func() {
-				_, _ = io.WriteString(win, tt.input)
-				_ = win.Close()
-			}()
-
-			model, proceed := w.askUserConfirmation(0.01, 100, 100, "gemini-3-flash-preview")
-
-			if model != tt.wantModel {
-				t.Errorf("got model %q, want %q", model, tt.wantModel)
-			}
-			if proceed != tt.wantProc {
-				t.Errorf("got proceed %v, want %v", proceed, tt.wantProc)
-			}
-			mockP.AssertExpectations(t)
-		})
-	}
-}
+// TestCostAwareWrapper_AskUserConfirmation fue removido porque askUserConfirmation
+// ya no es un método del wrapper - ahora se pasa como callback (onConfirmation)
+// desde la capa CLI. El comportamiento de confirmación ahora se testea en los tests de CLI.
 
 func TestCostAwareWrapper_WrapGenerate_SuggestedModel(t *testing.T) {
 	// Arrange
-	w, mockP, _ := setupTestWrapper(t, 1.0)
-	w.skipConfirmation = false
+	budget := 1.0
+	tempHome, err := os.MkdirTemp("", "matecommit-home-*")
+	if err != nil {
+		t.Fatalf("failed to create temp home: %v", err)
+	}
+	oldHome := os.Getenv("HOME")
+	_ = os.Setenv("HOME", tempHome)
+	t.Cleanup(func() {
+		_ = os.Setenv("HOME", oldHome)
+		_ = os.RemoveAll(tempHome)
+	})
+
+	mockP := new(mockProvider)
+	cfg := WrapperConfig{
+		Provider:              mockP,
+		BudgetDaily:           budget,
+		EstimatedOutputTokens: 200,
+		SkipConfirmation:      false,
+		OnConfirmation: func(result ConfirmationResult) (string, bool) {
+			return "suggested", true
+		},
+	}
+
+	w, err := NewCostAwareWrapper(cfg)
+	if err != nil {
+		t.Fatalf("NewCostAwareWrapper() error = %v", err)
+	}
+
 	ctx := context.Background()
 	prompt := "large prompt"
 
 	mockP.On("GetProviderName").Return("gemini")
 	mockP.On("GetModelName").Return("gemini-1.5-flash")
 	mockP.On("CountTokens", mock.Anything, mock.Anything).Return(20000, nil)
-
-	r, win, _ := os.Pipe()
-	oldStdin := os.Stdin
-	os.Stdin = r
-	defer func() { os.Stdin = oldStdin }()
-	go func() {
-		_, _ = io.WriteString(win, "y\n")
-		_ = win.Close()
-	}()
 
 	// Act
 	var usedModel string

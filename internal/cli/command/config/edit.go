@@ -38,7 +38,7 @@ func editConfigAction(cfg *config.Config) cli.ActionFunc {
 		cmd.Stderr = os.Stderr
 
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("error al abrir el editor: %w", err)
+			return fmt.Errorf("error opening editor: %w", err)
 		}
 
 		return nil

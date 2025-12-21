@@ -8,8 +8,8 @@ import (
 
 	"github.com/Tomas-vilte/MateCommit/internal/cli/completion_helper"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
+	"github.com/Tomas-vilte/MateCommit/internal/ui"
 	"github.com/urfave/cli/v3"
 )
 
@@ -49,7 +49,7 @@ func (r *ReleaseCommandFactory) newEditCommand(trans *i18n.Translations) *cli.Co
 	}
 }
 
-func editReleaseAction(releaseService ports.ReleaseService, gitService ports.GitService, trans *i18n.Translations) cli.ActionFunc {
+func editReleaseAction(releaseSvc releaseService, gitSvc gitService, trans *i18n.Translations) cli.ActionFunc {
 	return func(ctx context.Context, cmd *cli.Command) error {
 		version := cmd.String("version")
 		editor := cmd.String("editor")
@@ -59,8 +59,9 @@ func editReleaseAction(releaseService ports.ReleaseService, gitService ports.Git
 			"Version": version,
 		}))
 
-		existingRelease, err := releaseService.GetRelease(ctx, version)
+		existingRelease, err := releaseSvc.GetRelease(ctx, version)
 		if err != nil {
+			ui.HandleAppError(err, trans)
 			return fmt.Errorf("%s", trans.GetMessage("release.error_fetching_release", 0, map[string]interface{}{
 				"Error": err.Error(),
 			}))
@@ -84,7 +85,7 @@ func editReleaseAction(releaseService ports.ReleaseService, gitService ports.Git
 					content = generateReleaseTemplate(existingRelease.Name, trans)
 				}
 			} else {
-				commits, err := gitService.GetCommitsSinceTag(ctx, previousVersion)
+				commits, err := gitSvc.GetCommitsSinceTag(ctx, previousVersion)
 				if err != nil {
 					fmt.Printf("⚠️  %s\n", trans.GetMessage("release.error_getting_commits", 0, map[string]interface{}{
 						"Error": err.Error(),
@@ -99,13 +100,13 @@ func editReleaseAction(releaseService ports.ReleaseService, gitService ports.Git
 						AllCommits:      commits,
 					}
 
-					if err := releaseService.EnrichReleaseContext(ctx, release); err != nil {
+					if err := releaseSvc.EnrichReleaseContext(ctx, release); err != nil {
 						fmt.Printf("⚠️  %s\n", trans.GetMessage("release.warning_enrich_context", 0, map[string]interface{}{
 							"Error": err.Error(),
 						}))
 					}
 
-					notes, err := releaseService.GenerateReleaseNotes(ctx, release)
+					notes, err := releaseSvc.GenerateReleaseNotes(ctx, release)
 					if err != nil {
 						fmt.Printf("⚠️  %s\n", trans.GetMessage("release.error_generating_for_regen", 0, map[string]interface{}{
 							"Error": err.Error(),
@@ -159,7 +160,7 @@ func editReleaseAction(releaseService ports.ReleaseService, gitService ports.Git
 		fmt.Println(trans.GetMessage("release.updating_release", 0, map[string]interface{}{
 			"Version": version,
 		}))
-		err = releaseService.UpdateRelease(ctx, version, string(editedContent))
+		err = releaseSvc.UpdateRelease(ctx, version, string(editedContent))
 		if err != nil {
 			return fmt.Errorf("%s", trans.GetMessage("release.error_updating_release", 0, map[string]interface{}{
 				"Error": err.Error(),

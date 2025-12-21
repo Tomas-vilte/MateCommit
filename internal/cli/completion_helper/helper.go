@@ -7,8 +7,8 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-// DefaultFlagComplete imprime todos los flags del comando actual para facilitar la finalización del shell.
-// Esto se utiliza para garantizar que se sugieran flags incluso cuando la finalización predeterminada de urfave/cli pueda fallar.
+// DefaultFlagComplete prints all flags of the current command to facilitate shell completion.
+// This is used to ensure flags are suggested even when the default urfave/cli completion might fail.
 func DefaultFlagComplete(_ context.Context, cmd *cli.Command) {
 	for _, f := range cmd.Flags {
 		for _, name := range f.Names() {

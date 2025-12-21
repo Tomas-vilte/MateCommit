@@ -21,7 +21,7 @@ type Translations struct {
 
 func NewTranslations(defaultLang string, localesPath string) (*Translations, error) {
 	if defaultLang == "" {
-		return nil, fmt.Errorf("el idioma predeterminado no puede estar vacío")
+		return nil, fmt.Errorf("default language cannot be empty")
 	}
 
 	var files []os.DirEntry
@@ -49,7 +49,7 @@ func NewTranslations(defaultLang string, localesPath string) (*Translations, err
 		}
 
 		if err != nil {
-			return nil, fmt.Errorf("error leyendo archivo %s: %w", file.Name(), err)
+			return nil, fmt.Errorf("error reading file %s: %w", file.Name(), err)
 		}
 
 		bundle.MustParseMessageFileBytes(data, file.Name())
@@ -70,7 +70,7 @@ func (t *Translations) SetLanguage(lang string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("lenguaje '%s' no soportado", lang)
+	return fmt.Errorf("unsupported language '%s'", lang)
 }
 
 func (t *Translations) GetMessage(messageID string, count int, templateData map[string]interface{}) string {
@@ -82,7 +82,7 @@ func (t *Translations) GetMessage(messageID string, count int, templateData map[
 		TemplateData: templateData,
 	})
 	if err != nil {
-		return "Falta la traducción: " + messageID
+		return "Missing translation: " + messageID
 	}
 	return localized
 }

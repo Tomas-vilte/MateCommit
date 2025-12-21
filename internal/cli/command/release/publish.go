@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/Tomas-vilte/MateCommit/internal/cli/completion_helper"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/ui"
 	"github.com/urfave/cli/v3"
@@ -45,10 +44,10 @@ func (r *ReleaseCommandFactory) newPublishCommand(trans *i18n.Translations) *cli
 	}
 }
 
-func publishReleaseAction(releaseService ports.ReleaseService,
+func publishReleaseAction(releaseSvc releaseService,
 	trans *i18n.Translations) cli.ActionFunc {
 	return func(ctx context.Context, cmd *cli.Command) error {
-		release, err := releaseService.AnalyzeNextRelease(ctx)
+		release, err := releaseSvc.AnalyzeNextRelease(ctx)
 		if err != nil {
 			return fmt.Errorf("%s", trans.GetMessage("release.error_analyzing", 0, map[string]interface{}{
 				"Error": err.Error(),
@@ -59,14 +58,15 @@ func publishReleaseAction(releaseService ports.ReleaseService,
 			release.Version = version
 		}
 
-		if err := releaseService.EnrichReleaseContext(ctx, release); err != nil {
+		if err := releaseSvc.EnrichReleaseContext(ctx, release); err != nil {
 			fmt.Printf("⚠️  %s\n", trans.GetMessage("release.warning_enrich_context", 0, map[string]interface{}{
 				"Error": err.Error(),
 			}))
 		}
 
-		notes, err := releaseService.GenerateReleaseNotes(ctx, release)
+		notes, err := releaseSvc.GenerateReleaseNotes(ctx, release)
 		if err != nil {
+			ui.HandleAppError(err, trans)
 			return fmt.Errorf("%s", trans.GetMessage("release.error_generating_notes", 0, map[string]interface{}{
 				"Error": err.Error(),
 			}))
@@ -84,7 +84,7 @@ func publishReleaseAction(releaseService ports.ReleaseService,
 			"Draft":   draftText,
 		}))
 
-		err = releaseService.PublishRelease(ctx, release, notes, draft, buildBinaries)
+		err = releaseSvc.PublishRelease(ctx, release, notes, draft, buildBinaries)
 		if err != nil {
 			return fmt.Errorf("%s", trans.GetMessage("release.error_publishing", 0, map[string]interface{}{
 				"Error": err.Error(),

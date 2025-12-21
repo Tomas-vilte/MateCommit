@@ -7,7 +7,6 @@ import (
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -40,7 +39,7 @@ func TestIssueTemplateService_GetTemplatesDir(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := &config.Config{ActiveVCSProvider: tt.provider}
-			service := NewIssueTemplateService(cfg, nil)
+			service := NewIssueTemplateService(WithTemplateConfig(cfg))
 			dir, err := service.GetTemplatesDir()
 
 			assert.NoError(t, err)
@@ -103,7 +102,7 @@ labels:
 title: [unclosed`
 		_, err := service.parseTemplate(content, "test.yml")
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "error parseando template YAML")
+		assert.Contains(t, err.Error(), "CONFIGURATION: failed to parse YAML template")
 	})
 }
 
@@ -120,9 +119,7 @@ func TestIssueTemplateService_FilesystemOps(t *testing.T) {
 	}()
 
 	cfg := &config.Config{ActiveVCSProvider: "github"}
-	trans, err := i18n.NewTranslations("en", "")
-	require.NoError(t, err)
-	service := NewIssueTemplateService(cfg, trans)
+	service := NewIssueTemplateService(WithTemplateConfig(cfg))
 
 	t.Run("InitializeTemplates", func(t *testing.T) {
 		err := service.InitializeTemplates(false)
@@ -138,7 +135,7 @@ func TestIssueTemplateService_FilesystemOps(t *testing.T) {
 	t.Run("InitializeTemplates - Already exists", func(t *testing.T) {
 		err := service.InitializeTemplates(false)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "los templates ya existen")
+		assert.Contains(t, err.Error(), "CONFIGURATION: templates_already_exist")
 
 		err = service.InitializeTemplates(true)
 		assert.NoError(t, err)
@@ -168,7 +165,7 @@ func TestIssueTemplateService_FilesystemOps(t *testing.T) {
 
 		_, err = service.GetTemplateByName("non_existent")
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "no encontrado")
+		assert.Contains(t, err.Error(), "not found")
 	})
 }
 
@@ -256,14 +253,14 @@ func TestIssueTemplateService_MergeWithGeneratedContent(t *testing.T) {
 }
 func TestIssueTemplateService_GetTemplateByName_NotFound(t *testing.T) {
 	cfg := &config.Config{ActiveVCSProvider: "github"}
-	service := NewIssueTemplateService(cfg, nil)
+	service := NewIssueTemplateService(WithTemplateConfig(cfg))
 	_, err := service.GetTemplateByName("ghost")
 	assert.Error(t, err)
 }
 
 func TestIssueTemplateService_MergeWithGeneratedContent_Realistic(t *testing.T) {
 	cfg := &config.Config{}
-	service := NewIssueTemplateService(cfg, nil)
+	service := NewIssueTemplateService(WithTemplateConfig(cfg))
 	template := &models.IssueTemplate{
 		Title: "[BUG] ",
 		Body: []interface{}{

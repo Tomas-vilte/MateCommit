@@ -6,43 +6,43 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 )
 
-// VCSClient define los métodos comunes para interactuar con las APIs de los sistemas de control de versiones.
+// VCSClient defines common methods to interact with the APIs of version control systems.
 type VCSClient interface {
-	// UpdatePR actualiza una Pull Request (título, body y etiquetas) en el proveedor.
+	// UpdatePR updates a Pull Request (title, body, and labels) in the provider.
 	UpdatePR(ctx context.Context, prNumber int, summary models.PRSummary) error
-	// GetPR obtiene los datos de PR (por ejemplo, para extraer commits, diff, etc.).
+	// GetPR gets the PR data (for example, to extract commits, diff, etc.).
 	GetPR(ctx context.Context, prNumber int) (models.PRData, error)
-	// GetRepoLabels obtiene todas las labels disponibles en el repositorio
+	// GetRepoLabels gets all available labels in the repository
 	GetRepoLabels(ctx context.Context) ([]string, error)
-	// CreateLabel crea una nueva label en el repositorio
+	// CreateLabel creates a new label in the repository
 	CreateLabel(ctx context.Context, name string, color string, description string) error
-	// AddLabelsToPR agrega labels específicas a un PR
+	// AddLabelsToPR adds specific labels to a PR
 	AddLabelsToPR(ctx context.Context, prNumber int, labels []string) error
-	// CreateRelease crea una nueva release en el repositorio
-	// buildBinaries indica si se deben compilar y subir binarios (opcional, solo algunos proveedores lo soportan)
+	// CreateRelease creates a new release in the repository
+	// buildBinaries indicates whether binaries should be compiled and uploaded (optional, only some providers support it)
 	CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool) error
-	// GetRelease obtiene la release del repositorio
+	// GetRelease gets the release from the repository
 	GetRelease(ctx context.Context, version string) (*models.VCSRelease, error)
-	// UpdateRelease actualiza una release del repositorio
+	// UpdateRelease updates a release from the repository
 	UpdateRelease(ctx context.Context, version, body string) error
-	// GetClosedIssuesBetweenTags obtiene issues cerrados entre dos tags
+	// GetClosedIssuesBetweenTags gets closed issues between two tags
 	GetClosedIssuesBetweenTags(ctx context.Context, previousTag, currentTag string) ([]models.Issue, error)
-	// GetMergedPRsBetweenTags obtiene PRs mergeados entre dos tags
+	// GetMergedPRsBetweenTags gets merged PRs between two tags
 	GetMergedPRsBetweenTags(ctx context.Context, previousTag, currentTag string) ([]models.PullRequest, error)
-	// GetContributorsBetweenTags obtiene contributors entre dos tags
+	// GetContributorsBetweenTags gets contributors between two tags
 	GetContributorsBetweenTags(ctx context.Context, previousTag, currentTag string) ([]string, error)
-	// GetFileStatsBetweenTags obtiene estadísticas de archivos entre dos tags
+	// GetFileStatsBetweenTags gets file statistics between two tags
 	GetFileStatsBetweenTags(ctx context.Context, previousTag, currentTag string) (*models.FileStatistics, error)
-	// GetIssue obtiene información de un issue/ticket por su número
+	// GetIssue gets information for an issue/ticket by its number
 	GetIssue(ctx context.Context, issueNumber int) (*models.Issue, error)
-	// GetFileAtTag obtiene el contenido de un archivo en un tag específico
+	// GetFileAtTag gets the content of a file at a specific tag
 	GetFileAtTag(ctx context.Context, tag, filepath string) (string, error)
-	// GetPRIssues obtiene issues relacionadas con un PR basándose en branch name, commits y descripción
+	// GetPRIssues gets issues related to a PR based on branch name, commits, and description
 	GetPRIssues(ctx context.Context, branchName string, commits []string, prDescription string) ([]models.Issue, error)
-	// UpdateIssueChecklist actualiza el checklist de un issue marcando elementos como completados
+	// UpdateIssueChecklist updates the checklist of an issue marking items as completed
 	UpdateIssueChecklist(ctx context.Context, issueNumber int, indices []int) error
-	// CreateIssue crea una nueva issue en el repositorio
+	// CreateIssue creates a new issue in the repository
 	CreateIssue(ctx context.Context, title string, body string, labels []string, assignees []string) (*models.Issue, error)
-	// GetAuthenticatedUser obtiene el usuario autenticado actual
+	// GetAuthenticatedUser gets the current authenticated user
 	GetAuthenticatedUser(ctx context.Context) (string, error)
 }

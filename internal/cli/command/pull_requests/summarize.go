@@ -6,20 +6,27 @@ import (
 
 	"github.com/Tomas-vilte/MateCommit/internal/cli/completion_helper"
 	cfg "github.com/Tomas-vilte/MateCommit/internal/config"
-	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/factory"
-	"github.com/Tomas-vilte/MateCommit/internal/ui"
-
+	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/i18n"
+	"github.com/Tomas-vilte/MateCommit/internal/ui"
 	"github.com/urfave/cli/v3"
 )
 
-type SummarizeCommand struct {
-	prFactory factory.PRServiceFactoryInterface
+// PRService is a minimal interface for testing purposes
+type PRService interface {
+	SummarizePR(ctx context.Context, prNumber int, progress func(models.ProgressEvent)) (models.PRSummary, error)
 }
 
-func NewSummarizeCommand(prFactory factory.PRServiceFactoryInterface) *SummarizeCommand {
+// PRServiceProvider is a function that returns a PRService on demand
+type PRServiceProvider func(ctx context.Context) (PRService, error)
+
+type SummarizeCommand struct {
+	prProvider PRServiceProvider
+}
+
+func NewSummarizeCommand(prProvider PRServiceProvider) *SummarizeCommand {
 	return &SummarizeCommand{
-		prFactory: prFactory,
+		prProvider: prProvider,
 	}
 }
 
@@ -38,7 +45,7 @@ func (c *SummarizeCommand) CreateCommand(t *i18n.Translations, _ *cfg.Config) *c
 		},
 		ShellComplete: completion_helper.DefaultFlagComplete,
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			prService, err := c.prFactory.CreatePRService(ctx)
+			prService, err := c.prProvider(ctx)
 			if err != nil {
 				return fmt.Errorf(t.GetMessage("error.pr_service_creation_error", 0, nil)+": %w", err)
 			}
@@ -52,11 +59,35 @@ func (c *SummarizeCommand) CreateCommand(t *i18n.Translations, _ *cfg.Config) *c
 			}))
 			spinner.Start()
 
-			summary, err := prService.SummarizePR(ctx, prNumber, func(msg string) {
-				spinner.Log(msg)
+			summary, err := prService.SummarizePR(ctx, prNumber, func(event models.ProgressEvent) {
+				msg := ""
+				switch event.Type {
+				case models.ProgressIssuesDetected:
+					issues := event.Data["Issues"].([]string)
+					msg = t.GetMessage("vcs_summary.issues_detected", 0, map[string]interface{}{
+						"PRNumber": event.Data["PRNumber"],
+						"Issues":   fmt.Sprintf("%v", issues),
+					})
+				case models.ProgressIssuesClosing:
+					msg = t.GetMessage("vcs_summary.issues_closing", 0, map[string]interface{}{
+						"Count": event.Data["Count"],
+					})
+				case models.ProgressBreakingChanges:
+					msg = t.GetMessage("vcs_summary.breaking_changes_detected", 0, map[string]interface{}{
+						"Count": event.Data["Count"],
+					})
+				case models.ProgressTestPlan:
+					msg = t.GetMessage("vcs_summary.test_plan_generated", 0, nil)
+				default:
+					msg = event.Message
+				}
+				if msg != "" {
+					spinner.Log(msg)
+				}
 			})
 			if err != nil {
 				spinner.Error(t.GetMessage("ui.error_generating_pr_summary", 0, nil))
+				ui.HandleAppError(err, t)
 				return fmt.Errorf(t.GetMessage("error.pr_summary_error", 0, nil)+": %w", err)
 			}
 

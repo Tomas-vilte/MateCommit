@@ -31,7 +31,7 @@ func (c *StatsCommand) CreateCommand(t *i18n.Translations, _ *config.Config) *cl
 			},
 		},
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			manager, err := cost.NewManager(0, t)
+			manager, err := cost.NewManager(0)
 			if err != nil {
 				return fmt.Errorf(t.GetMessage("stats.error_init", 0, nil)+": %w", err)
 			}

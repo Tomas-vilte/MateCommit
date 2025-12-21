@@ -102,7 +102,7 @@ func TestPackageJsonAnalyzer_AnalyzeChanges(t *testing.T) {
 					Return("", errors.New("tag not found"))
 			},
 			expectError: true,
-			errorMsg:    "error al leer el package.json antiguo",
+			errorMsg:    "failed to read old package.json",
 		},
 		{
 			name: "error reading new package.json",
@@ -113,7 +113,7 @@ func TestPackageJsonAnalyzer_AnalyzeChanges(t *testing.T) {
 					Return("", errors.New("tag not found"))
 			},
 			expectError: true,
-			errorMsg:    "error al leer el nuevo package.json",
+			errorMsg:    "failed to read new package.json",
 		},
 		{
 			name: "error parsing old package.json",
@@ -124,7 +124,7 @@ func TestPackageJsonAnalyzer_AnalyzeChanges(t *testing.T) {
 					Return(`{"dependencies": {}}`, nil)
 			},
 			expectError: true,
-			errorMsg:    "error al parsear viejo package.json",
+			errorMsg:    "failed to parse old package.json",
 		},
 		{
 			name: "error parsing new package.json",
@@ -135,7 +135,7 @@ func TestPackageJsonAnalyzer_AnalyzeChanges(t *testing.T) {
 					Return("invalid json", nil)
 			},
 			expectError: true,
-			errorMsg:    "error al parsear nuevo package.json",
+			errorMsg:    "failed to parse new package.json",
 		},
 	}
 

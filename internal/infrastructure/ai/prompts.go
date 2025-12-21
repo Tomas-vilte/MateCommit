@@ -1,38 +1,77 @@
 package ai
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
+	"text/template"
 
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 )
 
 const (
-	issueReferenceInstructionsES = `Si hay un issue asociado (#%d), DEBES incluir la referencia en el título del commit:
-       - Para features/mejoras: "tipo: mensaje (#%d)"
-       - Para bugs: "fix: mensaje (#%d)" o "fix(scope): mensaje (fixes #%d)"
+	issueReferenceInstructionsES = `Si hay un issue asociado (#{{.IssueNumber}}), DEBES incluir la referencia en el título del commit:
+       - Para features/mejoras: "tipo: mensaje (#{{.IssueNumber}})"
+       - Para bugs: "fix: mensaje (#{{.IssueNumber}})" o "fix(scope): mensaje (fixes #{{.IssueNumber}})"
        - Ejemplos válidos:
-         ✅ feat: add dark mode support (#%d)
-         ✅ fix: resolve authentication error (fixes #%d)
-         ✅ feat(api): implement caching layer (#%d)
-       - No omitas la referencia del issue #%d.`
+         ✅ feat: add dark mode support (#{{.IssueNumber}})
+         ✅ fix: resolve authentication error (fixes #{{.IssueNumber}})
+         ✅ feat(api): implement caching layer (#{{.IssueNumber}})
+       - No omitas la referencia del issue #{{.IssueNumber}}.`
 
-	issueReferenceInstructionsEN = `There is an associated issue (#%d), you MUST include the reference in the commit title:
-       - For features/improvements: "type: message (#%d)"
-       - For bugs: "fix: message (#%d)" or "fix(scope): message (fixes #%d)"
+	issueReferenceInstructionsEN = `There is an associated issue (#{{.IssueNumber}}), you MUST include the reference in the commit title:
+       - For features/improvements: "type: message (#{{.IssueNumber}})"
+       - For bugs: "fix: message (#{{.IssueNumber}})" or "fix(scope): message (fixes #{{.IssueNumber}})"
        - Valid examples:
-         ✅ feat: add dark mode support (#%d)
-         ✅ fix: resolve authentication error (fixes #%d)
-         ✅ feat(api): implement caching layer (#%d)
-       - NEVER omit the reference to issue #%d.`
+         ✅ feat: add dark mode support (#{{.IssueNumber}})
+         ✅ fix: resolve authentication error (fixes #{{.IssueNumber}})
+         ✅ feat(api): implement caching layer (#{{.IssueNumber}})
+       - NEVER omit the reference to issue #{{.IssueNumber}}.`
 )
+
+// PromptData holds the parameters for template rendering
+type PromptData struct {
+	Count           int
+	Files           string
+	Diff            string
+	Ticket          string
+	History         string
+	Instructions    string
+	IssueNumber     int
+	RelatedIssues   string
+	IssueInfo       string
+	RepoOwner       string
+	RepoName        string
+	PreviousVersion string
+	CurrentVersion  string
+	LatestVersion   string
+	ReleaseDate     string
+	Changelog       string
+	PRContent       string
+	TechnicalInfo   string
+}
+
+// RenderPrompt renders a prompt template with the provided data
+func RenderPrompt(name, tmplStr string, data interface{}) (string, error) {
+	tmpl, err := template.New(name).Parse(tmplStr)
+	if err != nil {
+		return "", fmt.Errorf("error parsing template %s: %w", name, err)
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return "", fmt.Errorf("error executing template %s: %w", name, err)
+	}
+
+	return buf.String(), nil
+}
 
 const (
 	prPromptTemplateEN = `# Task
   Act as a Senior Tech Lead and generate a Pull Request summary.
 
   # PR Content
-  %s
+  {{.PRContent}}
 
   # Golden Rules (Constraints)
   1. **No Hallucinations:** If it's not in the diff, DO NOT invent it.
@@ -58,7 +97,7 @@ const (
   Actuá como un Desarrollador Senior y genera un resumen del Pull Request.
 
   # Contenido del PR
-  %s
+  {{.PRContent}}
 
   # Reglas de Oro (Constraints)
   1. **Cero alucinaciones:** Si algo no está explícito en el diff, no lo inventes.
@@ -85,14 +124,14 @@ const (
 
 const (
 	promptTemplateWithTicketEN = `# Task
-  Act as a Git Specialist and generate %d commit message suggestions.
+  Act as a Git Specialist and generate {{.Count}} commit message suggestions.
 
   # Context
-  - Modified Files: %s
-  - Diff: %s
-  - Ticket/Issue: %s
-  - Recent History: %s
-  - Issue Instructions: %s
+  - Modified Files: {{.Files}}
+  - Diff: {{.Diff}}
+  - Ticket/Issue: {{.Ticket}}
+  - Recent History: {{.History}}
+  - Issue Instructions: {{.Instructions}}
 
   # Quality Guidelines
   1. **Conventional Commits:** Strictly follow ` + "`type(scope): description`" + `.
@@ -133,17 +172,17 @@ const (
     }
   ]
 
-  Generate %d suggestions now.`
+  Generate {{.Count}} suggestions now.`
 
 	promptTemplateWithTicketES = `# Tarea
-  Actuá como un especialista en Git y genera %d sugerencias de commits.
+  Actuá como un especialista en Git y genera {{.Count}} sugerencias de commits.
   
   # Contexto
-  - Archivos: %s
-  - Diff: %s
-  - Ticket/Issue: %s
-  - Historial reciente: %s
-  - Instrucciones Issue: %s
+  - Archivos: {{.Files}}
+  - Diff: {{.Diff}}
+  - Ticket/Issue: {{.Ticket}}
+  - Historial reciente: {{.History}}
+  - Instrucciones Issue: {{.Instructions}}
 
   # Criterios de Calidad (Guidelines)
   1. **Conventional Commits:** Respeta estrictamente ` + "`tipo(scope): descripción`" + `.
@@ -184,18 +223,18 @@ const (
     }
   ]
 
-  Genera %d sugerencias ahora.`
+  Generate {{.Count}} suggestions now.`
 )
 
 const (
 	promptTemplateWithoutTicketES = `# Tarea
-  Actuá como un especialista en Git y genera %d sugerencias de commits basadas en el código.
+  Actuá como un especialista en Git y genera {{.Count}} sugerencias de commits basadas en el código.
 
   # Inputs
-  - Archivos Modificados: %s
-  - Cambios (Diff): %s
-  - Instrucciones Issues: %s
-  - Historial: %s
+  - Archivos Modificados: {{.Files}}
+  - Cambios (Diff): {{.Diff}}
+  - Instrucciones Issues: {{.Instructions}}
+  - Historial: {{.History}}
 
   # Estrategia de Generación
   1. **Analiza el Diff:** Identifica qué lógica cambió realmente. Ignora cambios de formato/espacios.
@@ -230,18 +269,18 @@ const (
     }
   ]
 
-  %s
+  {{.TechnicalInfo}}
 
-  Genera %d sugerencias ahora.`
+  Generate {{.Count}} suggestions now.`
 
 	promptTemplateWithoutTicketEN = `# Task
-  Act as a Git Specialist and generate %d commit message suggestions based on code changes.
+  Act as a Git Specialist and generate {{.Count}} commit message suggestions based on code changes.
 
   # Inputs
-  - Modified Files: %s
-  - Code Changes (Diff): %s
-  - Issue Instructions: %s
-  - Recent History: %s
+  - Modified Files: {{.Files}}
+  - Code Changes (Diff): {{.Diff}}
+  - Issue Instructions: {{.Instructions}}
+  - Recent History: {{.History}}
 
   # Generation Strategy
   1. **Analyze Diff:** Identify logic changes vs formatting.
@@ -275,9 +314,9 @@ const (
     }
   ]
 
-  %s
+  {{.TechnicalInfo}}
 
-  Generate %d suggestions now.`
+  Generate {{.Count}} suggestions now.`
 )
 
 const (
@@ -285,11 +324,11 @@ const (
 Generá release notes profesionales para un CHANGELOG.md siguiendo el estándar "Keep a Changelog".
 
 # Datos del Release
-- Repo: %s/%s
-- Versiones: %s -> %s (%s)
+- Repo: {{.RepoOwner}}/{{.RepoName}}
+- Versiones: {{.CurrentVersion}} -> {{.LatestVersion}} ({{.ReleaseDate}})
 
 # Changelog (Diff)
-%s
+{{.Changelog}}
 
 # Instrucciones Críticas
 
@@ -386,11 +425,11 @@ Generá las release notes ahora siguiendo estas instrucciones al pie de la letra
 Generate professional release notes for a CHANGELOG.md following the "Keep a Changelog" standard.
 
 # Release Information
-- Repository: %s/%s
-- Versions: %s -> %s (%s)
+- Repository: {{.RepoOwner}}/{{.RepoName}}
+- Versions: {{.CurrentVersion}} -> {{.LatestVersion}} ({{.ReleaseDate}})
 
 # Changelog (Diff)
-%s
+{{.Changelog}}
 
 # Critical Instructions
 
@@ -483,7 +522,7 @@ IMPORTANT: Everything in English. Valid JSON without markdown.
 Generate the release notes now following these instructions to the letter.`
 )
 
-// GetPRPromptTemplate devuelve el template adecuado según el idioma
+// GetPRPromptTemplate returns the appropriate template based on the language
 func GetPRPromptTemplate(lang string) string {
 	switch lang {
 	case "es":
@@ -493,7 +532,7 @@ func GetPRPromptTemplate(lang string) string {
 	}
 }
 
-// GetCommitPromptTemplate devuelve el template para commits según el idioma y si hay ticket
+// GetCommitPromptTemplate returns the commit template based on language and whether there is a ticket
 func GetCommitPromptTemplate(lang string, hasTicket bool) string {
 	switch {
 	case lang == "es" && hasTicket:
@@ -507,7 +546,7 @@ func GetCommitPromptTemplate(lang string, hasTicket bool) string {
 	}
 }
 
-// GetReleasePromptTemplate devuelve el template para releases según el idioma
+// GetReleasePromptTemplate returns the release template based on the language
 func GetReleasePromptTemplate(lang string) string {
 	switch lang {
 	case "es":
@@ -517,7 +556,7 @@ func GetReleasePromptTemplate(lang string) string {
 	}
 }
 
-// GetIssueReferenceInstructions devuelve las instrucciones de referencias de issues según el idioma
+// GetIssueReferenceInstructions returns issue reference instructions based on the language
 func GetIssueReferenceInstructions(lang string) string {
 	switch lang {
 	case "es":
@@ -531,7 +570,7 @@ const (
 	prIssueContextInstructionsES = `
   **IMPORTANTE - Contexto de Issues/Tickets:**
   Este PR está relacionado con los siguientes issues:
-  %s
+  {{.RelatedIssues}}
 
   **INSTRUCCIONES CLAVES:**
   1. DEBES incluir AL INICIO del resumen (primeras líneas) las referencias de cierre:
@@ -555,7 +594,7 @@ const (
 	prIssueContextInstructionsEN = `
   **IMPORTANT - Issue/Ticket Context:**
   This PR is related to the following issues:
-  %s
+  {{.RelatedIssues}}
 
   **MANDATORY INSTRUCTIONS:**
   1. You MUST include at the BEGINNING of the summary (first lines) the closing references:
@@ -577,7 +616,7 @@ const (
   `
 )
 
-// GetPRIssueContextInstructions devuelve las instrucciones de contexto de issues para PRs
+// GetPRIssueContextInstructions returns issue context instructions for PRs
 func GetPRIssueContextInstructions(locale string) string {
 	if locale == "es" {
 		return prIssueContextInstructionsES
@@ -585,7 +624,7 @@ func GetPRIssueContextInstructions(locale string) string {
 	return prIssueContextInstructionsEN
 }
 
-// FormatIssuesForPrompt formatea la lista de issues para incluir en el prompt
+// FormatIssuesForPrompt formats the issue list to be included in the prompt
 func FormatIssuesForPrompt(issues []models.Issue, locale string) string {
 	if len(issues) == 0 {
 		return ""
@@ -680,7 +719,7 @@ const (
   Act as a Senior Tech Lead and generate a high-quality GitHub issue based on the provided inputs.
 
   # Inputs
-  %s
+  {{.IssueInfo}}
 
   # Golden Rules (Constraints)
   1. **Active Voice:** Write in FIRST PERSON ("I implemented", "I added", "We refactored"). Avoid passive voice like "It was implemented".
@@ -710,7 +749,7 @@ const (
   Actuá como un Tech Lead y generá un issue de GitHub profesional basado en los inputs.
 
   # Entradas (Inputs)
-  %s
+  {{.IssueInfo}}
 
   # Reglas de Oro (Constraints)
   1. **Voz Activa:** Escribí en PRIMERA PERSONA ("Implementé", "Agregué", "Corregí"). Prohibido usar voz pasiva robótica.
@@ -739,7 +778,7 @@ const (
   Generá el issue ahora.`
 )
 
-// GetIssuePromptTemplate devuelve el template adecuado para generación de issues según el idioma
+// GetIssuePromptTemplate returns the appropriate issue generation template based on language
 func GetIssuePromptTemplate(lang string) string {
 	switch lang {
 	case "es":

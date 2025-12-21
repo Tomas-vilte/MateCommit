@@ -2,11 +2,11 @@ package dependency
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
 
+	domainErrors "github.com/Tomas-vilte/MateCommit/internal/domain/errors"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 )
@@ -31,12 +31,12 @@ func (g *GoModAnalyzer) CanHandle(ctx context.Context, vcsClient ports.VCSClient
 func (g *GoModAnalyzer) AnalyzeChanges(ctx context.Context, vcsClient ports.VCSClient, previousTag, currentTag string) ([]models.DependencyChange, error) {
 	oldContent, err := g.getFileContent(ctx, vcsClient, previousTag, "go.mod")
 	if err != nil {
-		return nil, fmt.Errorf("error leyendo go.mod viejo: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, "failed to read old go.mod", err)
 	}
 
 	newContent, err := g.getFileContent(ctx, vcsClient, currentTag, "go.mod")
 	if err != nil {
-		return nil, fmt.Errorf("error leyendo go.mod nuevo: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, "failed to read new go.mod", err)
 	}
 
 	oldDeps := g.parseGoMod(oldContent)
@@ -47,7 +47,7 @@ func (g *GoModAnalyzer) AnalyzeChanges(ctx context.Context, vcsClient ports.VCSC
 
 func (g *GoModAnalyzer) getFileContent(ctx context.Context, vcsClient ports.VCSClient, tag, filepath string) (string, error) {
 	if vcsClient == nil {
-		return "", fmt.Errorf("vcsClient es nil")
+		return "", domainErrors.NewAppError(domainErrors.TypeInternal, "vcsClient is nil", nil)
 	}
 	return vcsClient.GetFileAtTag(ctx, tag, filepath)
 }
@@ -60,9 +60,9 @@ type goDep struct {
 func (g *GoModAnalyzer) parseGoMod(content string) map[string]goDep {
 	deps := make(map[string]goDep)
 
-	// Regex para líneas dentro de require()
+	// Regex for lines inside require()
 	requireRegex := regexp.MustCompile(`^\s+(\S+)\s+v?(\S+)(\s+//\s*indirect)?`)
-	// Regex para líneas require individuales
+	// Regex for individual require lines
 	singleRequireRegex := regexp.MustCompile(`^require\s+(\S+)\s+v?(\S+)(\s+//\s*indirect)?`)
 
 	inRequire := false
@@ -153,7 +153,7 @@ func (g *GoModAnalyzer) computeChanges(oldDeps, newDeps map[string]goDep) []mode
 	return changes
 }
 
-// calculateSeverity determina la severidad del cambio basado en semver
+// calculateSeverity determines the change severity based on semver
 func (g *GoModAnalyzer) calculateSeverity(oldVersion, newVersion string) models.ChangeSeverity {
 	oldParts := g.parseVersion(oldVersion)
 	newParts := g.parseVersion(newVersion)
@@ -177,16 +177,16 @@ func (g *GoModAnalyzer) calculateSeverity(oldVersion, newVersion string) models.
 	return models.UnknownChange
 }
 
-// parseVersion extrae [major, minor, patch] de una version string
+// parseVersion extracts [major, minor, patch] from a version string
 func (g *GoModAnalyzer) parseVersion(version string) []int {
 	version = strings.TrimPrefix(version, "v")
 
-	// Remover pre-release tag (después de -)
+	// Remove pre-release tag (after -)
 	if idx := strings.Index(version, "-"); idx != -1 {
 		version = version[:idx]
 	}
 
-	// Remover build metadata (después de +)
+	// Remove build metadata (after +)
 	if idx := strings.Index(version, "+"); idx != -1 {
 		version = version[:idx]
 	}

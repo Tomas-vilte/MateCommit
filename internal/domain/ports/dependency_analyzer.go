@@ -6,14 +6,14 @@ import (
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 )
 
-// DependencyAnalyzer define la interfaz para analizar dependencias de diferentes lenguajes
+// DependencyAnalyzer defines the interface to analyze dependencies for different languages
 type DependencyAnalyzer interface {
-	// CanHandle detecta si este analyzer puede manejar el proyecto
+	// CanHandle detects if this analyzer can handle the project
 	CanHandle(ctx context.Context, vcsClient VCSClient, previousTag, currentTag string) bool
 
-	// AnalyzeChanges analiza cambios de dependencias entre dos versiones
+	// AnalyzeChanges analyzes dependency changes between two versions
 	AnalyzeChanges(ctx context.Context, vcsClient VCSClient, previousTag, currentTag string) ([]models.DependencyChange, error)
 
-	// Name retorna el nombre del gestor de dependencias
+	// Name returns the name of the dependency manager
 	Name() string
 }

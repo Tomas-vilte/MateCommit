@@ -4,8 +4,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
+	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/builder"
 	"github.com/google/go-github/v80/github"
 	"github.com/stretchr/testify/mock"
 )
@@ -140,12 +139,14 @@ type MockBinaryBuilderFactory struct {
 	mock.Mock
 }
 
-func (m *MockBinaryBuilderFactory) NewBuilder(mainPath, binaryName, version, commit, date, buildDir string, trans *i18n.Translations) ports.BinaryPackager {
-	args := m.Called(mainPath, binaryName, version, commit, date, buildDir, trans)
+func (m *MockBinaryBuilderFactory) NewBuilder(mainPath, binaryName string, opts ...builder.Option) binaryBuilder {
+	// Variadic arguments in mock.Called need careful handling.
+	// We'll pass them as a single argument for simplicity in this mock.
+	args := m.Called(mainPath, binaryName, opts)
 	if args.Get(0) == nil {
 		return nil
 	}
-	return args.Get(0).(ports.BinaryPackager)
+	return args.Get(0).(binaryBuilder)
 }
 
 type MockUserService struct {

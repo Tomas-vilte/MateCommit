@@ -18,7 +18,7 @@ import (
 func runCreateTest(t *testing.T, userInput string, args []string, mockService *MockReleaseService) error {
 	trans, err := i18n.NewTranslations("en", "../../../../internal/i18n/locales")
 	if err != nil {
-		t.Logf("Advertencia: usando traducciones vacías por error: %v", err)
+		t.Logf("Warning: using empty translations by error: %v", err)
 		trans = &i18n.Translations{}
 	}
 

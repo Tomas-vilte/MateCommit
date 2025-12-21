@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
+	domainErrors "github.com/Tomas-vilte/MateCommit/internal/domain/errors"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/ai"
 	"google.golang.org/genai"
 )
@@ -21,7 +21,6 @@ type GeminiPRSummarizer struct {
 	wrapper    *ai.CostAwareWrapper
 	generateFn ai.GenerateFunc
 	config     *config.Config
-	trans      *i18n.Translations
 }
 
 type PRSummaryJSON struct {
@@ -30,21 +29,17 @@ type PRSummaryJSON struct {
 	Labels []string `json:"labels"`
 }
 
-func NewGeminiPRSummarizer(ctx context.Context, cfg *config.Config, trans *i18n.Translations) (*GeminiPRSummarizer, error) {
+func NewGeminiPRSummarizer(ctx context.Context, cfg *config.Config, onConfirmation ai.ConfirmationCallback) (*GeminiPRSummarizer, error) {
 	providerCfg, exists := cfg.AIProviders["gemini"]
 	if !exists || providerCfg.APIKey == "" {
-		msg := trans.GetMessage("error_missing_api_key", 0, map[string]interface{}{"Provider": "gemini"})
-		return nil, fmt.Errorf("%s", msg)
+		return nil, domainErrors.ErrAPIKeyMissing
 	}
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
 		APIKey:  providerCfg.APIKey,
 		Backend: genai.BackendGeminiAPI,
 	})
 	if err != nil {
-		msg := trans.GetMessage("ai_service.error_ai_client", 0, map[string]interface{}{
-			"Error": err,
-		})
-		return nil, fmt.Errorf("%s", msg)
+		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error creating AI client", err)
 	}
 	modelName := string(cfg.AIConfig.Models[config.AIGemini])
 
@@ -56,14 +51,13 @@ func NewGeminiPRSummarizer(ctx context.Context, cfg *config.Config, trans *i18n.
 	service := &GeminiPRSummarizer{
 		GeminiProvider: NewGeminiProvider(client, modelName),
 		config:         cfg,
-		trans:          trans,
 	}
 
 	wrapper, err := ai.NewCostAwareWrapper(ai.WrapperConfig{
 		Provider:              service,
 		BudgetDaily:           budgetDaily,
-		Trans:                 trans,
 		EstimatedOutputTokens: 500,
+		OnConfirmation:        onConfirmation,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error creando wrapper: %w", err)
@@ -92,7 +86,7 @@ func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prContent 
 
 	resp, usage, err := gps.wrapper.WrapGenerate(ctx, "summarize-pr", prompt, gps.generateFn)
 	if err != nil {
-		return models.PRSummary{}, fmt.Errorf("error al generar resumen de PR: %w", err)
+		return models.PRSummary{}, domainErrors.NewAppError(domainErrors.TypeAI, "error generating PR summary", err)
 	}
 
 	var responseText string
@@ -102,12 +96,12 @@ func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prContent 
 		responseText = s
 	}
 	if responseText == "" {
-		return models.PRSummary{}, fmt.Errorf("respuesta vacía de la IA")
+		return models.PRSummary{}, domainErrors.NewAppError(domainErrors.TypeAI, "empty response from AI", nil)
 	}
 	responseText = ExtractJSON(responseText)
 	var jsonSummary PRSummaryJSON
 	if err := json.Unmarshal([]byte(responseText), &jsonSummary); err != nil {
-		return models.PRSummary{}, fmt.Errorf("error al parsear JSON de PR: %w", err)
+		return models.PRSummary{}, domainErrors.NewAppError(domainErrors.TypeAI, "error parsing AI JSON response", err)
 	}
 	if strings.TrimSpace(jsonSummary.Title) == "" {
 		respLen := len(responseText)
@@ -115,7 +109,7 @@ func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prContent 
 		if respLen > 500 {
 			preview = responseText[:500] + "..."
 		}
-		return models.PRSummary{}, fmt.Errorf("la IA no generó un título para el PR. Respuesta (longitud: %d): %s", respLen, preview)
+		return models.PRSummary{}, domainErrors.NewAppError(domainErrors.TypeAI, fmt.Sprintf("AI generated no PR title (length: %d): %s", respLen, preview), nil)
 	}
 	return models.PRSummary{
 		Title:  jsonSummary.Title,
@@ -126,6 +120,15 @@ func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prContent 
 }
 
 func (gps *GeminiPRSummarizer) generatePRPrompt(prContent string) string {
-	template := ai.GetPRPromptTemplate(gps.config.Language)
-	return fmt.Sprintf(template, prContent)
+	templateStr := ai.GetPRPromptTemplate(gps.config.Language)
+	data := ai.PromptData{
+		PRContent: prContent,
+	}
+
+	rendered, err := ai.RenderPrompt("prPrompt", templateStr, data)
+	if err != nil {
+		return ""
+	}
+
+	return rendered
 }

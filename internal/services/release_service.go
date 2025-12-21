@@ -9,9 +9,9 @@ import (
 	"strings"
 
 	"github.com/Tomas-vilte/MateCommit/internal/config"
+	domainErrors "github.com/Tomas-vilte/MateCommit/internal/domain/errors"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/dependency"
 )
 
@@ -21,55 +21,84 @@ var (
 	versionRegex      = regexp.MustCompile(`v?(\d+)\.(\d+)\.(\d+)`)
 )
 
-var _ ports.ReleaseService = (*ReleaseService)(nil)
+// releaseGitService defines only the methods needed by ReleaseService.
+type releaseGitService interface {
+	GetLastTag(ctx context.Context) (string, error)
+	GetCommitCount(ctx context.Context) (int, error)
+	GetCommitsSinceTag(ctx context.Context, tag string) ([]models.Commit, error)
+	CreateTag(ctx context.Context, version, message string) error
+	PushTag(ctx context.Context, version string) error
+	GetTagDate(ctx context.Context, version string) (string, error)
+	AddFileToStaging(ctx context.Context, file string) error
+	HasStagedChanges(ctx context.Context) bool
+	CreateCommit(ctx context.Context, message string) error
+	Push(ctx context.Context) error
+	GetRepoInfo(ctx context.Context) (string, string, string, error)
+}
 
 type ReleaseService struct {
-	git         ports.GitService
+	git         releaseGitService
 	vcsClient   ports.VCSClient
 	notesGen    ports.ReleaseNotesGenerator
-	trans       *i18n.Translations
 	depAnalyzer *dependency.AnalyzerRegistry
 	config      *config.Config
 }
 
-func NewReleaseService(
-	git ports.GitService,
-	vcsClient ports.VCSClient,
-	notesGen ports.ReleaseNotesGenerator,
-	trans *i18n.Translations,
-	config *config.Config,
-) *ReleaseService {
-	return &ReleaseService{
-		git:         git,
-		vcsClient:   vcsClient,
-		notesGen:    notesGen,
-		trans:       trans,
-		depAnalyzer: dependency.NewAnalyzerRegistry(),
-		config:      config,
+type ReleaseOption func(*ReleaseService)
+
+func WithReleaseVCSClient(vcs ports.VCSClient) ReleaseOption {
+	return func(s *ReleaseService) {
+		s.vcsClient = vcs
 	}
+}
+
+func WithReleaseNotesGenerator(rng ports.ReleaseNotesGenerator) ReleaseOption {
+	return func(s *ReleaseService) {
+		s.notesGen = rng
+	}
+}
+
+func WithReleaseConfig(cfg *config.Config) ReleaseOption {
+	return func(s *ReleaseService) {
+		s.config = cfg
+	}
+}
+
+func NewReleaseService(
+	gitSvc releaseGitService,
+	opts ...ReleaseOption,
+) *ReleaseService {
+	s := &ReleaseService{
+		git:         gitSvc,
+		depAnalyzer: dependency.NewAnalyzerRegistry(),
+	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
 }
 
 func (s *ReleaseService) AnalyzeNextRelease(ctx context.Context) (*models.Release, error) {
 	lastTag, err := s.git.GetLastTag(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("error al obtener ultimo tag: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeGit, "error getting last tag", err)
 	}
 
 	if lastTag == "" {
 		count, _ := s.git.GetCommitCount(ctx)
 		if count == 0 {
-			return nil, fmt.Errorf("no hay commits en el repositorio")
+			return nil, domainErrors.NewAppError(domainErrors.TypeGit, "no commits found in repository", nil)
 		}
 		lastTag = "v0.0.0"
 	}
 
 	commits, err := s.git.GetCommitsSinceTag(ctx, lastTag)
 	if err != nil {
-		return nil, fmt.Errorf("error al obtener commits: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeGit, "error getting commits", err)
 	}
 
 	if len(commits) == 0 {
-		return nil, fmt.Errorf("no hay commits nuevos desde %s", lastTag)
+		return nil, domainErrors.ErrNoChanges
 	}
 
 	release := &models.Release{
@@ -96,7 +125,7 @@ func (s *ReleaseService) GenerateReleaseNotes(ctx context.Context, release *mode
 
 func (s *ReleaseService) PublishRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool) error {
 	if s.vcsClient == nil {
-		return fmt.Errorf("cliente VCS no configurado. Configura un proveedor VCS con 'matecommit config set-vcsClient'")
+		return domainErrors.ErrConfigMissing
 	}
 
 	return s.vcsClient.CreateRelease(ctx, release, notes, draft, buildBinaries)
@@ -112,27 +141,21 @@ func (s *ReleaseService) PushTag(ctx context.Context, version string) error {
 
 func (s *ReleaseService) GetRelease(ctx context.Context, version string) (*models.VCSRelease, error) {
 	if s.vcsClient == nil {
-		return nil, fmt.Errorf("%s", s.trans.GetMessage("error.vcs_provider_not_configured", 0, map[string]interface{}{
-			"Provider": "VCS",
-		}))
+		return nil, domainErrors.ErrVCSNotSupported
 	}
 	return s.vcsClient.GetRelease(ctx, version)
 }
 
 func (s *ReleaseService) UpdateRelease(ctx context.Context, version, body string) error {
 	if s.vcsClient == nil {
-		return fmt.Errorf("%s", s.trans.GetMessage("error.vcs_provider_not_configured", 0, map[string]interface{}{
-			"Provider": "VCS",
-		}))
+		return domainErrors.ErrConfigMissing
 	}
 	return s.vcsClient.UpdateRelease(ctx, version, body)
 }
 
 func (s *ReleaseService) EnrichReleaseContext(ctx context.Context, release *models.Release) error {
 	if s.vcsClient == nil {
-		return fmt.Errorf("%s", s.trans.GetMessage("error.vcs_provider_not_configured", 0, map[string]interface{}{
-			"Provider": "VCS",
-		}))
+		return domainErrors.ErrConfigMissing
 	}
 
 	if issues, err := s.vcsClient.GetClosedIssuesBetweenTags(ctx, release.PreviousVersion, release.Version); err == nil {
@@ -163,8 +186,6 @@ func (s *ReleaseService) UpdateLocalChangelog(release *models.Release, notes *mo
 	const changelogFile = "CHANGELOG.md"
 
 	newContent := s.buildChangelogFromNotes(context.Background(), release, notes)
-
-	fmt.Println(s.trans.GetMessage("release.changelog_update_started", 0, nil))
 
 	return s.prependToChangelog(changelogFile, newContent)
 }
@@ -216,7 +237,7 @@ func (s *ReleaseService) analyzeDependencyChanges(ctx context.Context, release *
 	return s.depAnalyzer.AnalyzeAll(ctx, s.vcsClient, release.PreviousVersion, release.Version)
 }
 
-// categorizeCommits categoriza los commits según conventional commits
+// categorizeCommits categorizes commits according to conventional commits
 func (s *ReleaseService) categorizeCommits(release *models.Release) {
 	for _, commit := range release.AllCommits {
 		msg := commit.Message
@@ -280,7 +301,7 @@ func (s *ReleaseService) categorizeCommits(release *models.Release) {
 	}
 }
 
-// calculateVersion calcula la nueva versión basándose en semantic versioning
+// calculateVersion calculates the new version based on semantic versioning
 func (s *ReleaseService) calculateVersion(currentTag string, release *models.Release) (string, models.VersionBump) {
 	matches := versionRegex.FindStringSubmatch(currentTag)
 
@@ -299,12 +320,12 @@ func (s *ReleaseService) calculateVersion(currentTag string, release *models.Rel
 		patch = 0
 		bump = models.MajorBump
 	} else if len(release.Features) > 0 {
-		// MINOR: nuevas features
+		// MINOR: new features
 		minor++
 		patch = 0
 		bump = models.MinorBump
 	} else if len(release.BugFixes) > 0 || len(release.Improvements) > 0 {
-		// PATCH: bug fixes o mejoras
+		// PATCH: bug fixes or improvements
 		patch++
 		bump = models.PatchBump
 	}
@@ -333,7 +354,7 @@ func (s *ReleaseService) generateBasicNotes(release *models.Release) *models.Rel
 	}
 }
 
-// buildChangelogFromNotes formatea el registro de cambios utilizando destacados generados por IA
+// buildChangelogFromNotes formats the changelog using AI-generated highlights
 func (s *ReleaseService) buildChangelogFromNotes(ctx context.Context, release *models.Release, notes *models.ReleaseNotes) string {
 	var sb strings.Builder
 
@@ -384,7 +405,7 @@ func (s *ReleaseService) buildChangelogFromNotes(ctx context.Context, release *m
 	return sb.String()
 }
 
-// buildChangelog formatea el registro de cambios a partir de confirmaciones sin procesar (respaldo cuando la IA no está disponible)
+// buildChangelog formats the changelog from raw commits (fallback when AI is not available)
 func (s *ReleaseService) buildChangelog(release *models.Release) string {
 	var sb strings.Builder
 
@@ -458,18 +479,17 @@ func (s *ReleaseService) CommitChangelog(ctx context.Context, version string) er
 
 	if _, err := os.Stat(mainGoFile); err == nil {
 		if err := s.git.AddFileToStaging(ctx, mainGoFile); err != nil {
-			return fmt.Errorf("error haciendo git add de archivo de versión (%s): %w", mainGoFile, err)
+			return domainErrors.NewAppError(domainErrors.TypeGit, fmt.Sprintf("failed to add version file to staging: %s", mainGoFile), err)
 		}
 	}
 
 	if !s.git.HasStagedChanges(ctx) {
-		fmt.Println(s.trans.GetMessage("release.commit_no_staged", 0, nil))
-		return nil
+		return domainErrors.ErrNoChanges
 	}
 
 	message := fmt.Sprintf("chore: update changelog and bump version to %s", version)
 	if err := s.git.CreateCommit(ctx, message); err != nil {
-		return fmt.Errorf("%s", s.trans.GetMessage("release.error_committing_changelog", 0, map[string]interface{}{"Error": err}))
+		return domainErrors.NewAppError(domainErrors.TypeGit, "failed to commit changelog and version bump", err)
 	}
 	return nil
 }
@@ -494,17 +514,17 @@ func (s *ReleaseService) UpdateAppVersion(version string) error {
 
 	content, err := os.ReadFile(mainGoFile)
 	if err != nil {
-		return fmt.Errorf("error leyendo archivo de versión (%s): %w", mainGoFile, err)
+		return domainErrors.NewAppError(domainErrors.TypeInternal, fmt.Sprintf("failed to read version file: %s", mainGoFile), err)
 	}
 
 	re, err := regexp.Compile(versionPattern)
 	if err != nil {
-		return fmt.Errorf("patrón de versión inválido (%s): %w", versionPattern, err)
+		return domainErrors.NewAppError(domainErrors.TypeInternal, fmt.Sprintf("invalid version pattern: %s", versionPattern), err)
 	}
 
 	currentContent := string(content)
 	if !re.MatchString(currentContent) {
-		return fmt.Errorf("no se encontró el patrón de versión en %s", mainGoFile)
+		return domainErrors.NewAppError(domainErrors.TypeInternal, fmt.Sprintf("version pattern not found in %s", mainGoFile), nil)
 	}
 
 	match := re.FindString(currentContent)
@@ -513,7 +533,7 @@ func (s *ReleaseService) UpdateAppVersion(version string) error {
 	valMatch := valueRe.FindStringIndex(match)
 
 	if valMatch == nil {
-		return fmt.Errorf("no se encontró una cadena entre comillas en el patrón coincidente")
+		return domainErrors.NewAppError(domainErrors.TypeInternal, "could not find quoted string in matching pattern", nil)
 	}
 
 	cleanVersion := strings.TrimPrefix(version, "v")
@@ -522,7 +542,7 @@ func (s *ReleaseService) UpdateAppVersion(version string) error {
 	newContent := strings.Replace(currentContent, match, newMatch, 1)
 
 	if err := os.WriteFile(mainGoFile, []byte(newContent), 0644); err != nil {
-		return fmt.Errorf("error escribiendo archivo de versión: %w", err)
+		return domainErrors.NewAppError(domainErrors.TypeInternal, fmt.Sprintf("failed to write version file: %s", mainGoFile), err)
 	}
 
 	return nil

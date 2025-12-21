@@ -7,52 +7,41 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/Tomas-vilte/MateCommit/internal/domain/errors"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 )
 
-var _ ports.GitService = (*GitService)(nil)
+type GitService struct{}
 
-type GitService struct {
-	trans *i18n.Translations
+func NewGitService() *GitService {
+	return &GitService{}
 }
 
-func NewGitService(trans *i18n.Translations) *GitService {
-	return &GitService{
-		trans: trans,
-	}
-}
-
-// HasStagedChanges verifica si hay cambios en el área de staging
+// HasStagedChanges checks if there are changes in the staging area
 func (s *GitService) HasStagedChanges(ctx context.Context) bool {
 	cmd := exec.CommandContext(ctx, "git", "diff", "--cached", "--quiet")
 	err := cmd.Run()
 
-	// Si el comando retorna error (exit status 1), significa que hay cambios staged
+	// If the command returns an error (exit status 1), it means there are staged changes
 	return err != nil && cmd.ProcessState.ExitCode() == 1
 }
 
-func (s *GitService) GetChangedFiles(ctx context.Context) ([]models.GitChange, error) {
+func (s *GitService) GetChangedFiles(ctx context.Context) ([]string, error) {
 	cmd := exec.CommandContext(ctx, "git", "status", "--porcelain")
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, err
 	}
 
-	changes := make([]models.GitChange, 0)
+	changes := make([]string, 0)
 	lines := strings.Split(string(output), "\n")
 
 	for _, line := range lines {
 		if len(line) > 3 {
-			status := strings.TrimSpace(line[:2])
 			path := strings.TrimSpace(line[3:])
 
 			if path != "" {
-				changes = append(changes, models.GitChange{
-					Path:   path,
-					Status: status,
-				})
+				changes = append(changes, path)
 			}
 		}
 	}
@@ -84,7 +73,7 @@ func (s *GitService) GetDiff(ctx context.Context) (string, error) {
 					fileContentCmd := exec.CommandContext(ctx, "git", "show", ":"+file)
 					content, err := fileContentCmd.Output()
 					if err != nil {
-						combinedDiff += "\n=== Nuevo archivo" + " " + file + "===\n"
+						combinedDiff += "\n=== New file" + " " + file + "===\n"
 						combinedDiff += string(content)
 					}
 				}
@@ -96,21 +85,20 @@ func (s *GitService) GetDiff(ctx context.Context) (string, error) {
 
 func (s *GitService) CreateCommit(ctx context.Context, message string) error {
 	if !s.HasStagedChanges(ctx) {
-		msg := s.trans.GetMessage("git.no_staged_changes", 0, nil)
-		return fmt.Errorf("%s", msg)
+		return errors.ErrNoChanges
 	}
 
 	cmd := exec.CommandContext(ctx, "git", "commit", "-m", message)
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("%w: %v", errors.ErrCreateCommit, err)
+	}
+	return nil
 }
 
 func (s *GitService) AddFileToStaging(ctx context.Context, file string) error {
 	repoRoot, err := s.getRepoRoot(ctx)
 	if err != nil {
-		msg := s.trans.GetMessage("git.get_repo_root", 0, map[string]interface{}{
-			"Error": err,
-		})
-		return fmt.Errorf("%s", msg)
+		return fmt.Errorf("%w: %v", errors.ErrGetRepoRoot, err)
 	}
 
 	cmd := exec.CommandContext(ctx, "git", "add", "--", file)
@@ -119,12 +107,8 @@ func (s *GitService) AddFileToStaging(ctx context.Context, file string) error {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		fullErr := fmt.Sprintf("%v → %s", err, strings.TrimSpace(stderr.String()))
-		msg := s.trans.GetMessage("git.add_file", 0, map[string]interface{}{
-			"File":  file,
-			"Error": fullErr,
-		})
-		return fmt.Errorf("%s", msg)
+		fullErr := fmt.Sprintf("%v: %s", err, strings.TrimSpace(stderr.String()))
+		return fmt.Errorf("%w [%s]: %s", errors.ErrAddFile, file, fullErr)
 	}
 	return nil
 }
@@ -133,16 +117,12 @@ func (s *GitService) GetCurrentBranch(ctx context.Context) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", "branch", "--show-current")
 	output, err := cmd.Output()
 	if err != nil {
-		msg := s.trans.GetMessage("git.get_branch_name", 0, map[string]interface{}{
-			"Error": err,
-		})
-		return "", fmt.Errorf("%s", msg)
+		return "", fmt.Errorf("%w: %v", errors.ErrGetBranch, err)
 	}
 
 	branchName := strings.TrimSpace(string(output))
 	if branchName == "" {
-		msg := s.trans.GetMessage("git.branch_not_detected", 0, nil)
-		return "", fmt.Errorf("%s", msg)
+		return "", errors.ErrNoBranch
 	}
 
 	return branchName, nil
@@ -152,21 +132,18 @@ func (s *GitService) GetRepoInfo(ctx context.Context) (string, string, string, e
 	cmd := exec.CommandContext(ctx, "git", "remote", "get-url", "origin")
 	output, err := cmd.Output()
 	if err != nil {
-		msg := s.trans.GetMessage("git.get_repo_url", 0, map[string]interface{}{
-			"Error": err,
-		})
-		return "", "", "", fmt.Errorf("%s", msg)
+		return "", "", "", fmt.Errorf("%w: %v", errors.ErrGetRepoURL, err)
 	}
 
 	url := strings.TrimSpace(string(output))
-	return parseRepoURL(url, s.trans)
+	return parseRepoURL(url)
 }
 
 func (s *GitService) GetLastTag(ctx context.Context) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", "describe", "--tags", "--abbrev=0")
 	output, err := cmd.Output()
 	if err != nil {
-		// no hay tags
+		// no tags found
 		return "", nil
 	}
 	return strings.TrimSpace(string(output)), nil
@@ -175,7 +152,7 @@ func (s *GitService) GetLastTag(ctx context.Context) (string, error) {
 func (s *GitService) GetCommitsSinceTag(ctx context.Context, tag string) ([]models.Commit, error) {
 	var args []string
 	if tag == "" {
-		// si no hay tag anterior, obtener todos los commits
+		// if no previous tag exists, get all commits
 		args = []string{"log", "--pretty=format:%H|%s|%b", "--no-merges"}
 	} else {
 		args = []string{"log", tag + "..HEAD", "--pretty=format:%H|%s|%b", "--no-merges"}
@@ -184,10 +161,7 @@ func (s *GitService) GetCommitsSinceTag(ctx context.Context, tag string) ([]mode
 	cmd := exec.CommandContext(ctx, "git", args...)
 	output, err := cmd.Output()
 	if err != nil {
-		msg := s.trans.GetMessage("git.get_commits", 0, map[string]interface{}{
-			"Error": err,
-		})
-		return nil, fmt.Errorf("%s", msg)
+		return nil, fmt.Errorf("%w: %v", errors.ErrGetCommits, err)
 	}
 
 	if len(output) == 0 {
@@ -225,10 +199,7 @@ func (s *GitService) GetCommitsBetweenTags(ctx context.Context, fromTag, toTag s
 	cmd := exec.CommandContext(ctx, "git", args...)
 	output, err := cmd.Output()
 	if err != nil {
-		msg := s.trans.GetMessage("git.get_commits", 0, map[string]interface{}{
-			"Error": err,
-		})
-		return nil, fmt.Errorf("%s", msg)
+		return nil, fmt.Errorf("%w: %v", errors.ErrGetCommits, err)
 	}
 
 	if len(output) == 0 {
@@ -256,13 +227,14 @@ func (s *GitService) GetCommitsBetweenTags(ctx context.Context, fromTag, toTag s
 	return commits, nil
 }
 
-func (s *GitService) GetRecentCommitMessages(ctx context.Context, count int) (string, error) {
+func (s *GitService) GetRecentCommitMessages(ctx context.Context, count int) ([]string, error) {
 	cmd := exec.CommandContext(ctx, "git", "log", fmt.Sprintf("-%d", count), "--pretty=format:%s %b")
 	output, err := cmd.Output()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return string(output), nil
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	return lines, nil
 }
 
 func (s *GitService) CreateTag(ctx context.Context, version, message string) error {
@@ -294,14 +266,12 @@ func (s *GitService) GetCommitCount(ctx context.Context) (int, error) {
 
 // GetTagDate returns the creation date of a tag in YYYY-MM-DD format
 func (s *GitService) GetTagDate(ctx context.Context, tag string) (string, error) {
-	// Get the date of the tag using git log
 	cmd := exec.CommandContext(ctx, "git", "log", "-1", "--format=%ai", tag)
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("error getting tag date: %w", err)
 	}
 
-	// Parse the date (format: "2024-03-20 15:30:45 -0300")
 	dateStr := strings.TrimSpace(string(output))
 	if len(dateStr) >= 10 {
 		return dateStr[:10], nil // Return YYYY-MM-DD
@@ -310,7 +280,7 @@ func (s *GitService) GetTagDate(ctx context.Context, tag string) (string, error)
 	return dateStr, nil
 }
 
-func parseRepoURL(url string, trans *i18n.Translations) (string, string, string, error) {
+func parseRepoURL(url string) (string, string, string, error) {
 	sshRegex := regexp.MustCompile(`git@([^:]+):([^/]+)/(.+)\.git$`)
 	httpsRegex := regexp.MustCompile(`https://([^/]+)/([^/]+)/(.+?)(?:\.git)?$`)
 
@@ -327,10 +297,7 @@ func parseRepoURL(url string, trans *i18n.Translations) (string, string, string,
 		return matches[2], repoName, provider, nil
 	}
 
-	msg := trans.GetMessage("git.extract_repo_info", 0, map[string]interface{}{
-		"Url": url,
-	})
-	return "", "", "", fmt.Errorf("%s", msg)
+	return "", "", "", fmt.Errorf("%w [%s]", errors.ErrExtractRepoInfo, url)
 }
 
 func detectProvider(host string) string {
@@ -343,15 +310,12 @@ func detectProvider(host string) string {
 	return "unknown"
 }
 
-// getRepoRoot obtiene la ruta absoluta de la raíz del repositorio git
+// getRepoRoot gets the absolute path to the root of the git repository
 func (s *GitService) getRepoRoot(ctx context.Context) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--show-toplevel")
 	output, err := cmd.Output()
 	if err != nil {
-		msg := s.trans.GetMessage("git.get_repo_root", 0, map[string]interface{}{
-			"Error": err,
-		})
-		return "", fmt.Errorf("%s", msg)
+		return "", fmt.Errorf("%w: %v", errors.ErrGetRepoRoot, err)
 	}
 	return strings.TrimSpace(string(output)), nil
 }

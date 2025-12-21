@@ -24,12 +24,12 @@ type Cache struct {
 func NewCache(ttl time.Duration) (*Cache, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return nil, fmt.Errorf("error obteniendo home directory: %w", err)
+		return nil, fmt.Errorf("error obtaining home directory: %w", err)
 	}
 
 	cacheDir := filepath.Join(homeDir, ".matecommit", "cache")
 	if err := os.MkdirAll(cacheDir, 0755); err != nil {
-		return nil, fmt.Errorf("error creando directorio de caché: %w", err)
+		return nil, fmt.Errorf("error creating cache directory: %w", err)
 	}
 
 	cache := &Cache{
@@ -42,13 +42,13 @@ func NewCache(ttl time.Duration) (*Cache, error) {
 	return cache, nil
 }
 
-// GenerateHash genera un hash SHA256 del contenido
+// GenerateHash generates a SHA256 hash of the content
 func (c *Cache) GenerateHash(content string) string {
 	hash := sha256.Sum256([]byte(content))
 	return hex.EncodeToString(hash[:])
 }
 
-// Get obtiene una respuesta del caché
+// Get gets a response from the cache
 func (c *Cache) Get(hash string) (json.RawMessage, bool, error) {
 	filePath := filepath.Join(c.cacheDir, hash+".json")
 
@@ -57,12 +57,12 @@ func (c *Cache) Get(hash string) (json.RawMessage, bool, error) {
 		if os.IsNotExist(err) {
 			return nil, false, nil
 		}
-		return nil, false, fmt.Errorf("error leyendo caché: %w", err)
+		return nil, false, fmt.Errorf("error reading cache: %w", err)
 	}
 
 	var cached CachedResponse
 	if err := json.Unmarshal(data, &cached); err != nil {
-		return nil, false, fmt.Errorf("error deserializando caché: %w", err)
+		return nil, false, fmt.Errorf("error unmarshaling cache: %w", err)
 	}
 
 	if time.Since(cached.CreatedAt) > c.ttl {
@@ -73,11 +73,11 @@ func (c *Cache) Get(hash string) (json.RawMessage, bool, error) {
 	return cached.Response, true, nil
 }
 
-// Set guarda una respuesta en el caché
+// Set saves a response to the cache
 func (c *Cache) Set(hash string, response interface{}) error {
 	responseData, err := json.Marshal(response)
 	if err != nil {
-		return fmt.Errorf("error serializando respuesta: %w", err)
+		return fmt.Errorf("error marshaling response: %w", err)
 	}
 
 	cached := CachedResponse{
@@ -88,22 +88,22 @@ func (c *Cache) Set(hash string, response interface{}) error {
 
 	data, err := json.MarshalIndent(cached, "", "  ")
 	if err != nil {
-		return fmt.Errorf("error serializando caché: %w", err)
+		return fmt.Errorf("error marshaling cache: %w", err)
 	}
 
 	filePath := filepath.Join(c.cacheDir, hash+".json")
 	if err := os.WriteFile(filePath, data, 0644); err != nil {
-		return fmt.Errorf("error guardando caché: %w", err)
+		return fmt.Errorf("error saving cache: %w", err)
 	}
 
 	return nil
 }
 
-// CleanExpired elimina archivos de caché expirados
+// CleanExpired removes expired cache files
 func (c *Cache) CleanExpired() error {
 	entries, err := os.ReadDir(c.cacheDir)
 	if err != nil {
-		return fmt.Errorf("error leyendo directorio de caché: %w", err)
+		return fmt.Errorf("error reading cache directory: %w", err)
 	}
 
 	for _, entry := range entries {
@@ -125,7 +125,7 @@ func (c *Cache) CleanExpired() error {
 	return nil
 }
 
-// Clean elimina todo el cache
+// Clean removes the entire cache
 func (c *Cache) Clean() error {
 	return os.RemoveAll(c.cacheDir)
 }

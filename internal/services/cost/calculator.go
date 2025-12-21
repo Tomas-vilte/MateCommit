@@ -38,7 +38,7 @@ func NewCalculator() *Calculator {
 	return &Calculator{}
 }
 
-// EstimateCost calcula el costo estimado basado en proveedor, modelo y tokens
+// EstimateCost calculates the estimated cost based on provider, model, and tokens
 func (c *Calculator) EstimateCost(provider, model string, inputTokens, outputTokens int) float64 {
 	provider = strings.ToLower(provider)
 	model = strings.ToLower(model)
@@ -67,25 +67,25 @@ func (c *Calculator) EstimateCost(provider, model string, inputTokens, outputTok
 	return inputCost + outputCost
 }
 
-// GetPricing retorna la tabla de precios para un proveedor y modelo
+// GetPricing returns the pricing table for a provider and model
 func (c *Calculator) GetPricing(provider, model string) (PricingTable, error) {
 	provider = strings.ToLower(provider)
 	model = strings.ToLower(model)
 
 	providerPricing, exists := pricing[provider]
 	if !exists {
-		return PricingTable{}, fmt.Errorf("proveedor %s no encontrado", provider)
+		return PricingTable{}, fmt.Errorf("provider %s not found", provider)
 	}
 
 	modelPricing, exists := providerPricing[model]
 	if !exists {
-		return PricingTable{}, fmt.Errorf("modelo %s no encontrado para proveedor %s", model, provider)
+		return PricingTable{}, fmt.Errorf("model %s not found for provider %s", model, provider)
 	}
 
 	return modelPricing, nil
 }
 
-// AddPricing permite agregar precios dinámicamente (útil para testing o nuevos modelos)
+// AddPricing allows adding pricing dynamically (useful for testing or new models)
 func (c *Calculator) AddPricing(provider, model string, table PricingTable) {
 	provider = strings.ToLower(provider)
 	model = strings.ToLower(model)

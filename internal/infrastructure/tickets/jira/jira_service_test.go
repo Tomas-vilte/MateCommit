@@ -122,7 +122,7 @@ func TestGetTicketInfo_CustomFieldsError(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 	assert.Nil(t, ticketInfo)
-	assert.Contains(t, err.Error(), "no se pudieron obtener los campos personalizados")
+	assert.Contains(t, err.Error(), "failed to get custom fields from Jira")
 	mockClient.AssertExpectations(t)
 }
 
@@ -149,7 +149,7 @@ func TestGetTicketInfo_TicketFieldsError(t *testing.T) {
 	// Assert
 	assert.Error(t, err)
 	assert.Nil(t, ticketInfo)
-	assert.Contains(t, err.Error(), "no se pudieron obtener los campos de tickets")
+	assert.Contains(t, err.Error(), "failed to fetch ticket fields from Jira")
 	mockClient.AssertExpectations(t)
 }
 
@@ -307,7 +307,7 @@ func TestGetCustomFields_ErrorStatusCode(t *testing.T) {
 	// Assert
 	assert.Error(t, err, "Se esperaba un error debido al código de estado no OK")
 	assert.Nil(t, customFields, "No debería devolverse ningún campo personalizado")
-	assert.Contains(t, err.Error(), "error al obtener campos personalizados: 500 Internal Server Error", "El mensaje de error no coincide")
+	assert.Contains(t, err.Error(), "failed to get custom fields: 500 Internal Server Error", "El mensaje de error no coincide")
 	mockClient.AssertExpectations(t)
 }
 
@@ -345,7 +345,7 @@ func TestMakeRequest(t *testing.T) {
 		// Assert
 		assert.Error(t, err, "Se esperaba un error al crear la solicitud HTTP")
 		assert.Nil(t, resp, "No debería devolverse ninguna respuesta")
-		assert.Contains(t, err.Error(), "error creando requests", "El mensaje de error no coincide")
+		assert.Contains(t, err.Error(), "failed to create jira request", "El mensaje de error no coincide")
 	})
 
 	t.Run("ErrorMakingRequest", func(t *testing.T) {
@@ -363,7 +363,7 @@ func TestMakeRequest(t *testing.T) {
 
 		// Assert
 		assert.Error(t, err, "Se esperaba un error al realizar la solicitud HTTP")
-		assert.Contains(t, err.Error(), "error al realizar la solicitud", "El mensaje de error no coincide")
+		assert.Contains(t, err.Error(), "failed to perform jira request", "El mensaje de error no coincide")
 		mockClient.AssertExpectations(t)
 	})
 }

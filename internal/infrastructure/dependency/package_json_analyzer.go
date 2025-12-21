@@ -3,10 +3,10 @@ package dependency
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strconv"
 	"strings"
 
+	domainErrors "github.com/Tomas-vilte/MateCommit/internal/domain/errors"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
 	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
 )
@@ -27,26 +27,25 @@ func (p *PackageJsonAnalyzer) CanHandle(ctx context.Context, vcsClient ports.VCS
 func (p *PackageJsonAnalyzer) AnalyzeChanges(ctx context.Context, vcsClient ports.VCSClient, previousTag, currentTag string) ([]models.DependencyChange, error) {
 	oldContent, err := p.getFileContent(ctx, vcsClient, previousTag, "package.json")
 	if err != nil {
-		return nil, fmt.Errorf("error al leer el package.json antiguo: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, "failed to read old package.json", err)
 	}
 
 	newContent, err := p.getFileContent(ctx, vcsClient, currentTag, "package.json")
 	if err != nil {
-		return nil, fmt.Errorf("error al leer el nuevo package.json: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, "failed to read new package.json", err)
 	}
 
 	oldDeps, err := p.parsePackageJson(oldContent)
 	if err != nil {
-		return nil, fmt.Errorf("error al parsear viejo package.json: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, "failed to parse old package.json", err)
 	}
 
 	newDeps, err := p.parsePackageJson(newContent)
 	if err != nil {
-		return nil, fmt.Errorf("error al parsear nuevo package.json: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, "failed to parse new package.json", err)
 	}
 
 	return p.computeChanges(oldDeps, newDeps), nil
-
 }
 
 func (p *PackageJsonAnalyzer) Name() string {
@@ -55,7 +54,7 @@ func (p *PackageJsonAnalyzer) Name() string {
 
 func (p *PackageJsonAnalyzer) getFileContent(ctx context.Context, vcsClient ports.VCSClient, tag, filepath string) (string, error) {
 	if vcsClient == nil {
-		return "", fmt.Errorf("vcsClient is nil")
+		return "", domainErrors.NewAppError(domainErrors.TypeInternal, "vcsClient is nil", nil)
 	}
 	return vcsClient.GetFileAtTag(ctx, tag, filepath)
 }
@@ -139,7 +138,7 @@ func (p *PackageJsonAnalyzer) computeChanges(oldDeps, newDeps map[string]npmDep)
 	return changes
 }
 
-// cleanVersion remueve prefijos como ^, ~, >=, etc de versiones npm
+// cleanVersion removes prefixes like ^, ~, >=, etc from npm versions
 func (p *PackageJsonAnalyzer) cleanVersion(version string) string {
 	version = strings.TrimPrefix(version, "^")
 	version = strings.TrimPrefix(version, "~")
@@ -151,7 +150,7 @@ func (p *PackageJsonAnalyzer) cleanVersion(version string) string {
 	return strings.TrimSpace(version)
 }
 
-// calculateSeverity determina la severidad del cambio basado en semver
+// calculateSeverity determines the severity of the change based on semver
 func (p *PackageJsonAnalyzer) calculateSeverity(oldVersion, newVersion string) models.ChangeSeverity {
 	oldClean := p.cleanVersion(oldVersion)
 	newClean := p.cleanVersion(newVersion)
@@ -178,7 +177,7 @@ func (p *PackageJsonAnalyzer) calculateSeverity(oldVersion, newVersion string) m
 	return models.UnknownChange
 }
 
-// parseVersion extrae [major, minor, patch] de una version string
+// parseVersion extracts [major, minor, patch] from a version string
 func (p *PackageJsonAnalyzer) parseVersion(version string) []int {
 	parts := strings.Split(version, ".")
 	result := make([]int, 0, 3)
