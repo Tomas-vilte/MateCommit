@@ -1,139 +1,98 @@
-# Referencia de CLI MateCommit
+# Referencia de la CLI de MateCommit 🧉
 
-**Manual Técnico y Guía de Uso**
-
-Este documento es la referencia definitiva para exprimir al máximo MateCommit. Acá vas a encontrar el detalle fino de cómo funciona cada comando, qué banderas ("flags") podés usar y cómo integrar la herramienta en tu flujo de trabajo diario.
+Escribí esta guía para explicarte no solo *qué* hace cada comando, sino cómo laburan por detrás. El diseño de la herramienta es modular, lo que me permite ir sumando modelos de IA y plataformas nuevas sin que se rompa todo el flujo que ya venís usando.
 
 ---
 
-## 1. Inteligencia en Commits
+## 1. El motor de sugerencias
 
 ### `suggest` / `s`
-Este comando analiza tus cambios en staging (`git diff --cached`) y le pide al modelo de IA que genere mensajes siguiendo Conventional Commits.
+Es el comando que más uso. Analiza lo que tenés en stage y le pide a la IA que te tire opciones de mensajes de commit que realmente tengan sentido.
 
-**Comando:**
+**Uso:**
 ```bash
 matecommit suggest [flags]
 ```
 
-**Detalles Técnicos:**
-*   **Context Window**: La herramienta envía el resumen del diff, nombres de archivos y (si lo activás) el contexto del issue linkeado. Si tu diff es gigante, lo truncamos inteligentemente para que entre en el límite de tokens del modelo sin perder la lógica principal.
-*   **Precedencia**: Los flags que pases por consola siempre le ganan a lo que tengas en `config.yaml`. (ej: si tenés configurado inglés pero tirás `--lang es`, sale en español).
+**Cómo funciona la magia:**
+1.  **Análisis de Diff**: Ejecuto un `git diff --cached` para ver exactamente qué tocaste.
+2.  **Contexto**: Armo un prompt para el proveedor (como Gemini) con el resumen del diff y los archivos.
+3.  **Manejo de archivos grandes**: Si tu diff es gigante, no te tiro un error por la cabeza. Uso un algoritmo que prioriza los cambios lógicos más importantes para mantenerme dentro de los límites del modelo sin perder calidad.
+4.  **Plus de contexto**: Si le pasás la flag `--issue`, voy a buscar el título y la descripción del ticket para que la IA entienda el "porqué" real de tus cambios.
 
-**Flags:**
-| Flag | Corto | Tipo | Descripción |
-| :--- | :--- | :--- | :--- |
-| `--count` | `-n` | `int` | Cantidad de opciones a generar (1-10). |
-| `--lang` | `-l` | `string` | Idioma de salida (ej: `es`, `en`, `pt`). |
-| `--issue` | `-i` | `int` | Busca el título/descripción del issue en GitHub para darle contexto a la IA. |
-| `--no-emoji` | `-ne` | `bool` | Vuela los emojis del título para mantener un historial sobrio. |
+**Flags disponibles:**
 
-**Ejemplo Avanzado:**
-```bash
-# Dame 5 sugerencias en español, leé el contexto del issue #42 y sacame los emojis
-matecommit suggest -n 5 -l es -i 42 --no-emoji
-```
+`--count` / `-n` (int)
+> Cuántas opciones querés que te tire de una. (Default: 3, Máximo: 10)
+
+`--lang` / `-l` (string)
+> Si querés forzar un idioma para ese commit puntual (ej. si laburás en un repo en inglés pero tu config está en español).
+
+`--issue` / `-i` (int)
+> Trae toda la info de un issue específico para darle más "inteligencia" a la sugerencia.
+
+`--no-emoji` / `-ne` (bool)
+> Saca los emojis si necesitás un historial de commits bien sobrio y técnico.
+
+**Tip de uso**: Si tirás `matecommit suggest -n 5 -l en`, te genera 5 opciones en inglés al toque, sin importar qué tengas configurado por defecto.
 
 ---
 
-## 2. Gestión de Pull Requests
+## 2. Gestión de PRs e Issues
 
 ### `summarize-pr` / `spr`
-Genera un Resumen, Plan de Pruebas y Alerta de Breaking Changes para un PR existente.
+Lo uso cuando tengo que cerrar un PR y me da paja escribir todo el resumen, el plan de pruebas y buscar si hay cambios disruptivos.
 
-**Comando:**
-```bash
-matecommit spr --pr-number <id>
-```
-
-**Workflow:**
-1.  **Fetch**: Traemos la metadata del PR (commits, diffs, issues linkeados) vía API de GitHub.
-2.  **Análisis**: Gemini sintetiza los cambios en una narrativa coherente.
-3.  **Update**: Parcheamos el cuerpo del PR directamente en GitHub.
-
-**Requisitos:**
-*   Necesitás el `GITHUB_TOKEN` configurado.
-*   Scopes del token: `repo` (para repos privados) o `public_repo` (para públicos).
-
----
-
-## 3. Ciclo de Vida de Issues
+**El flujo es simple:**
+1.  **Metadata**: Levanta los commits y comentarios desde la API de tu VCS (GitHub, por ahora).
+2.  **Síntesis**: El LLM lee toda la historia del PR y te arma un resumen cohesivo.
+3.  **Push**: Actualiza la descripción del PR directamente en la plataforma por vos.
 
 ### `issue generate` / `g`
-Crea issues en GitHub usando IA para transformar inputs vagos en reportes profesionales.
+Odio tener que salir de la terminal y abrir el navegador solo para crear un ticket. Este comando transforma lo que estás haciendo en un issue profesional.
 
-**Comando:**
-```bash
-matecommit issue generate [source-flags] [opciones]
-```
-
-**Fuentes (Elegí una):**
-*   `--from-diff` / `-d`: Usa tus cambios en staging como base (Ideal para: "Ya arreglé esto, ahora necesito el ticket").
-*   `--from-pr` / `-p`: Usa el título/body de un PR para crear un issue de seguimiento.
-*   `--description` / `-m`: Usa un texto plano que le pases como input.
-
-**Opciones:**
-*   `--template` / `-t`: Apunta a un template específico (ej: `bug_report`). Matchea con los archivos en `.github/ISSUE_TEMPLATE/`.
-*   `--checkout` / `-c`: Automatiza la creación de la rama (`git checkout -b issue/123-titulo`) post-generación.
-*   `--dry-run`: Te imprime el Markdown en consola sin tocar la API de GitHub.
-
-**Escenario Real:**
-*Hiciste un fix rápido pero te colgaste en crear el ticket.*
-```bash
-git add .
-matecommit issue generate --from-diff --template bug_report --assign-me --checkout
-```
-*Resultado: Crea el issue, te lo asigna a vos y te cambia a la rama correcta.*
+**De dónde saca la info:**
+- **Desde Diff**: Usa tus cambios actuales como base para describir el problema o la tarea.
+- **Checkout Automático**: Si usás `--checkout`, después de crear el issue te abre una rama nueva con el nombre correcto para que empieces a laburar ahí mismo.
 
 ---
 
-## 4. Automatización de Releases
+## 3. Automatización de Releases
 
 ### `release` / `r`
-Estandarizamos el proceso de release siguiendo [Semantic Versioning](https://semver.org/).
+Construí esto para sacarme de encima el estrés de manejar el versionado semántico (SemVer) a mano.
 
-**Subcomandos:**
-
-#### `preview` / `p`
-Un "dry-run". Calculamos la próxima versión (ej: `v1.0.0` -> `v1.1.0`) basándonos en el historial de commits y te mostramos el borrador del changelog.
-
-#### `create` / `c`
-Ejecuta el release localmente.
-1.  Actualiza `CHANGELOG.md` (agrega lo nuevo arriba).
-2.  Crea el tag de git.
-3.  (Opcional) Pushea los cambios.
-
-**Flags:**
-*   `--auto`: Modo no-interactivo (clave para scripts de CI/CD).
-*   `--changelog`: Fuerza el commit del archivo de changelog actualizado.
-*   `--publish`: Dispara el `git push origin <tag>` inmediatamente.
-
-#### `publish` / `pub`
-Sincroniza el tag local con GitHub Releases. Crea la entrada en GitHub con las notas generadas por la IA.
+1.  **Análisis**: Revisa tu historial de commits (basándose en Conventional Commits) y te sugiere si el salto es Patch, Minor o Major.
+2.  **Changelog**: Te actualiza el `CHANGELOG.md` automáticamente con lo nuevo.
+3.  **Tags**: Crea el tag de git localmente.
+4.  **Publicación**: Sube todo a tu VCS y crea el Release con las notas generadas por IA.
 
 ---
 
-## 5. Sistema y Configuración
+## 4. Configuración y Sistema
 
 ### `config`
-**Ubicación**: `~/.config/matecommit/config.yaml` (o la ruta estándar de tu SO).
-
-*   `init`: El asistente interactivo.
-*   `doctor`: Chequeo de salud (Conectividad con Gemini, GitHub, path de Git).
+Todos tus ajustes se guardan en `~/.config/matecommit/config.yaml`.
+*   **Prioridades**: Si tirás una flag en el comando, eso manda por sobre la variable de entorno o el archivo de configuración.
+*   **Doctor**: Si algo no anda, tirá `matecommit config doctor`. Chequea conexiones, permisos de tokens y que las APIs respondan.
 
 ### `stats`
-Te muestra una estimación de costos basada en el uso de tokens.
-*   **Nota**: Son estimaciones basadas en el precio público de Gemini. La facturación real puede variar.
-
-### `update`
-Auto-updater usando GitHub Releases. Reemplaza tu binario actual por la última versión estable.
+Como las APIs de IA no son gratis (o tienen límites), agregué un seguimiento de tokens. Así podés ver cuánto venís gastando y no llevarte una sorpresa a fin de mes.
 
 ---
 
-## Variables de Entorno
+## Solución de problemas comunes
 
-MateCommit respeta estas variables, que tienen prioridad sobre el archivo de configuración (ideal para CI):
+**"Las sugerencias no son muy buenas"**
+*   *Consejo*: Asegurate de stagear solo los cambios que tengan que ver entre sí. Si metés 5 features distintas en un mismo stage, la IA se marea con el contexto.
 
-*   `GEMINI_API_KEY`: Tu Key de Google AI Studio.
-*   `GITHUB_TOKEN`: Tu Personal Access Token de GitHub.
-*   `MATECOMMIT_LANG`: Override del idioma por defecto.
+**"Error de API"**
+*   *Consejo*: Corré el comando `doctor`. Lo más probable es que tu `GEMINI_API_KEY` o `GITHUB_TOKEN` hayan expirado o no tengan los permisos (scopes) necesarios.
+
+---
+
+## Soporte actual
+
+*   **Modelos de IA**: Google Gemini (Por defecto).
+*   **VCS**: GitHub.
+*   **Issues**: Jira y GitHub Issues.
