@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
-
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
 )
 
 func setupTestManager(t *testing.T, budgetDaily float64) (*Manager, string) {
@@ -16,15 +14,9 @@ func setupTestManager(t *testing.T, budgetDaily float64) (*Manager, string) {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
 
-	trans, err := i18n.NewTranslations("en", "")
-	if err != nil {
-		t.Fatalf("failed to load translations: %v", err)
-	}
-
 	m := &Manager{
 		historyPath: filepath.Join(tempDir, "history.json"),
 		budgetDaily: budgetDaily,
-		trans:       trans,
 	}
 
 	return m, tempDir
@@ -32,7 +24,7 @@ func setupTestManager(t *testing.T, budgetDaily float64) (*Manager, string) {
 
 func TestNewManager(t *testing.T) {
 	// Act
-	m, err := NewManager(1.0, nil)
+	m, err := NewManager(1.0)
 
 	// Assert
 	if err != nil {
@@ -179,11 +171,14 @@ func TestManager_CheckBudget(t *testing.T) {
 			}
 
 			// Act
-			err := m.CheckBudget(tt.estimated)
+			status, err := m.CheckBudget(tt.estimated)
 
 			// Assert
-			if (err != nil) != tt.wantErr {
-				t.Errorf("CheckBudget() error = %v, wantErr %v", err, tt.wantErr)
+			if err != nil && !tt.wantErr {
+				t.Errorf("CheckBudget() unexpected error = %v", err)
+			}
+			if status != nil && status.IsExceeded != tt.wantErr {
+				t.Errorf("CheckBudget() status.IsExceeded = %v, want %v", status.IsExceeded, tt.wantErr)
 			}
 		})
 	}
@@ -226,11 +221,17 @@ func TestManager_CheckBudgetAlerts(t *testing.T) {
 			_ = m.SaveActivity(record)
 
 			// Act
-			err := m.CheckBudget(0.01)
+			status, err := m.CheckBudget(0.01)
 
 			// Assert
 			if err != nil {
 				t.Errorf("CheckBudget() unexpected error = %v", err)
+			}
+			if status == nil {
+				t.Fatal("CheckBudget() returned nil status")
+			}
+			if !status.IsWarning {
+				t.Errorf("CheckBudget() expected status.IsWarning = true for spend %v", tt.existingSpend)
 			}
 		})
 	}

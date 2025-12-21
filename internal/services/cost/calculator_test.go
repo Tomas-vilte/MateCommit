@@ -131,7 +131,7 @@ func TestCalculator_GetPricing(t *testing.T) {
 		if err == nil {
 			t.Error("GetPricing() error nil, want error for invalid provider")
 		}
-		if !strings.Contains(err.Error(), "proveedor") {
+		if !strings.Contains(err.Error(), "provider") {
 			t.Errorf("Error message %q doesn't mention provider", err.Error())
 		}
 	})
@@ -144,7 +144,7 @@ func TestCalculator_GetPricing(t *testing.T) {
 		if err == nil {
 			t.Error("GetPricing() error nil, want error for invalid model")
 		}
-		if !strings.Contains(err.Error(), "modelo") {
+		if !strings.Contains(err.Error(), "model") {
 			t.Errorf("Error message %q doesn't mention model", err.Error())
 		}
 	})

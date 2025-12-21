@@ -8,7 +8,7 @@ import (
 )
 
 func TestLoadConfig(t *testing.T) {
-	t.Run("debería manejar error al verificar existencia del archivo", func(t *testing.T) {
+	t.Run("should handle error when checking file existence", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("HOME", tmpDir)
 
@@ -19,38 +19,38 @@ func TestLoadConfig(t *testing.T) {
 
 		defer func() {
 			if err := os.RemoveAll(tmpDir); err != nil {
-				t.Errorf("Error al eliminar el archivo: %v", err)
+				t.Errorf("Error deleting file: %v", err)
 			}
 		}()
 
 		_, err := LoadConfig(tmpDir)
 		if err == nil {
-			t.Error("se esperaba un error al verificar existencia del archivo")
+			t.Error("expected an error when checking file existence")
 		}
 
 		err = os.Chmod(configDir, 0755)
 		if err != nil {
-			t.Fatal("No se pudo cambiar los permisos del directorio")
+			t.Fatal("Could not change directory permissions")
 		}
 
 		_, err = LoadConfig(tmpDir)
 		if err != nil {
-			t.Errorf("No se esperaba un error, pero ocurrió: %v", err)
+			t.Errorf("Did not expect an error, but one occurred: %v", err)
 		}
 	})
 
-	t.Run("debería manejar configuración inválida", func(t *testing.T) {
+	t.Run("should handle invalid configuration", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("HOME", tmpDir)
 
-		// Crear directorio de configuración
+		// Create configuration directory
 		configDir := filepath.Join(tmpDir, ".mate-commit")
 		err := os.MkdirAll(configDir, 0755)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		// Crear configuración inválida
+		// Create invalid configuration
 		config := &Config{
 			Language: "",
 		}
@@ -63,36 +63,36 @@ func TestLoadConfig(t *testing.T) {
 
 		defer func() {
 			if err := os.RemoveAll(tmpDir); err != nil {
-				t.Errorf("Error al eliminar el archivo: %v", err)
+				t.Errorf("Error deleting file: %v", err)
 			}
 		}()
 
-		_, err = LoadConfig(tmpDir) // Cargar desde el directorio base
+		_, err = LoadConfig(tmpDir) // Load from base directory
 		if err == nil {
-			t.Error("se esperaba un error debido a configuración inválida")
+			t.Error("expected an error due to invalid configuration")
 		}
 	})
 
-	t.Run("debería manejar errores al guardar configuración", func(t *testing.T) {
+	t.Run("should handle errors when saving configuration", func(t *testing.T) {
 		config := &Config{
 			Language: "",
 		}
 
 		err := SaveConfig(config)
 		if err == nil {
-			t.Error("se esperaba un error al guardar configuración inválida, pero no ocurrió")
+			t.Error("expected an error when saving invalid configuration, but none occurred")
 		}
 	})
 
-	t.Run("debería manejar JSON malformado", func(t *testing.T) {
+	t.Run("should handle malformed JSON", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("HOME", tmpDir)
 
-		// Crear directorio de configuración
+		// Create configuration directory
 		configDir := filepath.Join(tmpDir, ".mate-commit")
 		_ = os.MkdirAll(configDir, 0755)
 
-		// Crear archivo con JSON malformado
+		// Create file with malformed JSON
 		err := os.WriteFile(filepath.Join(configDir, "config.json"), []byte("{malformed json"), 0644)
 		if err != nil {
 			t.Fatal(err)
@@ -100,27 +100,27 @@ func TestLoadConfig(t *testing.T) {
 
 		defer func() {
 			if err := os.RemoveAll(tmpDir); err != nil {
-				t.Errorf("Error al eliminar el archivo: %v", err)
+				t.Errorf("Error deleting file: %v", err)
 			}
 		}()
 
-		_, err = LoadConfig(tmpDir) // Cargar desde el directorio base
+		_, err = LoadConfig(tmpDir) // Load from base directory
 		if err == nil {
-			t.Error("se esperaba un error al cargar JSON malformado")
+			t.Error("expected an error when loading malformed JSON")
 		}
 	})
 
 }
 
 func TestSaveConfig(t *testing.T) {
-	t.Run("debería crear config.json en directorio .mate-commit si no existe", func(t *testing.T) {
+	t.Run("should create config.json in .mate-commit directory if it doesn't exist", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		expectedConfigDir := filepath.Join(tmpDir, ".mate-commit")
 		expectedConfigPath := filepath.Join(expectedConfigDir, "config.json")
 
 		defer func() {
 			if err := os.RemoveAll(tmpDir); err != nil {
-				t.Errorf("Error al eliminar el archivo: %v", err)
+				t.Errorf("Error deleting file: %v", err)
 			}
 		}()
 
@@ -133,11 +133,11 @@ func TestSaveConfig(t *testing.T) {
 		}
 
 		if _, err := os.Stat(expectedConfigDir); os.IsNotExist(err) {
-			t.Error("El directorio .mate-commit no fue creado")
+			t.Error(".mate-commit directory was not created")
 		}
 
 		if _, err := os.Stat(expectedConfigPath); os.IsNotExist(err) {
-			t.Error("El archivo config.json no fue creado")
+			t.Error("config.json file was not created")
 		}
 
 		if loadedConfig.Language != defaultLang {
@@ -149,13 +149,13 @@ func TestSaveConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("debería manejar path directo a archivo json", func(t *testing.T) {
+	t.Run("should handle direct path to json file", func(t *testing.T) {
 		// Arrange
 		tmpDir := t.TempDir()
 		configPath := filepath.Join(tmpDir, "direct-config.json")
 
 		initialConfig := &Config{
-			Language: "es",
+			Language: "en",
 			UseEmoji: true,
 			PathFile: configPath,
 			AIProviders: map[string]AIProviderConfig{
@@ -170,7 +170,7 @@ func TestSaveConfig(t *testing.T) {
 
 		defer func() {
 			if err := os.RemoveAll(tmpDir); err != nil {
-				t.Errorf("Error al eliminar el archivo: %v", err)
+				t.Errorf("Error deleting file: %v", err)
 			}
 		}()
 
@@ -188,7 +188,7 @@ func TestSaveConfig(t *testing.T) {
 
 		// Assert
 		if err != nil {
-			t.Errorf("LoadConfig() con path directo error = %v", err)
+			t.Errorf("LoadConfig() with direct path error = %v", err)
 		}
 
 		if providerCfg, exists := loadedConfig.AIProviders["gemini"]; !exists || providerCfg.APIKey != "test-key" {
@@ -199,7 +199,7 @@ func TestSaveConfig(t *testing.T) {
 			t.Errorf("PathFile = %v, want %v", loadedConfig.PathFile, configPath)
 		}
 	})
-	t.Run("debería manejar error al obtener home directory", func(t *testing.T) {
+	t.Run("should handle error when getting home directory", func(t *testing.T) {
 		t.Setenv("HOME", "")
 
 		config := &Config{
@@ -208,11 +208,11 @@ func TestSaveConfig(t *testing.T) {
 
 		err := SaveConfig(config)
 		if err == nil {
-			t.Error("se esperaba un error al no poder obtener el home directory")
+			t.Error("expected an error when home directory could not be obtained")
 		}
 	})
 
-	t.Run("debería manejar error al escribir archivo", func(t *testing.T) {
+	t.Run("should handle error when writing file", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		t.Setenv("HOME", tmpDir)
 
@@ -223,7 +223,7 @@ func TestSaveConfig(t *testing.T) {
 
 		defer func() {
 			if err := os.RemoveAll(tmpDir); err != nil {
-				t.Errorf("Error al eliminar el archivo: %v", err)
+				t.Errorf("Error deleting file: %v", err)
 			}
 		}()
 
@@ -233,22 +233,22 @@ func TestSaveConfig(t *testing.T) {
 
 		err := SaveConfig(config)
 		if err == nil {
-			t.Error("se esperaba un error al no poder escribir el archivo")
+			t.Error("expected an error when file could not be written")
 		}
 	})
 
-	t.Run("debería validar la configuración antes de guardar", func(t *testing.T) {
+	t.Run("should validate configuration before saving", func(t *testing.T) {
 		config := &Config{
 			Language: "",
 		}
 
 		err := SaveConfig(config)
 		if err == nil {
-			t.Error("se esperaba un error al guardar configuración inválida")
+			t.Error("expected an error when saving invalid configuration")
 		}
 	})
 
-	t.Run("debería guardar la configuración correctamente", func(t *testing.T) {
+	t.Run("should save configuration correctly", func(t *testing.T) {
 		// Arrange
 		tmpDir := t.TempDir()
 		t.Setenv("HOME", tmpDir)
@@ -261,7 +261,7 @@ func TestSaveConfig(t *testing.T) {
 
 		defer func() {
 			if err := os.RemoveAll(tmpDir); err != nil {
-				t.Errorf("Error al eliminar el archivo: %v", err)
+				t.Errorf("Error deleting file: %v", err)
 			}
 		}()
 
@@ -312,7 +312,7 @@ func TestSaveConfig(t *testing.T) {
 }
 
 func TestCreateDefaultConfig(t *testing.T) {
-	t.Run("debería crear configuración por defecto correctamente", func(t *testing.T) {
+	t.Run("should create default configuration correctly", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		configPath := filepath.Join(tmpDir, "config.json")
 
@@ -320,7 +320,7 @@ func TestCreateDefaultConfig(t *testing.T) {
 
 		defer func() {
 			if err := os.RemoveAll(tmpDir); err != nil {
-				t.Errorf("Error al eliminar el archivo: %v", err)
+				t.Errorf("Error deleting file: %v", err)
 			}
 		}()
 
@@ -336,24 +336,24 @@ func TestCreateDefaultConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("debería manejar error al crear el directorio", func(t *testing.T) {
+	t.Run("should handle error when creating directory", func(t *testing.T) {
 		invalidDir := filepath.Join(string([]byte{0}), "config.json")
 
 		_, err := createDefaultConfig(invalidDir)
 
 		if err == nil {
-			t.Error("se esperaba un error al crear el directorio, pero no ocurrió")
+			t.Error("expected an error when creating the directory, but none occurred")
 		}
 	})
 
-	t.Run("debería manejar error al escribir archivo", func(t *testing.T) {
+	t.Run("should handle error when writing file", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		if err := os.Chmod(tmpDir, 0000); err != nil {
 			t.Fatal(err)
 		}
 		defer func() {
 			if err := os.Chmod(tmpDir, 0755); err != nil {
-				t.Fatal("No se pudo cambiar los permisos del directorio")
+				t.Fatal("Could not change directory permissions")
 			}
 		}()
 
@@ -361,11 +361,11 @@ func TestCreateDefaultConfig(t *testing.T) {
 
 		_, err := createDefaultConfig(configPath)
 		if err == nil {
-			t.Error("se esperaba un error al escribir el archivo")
+			t.Error("expected an error when writing file")
 		}
 	})
 
-	t.Run("debería manejar error al escribir archivo", func(t *testing.T) {
+	t.Run("should handle error when writing file", func(t *testing.T) {
 		tmpDir := t.TempDir()
 
 		configDir := filepath.Join(tmpDir, "readonly")
@@ -379,13 +379,13 @@ func TestCreateDefaultConfig(t *testing.T) {
 
 		defer func() {
 			if err := os.RemoveAll(tmpDir); err != nil {
-				t.Errorf("Error al eliminar el archivo: %v", err)
+				t.Errorf("Error deleting file: %v", err)
 			}
 		}()
 
 		configPath := filepath.Join(configDir, "config.json")
 		config := &Config{
-			Language: "es",
+			Language: "en",
 			PathFile: configPath,
 		}
 
@@ -394,11 +394,11 @@ func TestCreateDefaultConfig(t *testing.T) {
 
 		// Assert
 		if err == nil {
-			t.Error("se esperaba un error al escribir en directorio sin permisos")
+			t.Error("expected an error when writing in directory without permissions")
 		}
 
 		if err := os.Chmod(configDir, 0755); err != nil {
-			t.Fatal("No se pudo restaurar los permisos del directorio")
+			t.Fatal("Could not restore directory permissions")
 		}
 	})
 }
@@ -410,7 +410,7 @@ func TestValidateConfig(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "configuración válida",
+			name: "valid configuration",
 			config: &Config{
 				Language: "en",
 			},
@@ -418,14 +418,14 @@ func TestValidateConfig(t *testing.T) {
 		},
 
 		{
-			name: "DefaultLang vacío",
+			name: "empty language",
 			config: &Config{
 				Language: "",
 			},
 			wantErr: true,
 		},
 		{
-			name: "múltiples campos inválidos",
+			name: "multiple invalid fields",
 			config: &Config{
 				Language: "",
 			},

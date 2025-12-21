@@ -5,51 +5,64 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 
-	"github.com/Tomas-vilte/MateCommit/internal/config"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
-	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/vcs/github"
+	"github.com/thomas-vilte/matecommit/internal/config"
+	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
+	"github.com/thomas-vilte/matecommit/internal/models"
+	"github.com/thomas-vilte/matecommit/internal/ports"
+	"github.com/thomas-vilte/matecommit/internal/github"
 )
 
-var _ ports.CommitService = (*CommitService)(nil)
+// commitGitService defines only the methods needed by CommitService.
+type commitGitService interface {
+	GetChangedFiles(ctx context.Context) ([]string, error)
+	GetDiff(ctx context.Context) (string, error)
+	GetRecentCommitMessages(ctx context.Context, limit int) ([]string, error)
+	GetRepoInfo(ctx context.Context) (string, string, string, error)
+	GetCurrentBranch(ctx context.Context) (string, error)
+}
 
 type CommitService struct {
-	git           ports.GitService
+	git           commitGitService
 	ai            ports.CommitSummarizer
 	ticketManager ports.TickerManager
 	vcsClient     ports.VCSClient
 	config        *config.Config
-	trans         *i18n.Translations
 }
 
-func NewCommitService(
-	git ports.GitService,
-	ai ports.CommitSummarizer,
-	ticketManager ports.TickerManager,
-	vcsClient ports.VCSClient,
-	cfg *config.Config,
-	trans *i18n.Translations) *CommitService {
-	return &CommitService{
-		git:           git,
-		ai:            ai,
-		ticketManager: ticketManager,
-		vcsClient:     vcsClient,
-		config:        cfg,
-		trans:         trans,
+type Option func(*CommitService)
+
+func WithTicketManager(tm ports.TickerManager) Option {
+	return func(s *CommitService) {
+		s.ticketManager = tm
 	}
 }
 
-func (s *CommitService) GenerateSuggestions(ctx context.Context, count int, progress func(string)) ([]models.CommitSuggestion, error) {
-	commitInfo, err := s.buildCommitInfo(ctx, 0, progress)
-	if err != nil {
-		return nil, err
+func WithVCSClient(vcs ports.VCSClient) Option {
+	return func(s *CommitService) {
+		s.vcsClient = vcs
 	}
-	return s.ai.GenerateSuggestions(ctx, commitInfo, count)
 }
 
-func (s *CommitService) GenerateSuggestionsWithIssue(ctx context.Context, count int, issueNumber int, progress func(string)) ([]models.CommitSuggestion, error) {
+func WithConfig(cfg *config.Config) Option {
+	return func(s *CommitService) {
+		s.config = cfg
+	}
+}
+
+func NewCommitService(gitSvc commitGitService, ai ports.CommitSummarizer, opts ...Option) *CommitService {
+	s := &CommitService{
+		git: gitSvc,
+		ai:  ai,
+	}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
+}
+
+func (s *CommitService) GenerateSuggestions(ctx context.Context, count int, issueNumber int, progress func(models.ProgressEvent)) ([]models.CommitSuggestion, error) {
 	commitInfo, err := s.buildCommitInfo(ctx, issueNumber, progress)
 	if err != nil {
 		return nil, err
@@ -57,12 +70,11 @@ func (s *CommitService) GenerateSuggestionsWithIssue(ctx context.Context, count 
 	return s.ai.GenerateSuggestions(ctx, commitInfo, count)
 }
 
-func (s *CommitService) buildCommitInfo(ctx context.Context, issueNumber int, progress func(string)) (models.CommitInfo, error) {
+func (s *CommitService) buildCommitInfo(ctx context.Context, issueNumber int, progress func(models.ProgressEvent)) (models.CommitInfo, error) {
 	var commitInfo models.CommitInfo
 
 	if s.ai == nil {
-		msg := s.trans.GetMessage("ai_missing.for_suggest", 0, nil)
-		return commitInfo, fmt.Errorf("%s", msg)
+		return commitInfo, domainErrors.ErrAPIKeyMissing
 	}
 
 	changes, err := s.git.GetChangedFiles(ctx)
@@ -71,51 +83,35 @@ func (s *CommitService) buildCommitInfo(ctx context.Context, issueNumber int, pr
 	}
 
 	if len(changes) == 0 {
-		msg := s.trans.GetMessage("commit_service.undetected_changes", 0, nil)
-		return commitInfo, fmt.Errorf("%s", msg)
+		return commitInfo, domainErrors.ErrNoChanges
 	}
 
 	diff, err := s.git.GetDiff(ctx)
 	if err != nil {
-		msg := s.trans.GetMessage("commit_service.error_getting_diff", 0, map[string]interface{}{
-			"Error": err,
-		})
-		return commitInfo, fmt.Errorf("%s", msg)
+		return commitInfo, domainErrors.NewAppError(domainErrors.TypeGit, "error getting git diff", err)
 	}
 
 	if diff == "" {
-		msg := s.trans.GetMessage("commit_service.no_differences_detected", 0, nil)
-		return commitInfo, fmt.Errorf("%s", msg)
-	}
-
-	files := make([]string, 0)
-	for _, change := range changes {
-		files = append(files, change.Path)
+		return commitInfo, domainErrors.ErrNoChanges
 	}
 
 	recentHistory, _ := s.git.GetRecentCommitMessages(ctx, 10)
 
 	commitInfo = models.CommitInfo{
-		Files:         files,
+		Files:         changes,
 		Diff:          diff,
-		RecentHistory: recentHistory,
+		RecentHistory: strings.Join(recentHistory, "\n"),
 	}
 
-	if s.config.UseTicket {
+	if s.config != nil && s.config.UseTicket {
 		ticketID, err := s.getTicketIDFromBranch(ctx)
 		if err != nil {
-			msg := s.trans.GetMessage("commit_service.error_get_id_ticket", 0, map[string]interface{}{
-				"Error": err,
-			})
-			return commitInfo, fmt.Errorf("%s", msg)
+			return commitInfo, domainErrors.NewAppError(domainErrors.TypeGit, "error getting ticket ID from branch", err)
 		}
 
 		ticketInfo, err := s.ticketManager.GetTicketInfo(ticketID)
 		if err != nil {
-			msg := s.trans.GetMessage("commit_service.error_get_ticket_info", 0, map[string]interface{}{
-				"Error": err,
-			})
-			return commitInfo, fmt.Errorf("%s", msg)
+			return commitInfo, domainErrors.NewAppError(domainErrors.TypeInternal, "error getting ticket info", err)
 		}
 
 		commitInfo.TicketInfo = ticketInfo
@@ -129,37 +125,34 @@ func (s *CommitService) buildCommitInfo(ctx context.Context, issueNumber int, pr
 	if detectedIssue > 0 {
 		vcsClient, err := s.getOrCreateVCSClient(ctx)
 		if err != nil {
-			msg := s.trans.GetMessage("issue_vcs_init_error", 0, map[string]interface{}{
-				"Error": err.Error(),
-			})
 			if progress != nil {
-				progress(msg)
+				progress(models.ProgressEvent{
+					Type:    models.ProgressGeneric,
+					Message: fmt.Sprintf("issue_vcs_init_error: %v", err),
+				})
 			}
 		} else {
 			issueInfo, err := vcsClient.GetIssue(ctx, detectedIssue)
 			if err != nil {
-				msg := s.trans.GetMessage("issue_fetch_error", 0, map[string]interface{}{
-					"Number": detectedIssue,
-					"Error":  err.Error(),
-				})
 				if progress != nil {
-					progress(msg)
+					progress(models.ProgressEvent{
+						Type: models.ProgressGeneric,
+						Data: map[string]interface{}{
+							"Error":   err.Error(),
+							"IssueID": detectedIssue,
+						},
+					})
 				}
 			} else {
-				var msg string
-				if issueNumber == 0 {
-					msg = s.trans.GetMessage("issue_detected_auto", 0, map[string]interface{}{
-						"Number": detectedIssue,
-						"Title":  issueInfo.Title,
-					})
-				} else {
-					msg = s.trans.GetMessage("issue_using_manual", 0, map[string]interface{}{
-						"Number": detectedIssue,
-						"Title":  issueInfo.Title,
-					})
-				}
 				if progress != nil {
-					progress(msg)
+					progress(models.ProgressEvent{
+						Type: models.ProgressIssuesDetected,
+						Data: map[string]interface{}{
+							"IssueID": detectedIssue,
+							"Title":   issueInfo.Title,
+							"IsAuto":  issueNumber == 0,
+						},
+					})
 				}
 				commitInfo.IssueInfo = issueInfo
 
@@ -183,9 +176,13 @@ func (s *CommitService) getOrCreateVCSClient(ctx context.Context) (ports.VCSClie
 		return s.vcsClient, nil
 	}
 
+	if s.config == nil {
+		return nil, domainErrors.ErrConfigMissing
+	}
+
 	owner, repo, provider, err := s.git.GetRepoInfo(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("error al obtener información del repositorio: %w", err)
+		return nil, domainErrors.NewAppError(domainErrors.TypeGit, "error getting repo info", err)
 	}
 
 	vcsConfig, exists := s.config.VCSConfigs[provider]
@@ -193,24 +190,25 @@ func (s *CommitService) getOrCreateVCSClient(ctx context.Context) (ports.VCSClie
 		if s.config.ActiveVCSProvider != "" {
 			vcsConfig, exists = s.config.VCSConfigs[s.config.ActiveVCSProvider]
 			if !exists {
-				return nil, fmt.Errorf("configuración para el proveedor de VCS '%s' no encontrada", s.config.ActiveVCSProvider)
+				return nil, domainErrors.ErrConfigMissing
 			}
 			provider = s.config.ActiveVCSProvider
 		} else {
-			return nil, fmt.Errorf("proveedor de VCS '%s' detectado automáticamente pero no configurado", provider)
+			return nil, domainErrors.NewAppError(domainErrors.TypeConfiguration, fmt.Sprintf("VCS provider '%s' not configured", provider), nil)
 		}
 	}
 
 	switch provider {
 	case "github":
-		return github.NewGitHubClient(owner, repo, vcsConfig.Token, s.trans), nil
+		// Removing 'nil' for translations as per decoupling plan (assuming GitHubClient is updated)
+		return github.NewGitHubClient(owner, repo, vcsConfig.Token), nil
 	default:
-		return nil, fmt.Errorf("proveedor de VCS no compatible: %s", provider)
+		return nil, domainErrors.ErrVCSNotSupported
 	}
 }
 
-// detectIssueNumber intenta detectar automáticamente el número de issue
-// Prioridad: 1) Branch name, 2) Commits recientes
+// detectIssueNumber attempts to automatically detect the issue number
+// Priority: 1) Branch name, 2) Recent commits
 func (s *CommitService) detectIssueNumber(ctx context.Context) int {
 	if issueNum := s.detectIssueFromBranch(ctx); issueNum > 0 {
 		return issueNum
@@ -223,8 +221,8 @@ func (s *CommitService) detectIssueNumber(ctx context.Context) int {
 	return 0
 }
 
-// detectIssueFromBranch detecta issue number desde el nombre de la rama
-// Patrones soportados: 123-desc, feature/123-desc, #123, issue-123, issue/123
+// detectIssueFromBranch detects issue number from the branch name
+// Supported patterns: 123-desc, feature/123-desc, #123, issue-123, issue/123
 func (s *CommitService) detectIssueFromBranch(ctx context.Context) int {
 	branchName, err := s.git.GetCurrentBranch(ctx)
 	if err != nil {
@@ -251,8 +249,8 @@ func (s *CommitService) detectIssueFromBranch(ctx context.Context) int {
 	return 0
 }
 
-// detectIssueFromCommits detecta issue number desde commits recientes
-// Busca keywords de GitHub: fixes, closes, resolves seguido de #123
+// detectIssueFromCommits detects issue number from recent commits
+// Search for GitHub keywords: fixes, closes, resolves followed by #123
 func (s *CommitService) detectIssueFromCommits(ctx context.Context) int {
 	commitMessages, err := s.git.GetRecentCommitMessages(ctx, 5)
 	if err != nil {
@@ -269,9 +267,11 @@ func (s *CommitService) detectIssueFromCommits(ctx context.Context) int {
 	for _, keyword := range keywords {
 		pattern := fmt.Sprintf(`(?i)\b%s\s+#(\d+)\b`, keyword)
 		re := regexp.MustCompile(pattern)
-		if match := re.FindStringSubmatch(commitMessages); len(match) > 1 {
-			if num, err := strconv.Atoi(match[1]); err == nil {
-				return num
+		for _, msg := range commitMessages {
+			if match := re.FindStringSubmatch(msg); len(match) > 1 {
+				if num, err := strconv.Atoi(match[1]); err == nil {
+					return num
+				}
 			}
 		}
 	}
@@ -282,17 +282,13 @@ func (s *CommitService) detectIssueFromCommits(ctx context.Context) int {
 func (s *CommitService) getTicketIDFromBranch(ctx context.Context) (string, error) {
 	branchName, err := s.git.GetCurrentBranch(ctx)
 	if err != nil {
-		msg := s.trans.GetMessage("commit_service.error_get_name_from_branch", 0, map[string]interface{}{
-			"Error": err,
-		})
-		return "", fmt.Errorf("%s", msg)
+		return "", domainErrors.NewAppError(domainErrors.TypeGit, "error getting branch name", err)
 	}
 
 	re := regexp.MustCompile(`([A-Za-z]+-\d+)`)
 	match := re.FindString(branchName)
 	if match == "" {
-		msg := s.trans.GetMessage("commit_service.ticket_id_not_found_branch", 0, nil)
-		return "", fmt.Errorf("%s", msg)
+		return "", domainErrors.NewAppError(domainErrors.TypeGit, "ticket ID not found in branch", nil)
 	}
 
 	return match, nil

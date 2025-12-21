@@ -6,15 +6,15 @@ func NewModelSelector() *ModelSelector {
 	return &ModelSelector{}
 }
 
-// SelectBestModel selecciona el modelo óptimo basado en la operación y cantidad de tokens
+// SelectBestModel selects the optimal model based on the operation and token count
 //
-// Estrategia de Smart Routing:
-//   - Operaciones pequeñas (< 1k tokens): Flash-Lite (más económico)
-//   - Operaciones medianas (1k-10k tokens): Flash (balance costo/calidad)
-//   - Operaciones grandes (> 10k tokens): 3.0 Flash (mejor contexto, evita alucinaciones)
-//   - Releases/Issues: 3.0 Flash (máxima calidad de redacción)
+// Smart Routing Strategy:
+//   - Small operations (< 1k tokens): Flash-Lite (most economical)
+//   - Medium operations (1k-10k tokens): Flash (balance cost/quality)
+//   - Large operations (> 10k tokens): 3.0 Flash (better context, avoids hallucinations)
+//   - Releases/Issues: 3.0 Flash (maximum writing quality)
 //
-// SelectBestModel selecciona el modelo óptimo basado en la operación y cantidad de tokens
+// SelectBestModel selects the optimal model based on the operation and token count
 func (m *ModelSelector) SelectBestModel(operation string, estimatedTokens int) string {
 	if operation == "generate-release" || operation == "generate-issue" {
 		return "gemini-3-pro-preview"
@@ -27,7 +27,7 @@ func (m *ModelSelector) SelectBestModel(operation string, estimatedTokens int) s
 	return "gemini-2.5-flash"
 }
 
-// GetRationale retorna la clave de traducción que explica por qué se eligió un modelo
+// GetRationale returns the translation key that explains why a model was chosen
 func (m *ModelSelector) GetRationale(selectedModel string) string {
 	switch selectedModel {
 	case "gemini-1.5-flash":

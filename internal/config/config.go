@@ -51,7 +51,7 @@ type (
 	}
 
 	VCSConfig struct {
-		Provider string `json:"provider"` // github o gitlab lo que se te cante
+		Provider string `json:"provider"` // github or gitlab or whatever you want
 		Token    string `json:"token,omitempty"`
 		Owner    string `json:"owner,omitempty"`
 		Repo     string `json:"repo,omitempty"`
@@ -75,7 +75,7 @@ func LoadConfig(path string) (*Config, error) {
 
 		if _, err := os.Stat(configDir); os.IsNotExist(err) {
 			if err := os.MkdirAll(configDir, 0755); err != nil {
-				return nil, fmt.Errorf("error al crear el directorio de configuración: %w", err)
+				return nil, fmt.Errorf("error creating configuration directory: %w", err)
 			}
 		}
 	}
@@ -86,16 +86,16 @@ func LoadConfig(path string) (*Config, error) {
 
 	data, err := os.ReadFile(configPath)
 	if err != nil {
-		return nil, fmt.Errorf("error al leer el archivo de configuración: %w", err)
+		return nil, fmt.Errorf("error reading configuration file: %w", err)
 	}
 
 	var config Config
 	if err := json.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("error al decodificar el archivo JSON: %w", err)
+		return nil, fmt.Errorf("error decoding JSON file: %w", err)
 	}
 
 	if err := validateConfig(&config); err != nil {
-		return nil, fmt.Errorf("la configuración cargada no es válida: %w", err)
+		return nil, fmt.Errorf("the loaded configuration is invalid: %w", err)
 	}
 
 	config.PathFile = configPath
@@ -126,16 +126,16 @@ func createDefaultConfig(path string) (*Config, error) {
 
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		return nil, fmt.Errorf("error al crear el directorio de configuración: %w", err)
+		return nil, fmt.Errorf("error creating configuration directory: %w", err)
 	}
 
 	data, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
-		return nil, fmt.Errorf("error al codificar la configuración por defecto: %w", err)
+		return nil, fmt.Errorf("error encoding default configuration: %w", err)
 	}
 
 	if err := os.WriteFile(path, data, 0644); err != nil {
-		return nil, fmt.Errorf("error al guardar la configuración por defecto: %w", err)
+		return nil, fmt.Errorf("error saving default configuration: %w", err)
 	}
 
 	return config, nil
@@ -143,20 +143,20 @@ func createDefaultConfig(path string) (*Config, error) {
 
 func SaveConfig(config *Config) error {
 	if err := validateConfig(config); err != nil {
-		return fmt.Errorf("la configuración a guardar no es válida: %w", err)
+		return fmt.Errorf("the configuration to save is invalid: %w", err)
 	}
 
 	if config.PathFile == "" {
-		return errors.New("la ruta del archivo de configuración no está definida")
+		return errors.New("the configuration file path is not defined")
 	}
 
 	data, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
-		return fmt.Errorf("error al codificar la configuración: %w", err)
+		return fmt.Errorf("error encoding configuration: %w", err)
 	}
 
 	if err := os.WriteFile(config.PathFile, data, 0644); err != nil {
-		return fmt.Errorf("error al guardar la configuración: %w", err)
+		return fmt.Errorf("error saving configuration: %w", err)
 	}
 
 	return nil
@@ -164,17 +164,17 @@ func SaveConfig(config *Config) error {
 
 func validateConfig(config *Config) error {
 	if config.Language == "" {
-		return errors.New("language no puede estar vacío")
+		return errors.New("language cannot be empty")
 	}
 
 	if config.ActiveTicketService != "" {
 		if config.TicketProviders != nil {
 			if ticketCfg, exists := config.TicketProviders[config.ActiveTicketService]; exists {
 				if ticketCfg.BaseURL == "" {
-					return fmt.Errorf("%s base URL no está configurada", config.ActiveTicketService)
+					return fmt.Errorf("%s base URL is not configured", config.ActiveTicketService)
 				}
 				if ticketCfg.APIKey == "" {
-					return fmt.Errorf("%s API key no está configurada", config.ActiveTicketService)
+					return fmt.Errorf("%s API key is not configured", config.ActiveTicketService)
 				}
 			}
 		}

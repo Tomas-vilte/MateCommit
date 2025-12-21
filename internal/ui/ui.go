@@ -1,18 +1,22 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
 
+	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
+	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/briandowns/spinner"
 	"github.com/fatih/color"
 )
 
 var (
-	// Colores para diferentes tipos de mensajes
+	// Colors for different message types
 	Success = color.New(color.FgGreen, color.Bold)
 	Error   = color.New(color.FgRed, color.Bold)
 	Warning = color.New(color.FgYellow, color.Bold)
@@ -20,7 +24,7 @@ var (
 	Accent  = color.New(color.FgMagenta, color.Bold)
 	Dim     = color.New(color.FgHiBlack)
 
-	// Emojis con colores
+	// Emojis with colors
 	SuccessEmoji = Success.Sprint("✓")
 	ErrorEmoji   = Error.Sprint("✗")
 	WarningEmoji = Warning.Sprint("⚠")
@@ -32,12 +36,12 @@ var (
 var activeSpinner *SmartSpinner
 var suspendedSpinner *SmartSpinner
 
-// SmartSpinner es un spinner con capacidades mejoradas
+// SmartSpinner is a spinner with enhanced capabilities
 type SmartSpinner struct {
 	spinner *spinner.Spinner
 }
 
-// NewSmartSpinner crea un nuevo spinner con mensaje inicial
+// NewSmartSpinner creates a new spinner with an initial message
 func NewSmartSpinner(initialMessage string) *SmartSpinner {
 	s := spinner.New(
 		spinner.CharSets[14],
@@ -48,13 +52,13 @@ func NewSmartSpinner(initialMessage string) *SmartSpinner {
 	return &SmartSpinner{spinner: s}
 }
 
-// Start inicia el spinner y lo registra como el spinner activo globalmente.
+// Start starts the spinner and registers it as the globally active spinner.
 func (s *SmartSpinner) Start() {
 	activeSpinner = s
 	s.spinner.Start()
 }
 
-// Stop detiene el spinner y limpia el registro del spinner activo.
+// Stop stops the spinner and clears the active spinner record.
 func (s *SmartSpinner) Stop() {
 	s.spinner.Stop()
 	if activeSpinner == s {
@@ -65,15 +69,15 @@ func (s *SmartSpinner) Stop() {
 	}
 }
 
-// StopActiveSpinner detiene el spinner que esté activo actualmente en la sesión de terminal.
+// StopActiveSpinner stops the currently active spinner in the terminal session.
 func StopActiveSpinner() {
 	if activeSpinner != nil {
 		activeSpinner.Stop()
 	}
 }
 
-// SuspendActiveSpinner detiene temporalmente el spinner activo sin borrar su referencia,
-// permitiendo que sea reanudado después de una interacción del usuario.
+// SuspendActiveSpinner temporarily stops the active spinner without deleting its reference,
+// allowing it to be resumed after user interaction.
 func SuspendActiveSpinner() {
 	if activeSpinner != nil {
 		suspendedSpinner = activeSpinner
@@ -82,7 +86,7 @@ func SuspendActiveSpinner() {
 	}
 }
 
-// ResumeSuspendedSpinner reanuda el spinner que fue suspendido previamente.
+// ResumeSuspendedSpinner resumes the previously suspended spinner.
 func ResumeSuspendedSpinner() {
 	if suspendedSpinner != nil {
 		activeSpinner = suspendedSpinner
@@ -97,12 +101,12 @@ func (s *SmartSpinner) UpdateMessage(msg string) {
 
 func (s *SmartSpinner) Success(msg string) {
 	s.Stop()
-	PrintSuccess(msg)
+	PrintSuccess(os.Stdout, msg)
 }
 
 func (s *SmartSpinner) Error(msg string) {
 	s.Stop()
-	PrintError(msg)
+	PrintError(os.Stdout, msg)
 }
 
 func (s *SmartSpinner) Warning(msg string) {
@@ -116,7 +120,7 @@ func (s *SmartSpinner) Log(msg string) {
 	s.Start()
 }
 
-// SpinnerBuilder permite construir spinners con configuración flexible
+// SpinnerBuilder allows building spinners with flexible configuration
 type SpinnerBuilder struct {
 	message string
 	charset int
@@ -124,7 +128,7 @@ type SpinnerBuilder struct {
 	speed   time.Duration
 }
 
-// NewSpinner crea un nuevo builder para spinners
+// NewSpinner creates a new spinner builder
 func NewSpinner() *SpinnerBuilder {
 	return &SpinnerBuilder{
 		charset: 14,
@@ -133,31 +137,31 @@ func NewSpinner() *SpinnerBuilder {
 	}
 }
 
-// WithMessage establece el mensaje del spinner
+// WithMessage sets the spinner message
 func (b *SpinnerBuilder) WithMessage(msg string) *SpinnerBuilder {
 	b.message = msg
 	return b
 }
 
-// WithColor establece el color del spinner
+// WithColor sets the spinner color
 func (b *SpinnerBuilder) WithColor(color string) *SpinnerBuilder {
 	b.color = color
 	return b
 }
 
-// WithSpeed establece la velocidad del spinner
+// WithSpeed sets the spinner speed
 func (b *SpinnerBuilder) WithSpeed(speed time.Duration) *SpinnerBuilder {
 	b.speed = speed
 	return b
 }
 
-// WithCharset establece el charset del spinner
+// WithCharset sets the spinner charset
 func (b *SpinnerBuilder) WithCharset(charset int) *SpinnerBuilder {
 	b.charset = charset
 	return b
 }
 
-// Build construye el SmartSpinner con la configuración especificada
+// Build constructs the SmartSpinner with the specified configuration
 func (b *SpinnerBuilder) Build() *SmartSpinner {
 	s := spinner.New(
 		spinner.CharSets[b.charset],
@@ -168,12 +172,12 @@ func (b *SpinnerBuilder) Build() *SmartSpinner {
 	return &SmartSpinner{spinner: s}
 }
 
-func PrintSuccess(msg string) {
-	fmt.Printf("%s %s\n", SuccessEmoji, Success.Sprint(msg))
+func PrintSuccess(w io.Writer, msg string) {
+	_, _ = fmt.Fprintf(w, "%s ✓ %s\n", color.GreenString("Success:"), msg)
 }
 
-func PrintError(msg string) {
-	fmt.Printf("%s %s\n", ErrorEmoji, Error.Sprint(msg))
+func PrintError(w io.Writer, msg string) {
+	_, _ = fmt.Fprintf(w, "%s ❌ %s\n", color.RedString("Error:"), msg)
 }
 
 func PrintWarning(msg string) {
@@ -197,8 +201,70 @@ func PrintDuration(msg string, duration time.Duration) {
 }
 
 func PrintErrorWithSuggestion(errMsg, suggestion string) {
-	PrintError(errMsg)
-	fmt.Printf("\n%s %s\n", Info.Sprint("💡"), suggestion)
+	PrintError(os.Stdout, errMsg)
+	if suggestion != "" {
+		fmt.Printf("\n%s %s\n", Info.Sprint("💡"), suggestion)
+	}
+}
+
+// HandleAppError handles an application error and displays it in a friendly way.
+func HandleAppError(err error, t *i18n.Translations) {
+	if err == nil {
+		return
+	}
+
+	var appErr *domainErrors.AppError
+	ok := errors.As(err, &appErr)
+	if !ok {
+		PrintError(os.Stdout, err.Error())
+		return
+	}
+
+	var msg, suggestion string
+
+	switch appErr.Type {
+	case domainErrors.TypeConfiguration:
+		if appErr.Err != nil && strings.Contains(appErr.Err.Error(), "API key") {
+			msg = t.GetMessage("ui_error.ai_api_key_missing_generic", 0, nil)
+		} else {
+			msg = t.GetMessage("ui_error.config_missing", 0, nil)
+		}
+		suggestion = t.GetMessage("ui_error.run_config_init", 0, nil)
+
+	case domainErrors.TypeGit:
+		if errors.Is(appErr, domainErrors.ErrNoChanges) {
+			msg = t.GetMessage("ui_error.no_changes_detected", 0, nil)
+			suggestion = t.GetMessage("ui_error.ensure_modified_files", 0, nil)
+		} else {
+			msg = appErr.Message
+		}
+
+	case domainErrors.TypeAI:
+		msg = t.GetMessage("ui.error_generating_suggestions", 0, nil)
+		suggestion = appErr.Error()
+
+	case domainErrors.TypeVCS:
+		msg = t.GetMessage("ui_error.github_token_missing", 0, nil)
+		suggestion = t.GetMessage("ui_error.run_config_init", 0, nil)
+
+	case domainErrors.TypeUpdate:
+		msg = t.GetMessage("ui_error.update_failed", 0, nil)
+
+	case domainErrors.TypeInternal:
+		msg = t.GetMessage("ui_error.internal_error", 0, nil)
+		if appErr.Err != nil {
+			suggestion = appErr.Err.Error()
+		}
+
+	default:
+		msg = appErr.Error()
+	}
+
+	if msg == "" {
+		msg = appErr.Error()
+	}
+
+	PrintErrorWithSuggestion(msg, suggestion)
 }
 
 func PrintKeyValue(key, value string) {
@@ -229,7 +295,7 @@ func ShowDiff(files []string) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("error al obtener diff: %w", err)
+		return fmt.Errorf("error getting diff: %w", err)
 	}
 
 	if len(output) > 0 {
@@ -272,7 +338,7 @@ func WithSpinnerAndDuration(message string, fn func() error) error {
 	return nil
 }
 
-// ShowDiffStats muestra estadísticas de cambios (como git diff --stat)
+// ShowDiffStats shows change statistics (like git diff --stat)
 func ShowDiffStats(files []string, headerMessage string) error {
 	cmd := exec.Command("git", append([]string{"diff", "--stat", "--staged", "--"}, files...)...)
 	output, err := cmd.CombinedOutput()
@@ -294,7 +360,7 @@ func ShowDiffStats(files []string, headerMessage string) error {
 	return nil
 }
 
-// EditCommitMessage abre un editor para que el usuario edite el mensaje
+// EditCommitMessage opens an editor for the user to edit the message
 func EditCommitMessage(initialMessage string, editorErrorMsg string) (string, error) {
 	tmpFile, err := os.CreateTemp("", "commit-msg-*.txt")
 	if err != nil {
@@ -341,14 +407,14 @@ func EditCommitMessage(initialMessage string, editorErrorMsg string) (string, er
 	return editedMessage, nil
 }
 
-// FileChange representa un archivo modificado con sus estadísticas
+// FileChange represents a modified file with its statistics
 type FileChange struct {
 	Path      string
 	Additions int
 	Deletions int
 }
 
-// ShowFilesTree muestra los archivos modificados en formato árbol
+// ShowFilesTree shows modified files in tree format
 func ShowFilesTree(files []string, headerMessage string) error {
 	if len(files) == 0 {
 		return nil
@@ -370,7 +436,7 @@ func ShowFilesTree(files []string, headerMessage string) error {
 	return nil
 }
 
-// getFileStats obtiene las estadísticas de cambios para cada archivo
+// getFileStats gets change statistics for each file
 func getFileStats(files []string) ([]FileChange, error) {
 	cmd := exec.Command("git", append([]string{"diff", "--numstat", "--staged", "--"}, files...)...)
 	output, err := cmd.CombinedOutput()
@@ -417,7 +483,7 @@ func getFileStats(files []string) ([]FileChange, error) {
 	return changes, nil
 }
 
-// treeNode representa un nodo en el árbol de archivos
+// treeNode represents a node in the file tree
 type treeNode struct {
 	name     string
 	isFile   bool
@@ -425,7 +491,7 @@ type treeNode struct {
 	children map[string]*treeNode
 }
 
-// buildFileTree construye un árbol de directorios
+// buildFileTree builds a directory tree
 func buildFileTree(changes []FileChange) *treeNode {
 	root := &treeNode{
 		name:     "",
@@ -456,7 +522,7 @@ func buildFileTree(changes []FileChange) *treeNode {
 	return root
 }
 
-// printTree imprime el árbol recursivamente
+// printTree prints the tree recursively
 func printTree(node *treeNode, prefix string, isLast bool) {
 	if node.name != "" {
 		connector := "├── "
@@ -504,7 +570,7 @@ func printTree(node *treeNode, prefix string, isLast bool) {
 	}
 }
 
-// sortFileTree ordena las claves: directorios primero, luego archivos
+// sortFileTree sorts the keys: directories first, then files
 func sortFileTree(keys []string, nodes map[string]*treeNode) {
 	for i := 0; i < len(keys); i++ {
 		for j := i + 1; j < len(keys); j++ {
@@ -522,7 +588,7 @@ func sortFileTree(keys []string, nodes map[string]*treeNode) {
 	}
 }
 
-// parseInt convierte string a int, retorna 0 si falla
+// parseInt converts string to int, returns 0 if it fails
 func parseInt(s string) int {
 	var result int
 	_, _ = fmt.Sscanf(s, "%d", &result)

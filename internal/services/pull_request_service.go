@@ -5,44 +5,66 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Tomas-vilte/MateCommit/internal/config"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/models"
-	"github.com/Tomas-vilte/MateCommit/internal/domain/ports"
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
-	"github.com/Tomas-vilte/MateCommit/internal/infrastructure/ai"
+	"github.com/thomas-vilte/matecommit/internal/config"
+	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
+	"github.com/thomas-vilte/matecommit/internal/models"
+	"github.com/thomas-vilte/matecommit/internal/ai"
 )
 
-var _ ports.PRService = (*PRService)(nil)
+// prVCSClient defines the methods needed by PRService from a VCS provider.
+type prVCSClient interface {
+	GetPR(ctx context.Context, prNumber int) (models.PRData, error)
+	GetPRIssues(ctx context.Context, branchName string, commitMessages []string, description string) ([]models.Issue, error)
+	UpdatePR(ctx context.Context, prNumber int, summary models.PRSummary) error
+}
+
+// prAIProvider defines the methods needed by PRService from an AI provider.
+type prAIProvider interface {
+	GeneratePRSummary(ctx context.Context, prompt string) (models.PRSummary, error)
+}
 
 type PRService struct {
-	vcsClient ports.VCSClient
-	aiService ports.PRSummarizer
-	trans     *i18n.Translations
+	vcsClient prVCSClient
+	aiService prAIProvider
 	config    *config.Config
 }
 
-func NewPRService(vcsClient ports.VCSClient, aiService ports.PRSummarizer, trans *i18n.Translations,
-	cfg *config.Config) *PRService {
-	return &PRService{
-		vcsClient: vcsClient,
-		aiService: aiService,
-		trans:     trans,
-		config:    cfg,
+type PROption func(*PRService)
+
+func WithPRVCSClient(vcs prVCSClient) PROption {
+	return func(s *PRService) {
+		s.vcsClient = vcs
 	}
 }
 
-func (s *PRService) SummarizePR(ctx context.Context, prNumber int, progress func(string)) (models.PRSummary, error) {
+func WithPRAIProvider(ai prAIProvider) PROption {
+	return func(s *PRService) {
+		s.aiService = ai
+	}
+}
+
+func WithPRConfig(cfg *config.Config) PROption {
+	return func(s *PRService) {
+		s.config = cfg
+	}
+}
+
+func NewPRService(opts ...PROption) *PRService {
+	s := &PRService{}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
+}
+
+func (s *PRService) SummarizePR(ctx context.Context, prNumber int, progress func(models.ProgressEvent)) (models.PRSummary, error) {
 	if s.aiService == nil {
-		msg := s.trans.GetMessage("ai_missing.ai_missing_for_pr", 0, nil)
-		return models.PRSummary{}, fmt.Errorf("%s", msg)
+		return models.PRSummary{}, domainErrors.ErrAPIKeyMissing
 	}
 
 	prData, err := s.vcsClient.GetPR(ctx, prNumber)
 	if err != nil {
-		msg := s.trans.GetMessage("pr_service.error_get_pr", 0, map[string]interface{}{
-			"Error": err,
-		})
-		return models.PRSummary{}, fmt.Errorf("%s", msg)
+		return models.PRSummary{}, domainErrors.NewAppError(domainErrors.TypeVCS, "error getting PR", err)
 	}
 
 	var commitMessages []string
@@ -58,53 +80,63 @@ func (s *PRService) SummarizePR(ctx context.Context, prNumber int, progress func
 		for i, issue := range issues {
 			issueNums[i] = fmt.Sprintf("#%d", issue.Number)
 		}
-		msg := s.trans.GetMessage("pr_detected_issues", 0, map[string]interface{}{
-			"Number": prNumber,
-			"Issues": strings.Join(issueNums, ", "),
-		})
-		progress(msg)
+
+		if progress != nil {
+			progress(models.ProgressEvent{
+				Type: models.ProgressIssuesDetected,
+				Data: map[string]interface{}{
+					"PRNumber": prNumber,
+					"Issues":   issueNums,
+				},
+			})
+		}
 	}
 
 	prompt := s.buildPRPrompt(prData)
 
 	summary, err := s.aiService.GeneratePRSummary(ctx, prompt)
 	if err != nil {
-		msg := s.trans.GetMessage("pr_service.error_create_summary_pr", 0, map[string]interface{}{
-			"Error": err,
-		})
-		return models.PRSummary{}, fmt.Errorf("%s", msg)
+		return models.PRSummary{}, domainErrors.NewAppError(domainErrors.TypeAI, "error generating PR summary", err)
 	}
 
 	if len(prData.RelatedIssues) > 0 {
 		summary = s.ensurePRIssueReferences(summary, prData.RelatedIssues)
-
-		msg := s.trans.GetMessage("pr_issues_will_close_on_merge", 0, map[string]interface{}{
-			"Count": len(prData.RelatedIssues),
-		})
-		progress(msg)
+		if progress != nil {
+			progress(models.ProgressEvent{
+				Type: models.ProgressIssuesClosing,
+				Data: map[string]interface{}{
+					"Count": len(prData.RelatedIssues),
+				},
+			})
+		}
 	}
 
 	breakingChanges := s.detectBreakingChanges(prData.Commits)
 	if len(breakingChanges) > 0 {
-		msg := s.trans.GetMessage("pr_breaking_changes_detected", 0, map[string]interface{}{
-			"Count": len(breakingChanges),
-		})
-		progress(msg)
+		if progress != nil {
+			progress(models.ProgressEvent{
+				Type: models.ProgressBreakingChanges,
+				Data: map[string]interface{}{
+					"Count": len(breakingChanges),
+				},
+			})
+		}
 		summary = s.addBreakingChangesToSummary(summary, breakingChanges)
 	}
 
 	testPlan := s.generateTestPlan(prData)
 	if testPlan != "" {
-		progress(s.trans.GetMessage("pr_test_plan_generated", 0, nil))
+		if progress != nil {
+			progress(models.ProgressEvent{
+				Type: models.ProgressTestPlan,
+			})
+		}
 		summary.Body += testPlan
 	}
 
 	err = s.vcsClient.UpdatePR(ctx, prNumber, summary)
 	if err != nil {
-		msg := s.trans.GetMessage("pr_service.error_update_pr", 0, map[string]interface{}{
-			"Error": err,
-		})
-		return models.PRSummary{}, fmt.Errorf("%s", msg)
+		return models.PRSummary{}, domainErrors.NewAppError(domainErrors.TypeVCS, "error updating PR", err)
 	}
 
 	return summary, nil
@@ -120,14 +152,10 @@ func (s *PRService) buildPRPrompt(prData models.PRData) string {
 	diffLines := strings.Count(prData.Diff, "\n")
 	filesChanged := strings.Count(prData.Diff, "diff --git")
 
-	prompt += "📊 **Métricas:**\n"
-	prompt += fmt.Sprintf("- %d commits\n", commitCount)
-	prompt += fmt.Sprintf("- %d archivos cambiados\n", filesChanged)
-	prompt += fmt.Sprintf("- ~%d líneas en diff\n\n", diffLines)
-
+	prompt += fmt.Sprintf("Stats: %d commits, %d files, ~%d lines\n\n", commitCount, filesChanged, diffLines)
 	breakingChanges := s.detectBreakingChanges(prData.Commits)
 	if len(breakingChanges) > 0 {
-		prompt += "⚠️ **Breaking Changes detectados:**\n"
+		prompt += "⚠️ Breaking Changes:\n"
 		for _, bc := range breakingChanges {
 			prompt += fmt.Sprintf("- %s\n", bc)
 		}
@@ -137,7 +165,8 @@ func (s *PRService) buildPRPrompt(prData models.PRData) string {
 	if len(prData.RelatedIssues) > 0 {
 		locale := s.config.Language
 		issuesFormatted := ai.FormatIssuesForPrompt(prData.RelatedIssues, locale)
-		issueContext := fmt.Sprintf(ai.GetPRIssueContextInstructions(locale), issuesFormatted)
+		data := ai.PromptData{RelatedIssues: issuesFormatted}
+		issueContext, _ := ai.RenderPrompt("prIssueContext", ai.GetPRIssueContextInstructions(locale), data)
 		prompt += issueContext + "\n\n"
 	}
 
@@ -147,7 +176,7 @@ func (s *PRService) buildPRPrompt(prData models.PRData) string {
 	}
 	prompt += "\n"
 
-	prompt += "Archivos principales modificados:\n"
+	prompt += "Main files modified:\n"
 	lines := strings.Split(prData.Diff, "\n")
 	fileCount := 0
 	for _, line := range lines {
@@ -230,16 +259,15 @@ func (s *PRService) generateTestPlan(prData models.PRData) string {
 	testPlan.WriteString("\n\n## Test Plan\n\n")
 
 	for _, issue := range prData.RelatedIssues {
-		testPlan.WriteString(fmt.Sprintf("- [ ] Verificar que #%d esté resuelto\n", issue.Number))
+		testPlan.WriteString(fmt.Sprintf("- [ ] Verify #%d is resolved\n", issue.Number))
 	}
 
-	testPlan.WriteString("- [ ] Ejecutar tests existentes\n")
-	testPlan.WriteString("- [ ] Verificar que no hay regresiones\n")
+	testPlan.WriteString("- [ ] Run existing tests\n")
+	testPlan.WriteString("- [ ] Verify no regressions\n")
 
 	return testPlan.String()
 }
 
-// addBreakingChangesToSummary agrega sección de breaking changes al resumen
 func (s *PRService) addBreakingChangesToSummary(summary models.PRSummary, breakingChanges []string) models.PRSummary {
 	if len(breakingChanges) == 0 {
 		return summary

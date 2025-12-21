@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,15 +17,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Tomas-vilte/MateCommit/internal/i18n"
-	"github.com/fatih/color"
 	"github.com/google/go-github/v80/github"
 	"golang.org/x/mod/semver"
+
+	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 )
 
 type VersionUpdater struct {
 	currentVersion string
-	trans          *i18n.Translations
 }
 
 type UpdateCache struct {
@@ -32,24 +32,33 @@ type UpdateCache struct {
 	LatestKnown string    `json:"latest_known"`
 }
 
-func NewVersionUpdater(version string, trans *i18n.Translations) *VersionUpdater {
-	return &VersionUpdater{
-		currentVersion: version,
-		trans:          trans,
+type VersionOption func(*VersionUpdater)
+
+func WithCurrentVersion(version string) VersionOption {
+	return func(v *VersionUpdater) {
+		v.currentVersion = version
 	}
 }
 
-func (v *VersionUpdater) CheckForUpdates(ctx context.Context) {
+func NewVersionUpdater(opts ...VersionOption) *VersionUpdater {
+	v := &VersionUpdater{}
+	for _, opt := range opts {
+		opt(v)
+	}
+	return v
+}
+
+func (v *VersionUpdater) CheckForUpdates(ctx context.Context) (string, bool) {
 	if os.Getenv("MATECOMMIT_DISABLE_UPDATE_CHECK") != "" {
-		return
+		return "", false
 	}
 
 	cache, err := v.loadCache()
 	if err == nil && time.Since(cache.LastCheck) < 24*time.Hour {
 		if cache.LatestKnown != "" && v.isUpdateAvailable(cache.LatestKnown) {
-			v.printUpdateNotification(cache.LatestKnown)
+			return cache.LatestKnown, true
 		}
-		return
+		return "", false
 	}
 
 	client := github.NewClient(nil)
@@ -58,7 +67,7 @@ func (v *VersionUpdater) CheckForUpdates(ctx context.Context) {
 
 	release, _, err := client.Repositories.GetLatestRelease(ctx, "Tomas-vilte", "MateCommit")
 	if err != nil {
-		return
+		return "", false
 	}
 
 	latestVersion := release.GetTagName()
@@ -68,24 +77,28 @@ func (v *VersionUpdater) CheckForUpdates(ctx context.Context) {
 		LatestKnown: latestVersion,
 	})
 
-	if v.isUpdateAvailable(latestVersion) {
-		v.printUpdateNotification(latestVersion)
-	}
+	return latestVersion, v.isUpdateAvailable(latestVersion)
 }
 
 func (v *VersionUpdater) UpdateCLI(ctx context.Context) error {
 	method := v.detectInstallMethod()
 
+	var err error
 	switch method {
 	case "go":
-		return v.updateViaGo(ctx)
+		err = v.updateViaGo(ctx)
 	case "brew":
-		return v.updateViaBrew(ctx)
+		err = v.updateViaBrew(ctx)
 	case "binary":
-		return v.updateViaBinary(ctx)
+		err = v.updateViaBinary(ctx)
 	default:
-		return fmt.Errorf("%s", v.trans.GetMessage("update.method_not_detected", 0, nil))
+		return domainErrors.ErrUpdateFailed
 	}
+
+	if err != nil {
+		return domainErrors.NewAppError(domainErrors.TypeUpdate, "failed to update application", err)
+	}
+	return nil
 }
 
 func (v *VersionUpdater) detectInstallMethod() string {
@@ -115,26 +128,26 @@ func (v *VersionUpdater) detectInstallMethod() string {
 
 func (v *VersionUpdater) updateViaGo(ctx context.Context) error {
 	if _, err := exec.LookPath("go"); err != nil {
-		return fmt.Errorf("%s", v.trans.GetMessage("update.go_not_found", 0, nil))
+		return domainErrors.NewAppError(domainErrors.TypeUpdate, "go command not found", err)
 	}
 
-	cmd := exec.CommandContext(ctx, "go", "install", "github.com/Tomas-vilte/MateCommit@latest")
+	cmd := exec.CommandContext(ctx, "go", "install", "github.com/thomas-vilte/matecommit@latest")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("%s: %s", v.trans.GetMessage("update.error", 0, nil), string(output))
+		return domainErrors.NewAppError(domainErrors.TypeUpdate, "go install failed", fmt.Errorf("%s", string(output)))
 	}
 	return nil
 }
 
 func (v *VersionUpdater) updateViaBrew(ctx context.Context) error {
 	if _, err := exec.LookPath("brew"); err != nil {
-		return fmt.Errorf("%s", v.trans.GetMessage("update.brew_not_found", 0, nil))
+		return domainErrors.NewAppError(domainErrors.TypeUpdate, "brew command not found", err)
 	}
 
 	cmd := exec.CommandContext(ctx, "brew", "upgrade", "matecommit")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("%s: %s", v.trans.GetMessage("update.error", 0, nil), string(output))
+		return domainErrors.NewAppError(domainErrors.TypeUpdate, "brew upgrade failed", fmt.Errorf("%s", string(output)))
 	}
 	return nil
 }
@@ -143,7 +156,7 @@ func (v *VersionUpdater) updateViaBinary(ctx context.Context) error {
 	client := github.NewClient(nil)
 	release, _, err := client.Repositories.GetLatestRelease(ctx, "Tomas-vilte", "MateCommit")
 	if err != nil {
-		return fmt.Errorf("%s", v.trans.GetMessage("update.errors.get_latest", 0, map[string]interface{}{"Error": err}))
+		return domainErrors.NewAppError(domainErrors.TypeUpdate, "failed to get latest release info", err)
 	}
 	latestVersion := release.GetTagName()
 
@@ -158,7 +171,7 @@ func (v *VersionUpdater) updateViaBinary(ctx context.Context) error {
 
 	arch, ok := archMap[goarch]
 	if !ok {
-		return fmt.Errorf("%s", v.trans.GetMessage("update.errors.arch_not_supported", 0, map[string]interface{}{"Arch": goarch}))
+		return domainErrors.NewAppError(domainErrors.TypeUpdate, fmt.Sprintf("architecture %s not supported", goarch), nil)
 	}
 
 	var assetName string
@@ -170,7 +183,7 @@ func (v *VersionUpdater) updateViaBinary(ctx context.Context) error {
 	case "windows":
 		assetName = fmt.Sprintf("matecommit_%s_windows_%s.zip", strings.TrimPrefix(latestVersion, "v"), arch)
 	default:
-		return fmt.Errorf("%s", v.trans.GetMessage("update.errors.os_not_supported", 0, map[string]interface{}{"OS": goos}))
+		return domainErrors.NewAppError(domainErrors.TypeUpdate, fmt.Sprintf("operating system %s not supported", goos), nil)
 	}
 
 	var assetURL string
@@ -182,16 +195,12 @@ func (v *VersionUpdater) updateViaBinary(ctx context.Context) error {
 	}
 
 	if assetURL == "" {
-		return fmt.Errorf("%s", v.trans.GetMessage("update.errors.binary_not_found_manual", 0, map[string]interface{}{
-			"OS":   goos,
-			"Arch": goarch,
-			"URL":  release.GetHTMLURL(),
-		}))
+		return domainErrors.NewAppError(domainErrors.TypeUpdate, "binary not found for this platform", nil)
 	}
 
 	tmpDir, err := os.MkdirTemp("", "matecommit-update-*")
 	if err != nil {
-		return fmt.Errorf("%s", v.trans.GetMessage("update.errors.create_temp", 0, map[string]interface{}{"Error": err}))
+		return domainErrors.NewAppError(domainErrors.TypeUpdate, "failed to create temporary directory", err)
 	}
 	defer func() {
 		if err := os.RemoveAll(tmpDir); err != nil {
@@ -199,13 +208,9 @@ func (v *VersionUpdater) updateViaBinary(ctx context.Context) error {
 		}
 	}()
 
-	fmt.Println(v.trans.GetMessage("update.downloading", 0, map[string]interface{}{
-		"Version": latestVersion,
-	}))
-
 	resp, err := http.Get(assetURL)
 	if err != nil {
-		return fmt.Errorf("%s", v.trans.GetMessage("update.errors.download", 0, map[string]interface{}{"Error": err}))
+		return domainErrors.NewAppError(domainErrors.TypeUpdate, "failed to download update binary", err)
 	}
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
@@ -214,22 +219,20 @@ func (v *VersionUpdater) updateViaBinary(ctx context.Context) error {
 	}()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("%s", v.trans.GetMessage("update.errors.download_http", 0, map[string]interface{}{"StatusCode": resp.StatusCode}))
+		return domainErrors.NewAppError(domainErrors.TypeUpdate, fmt.Sprintf("download failed: HTTP %d", resp.StatusCode), nil)
 	}
 
 	archivePath := filepath.Join(tmpDir, assetName)
 	archiveFile, err := os.Create(archivePath)
 	if err != nil {
-		return fmt.Errorf("%s", v.trans.GetMessage("update.errors.create_temp_file", 0, map[string]interface{}{"Error": err}))
+		return domainErrors.NewAppError(domainErrors.TypeUpdate, "failed to create temporary archive file", err)
 	}
 
 	_, err = io.Copy(archiveFile, resp.Body)
 	_ = archiveFile.Close()
 	if err != nil {
-		return fmt.Errorf("%s", v.trans.GetMessage("update.errors.save_binary", 0, map[string]interface{}{"Error": err}))
+		return domainErrors.NewAppError(domainErrors.TypeUpdate, "failed to save update binary", err)
 	}
-
-	fmt.Println(v.trans.GetMessage("update.extracting", 0, nil))
 
 	var binaryPath string
 	if strings.HasSuffix(assetName, ".tar.gz") {
@@ -237,46 +240,40 @@ func (v *VersionUpdater) updateViaBinary(ctx context.Context) error {
 	} else if strings.HasSuffix(assetName, ".zip") {
 		binaryPath, err = v.extractZip(archivePath, tmpDir)
 	} else {
-		return fmt.Errorf("%s", v.trans.GetMessage("archive_format_not_supported", 0, map[string]interface{}{"Format": assetName}))
+		return domainErrors.NewAppError(domainErrors.TypeUpdate, fmt.Sprintf("unsupported archive format: %s", assetName), nil)
 	}
 
 	if err != nil {
-		return fmt.Errorf("%s", v.trans.GetMessage("update.errors.extract", 0, map[string]interface{}{"Error": err}))
+		return domainErrors.NewAppError(domainErrors.TypeUpdate, "failed to extract archive", err)
 	}
 
 	currentExec, err := os.Executable()
 	if err != nil {
-		return fmt.Errorf("%s", v.trans.GetMessage("update.errors.get_executable", 0, map[string]interface{}{"Error": err}))
+		return domainErrors.NewAppError(domainErrors.TypeUpdate, "failed to get current executable path", err)
 	}
 
 	currentExec, err = filepath.EvalSymlinks(currentExec)
 	if err != nil {
-		return fmt.Errorf("%s", v.trans.GetMessage("update.errors.resolve_symlinks", 0, map[string]interface{}{"Error": err}))
+		return domainErrors.NewAppError(domainErrors.TypeUpdate, "failed to resolve symlinks for executable", err)
 	}
 
 	backupPath := currentExec + ".backup"
 	if err := os.Rename(currentExec, backupPath); err != nil {
-		return fmt.Errorf("%s", v.trans.GetMessage("update.errors.create_backup", 0, map[string]interface{}{"Error": err}))
+		return domainErrors.NewAppError(domainErrors.TypeUpdate, "failed to create backup of current executable", err)
 	}
-
-	fmt.Println(v.trans.GetMessage("update.installing", 0, nil))
 
 	if err := v.copyFile(binaryPath, currentExec); err != nil {
 		_ = os.Rename(backupPath, currentExec)
-		return fmt.Errorf("%s", v.trans.GetMessage("update.errors.install_binary", 0, map[string]interface{}{"Error": err}))
+		return domainErrors.NewAppError(domainErrors.TypeUpdate, "failed to install new binary", err)
 	}
 
 	if err := os.Chmod(currentExec, 0755); err != nil {
 		_ = os.Remove(currentExec)
 		_ = os.Rename(backupPath, currentExec)
-		return fmt.Errorf("%s", v.trans.GetMessage("update.error.chmod", 0, map[string]interface{}{"Error": err}))
+		return domainErrors.NewAppError(domainErrors.TypeUpdate, "failed to set executable permissions", err)
 	}
 
 	_ = os.Remove(backupPath)
-
-	fmt.Println(v.trans.GetMessage("update.success", 0, map[string]interface{}{
-		"Version": latestVersion,
-	}))
 
 	return nil
 }
@@ -295,41 +292,6 @@ func (v *VersionUpdater) isUpdateAvailable(latest string) bool {
 	}
 
 	return semver.Compare(latest, current) > 0
-}
-
-func (v *VersionUpdater) printUpdateNotification(latest string) {
-	yellow := color.New(color.FgYellow, color.Bold).SprintFunc()
-	green := color.New(color.FgGreen, color.Bold).SprintFunc()
-
-	boxTop := v.trans.GetMessage("update.box_top", 0, nil)
-	boxBottom := v.trans.GetMessage("update.box_bottom", 0, nil)
-
-	msgAvailable := v.trans.GetMessage("update.available", 0, map[string]interface{}{
-		"Current": v.currentVersion,
-		"Latest":  green(latest),
-	})
-
-	method := v.detectInstallMethod()
-	var updateCmd string
-	switch method {
-	case "brew":
-		updateCmd = green("brew upgrade matecommit")
-	case "go":
-		updateCmd = green("go install github.com/Tomas-vilte/MateCommit@latest")
-	default:
-		updateCmd = green("matecommit update")
-	}
-
-	msgCommand := v.trans.GetMessage("update.command", 0, map[string]interface{}{
-		"Command": updateCmd,
-	})
-
-	fmt.Printf("\n%s\n", yellow(boxTop))
-	fmt.Printf("%s         %s\n", yellow("│"), yellow("│"))
-	fmt.Printf("%s %s %s\n", yellow("│"), msgAvailable, yellow("│"))
-	fmt.Printf("%s %s    %s\n", yellow("│"), msgCommand, yellow("│"))
-	fmt.Printf("%s         %s\n", yellow("│"), yellow("│"))
-	fmt.Printf("%s\n\n", yellow(boxBottom))
 }
 
 func (v *VersionUpdater) getCacheDir() (string, error) {
@@ -440,7 +402,7 @@ func (v *VersionUpdater) extractTarGz(archivePath, destDir string) (string, erro
 	}
 
 	if binaryPath == "" {
-		return "", fmt.Errorf("%s", v.trans.GetMessage("binary_not_found_archive", 0, nil))
+		return "", errors.New("binary_not_found_archive")
 	}
 
 	return binaryPath, nil
@@ -497,7 +459,7 @@ func (v *VersionUpdater) extractZip(archivePath, destDir string) (string, error)
 	}
 
 	if binaryPath == "" {
-		return "", fmt.Errorf("%s", v.trans.GetMessage("binary_not_found_archive", 0, nil))
+		return "", errors.New("binary_not_found_archive")
 	}
 
 	return binaryPath, nil

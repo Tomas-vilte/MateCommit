@@ -1,270 +1,139 @@
-***
+# MateCommit CLI Reference
 
-# Guía de la CLI de MateCommit
+**Technical Manual & Usage Guide**
 
-Hola, te dejo esta guía para que le saques el jugo a la CLI de MateCommit. Acá vas a encontrar todo lo necesario para empezar a usarla y configurarla a tu gusto.
+This document serves as the authoritative reference for the MateCommit CLI. It details execution flows, configuration parameters, and internal behaviors to help you integrate the tool seamlessly into your development pipeline.
 
-## Índice
-- [Empezando](#empezando)
-- [Comandos Principales](#comandos-principales)
-   - [Sugerencias de Commits](#sugerencias-de-commits)
-   - [Configuración](#configuracion)
-   - [Idiomas](#idiomas)
-   - [Gestión de Releases](#gestion-de-releases)
-- [Ejemplos de uso](#ejemplos-de-uso)
-- [Tips y consejos](#tips-y-consejos)
+---
 
-## Empezando
+## 1. Commit Intelligence
 
-MateCommit es bastante simple. La idea es que te ayude a armar commits prolijos sin que tengas que dar muchas vueltas pensando el mensaje.
+### `suggest` / `s`
+Analyzes staged changes (`git diff --cached`) and prompts the configured AI model to generate conventional commit messages.
 
-### Instalación Básica
-
-Para arrancar, lo mejor es correr la configuración interactiva:
-
+**Command:**
 ```bash
-# Configuración interactiva completa (recomendado)
-matecommit config init
-
-# Si querés ver qué tenés configurado actualmente
-matecommit config show
+matecommit suggest [flags]
 ```
 
-### Autocompletado (Shell Completion)
+**Technical Details:**
+*   **Context Window**: The tool sends the diff summary, file names, and (optionally) linked issue context to the LLM. Large diffs are automatically truncated to fit within the model's token limit while preserving critical logic changes.
+*   **Precedence**: Flags override `config.yaml` settings. For example, passing `--lang en` overrides a global `es` configuration.
 
-Para activar el autocompletado en tu terminal (Bash o Zsh) y que la herramienta te sugiera comandos y flags, ejecutá:
+**Flags:**
+| Flag | Short | Type | Description |
+| :--- | :--- | :--- | :--- |
+| `--count` | `-n` | `int` | Quantity of suggestions to generate (1-10). |
+| `--lang` | `-l` | `string` | Output language (ISO code, e.g., `en`, `es`, `pt`). |
+| `--issue` | `-i` | `int` | Fetches issue title/description from the VCS provider to enrich AI context. |
+| `--no-emoji` | `-ne` | `bool` | Strips emojis from the suggestion output for strict convention adherence. |
 
+**Advanced Example:**
 ```bash
-matecommit completion install
+# Generate 5 suggestions, forcing English, using Issue #42 for context
+matecommit suggest -n 5 -l en -i 42 --no-emoji
 ```
 
-Esto va a detectar tu shell y agregar la configuración necesaria en tu `.bashrc` o `.zshrc`. 
-Una vez hecho esto, **reiniciá tu terminal** o ejecutá `source ~/.bashrc` (o el archivo que corresponda).
+---
 
-Ahora probá escribir `matecommit serv` y apretá `TAB`. ¡Magia! ✨
-También funciona para flags: `matecommit suggest --<TAB>`.
+## 2. Pull Request Management
 
-## Comandos Principales
+### `summarize-pr` / `spr`
+Generates a structured Summary, Test Plan, and Breaking Changes warning for an existing Pull Request.
 
-### Sugerencias de Commits
-
-El comando que más vas a usar es `suggest` (o `s` si no querés escribir tanto). Básicamente analiza tus cambios y te tira opciones.
-
+**Command:**
 ```bash
-# Generar 3 sugerencias (el default)
-matecommit suggest
-
-# Si querés más variedad (ej: 5 opciones)
-matecommit s -n 5
-
-# Si necesitás los mensajes en inglés
-matecommit s -l en
-
-# Si preferís un output limpio sin emojis en el commit
-matecommit s --no-emoji
+matecommit spr --pr-number <id>
 ```
 
-### Configuración
+**Workflow:**
+1.  **Fetch**: Retries PR metadata (commits, diffs, linked issues) via GitHub API.
+2.  **Analyze**: Uses Gemini to synthesize the changes into a cohesive narrative.
+3.  **Update**: Patches the PR body directly on GitHub.
 
-Tenés varias formas de configurar la herramienta, dependiendo de qué tanto quieras personalizar.
+**Requirements:**
+*   `GITHUB_TOKEN` must be set in your environment or config.
+*   Token scopes: `repo` (for private repos) or `public_repo` (for public).
 
-#### Setup Rápido (Para arrancar ya)
+---
 
-Si estás apurado y solo querés que ande, usá el flag `--quick`. Solo te va a pedir la API Key de Gemini.
+## 3. Issue Lifecycle
 
+### `issue generate` / `g`
+Creates a GitHub Issue using AI to format vague inputs into professional reports.
+
+**Command:**
 ```bash
-matecommit config init --quick
-# o más corto
-matecommit config init -q
+matecommit issue generate [source-flags] [options]
 ```
 
-**Lo que hace este comando:**
-- Te pide la API key de Gemini.
-- Configura el modelo recomendado (gemini-2.5-flash) por defecto.
-- Deja todo listo para usar en menos de un minuto.
+**Source Flags (Mutually Exclusive):**
+*   `--from-diff` / `-d`: Uses current staged changes as the basis for the issue (ideal for "I fixed this, now I need a ticket").
+*   `--from-pr` / `-p`: Uses a PR's title/body to create a tracking issue.
+*   `--description` / `-m`: Uses a raw text string as input.
 
-#### Setup Completo (Para tener el control total)
+**Options:**
+*   `--template` / `-t`: Target specific template keys (e.g., `bug_report`). Matches filename in `.github/ISSUE_TEMPLATE/`.
+*   `--checkout` / `-c`: Automates branch creation (`git checkout -b issue/123-title`) after generation.
+*   `--dry-run`: Prints the generated Markdown to stdout without calling the GitHub API.
 
-Si preferís revisar cada detalle, mandale el init completo. Es un wizard interactivo.
-
+**Scenario:**
+*You just hacked together a fix but didn't open a ticket.*
 ```bash
-matecommit config init --full
-# o simplemente
-matecommit config init
+git add .
+matecommit issue generate --from-diff --template bug_report --assign-me --checkout
 ```
+*Result: Creates issue, assigns you, and switches branch.*
 
-**Acá vas a poder configurar:**
+---
 
-1. **IA (Gemini):** API key y qué modelo específico querés usar (flash, pro, etc.).
-2. **Idioma:** Si querés que te hable en español o inglés por defecto.
-3. **VCS (GitHub):** Token de GitHub. Esto es clave si querés usar las funciones de resumen de PRs o releases.
-4. **Tickets (Jira):** Si usás Jira, podés configurar la URL y credenciales para que te linkee los tickets solo.
-5. **Releases:** Opciones como actualizar automáticamente el `CHANGELOG.md` (`update_changelog`).
+## 4. Release Automation
 
-#### Ver configuración actual
+### `release` / `r`
+Standardizes the release process following [Semantic Versioning](https://semver.org/).
 
-Para chequear cómo quedó todo configurado:
+**Subcommands:**
 
-```bash
-matecommit config show
-```
+#### `preview` / `p`
+Dry-run of the release. Calculates the next version (e.g., `v1.0.0` -> `v1.1.0`) based on commit history (Conventional Commits analysis) and generates the draft changelog.
 
-#### Editar configuración manualmente
+#### `create` / `c`
+Executes the release locally.
+1.  Updates `CHANGELOG.md` (prepends new entry).
+2.  Creates a git tag.
+3.  (Optional) Pushes changes.
 
-Si sos de los que prefieren tocar los archivos directamente:
+**Flags:**
+*   `--auto`: Non-interactive mode (for CI/CD scripts).
+*   `--changelog`: Forces the commit of the updated changelog file.
+*   `--publish`: Triggers `git push origin <tag>` immediately.
 
-```bash
-matecommit config edit
-```
+#### `publish` / `pub`
+Synchronizes a local tag with GitHub Releases. Creates the release entry on GitHub with the AI-generated notes.
 
-Esto te abre el archivo `config.yaml` en tu editor predeterminado.
+---
 
-#### Diagnóstico (Doctor)
+## 5. System & Config
 
-Si algo no te anda, tirá este comando para ver qué pasa:
+### `config`
+**File Location**: `~/.config/matecommit/config.yaml` (Linux) or standard OS config paths.
 
-```bash
-matecommit doctor
-```
+*   `init`: Interactive wizard.
+*   `doctor`: Connectivity check (Gemini API, GitHub API, Git binary path).
 
-Verifica que tengas conexión, que las keys sean válidas, que git esté instalado, etc.
+### `stats`
+Displays cost estimation based on token usage.
+*   **Note**: Costs are estimates based on standard Gemini pricing. Actual billing may vary.
 
-#### Cómo obtener las API Keys
+### `update`
+Self-updater using GitHub Releases. Replaces the current binary with the latest stable version.
 
-**Gemini (Requerido):**
-1. Entrá a Google AI Studio.
-2. Logueate y generá una API Key nueva.
-3. Copiala (empieza con `AIza...`).
+---
 
-**GitHub (Opcional, pero recomendado):**
-1. Andá a Settings > Developer settings > Personal access tokens > Tokens (classic).
-2. Generá un token nuevo con scope `repo` y `read:org`.
-3. Usá ese token (empieza con `ghp_...`).
+## Environment Variables
 
-**Importante:** Usá los "Classic tokens", suelen dar menos problemas de permisos que los fine-grained para este tipo de herramientas.
+MateCommit respects the following environment variables, which override config file values:
 
-### Idiomas
-
-Podés configurar el idioma base en el `config init`, pero si justo necesitás un commit en otro idioma, podés forzarlo con el flag `-l`:
-
-```bash
-matecommit s -l en  # Genera sugerencias en inglés
-matecommit s -l es  # Genera sugerencias en español
-```
-
-## Gestión de Releases
-
-MateCommit trae un gestor de releases integrado. Automatiza el versionado, genera el changelog con IA y publica en GitHub.
-
-### Comandos de Release
-
-El comando base es `release` (o `r`).
-
-#### Vista previa (Preview)
-Antes de romper nada, fijate qué cambios entrarían en el release:
-
-```bash
-matecommit release preview
-# o el alias
-matecommit r p
-```
-Te muestra la versión actual, la siguiente sugerida y un borrador de las notas.
-
-#### Generar notas
-Si solo querés el changelog en un archivo:
-
-```bash
-matecommit release generate
-# Guardar en un archivo específico
-matecommit r g -o CHANGELOG.md
-```
-
-#### Crear release (Tag local)
-Esto crea el tag de git en tu máquina.
-
-```bash
-# Con confirmación
-matecommit release create
-
-# Directo sin preguntar (útil para scripts)
-matecommit r c --auto
-
-# Crear y subir a GitHub de una
-matecommit r c --publish
-
-# Actualizar CHANGELOG.md localmente y crear release
-matecommit r c --changelog
-```
-
-**Nota sobre `--changelog`:**
-Este flag genera el contenido del changelog, actualiza tu archivo `CHANGELOG.md` local (haciendo prepend), y realiza automáticamente un `git add CHANGELOG.md` y un `git commit` antes de crear el tag. Esto asegura que el changelog actualizado sea parte de la versión liberada.
-
-Podés configurar esto para que sea el comportamiento por defecto editando tu config (`matecommit config edit`) y seteando `update_changelog: true`.
-
-#### Publicar en GitHub
-Si ya tenés el tag local y querés armar el release en GitHub:
-
-```bash
-matecommit release publish
-# Publicar como draft (para revisar antes de hacer público)
-matecommit r pub --draft
-```
-
-#### Editar release existente
-Si el release ya está creado pero querés mejorar las notas:
-
-```bash
-matecommit release edit -v v1.2.3
-# Regenerar las notas con IA
-matecommit r e -v v1.2.3 --ai
-```
-
-### Flujo de trabajo sugerido
-
-1. **Revisión:** Ejecutá `matecommit r p` para ver qué se viene.
-2. **Creación:** Si está todo ok, mandale `matecommit r c --publish`.
-3. **Drafts:** Si no estás seguro, usá el flag `--draft` al publicar para revisarlo en la web de GitHub antes de soltarlo.
-
-## Ejemplos de uso
-
-### Flujo básico
-```bash
-# 1. Pedís sugerencias
-matecommit s
-
-# Output:
-# Analizando cambios...
-# Sugerencias:
-# 1. feat: agrega soporte para múltiples idiomas
-#    Archivos: translations/es.json, translations/en.json
-#    Explicación: Agregué archivos de traducción base.
-#
-# Seleccioná una opción: 1
-# Commit creado con éxito.
-```
-
-### Integración con Jira
-Si tenés Jira configurado, la herramienta detecta el contexto y formatea el commit acorde:
-
-```bash
-matecommit s
-
-# Output:
-# feat(PROJ-123): implementa nuevo endpoint de usuarios
-```
-
-### Resumen de PR
-Si tenés el token de GitHub, podés pedir un resumen de un Pull Request:
-
-```bash
-matecommit spr -n 42
-# Output:
-# PR #42 actualizado: Implementación de repository pattern
-```
-
-## Tips y consejos
-
-1. **Usá los alias:** No escribas `matecommit suggest` cada vez. Usá `matecommit s`. Lo mismo para `r` (release) o `spr` (resumen de PR).
-2. **Feedback:** Si ninguna sugerencia te convence, seleccioná la opción 0 para generar nuevas o editar una manualmente.
-3. **Repos de Organización:** Si laburás en una organización de GitHub, acordate de usar el Personal Access Token (Classic) y autorizarlo en la organización (SSO), si no te va a tirar error de permisos.
-4. **Release rápido:** Si confiás en la herramienta, `matecommit r c --publish --auto` hace todo el trabajo sucio (tag, notas, push y release) en un solo paso.
+*   `GEMINI_API_KEY`: Google AI Studio Key.
+*   `GITHUB_TOKEN`: GitHub Personal Access Token.
+*   `MATECOMMIT_LANG`: Default language override.

@@ -1,85 +1,79 @@
-***
-# MateCommit
+<div align="center">
+  <img src="/home/enano/.gemini/antigravity/brain/8d348096-a7bc-4507-b3d1-e0ceeee5f35f/matecommit_social_preview_1766175423747.png" alt="MateCommit Logo" width="640">
 
-![Build Status](https://github.com/Tomas-vilte/MateCommit/workflows/Go%20CI/badge.svg) ![Report Card](https://goreportcard.com/badge/github.com/Tomas-vilte/MateCommit) [![codecov](https://codecov.io/gh/Tomas-vilte/MateCommit/branch/master/graph/badge.svg?token=6O798E12DC)](https://codecov.io/gh/Tomas-vilte/MateCommit)
+  # MateCommit
 
-Bienvenido a **MateCommit**. Este proyecto nació para simplificar el flujo de trabajo con Git y sacar un poco de la fricción del día a día.
+  **Effortless Git Intelligence**
 
-## ¿De qué se trata?
+  MateCommit leverage the power of Gemini AI to transform your raw code changes into meaningful, descriptive commit history. Stop struggling with naming; focus on building.
 
-Básicamente, si te da fiaca pensar nombres descriptivos para los commits o sentís que perdés tiempo en eso, esta herramienta te da una mano. Analiza los cambios que tenés en staging y te sugiere títulos coherentes usando IA, para que vos te ocupes del código (y del mate).
+  [Go Report Card](https://goreportcard.com/report/github.com/Tomas-vilte/MateCommit) | [License](https://opensource.org/licenses/MIT) | [Build Status](https://github.com/Tomas-vilte/MateCommit/actions)
 
-### Características principales
-- **Sugerencias inteligentes**: Analiza el diff y te propone mensajes de commit con sentido.
-- **Integración con GitHub**: Se lleva bien con tu flujo de trabajo actual.
-- **Motor de IA**: Funciona con Gemini y soporta varios de sus modelos (Flash, Pro, etc.).
-- **Idiomas**: Podés pedirle las sugerencias tanto en español como en inglés.
-- **Resumen de Pull Requests**: Te arma una descripción del PR basándose en todos los commits y cambios que hiciste.
-- **Gestión de Releases**: Automatiza el versionado y la generación del changelog.
+</div>
 
-## Instalación
+---
 
-Tenés dos formas de instalarlo, elegí la que te quede más cómoda.
+### Languages
+*   [Official Documentation (English)](#)
+*   [Traducción al Español (🇦🇷)](./docs/es/README.md)
 
-### Opción 1: Usando el binario (Recomendado)
+---
 
-1. **Descargá el ejecutable** desde la sección de releases para tu sistema operativo (Linux, Windows o Mac).
+## The Value Proposition
+Writing high-quality commit messages is a critical yet time-consuming task. MateCommit eliminates this friction by analyzing your `git diff` and suggesting context-aware messages that follow conventional standards.
 
-2. **Dale permisos de ejecución** (si estás en Linux o Mac):
-   ```bash
-   chmod +x matecommit-linux-amd64
-   ```
+*   **Intelligent Suggestions**: Contextual analysis of logic changes, not just file names.
+*   **Gemini Power**: Optimized for Flash 1.5 and 2.0 models for speed and accuracy.
+*   **Issue Life-cycle**: Generate GitHub issues from code, PRs, or descriptions.
+*   **Unified Releases**: Automated changelog generation, tagging, and GitHub publishing.
+*   **PR Intelligence**: Instant summaries for complex Pull Requests.
+*   **Usage Insights**: Track AI costs and usage statistics directly in your terminal.
+*   **Efficiency Tools**: Shell autocompletion, local caching, and diagnostic tools.
 
-3. **Movelo a tu PATH** para poder ejecutarlo desde cualquier lado:
-   ```bash
-   sudo mv matecommit-linux-amd64 /usr/local/bin/matecommit
-   ```
 
-4. **Configuración inicial**:
-   Corré el comando de inicialización para dejar todo listo (API keys, preferencias, etc.):
-   ```bash
-   matecommit config init
-   ```
+---
 
-### Opción 2: Desde el código fuente
+## Quick Start
 
-Si preferís compilarlo vos mismo:
+### 1. Installation
+Install the latest binary using Go:
 
-1. **Cloná el repositorio**:
-   ```bash
-   git clone https://github.com/Tomas-vilte/MateCommit.git
-   ```
+```bash
+go install github.com/Tomas-vilte/MateCommit/cmd/matecommit@latest
+```
 
-2. **Bajá las dependencias**:
-   ```bash
-   cd MateCommit
-   go mod tidy
-   ```
+### 2. Initial Setup
+Run the guided configuration to set up your API keys and preferences:
 
-3. **Compilá el binario**:
-   ```bash
-   go build -o matecommit ./cmd/main.go
-   ```
+```bash
+matecommit config init
+```
 
-## Documentación
+### 3. Usage
+Stage your files and generate suggestions:
 
-Para no hacer este README eterno, separé la guía detallada de uso en otro archivo. En [COMMANDS.md](COMMANDS.md) vas a encontrar:
+```bash
+git add .
+matecommit suggest
+```
 
-- Cómo hacer la configuración completa paso a paso.
-- Explicación de todos los comandos (`suggest`, `release`, etc.).
-- Cómo integrar la herramienta con Jira.
-- Ejemplos de output y algunos trucos.
+---
 
-## Modelos de IA
+## Advanced Features
+MateCommit is built for professional workflows, including:
 
-Actualmente la herramienta funciona con **Gemini** (Google). Probamos y soporta bien las versiones `1.5-flash`, `1.5-pro` y `2.0-flash`.
+*   **Jira Integration**: Automatic ticket linking based on branch context.
+*   **PR Summarization**: Generates standardized Pull Request bodies.
+*   **Release Automation**: Updates changelogs and pushes tags in one motion.
 
-Tengo en el roadmap integrar **GPT-4** y **Claude** más adelante para dar más opciones.
+For a full technical overview of all commands, see [COMMANDS.md](./COMMANDS.md).
 
-## Licencia
+---
 
-El código es abierto bajo licencia MIT. Fijate el archivo [LICENSE](./LICENSE) para más detalles.
+## Contributing
+We value high-quality contributions. If you are interested in improving the codebase or documentation, please review our [Contribution Guidelines](./CONTRIBUTING.md).
 
-## Contribuciones
+---
 
-Si querés sumar algo, arreglar un bug o mejorar la documentación, sos más que bienvenido. Pegale una mirada a la guía de contribución en `CONTRIBUTING.md` para ver cómo nos manejamos.
+## License
+Distributed under the MIT License. See [LICENSE](./LICENSE) for more information.
