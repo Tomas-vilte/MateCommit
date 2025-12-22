@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/fatih/color"
+	"github.com/thomas-vilte/matecommit/internal/ai"
 	"github.com/thomas-vilte/matecommit/internal/commands/cache"
 	"github.com/thomas-vilte/matecommit/internal/commands/completion"
 	"github.com/thomas-vilte/matecommit/internal/commands/config"
@@ -18,15 +20,13 @@ import (
 	"github.com/thomas-vilte/matecommit/internal/commands/suggests_commits"
 	"github.com/thomas-vilte/matecommit/internal/commands/update"
 	cfg "github.com/thomas-vilte/matecommit/internal/config"
-	"github.com/thomas-vilte/matecommit/internal/ports"
-	"github.com/thomas-vilte/matecommit/internal/i18n"
-	"github.com/thomas-vilte/matecommit/internal/ai"
 	"github.com/thomas-vilte/matecommit/internal/git"
+	"github.com/thomas-vilte/matecommit/internal/i18n"
+	"github.com/thomas-vilte/matecommit/internal/ports"
 	"github.com/thomas-vilte/matecommit/internal/providers"
 	"github.com/thomas-vilte/matecommit/internal/services"
 	"github.com/thomas-vilte/matecommit/internal/ui"
 	"github.com/thomas-vilte/matecommit/internal/version"
-	"github.com/fatih/color"
 	"github.com/urfave/cli/v3"
 )
 
