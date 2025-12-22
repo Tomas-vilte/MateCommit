@@ -335,6 +335,7 @@ files_changed = "Archivos modificados"
 insertions = "Líneas agregadas"
 deletions = "Líneas eliminadas"
 warning_enrich_context = "No se pudo enriquecer el contexto del release: {Error}"
+error_invalid_branch = "❌ Error: Must be on 'main' or 'master' branch to create releases. {{.Error}}"
 
 # Preview
 preview_usage = "Ver vista previa del siguiente release sin crearlo"
