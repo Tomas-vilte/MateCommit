@@ -39,6 +39,8 @@ func (d *DoctorCommand) runHealthCheck(ctx context.Context, t *i18n.Translations
 		{name: "doctor.check_config_file", fn: d.checkConfigFile},
 		{name: "doctor.check_git_repo", fn: d.checkGitRepo},
 		{name: "doctor.check_git_installed", fn: d.checkGitInstalled},
+		{name: "doctor.check_git_user_name", fn: d.checkGitUserName},
+		{name: "doctor.check_git_user_email", fn: d.checkGitUserEmail},
 		{name: "doctor.check_gemini_key", fn: func(ctx context.Context, t *i18n.Translations, cfg *config.Config) checkResult {
 			return d.checkGeminiAPIKey(ctx, t, cfg)
 		}},
@@ -288,4 +290,41 @@ func (d *DoctorCommand) printCommandStatus(command string, available bool, t *i1
 	}
 
 	fmt.Printf("  %s matecommit %-15s %s\n", status, command, statusMsg)
+}
+
+func (d *DoctorCommand) checkGitUserName(ctx context.Context, t *i18n.Translations, _ *config.Config) checkResult {
+	cmd := exec.CommandContext(ctx, "git", "config", "user.name")
+	output, err := cmd.Output()
+	userName := strings.TrimSpace(string(output))
+
+	if err != nil || userName == "" {
+		return checkResult{
+			status:     checkStatusError,
+			message:    t.GetMessage("doctor.git_user_not_set", 0, nil),
+			suggestion: "git config --global user.name \"Your name\"",
+		}
+	}
+
+	return checkResult{
+		status:  checkStatusOK,
+		message: fmt.Sprintf("(%s)", userName),
+	}
+}
+func (d *DoctorCommand) checkGitUserEmail(ctx context.Context, t *i18n.Translations, _ *config.Config) checkResult {
+	cmd := exec.CommandContext(ctx, "git", "config", "user.email")
+	output, err := cmd.Output()
+	userEmail := strings.TrimSpace(string(output))
+
+	if err != nil || userEmail == "" {
+		return checkResult{
+			status:     checkStatusError,
+			message:    t.GetMessage("doctor.git_email_not_set", 0, nil),
+			suggestion: "git config --global user.email \"your@email.com\"",
+		}
+	}
+
+	return checkResult{
+		status:  checkStatusOK,
+		message: fmt.Sprintf("(%s)", userEmail),
+	}
 }

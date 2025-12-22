@@ -89,8 +89,26 @@ func (s *GitService) CreateCommit(ctx context.Context, message string) error {
 	}
 
 	cmd := exec.CommandContext(ctx, "git", "commit", "-m", message)
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("%w: %v", errors.ErrCreateCommit, err)
+		stderrStr := strings.TrimSpace(stderr.String())
+
+		if strings.Contains(stderrStr, "Please tell me who you are") ||
+			(strings.Contains(stderrStr, "user.name")) &&
+				strings.Contains(stderrStr, "user.email") {
+			return errors.ErrGitUserNotConfigured
+		}
+		if strings.Contains(stderrStr, "user.name") {
+			return errors.ErrGitUserNotConfigured
+		}
+		if strings.Contains(stderrStr, "user.email") {
+			return errors.ErrGitEmailNotConfigured
+		}
+
+		fullErr := fmt.Sprintf("%v: %s", err, stderrStr)
+		return fmt.Errorf("%w: %s", errors.ErrCreateCommit, fullErr)
 	}
 	return nil
 }
@@ -278,6 +296,47 @@ func (s *GitService) GetTagDate(ctx context.Context, tag string) (string, error)
 	}
 
 	return dateStr, nil
+}
+
+// ValidateGitConfig checks if git user.name and user.email are configured
+func (s *GitService) ValidateGitConfig(ctx context.Context) error {
+	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--git-dir")
+	if err := cmd.Run(); err != nil {
+		return errors.ErrNotInGitRepo
+	}
+
+	cmd = exec.CommandContext(ctx, "git", "config", "user.name")
+	output, err := cmd.Output()
+	if err != nil || strings.TrimSpace(string(output)) == "" {
+		return errors.ErrGitUserNotConfigured
+	}
+
+	cmd = exec.CommandContext(ctx, "git", "config", "user.email")
+	output, err = cmd.Output()
+	if err != nil || strings.TrimSpace(string(output)) == "" {
+		return errors.ErrGitEmailNotConfigured
+	}
+	return nil
+}
+
+// GetGitUserName returns the configured git user.name
+func (s *GitService) GetGitUserName(ctx context.Context) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", "config", "user.name")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
+// GetGitUserEmail returns the configured git user.email
+func (s *GitService) GetGitUserEmail(ctx context.Context) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", "config", "user.email")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(output)), nil
 }
 
 func parseRepoURL(url string) (string, string, string, error) {

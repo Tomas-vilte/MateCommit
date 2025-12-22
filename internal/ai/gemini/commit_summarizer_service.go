@@ -7,11 +7,11 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/thomas-vilte/matecommit/internal/ai"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ports"
-	"github.com/thomas-vilte/matecommit/internal/ai"
 	"google.golang.org/genai"
 )
 
@@ -274,16 +274,20 @@ func formatCriteria(criteria []string) string {
 	return strings.Join(formattedCriteria, "\n")
 }
 
-// formatResponse formats the Gemini API response into a string.
+// formatResponse formats the Gemini API response into a string, filtering out thinking parts.
 func formatResponse(resp *genai.GenerateContentResponse) string {
 	if resp == nil || len(resp.Candidates) == 0 {
 		return ""
 	}
-
 	var formattedContent strings.Builder
 	for _, cand := range resp.Candidates {
 		if cand.Content != nil {
 			for _, part := range cand.Content.Parts {
+				// Skip thinking parts - only get actual content
+				if part.Thought {
+					// This is a thinking part, skip it
+					continue
+				}
 				if part.Text != "" {
 					formattedContent.WriteString(part.Text)
 				}

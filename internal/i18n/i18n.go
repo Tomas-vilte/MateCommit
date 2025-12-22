@@ -4,6 +4,7 @@ import (
 	"embed"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
@@ -43,7 +44,7 @@ func NewTranslations(defaultLang string, localesPath string) (*Translations, err
 	for _, file := range files {
 		var data []byte
 		if localesPath == "" {
-			data, err = localesFS.ReadFile(filepath.Join("locales", file.Name()))
+			data, err = localesFS.ReadFile(path.Join("locales", file.Name()))
 		} else {
 			data, err = os.ReadFile(filepath.Join(localesPath, file.Name()))
 		}

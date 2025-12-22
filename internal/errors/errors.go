@@ -59,6 +59,13 @@ var (
 	ErrNoDiff          = NewAppError(TypeGit, "no differences detected", nil)
 )
 
+// Git configuration errors
+var (
+	ErrGitUserNotConfigured  = NewAppError(TypeGit, "git user.name not configured", nil)
+	ErrGitEmailNotConfigured = NewAppError(TypeGit, "git user.email not configured", nil)
+	ErrNotInGitRepo          = NewAppError(TypeGit, "not in a git repository", nil)
+)
+
 // Configuration errors
 var (
 	ErrAPIKeyMissing = NewAppError(TypeConfiguration, "AI API key is missing", nil)
@@ -76,11 +83,24 @@ var (
 	ErrUploadAsset        = NewAppError(TypeVCS, "failed to upload release asset", nil)
 )
 
+// GitHub/VCS specific errors
+var (
+	ErrGitHubTokenInvalid      = NewAppError(TypeVCS, "GitHub token is invalid or expired", nil)
+	ErrGitHubInsufficientPerms = NewAppError(TypeVCS, "GitHub token has insufficient permissions", nil)
+	ErrGitHubRateLimit         = NewAppError(TypeVCS, "GitHub API rate limit exceeded", nil)
+)
+
 // AI errors
 var (
 	ErrQuotaExceeded   = NewAppError(TypeAI, "AI quota exceeded or rate limited", nil)
 	ErrAIGeneration    = NewAppError(TypeAI, "AI generation failed", nil)
 	ErrInvalidAIOutput = NewAppError(TypeAI, "invalid AI output format", nil)
+)
+
+// Gemini/AI specific errors
+var (
+	ErrGeminiAPIKeyInvalid = NewAppError(TypeAI, "Gemini API key is invalid", nil)
+	ErrGeminiQuotaExceeded = NewAppError(TypeAI, "Gemini API quota exceeded", nil)
 )
 
 // Internal errors
@@ -93,7 +113,6 @@ var (
 var (
 	ErrUpdateFailed = NewAppError(TypeUpdate, "failed to update application", nil)
 )
-
 var (
 	ErrBuildNoVersion  = NewAppError(TypeInternal, "build version not specified", nil)
 	ErrBuildNoCommit   = NewAppError(TypeInternal, "build commit not specified", nil)

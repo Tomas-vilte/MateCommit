@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/thomas-vilte/matecommit/internal/cache"
 	"github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ports"
-	"github.com/thomas-vilte/matecommit/internal/cache"
-	cost2 "github.com/thomas-vilte/matecommit/internal/services/cost"
+	"github.com/thomas-vilte/matecommit/internal/services/cost"
 	"github.com/thomas-vilte/matecommit/internal/services/routing"
 )
 
@@ -29,8 +29,8 @@ type ConfirmationResult struct {
 
 type CostAwareWrapper struct {
 	provider              ports.CostAwareAIProvider
-	calculator            *cost2.Calculator
-	manager               *cost2.Manager
+	calculator            *cost.Calculator
+	manager               *cost.Manager
 	cache                 *cache.Cache
 	modelSelector         *routing.ModelSelector
 	estimatedOutputTokens int
@@ -48,7 +48,7 @@ type WrapperConfig struct {
 
 // NewCostAwareWrapper creates a provider-agnostic wrapper
 func NewCostAwareWrapper(cfg WrapperConfig) (*CostAwareWrapper, error) {
-	manager, err := cost2.NewManager(cfg.BudgetDaily)
+	manager, err := cost.NewManager(cfg.BudgetDaily)
 	if err != nil {
 		return nil, fmt.Errorf("error creating cost manager: %w", err)
 	}
@@ -60,7 +60,7 @@ func NewCostAwareWrapper(cfg WrapperConfig) (*CostAwareWrapper, error) {
 
 	return &CostAwareWrapper{
 		provider:              cfg.Provider,
-		calculator:            cost2.NewCalculator(),
+		calculator:            cost.NewCalculator(),
 		manager:               manager,
 		cache:                 cacheService,
 		modelSelector:         routing.NewModelSelector(),
@@ -159,7 +159,7 @@ func (w *CostAwareWrapper) WrapGenerate(
 		usage.DurationMs = time.Since(startTime).Milliseconds()
 		usage.CacheHit = false
 
-		_ = w.manager.SaveActivity(cost2.ActivityRecord{
+		_ = w.manager.SaveActivity(cost.ActivityRecord{
 			Timestamp:    time.Now(),
 			Command:      command,
 			Provider:     providerName,

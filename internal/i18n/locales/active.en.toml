@@ -101,7 +101,7 @@ explanation_prefix = "💡"
 select_option_prompt = "\nSelect an option:"
 option_commit = "1-N: Use the corresponding suggestion"
 option_exit = "0: Exit without committing"
-error_creating_commit = "❌ Error creating the commit: {{.Error}}"
+error_creating_commit = "Error creating the commit: {{.Error}}"
 factory_already_registered = "❌ The factory with the name '{{.FactoryName}}' is already registered"
 ask_update_issue_criteria = "💡 AI identified {{.Count}} criteria completed in issue #{{.Number}}. Do you want to update the issue?"
 updating_issue = "Updating GitHub issue..."
@@ -462,6 +462,28 @@ ensure_modified_files = "Make sure you have modified files before generating sug
 run_config_init = "Run: matecommit config init"
 internal_error = "Internal system error"
 error_saving_config = "Error saving configuration"
+git_user_not_configured = "Git user.name is not configured"
+git_email_not_configured = "Git user.email is not configured"
+git_config_user_suggestion = "Run: git config --global user.name \"Your Name\""
+git_config_email_suggestion = "Run: git config --global user.email \"your@email.com\""
+not_in_git_repo = "You are not in a Git repository"
+git_init_suggestion = "Run 'git init' to create a new repository or navigate to an existing one"
+
+# GitHub/VCS Errors
+github_token_invalid = "GitHub token is invalid or expired"
+github_token_suggestion = "Check your token at: matecommit config init"
+github_insufficient_perms = "GitHub token has insufficient permissions"
+github_perms_suggestion = "Ensure your token has the scopes: repo, write:org"
+github_rate_limit = "GitHub API rate limit exceeded"
+github_rate_limit_suggestion = "Wait a few minutes before trying again"
+vcs_error = "VCS provider error"
+
+# Gemini/AI Errors
+gemini_api_key_invalid = "Gemini API key is invalid"
+gemini_api_key_suggestion = "Check your API key at: https://makersuite.google.com/app/apikey"
+gemini_quota_exceeded = "Gemini API quota exceeded"
+gemini_quota_suggestion = "Wait a few minutes or consider using a cheaper model"
+update_failed = "Failed to update application"
 
 # UI - Preview and confirmations
 [ui_preview]
@@ -516,6 +538,8 @@ has_errors = "Incomplete setup (errors found)"
 available_commands = "Available commands:"
 command_ready = "(ready)"
 command_unavailable = "(unavailable)"
+git_user_not_set = "Git user.name is not configured"
+git_email_not_set = "Git user.email is not configured"
 
 # Checks
 check_config_file = "Configuration file"
@@ -525,6 +549,8 @@ check_ai_key = "{{.Provider}} API key"
 check_ai_key_generic = "AI provider API key"
 check_github_token = "GitHub token"
 check_editor = "Editor configured"
+check_git_user_name = "Checking Git user.name"
+check_git_user_email = "Checking Git user.email"
 
 gemini_key_invalid = "Invalid Gemini API key or no permissions"
 gemini_not_configured = "Gemini API key not configured"

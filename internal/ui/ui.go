@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
-	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/briandowns/spinner"
 	"github.com/fatih/color"
+	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
+	"github.com/thomas-vilte/matecommit/internal/i18n"
 )
 
 var (
@@ -230,32 +230,59 @@ func HandleAppError(err error, t *i18n.Translations) {
 			msg = t.GetMessage("ui_error.config_missing", 0, nil)
 		}
 		suggestion = t.GetMessage("ui_error.run_config_init", 0, nil)
-
 	case domainErrors.TypeGit:
 		if errors.Is(appErr, domainErrors.ErrNoChanges) {
 			msg = t.GetMessage("ui_error.no_changes_detected", 0, nil)
 			suggestion = t.GetMessage("ui_error.ensure_modified_files", 0, nil)
+		} else if errors.Is(appErr, domainErrors.ErrGitUserNotConfigured) {
+			msg = t.GetMessage("ui_error.git_user_not_configured", 0, nil)
+			suggestion = t.GetMessage("ui_error.git_config_user_suggestion", 0, nil)
+		} else if errors.Is(appErr, domainErrors.ErrGitEmailNotConfigured) {
+			msg = t.GetMessage("ui_error.git_email_not_configured", 0, nil)
+			suggestion = t.GetMessage("ui_error.git_config_email_suggestion", 0, nil)
+		} else if errors.Is(appErr, domainErrors.ErrNotInGitRepo) {
+			msg = t.GetMessage("ui_error.not_in_git_repo", 0, nil)
+			suggestion = t.GetMessage("ui_error.git_init_suggestion", 0, nil)
 		} else {
 			msg = appErr.Message
+			if appErr.Err != nil {
+				suggestion = appErr.Err.Error()
+			}
 		}
-
 	case domainErrors.TypeAI:
-		msg = t.GetMessage("ui.error_generating_suggestions", 0, nil)
-		suggestion = appErr.Error()
-
+		if errors.Is(appErr, domainErrors.ErrGeminiAPIKeyInvalid) {
+			msg = t.GetMessage("ui_error.gemini_api_key_invalid", 0, nil)
+			suggestion = t.GetMessage("ui_error.gemini_api_key_suggestion", 0, nil)
+		} else if errors.Is(appErr, domainErrors.ErrGeminiQuotaExceeded) {
+			msg = t.GetMessage("ui_error.gemini_quota_exceeded", 0, nil)
+			suggestion = t.GetMessage("ui_error.gemini_quota_suggestion", 0, nil)
+		} else {
+			msg = t.GetMessage("ui.error_generating_suggestions", 0, nil)
+			if appErr.Err != nil {
+				suggestion = appErr.Err.Error()
+			}
+		}
 	case domainErrors.TypeVCS:
-		msg = t.GetMessage("ui_error.github_token_missing", 0, nil)
-		suggestion = t.GetMessage("ui_error.run_config_init", 0, nil)
-
+		if errors.Is(appErr, domainErrors.ErrGitHubTokenInvalid) {
+			msg = t.GetMessage("ui_error.github_token_invalid", 0, nil)
+			suggestion = t.GetMessage("ui_error.github_token_suggestion", 0, nil)
+		} else if errors.Is(appErr, domainErrors.ErrGitHubInsufficientPerms) {
+			msg = t.GetMessage("ui_error.github_insufficient_perms", 0, nil)
+			suggestion = t.GetMessage("ui_error.github_perms_suggestion", 0, nil)
+		} else if errors.Is(appErr, domainErrors.ErrGitHubRateLimit) {
+			msg = t.GetMessage("ui_error.github_rate_limit", 0, nil)
+			suggestion = t.GetMessage("ui_error.github_rate_limit_suggestion", 0, nil)
+		} else {
+			msg = t.GetMessage("ui_error.vcs_error", 0, nil)
+			suggestion = t.GetMessage("ui_error.run_config_init", 0, nil)
+		}
 	case domainErrors.TypeUpdate:
 		msg = t.GetMessage("ui_error.update_failed", 0, nil)
-
 	case domainErrors.TypeInternal:
 		msg = t.GetMessage("ui_error.internal_error", 0, nil)
 		if appErr.Err != nil {
 			suggestion = appErr.Err.Error()
 		}
-
 	default:
 		msg = appErr.Error()
 	}
