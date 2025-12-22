@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/thomas-vilte/matecommit/internal/config"
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
+	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"gopkg.in/yaml.v3"
 )
@@ -32,9 +34,10 @@ func NewIssueTemplateService(opts ...IssueOption) *IssueTemplateService {
 	return s
 }
 
-func (s *IssueTemplateService) GetTemplatesDir() (string, error) {
+func (s *IssueTemplateService) GetTemplatesDir(ctx context.Context) (string, error) {
 	cwd, err := os.Getwd()
 	if err != nil {
+		logger.Error(ctx, "failed to get current working directory", err)
 		return "", domainErrors.NewAppError(domainErrors.TypeInternal, "failed to get current working directory", err)
 	}
 
@@ -50,21 +53,24 @@ func (s *IssueTemplateService) GetTemplatesDir() (string, error) {
 		templatesDir = filepath.Join(cwd, ".github", "ISSUE_TEMPLATE")
 	}
 
+	logger.Debug(ctx, "identified templates directory", "provider", provider, "path", templatesDir)
 	return templatesDir, nil
 }
 
-func (s *IssueTemplateService) ListTemplates() ([]models.TemplateMetadata, error) {
-	templatesDir, err := s.GetTemplatesDir()
+func (s *IssueTemplateService) ListTemplates(ctx context.Context) ([]models.TemplateMetadata, error) {
+	templatesDir, err := s.GetTemplatesDir(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
+		logger.Debug(ctx, "templates directory does not exist, returning empty list", "path", templatesDir)
 		return []models.TemplateMetadata{}, nil
 	}
 
 	entries, err := os.ReadDir(templatesDir)
 	if err != nil {
+		logger.Error(ctx, "failed to read templates directory", err, "path", templatesDir)
 		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, "failed to read templates directory", err)
 	}
 
@@ -75,8 +81,9 @@ func (s *IssueTemplateService) ListTemplates() ([]models.TemplateMetadata, error
 		}
 
 		filePath := filepath.Join(templatesDir, entry.Name())
-		template, err := s.LoadTemplate(filePath)
+		template, err := s.LoadTemplate(ctx, filePath)
 		if err != nil {
+			logger.Warn(ctx, "skipping invalid template", "path", filePath, "error", err)
 			continue
 		}
 
@@ -87,32 +94,35 @@ func (s *IssueTemplateService) ListTemplates() ([]models.TemplateMetadata, error
 		})
 	}
 
+	logger.Debug(ctx, "listed templates", "count", len(templates))
 	return templates, nil
 }
 
-func (s *IssueTemplateService) LoadTemplate(filePath string) (*models.IssueTemplate, error) {
+func (s *IssueTemplateService) LoadTemplate(ctx context.Context, filePath string) (*models.IssueTemplate, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
+		logger.Error(ctx, "failed to read template file", err, "path", filePath)
 		return nil, domainErrors.NewAppError(domainErrors.TypeConfiguration, fmt.Sprintf("failed to read template file: %s", filePath), err)
 	}
-	return s.parseTemplate(string(content), filePath)
+	return s.parseTemplate(ctx, string(content), filePath)
 }
 
-func (s *IssueTemplateService) parseTemplate(content string, filePath string) (*models.IssueTemplate, error) {
+func (s *IssueTemplateService) parseTemplate(ctx context.Context, content string, filePath string) (*models.IssueTemplate, error) {
 	template := &models.IssueTemplate{
 		FilePath: filePath,
 	}
 
-	// For .yml files, we parse all content directly as YAML
 	if err := yaml.Unmarshal([]byte(content), template); err != nil {
+		logger.Error(ctx, "failed to parse YAML template", err, "path", filePath)
 		return nil, domainErrors.NewAppError(domainErrors.TypeConfiguration, fmt.Sprintf("failed to parse YAML template: %s", filePath), err)
 	}
 
+	logger.Debug(ctx, "successfully loaded/parsed template", "name", template.Name, "path", filePath)
 	return template, nil
 }
 
-func (s *IssueTemplateService) GetTemplateByName(name string) (*models.IssueTemplate, error) {
-	templatesDir, err := s.GetTemplatesDir()
+func (s *IssueTemplateService) GetTemplateByName(ctx context.Context, name string) (*models.IssueTemplate, error) {
+	templatesDir, err := s.GetTemplatesDir(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -125,20 +135,22 @@ func (s *IssueTemplateService) GetTemplateByName(name string) (*models.IssueTemp
 
 	for _, path := range possiblePaths {
 		if _, err := os.Stat(path); err == nil {
-			return s.LoadTemplate(path)
+			return s.LoadTemplate(ctx, path)
 		}
 	}
 
+	logger.Warn(ctx, "template not found by name", "name", name, "searched_paths", possiblePaths)
 	return nil, domainErrors.NewAppError(domainErrors.TypeConfiguration, fmt.Sprintf("template '%s' not found", name), nil)
 }
 
-func (s *IssueTemplateService) InitializeTemplates(force bool) error {
-	templatesDir, err := s.GetTemplatesDir()
+func (s *IssueTemplateService) InitializeTemplates(ctx context.Context, force bool) error {
+	templatesDir, err := s.GetTemplatesDir(ctx)
 	if err != nil {
 		return err
 	}
 
 	if err := os.MkdirAll(templatesDir, 0755); err != nil {
+		logger.Error(ctx, "failed to create templates directory", err, "path", templatesDir)
 		return domainErrors.NewAppError(domainErrors.TypeInternal, "failed to create templates directory", err)
 	}
 
@@ -155,16 +167,20 @@ func (s *IssueTemplateService) InitializeTemplates(force bool) error {
 		filePath := filepath.Join(templatesDir, filename)
 
 		if _, err := os.Stat(filePath); err == nil && !force {
+			logger.Debug(ctx, "template already exists, skipping", "path", filePath)
 			skipped++
 			continue
 		}
 
 		if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+			logger.Error(ctx, "failed to write template file during initialization", err, "path", filePath)
 			return domainErrors.NewAppError(domainErrors.TypeInternal, fmt.Sprintf("failed to write template: %s", filePath), err)
 		}
+		logger.Info(ctx, "successfully created template", "path", filePath)
 		created++
 	}
 
+	logger.Info(ctx, "template initialization complete", "created", created, "skipped", skipped)
 	if created == 0 && skipped > 0 {
 		return domainErrors.NewAppError(domainErrors.TypeConfiguration, "templates_already_exist", nil)
 	}

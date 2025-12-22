@@ -8,6 +8,7 @@ import (
 	"github.com/thomas-vilte/matecommit/internal/ai"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
+	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
 )
 
@@ -58,14 +59,29 @@ func NewPRService(opts ...PROption) *PRService {
 }
 
 func (s *PRService) SummarizePR(ctx context.Context, prNumber int, progress func(models.ProgressEvent)) (models.PRSummary, error) {
+	log := logger.FromContext(ctx)
+
+	log.Info("summarizing PR",
+		"pr_number", prNumber)
+
 	if s.aiService == nil {
+		log.Error("AI service not configured")
 		return models.PRSummary{}, domainErrors.ErrAPIKeyMissing
 	}
 
 	prData, err := s.vcsClient.GetPR(ctx, prNumber)
 	if err != nil {
+		log.Error("failed to get PR data",
+			"error", err,
+			"pr_number", prNumber)
 		return models.PRSummary{}, domainErrors.NewAppError(domainErrors.TypeVCS, "error getting PR", err)
 	}
+
+	log.Debug("PR data fetched",
+		"pr_number", prNumber,
+		"title", prData.Title,
+		"commits_count", len(prData.Commits),
+		"diff_size", len(prData.Diff))
 
 	var commitMessages []string
 	for _, commit := range prData.Commits {
@@ -75,6 +91,10 @@ func (s *PRService) SummarizePR(ctx context.Context, prNumber int, progress func
 	issues, err := s.vcsClient.GetPRIssues(ctx, prData.BranchName, commitMessages, prData.Description)
 	if err == nil && len(issues) > 0 {
 		prData.RelatedIssues = issues
+
+		log.Debug("issues detected in PR",
+			"pr_number", prNumber,
+			"issues_count", len(issues))
 
 		issueNums := make([]string, len(issues))
 		for i, issue := range issues {
@@ -92,10 +112,19 @@ func (s *PRService) SummarizePR(ctx context.Context, prNumber int, progress func
 		}
 	}
 
+	log.Debug("building PR prompt",
+		"has_issues", len(prData.RelatedIssues) > 0)
+
 	prompt := s.buildPRPrompt(prData)
+
+	log.Debug("calling AI for PR summary generation",
+		"pr_number", prNumber)
 
 	summary, err := s.aiService.GeneratePRSummary(ctx, prompt)
 	if err != nil {
+		log.Error("failed to generate PR summary",
+			"error", err,
+			"pr_number", prNumber)
 		return models.PRSummary{}, domainErrors.NewAppError(domainErrors.TypeAI, "error generating PR summary", err)
 	}
 
@@ -134,10 +163,20 @@ func (s *PRService) SummarizePR(ctx context.Context, prNumber int, progress func
 		summary.Body += testPlan
 	}
 
+	log.Info("updating PR with summary",
+		"pr_number", prNumber,
+		"labels_count", len(summary.Labels))
+
 	err = s.vcsClient.UpdatePR(ctx, prNumber, summary)
 	if err != nil {
+		log.Error("failed to update PR",
+			"error", err,
+			"pr_number", prNumber)
 		return models.PRSummary{}, domainErrors.NewAppError(domainErrors.TypeVCS, "error updating PR", err)
 	}
+
+	log.Info("PR summarized and updated successfully",
+		"pr_number", prNumber)
 
 	return summary, nil
 }

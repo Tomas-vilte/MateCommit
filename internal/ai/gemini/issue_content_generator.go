@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/thomas-vilte/matecommit/internal/ai"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
+	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ports"
-	"github.com/thomas-vilte/matecommit/internal/ai"
 	"google.golang.org/genai"
 )
 
@@ -79,10 +80,23 @@ func (s *GeminiIssueContentGenerator) defaultGenerate(ctx context.Context, mName
 
 // GenerateIssueContent generates issue content using Gemini AI.
 func (s *GeminiIssueContentGenerator) GenerateIssueContent(ctx context.Context, request models.IssueGenerationRequest) (*models.IssueGenerationResult, error) {
+	log := logger.FromContext(ctx)
+
+	log.Info("generating issue content via gemini",
+		"has_diff", request.Diff != "",
+		"has_description", request.Description != "",
+		"has_hint", request.Hint != "",
+		"files_count", len(request.ChangedFiles))
+
 	prompt := s.buildIssuePrompt(request)
+
+	log.Debug("calling gemini API for issue content",
+		"prompt_length", len(prompt))
 
 	resp, usage, err := s.wrapper.WrapGenerate(ctx, "generate-issue", prompt, s.generateFn)
 	if err != nil {
+		log.Error("failed to generate issue content",
+			"error", err)
 		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error generating issue content", err)
 	}
 
@@ -94,15 +108,25 @@ func (s *GeminiIssueContentGenerator) GenerateIssueContent(ctx context.Context, 
 	}
 
 	if responseText == "" {
+		log.Error("empty response from gemini AI")
 		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "empty response from AI", nil)
 	}
 
+	log.Debug("gemini response received",
+		"response_length", len(responseText))
+
 	result, err := s.parseIssueResponse(responseText)
 	if err != nil {
+		log.Error("failed to parse issue response",
+			"error", err)
 		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error parsing AI response", err)
 	}
 
 	result.Usage = usage
+
+	log.Info("issue content generated successfully via gemini",
+		"title", result.Title,
+		"labels_count", len(result.Labels))
 
 	return result, nil
 }

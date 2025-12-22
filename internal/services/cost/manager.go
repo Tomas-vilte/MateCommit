@@ -3,6 +3,7 @@ package cost
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -55,6 +56,15 @@ func NewManager(budgetDaily float64) (*Manager, error) {
 
 // SaveActivity saves an activity record
 func (m *Manager) SaveActivity(record ActivityRecord) error {
+	slog.Debug("saving activity record",
+		"command", record.Command,
+		"provider", record.Provider,
+		"model", record.Model,
+		"tokens_input", record.TokensInput,
+		"tokens_output", record.TokensOutput,
+		"cost_usd", record.CostUSD,
+		"cache_hit", record.CacheHit)
+
 	records, err := m.loadHistory()
 	if err != nil {
 		records = []ActivityRecord{}
@@ -64,24 +74,39 @@ func (m *Manager) SaveActivity(record ActivityRecord) error {
 
 	data, err := json.MarshalIndent(records, "", "  ")
 	if err != nil {
+		slog.Error("failed to serialize activity history",
+			"error", err)
 		return fmt.Errorf("error serializing history: %w", err)
 	}
 
 	if err := os.WriteFile(m.historyPath, data, 0644); err != nil {
+		slog.Error("failed to write activity history",
+			"path", m.historyPath,
+			"error", err)
 		return fmt.Errorf("error saving history: %w", err)
 	}
+
+	slog.Debug("activity record saved successfully",
+		"total_records", len(records))
 
 	return nil
 }
 
 // CheckBudget checks if the estimated cost exceeds the daily budget
 func (m *Manager) CheckBudget(estimatedCost float64) (*BudgetStatus, error) {
+	slog.Debug("checking budget",
+		"estimated_cost", estimatedCost,
+		"budget_daily", m.budgetDaily)
+
 	if m.budgetDaily <= 0 {
+		slog.Debug("no budget limit configured")
 		return &BudgetStatus{}, nil
 	}
 
 	todayTotal, err := m.GetDailyTotal()
 	if err != nil {
+		slog.Error("failed to get daily total",
+			"error", err)
 		return nil, err
 	}
 
@@ -106,6 +131,13 @@ func (m *Manager) CheckBudget(estimatedCost float64) (*BudgetStatus, error) {
 		status.IsWarning = true
 		status.WarningLevel = 50
 	}
+
+	slog.Info("budget check completed",
+		"today_total", todayTotal,
+		"estimated_cost", estimatedCost,
+		"percent_used", percentUsed,
+		"is_exceeded", status.IsExceeded,
+		"is_warning", status.IsWarning)
 
 	return status, nil
 }
