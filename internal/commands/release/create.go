@@ -86,6 +86,13 @@ func createReleaseAction(releaseSvc releaseService, trans *i18n.Translations, re
 		fmt.Println(trans.GetMessage("release.creating", 0, nil))
 		fmt.Println()
 
+		if err := releaseSvc.ValidateMainBranch(ctx); err != nil {
+			log.Error("branch validation failed",
+				"error", err,
+			)
+			return fmt.Errorf("%s", trans.GetMessage("release.error_invalid_branch", 0, struct{ Error string }{err.Error()}))
+		}
+
 		release, err := releaseSvc.AnalyzeNextRelease(ctx)
 		if err != nil {
 			log.Error("failed to analyze next release",
@@ -139,7 +146,7 @@ func createReleaseAction(releaseSvc releaseService, trans *i18n.Translations, re
 
 			sVersion := ui.NewSmartSpinner(trans.GetMessage("release.app_version_update_started", 0, struct{ Version string }{release.Version}))
 			sVersion.Start()
-			if err := releaseSvc.UpdateAppVersion(release.Version); err != nil {
+			if err := releaseSvc.UpdateAppVersion(ctx, release.Version); err != nil {
 				sVersion.Error(trans.GetMessage("release.error_updating_app_version", 0, struct{ Error string }{err.Error()}))
 				return fmt.Errorf("error updating app version: %w", err)
 			}

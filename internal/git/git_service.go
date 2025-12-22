@@ -4,12 +4,15 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/regex"
+	"golang.org/x/mod/semver"
 )
 
 type GitService struct{}
@@ -37,7 +40,7 @@ func (s *GitService) GetChangedFiles(ctx context.Context) ([]string, error) {
 	if err != nil {
 		log.Error("git status failed",
 			"error", err)
-		return nil, err
+		return nil, errors.ErrGetChangedFiles.WithError(err)
 	}
 
 	changes := make([]string, 0)
@@ -69,7 +72,7 @@ func (s *GitService) GetDiff(ctx context.Context) (string, error) {
 	if err != nil {
 		log.Error("git diff --cached failed",
 			"error", err)
-		return "", err
+		return "", errors.ErrGetDiff.WithError(err).WithContext("diff_type", "staged")
 	}
 
 	unstagedCmd := exec.CommandContext(ctx, "git", "diff")
@@ -77,7 +80,7 @@ func (s *GitService) GetDiff(ctx context.Context) (string, error) {
 	if err != nil {
 		log.Error("git diff failed",
 			"error", err)
-		return "", err
+		return "", errors.ErrGetDiff.WithError(err).WithContext("diff_type", "unstaged")
 	}
 
 	combinedDiff := string(stagedOutput) + string(unstageOutput)
@@ -96,6 +99,12 @@ func (s *GitService) GetDiff(ctx context.Context) (string, error) {
 					}
 				}
 			}
+		}
+
+		// If still no diff after checking untracked files
+		if combinedDiff == "" {
+			log.Warn("no differences detected in repository")
+			return "", errors.ErrNoDiff
 		}
 	}
 
@@ -141,8 +150,7 @@ func (s *GitService) CreateCommit(ctx context.Context, message string) error {
 			return errors.ErrGitEmailNotConfigured
 		}
 
-		fullErr := fmt.Sprintf("%v: %s", err, stderrStr)
-		return fmt.Errorf("%w: %s", errors.ErrCreateCommit, fullErr)
+		return errors.ErrCreateCommit.WithError(err).WithContext("stderr", stderrStr)
 	}
 
 	log.Info("git commit created successfully")
@@ -153,7 +161,7 @@ func (s *GitService) CreateCommit(ctx context.Context, message string) error {
 func (s *GitService) AddFileToStaging(ctx context.Context, file string) error {
 	repoRoot, err := s.getRepoRoot(ctx)
 	if err != nil {
-		return fmt.Errorf("%w: %v", errors.ErrGetRepoRoot, err)
+		return err
 	}
 
 	cmd := exec.CommandContext(ctx, "git", "add", "-A", "--", file)
@@ -162,8 +170,8 @@ func (s *GitService) AddFileToStaging(ctx context.Context, file string) error {
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		fullErr := fmt.Sprintf("%v: %s", err, strings.TrimSpace(stderr.String()))
-		return fmt.Errorf("%w [%s]: %s", errors.ErrAddFile, file, fullErr)
+		stderrStr := strings.TrimSpace(stderr.String())
+		return errors.ErrAddFile.WithError(err).WithContext("file", file).WithContext("stderr", stderrStr)
 	}
 	return nil
 }
@@ -178,7 +186,7 @@ func (s *GitService) GetCurrentBranch(ctx context.Context) (string, error) {
 	if err != nil {
 		log.Error("failed to get current branch",
 			"error", err)
-		return "", fmt.Errorf("%w: %v", errors.ErrGetBranch, err)
+		return "", errors.ErrGetBranch.WithError(err)
 	}
 
 	branchName := strings.TrimSpace(string(output))
@@ -203,7 +211,7 @@ func (s *GitService) GetRepoInfo(ctx context.Context) (string, string, string, e
 	if err != nil {
 		log.Error("failed to get remote URL",
 			"error", err)
-		return "", "", "", fmt.Errorf("%w: %v", errors.ErrGetRepoURL, err)
+		return "", "", "", errors.ErrGetRepoURL.WithError(err)
 	}
 
 	url := strings.TrimSpace(string(output))
@@ -224,28 +232,59 @@ func (s *GitService) GetRepoInfo(ctx context.Context) (string, string, string, e
 }
 
 func (s *GitService) GetLastTag(ctx context.Context) (string, error) {
-	cmd := exec.CommandContext(ctx, "git", "describe", "--tags", "--abbrev=0")
+	log := logger.FromContext(ctx)
+
+	cmd := exec.CommandContext(ctx, "git", "ls-remote", "--tags", "origin", "refs/tags/*")
 	output, err := cmd.Output()
+	if err == nil && len(output) > 0 {
+		tags := s.parseRemoteTags(string(output))
+		if len(tags) > 0 {
+			lastTag := s.getLatestSemverTag(tags)
+			if lastTag != "" {
+				log.Debug("last tag from remote", "tag", lastTag)
+				return lastTag, nil
+			}
+		}
+	}
+
+	cmd = exec.CommandContext(ctx, "git", "describe", "--tags", "--abbrev=0", "--match", "v*")
+	output, err = cmd.Output()
 	if err != nil {
-		// no tags found
 		return "", nil
 	}
-	return strings.TrimSpace(string(output)), nil
+
+	tag := strings.TrimSpace(string(output))
+
+	if tag != "" {
+		if err := s.ValidateTagExists(ctx, tag); err != nil {
+			log.Warn("tag not found in current branch", "tag", tag, "error", err)
+			return s.getLastTagInCurrentBranch(ctx)
+		}
+	}
+	return tag, nil
 }
 
 func (s *GitService) GetCommitsSinceTag(ctx context.Context, tag string) ([]models.Commit, error) {
+	log := logger.FromContext(ctx)
+
 	var args []string
 	if tag == "" {
 		// if no previous tag exists, get all commits
-		args = []string{"log", "--pretty=format:%H|%s|%b", "--no-merges"}
+		args = []string{"log", "--pretty=format:%H|%an|%ae|%ad|%s|%b", "--no-merges", "--date=iso"}
 	} else {
-		args = []string{"log", tag + "..HEAD", "--pretty=format:%H|%s|%b", "--no-merges"}
+		if err := s.ValidateTagExists(ctx, tag); err != nil {
+			log.Warn("tag not found, trying to fetch from remote", "tag", tag)
+			_ = exec.CommandContext(ctx, "git", "fetch", "origin", "tag", tag).Run()
+		}
+
+		args = []string{"log", tag + "..HEAD", "--pretty=format:%H|%an|%ae|%ad|%s|%b", "--no-merges", "--date=iso"}
 	}
 
 	cmd := exec.CommandContext(ctx, "git", args...)
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", errors.ErrGetCommits, err)
+		log.Warn("failed to get commits with tag range, trying alternative", "error", err)
+		return s.getCommitsAlternative(ctx, tag)
 	}
 
 	if len(output) == 0 {
@@ -259,13 +298,17 @@ func (s *GitService) GetCommitsSinceTag(ctx context.Context, tag string) ([]mode
 		if line == "" {
 			continue
 		}
-		parts := strings.SplitN(line, "|", 3)
-		if len(parts) >= 2 {
+		parts := strings.SplitN(line, "|", 6)
+		if len(parts) >= 5 {
 			commit := models.Commit{
-				Message: parts[1],
+				Hash:    parts[0],
+				Author:  parts[1],
+				Email:   parts[2],
+				Date:    parts[3],
+				Message: parts[4],
 			}
-			if len(parts) == 3 {
-				commit.Message = parts[1] + "\n" + parts[2]
+			if len(parts) == 6 && parts[5] != "" {
+				commit.Message = parts[4] + "\n" + parts[5]
 			}
 			commits = append(commits, commit)
 		}
@@ -283,7 +326,7 @@ func (s *GitService) GetCommitsBetweenTags(ctx context.Context, fromTag, toTag s
 	cmd := exec.CommandContext(ctx, "git", args...)
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", errors.ErrGetCommits, err)
+		return nil, errors.ErrGetCommits.WithError(err).WithContext("from_tag", fromTag).WithContext("to_tag", toTag)
 	}
 
 	if len(output) == 0 {
@@ -315,7 +358,7 @@ func (s *GitService) GetRecentCommitMessages(ctx context.Context, count int) ([]
 	cmd := exec.CommandContext(ctx, "git", "log", fmt.Sprintf("-%d", count), "--pretty=format:%s %b")
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, err
+		return nil, errors.ErrGetRecentCommits.WithError(err).WithContext("count", count)
 	}
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	return lines, nil
@@ -323,25 +366,34 @@ func (s *GitService) GetRecentCommitMessages(ctx context.Context, count int) ([]
 
 func (s *GitService) CreateTag(ctx context.Context, version, message string) error {
 	cmd := exec.CommandContext(ctx, "git", "tag", "-a", version, "-m", message)
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		return errors.ErrCreateTag.WithError(err).WithContext("version", version)
+	}
+	return nil
 }
 
 func (s *GitService) PushTag(ctx context.Context, version string) error {
 	cmd := exec.CommandContext(ctx, "git", "push", "origin", version)
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		return errors.ErrPushTag.WithError(err).WithContext("version", version)
+	}
+	return nil
 }
 
 // Push pushes commits to the remote repository
 func (s *GitService) Push(ctx context.Context) error {
 	cmd := exec.CommandContext(ctx, "git", "push")
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		return errors.ErrPush.WithError(err)
+	}
+	return nil
 }
 
 func (s *GitService) GetCommitCount(ctx context.Context) (int, error) {
 	cmd := exec.CommandContext(ctx, "git", "rev-list", "--count", "HEAD")
 	output, err := cmd.Output()
 	if err != nil {
-		return 0, err
+		return 0, errors.ErrGetCommitCount.WithError(err)
 	}
 	count := 0
 	_, _ = fmt.Sscanf(strings.TrimSpace(string(output)), "%d", &count)
@@ -353,15 +405,29 @@ func (s *GitService) GetTagDate(ctx context.Context, tag string) (string, error)
 	cmd := exec.CommandContext(ctx, "git", "log", "-1", "--format=%ai", tag)
 	output, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("error getting tag date: %w", err)
+		return "", errors.ErrGetTagDate.WithError(err).WithContext("tag", tag)
 	}
 
 	dateStr := strings.TrimSpace(string(output))
 	if len(dateStr) >= 10 {
-		return dateStr[:10], nil // Return YYYY-MM-DD
+		return dateStr[:10], nil
 	}
 
 	return dateStr, nil
+}
+
+func (s *GitService) FetchTags(ctx context.Context) error {
+	log := logger.FromContext(ctx)
+	log.Debug("fetching tags from remote")
+
+	cmd := exec.CommandContext(ctx, "git", "fetch", "--tags", "origin")
+	if err := cmd.Run(); err != nil {
+		log.Warn("failed to fetch tags from remote", "error", err)
+		return errors.ErrFetchTags.WithError(err)
+	}
+
+	log.Debug("tags fetched successfully")
+	return nil
 }
 
 // ValidateGitConfig checks if git user.name and user.email are configured
@@ -390,7 +456,7 @@ func (s *GitService) GetGitUserName(ctx context.Context) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", "config", "user.name")
 	output, err := cmd.Output()
 	if err != nil {
-		return "", err
+		return "", errors.ErrGetGitUser.WithError(err).WithContext("config_key", "user.name")
 	}
 	return strings.TrimSpace(string(output)), nil
 }
@@ -400,9 +466,17 @@ func (s *GitService) GetGitUserEmail(ctx context.Context) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", "config", "user.email")
 	output, err := cmd.Output()
 	if err != nil {
-		return "", err
+		return "", errors.ErrGetGitUser.WithError(err).WithContext("config_key", "user.email")
 	}
 	return strings.TrimSpace(string(output)), nil
+}
+
+func (s *GitService) ValidateTagExists(ctx context.Context, tag string) error {
+	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--verify", tag+"^{commit}")
+	if err := cmd.Run(); err != nil {
+		return errors.ErrValidateTag.WithError(err).WithContext("tag", tag)
+	}
+	return nil
 }
 
 func parseRepoURL(url string) (string, string, string, error) {
@@ -419,7 +493,7 @@ func parseRepoURL(url string) (string, string, string, error) {
 		return matches[2], repoName, provider, nil
 	}
 
-	return "", "", "", fmt.Errorf("%w [%s]", errors.ErrExtractRepoInfo, url)
+	return "", "", "", errors.ErrExtractRepoInfo.WithContext("url", url)
 }
 
 func detectProvider(host string) string {
@@ -437,7 +511,90 @@ func (s *GitService) getRepoRoot(ctx context.Context) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--show-toplevel")
 	output, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("%w: %v", errors.ErrGetRepoRoot, err)
+		return "", errors.ErrGetRepoRoot.WithError(err)
 	}
 	return strings.TrimSpace(string(output)), nil
+}
+
+func (s *GitService) parseRemoteTags(output string) []string {
+	var tags []string
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		parts := strings.Fields(line)
+		if len(parts) >= 2 {
+			ref := parts[1]
+			if strings.HasPrefix(ref, "refs/tags/") {
+				tag := strings.TrimPrefix(ref, "refs/tags/")
+				if regex.SemVer.MatchString(tag) {
+					tags = append(tags, tag)
+				}
+			}
+		}
+	}
+	return tags
+}
+
+func (s *GitService) getLatestSemverTag(tags []string) string {
+	if len(tags) == 0 {
+		return ""
+	}
+
+	sort.Slice(tags, func(i, j int) bool {
+		return semver.Compare("v"+strings.TrimPrefix(tags[i], "v"), "v"+strings.TrimPrefix(tags[j], "v")) > 0
+	})
+	return tags[0]
+}
+
+func (s *GitService) getLastTagInCurrentBranch(ctx context.Context) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", "log", "--oneline", "--decorate", "--simplify-by-decoration", "--all", "--match", "v*", "-1")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", errors.ErrGetCommits.WithError(err).WithContext("operation", "get_last_tag_in_branch")
+	}
+
+	line := strings.TrimSpace(string(output))
+	tagMatch := regexp.MustCompile(`\(tag:\s*(v[\d.]+)\)`).FindStringSubmatch(line)
+	if len(tagMatch) > 1 {
+		return tagMatch[1], nil
+	}
+	return "", nil
+}
+
+func (s *GitService) getCommitsAlternative(ctx context.Context, tag string) ([]models.Commit, error) {
+	cmd := exec.CommandContext(ctx, "git", "merge-base", tag, "HEAD")
+	mergeBase, err := cmd.Output()
+	if err != nil {
+		return nil, errors.ErrTagNotFound.WithError(err).WithContext("tag", tag)
+	}
+
+	baseHash := strings.TrimSpace(string(mergeBase))
+	args := []string{"log", baseHash + "..HEAD", "--pretty=format:%H|%an|%ae|%ad|%s|%b", "--no-merges", "--date=iso"}
+
+	cmd = exec.CommandContext(ctx, "git", args...)
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, errors.ErrGetCommits.WithError(err).WithContext("tag", tag).WithContext("operation", "alternative")
+	}
+	var commits []models.Commit
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "|", 6)
+		if len(parts) >= 5 {
+			commit := models.Commit{
+				Hash:    parts[0],
+				Author:  parts[1],
+				Email:   parts[2],
+				Date:    parts[3],
+				Message: parts[4],
+			}
+			if len(parts) == 6 && parts[5] != "" {
+				commit.Message = parts[4] + "\n" + parts[5]
+			}
+			commits = append(commits, commit)
+		}
+	}
+	return commits, nil
 }

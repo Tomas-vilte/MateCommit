@@ -158,7 +158,7 @@ func initializeApp() (*cli.Command, error) {
 		return issueService, nil
 	}
 	commands := []*cli.Command{
-		suggests_commits.NewSuggestCommandFactory(commitService, commitHandler).CreateCommand(translations, cfgApp),
+		suggests_commits.NewSuggestCommandFactory(commitService, commitHandler, gitService).CreateCommand(translations, cfgApp),
 		issues.NewIssuesCommandFactory(
 			issueProvider,
 			templateService,
