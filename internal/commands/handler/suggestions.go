@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
+	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ports"
 	"github.com/thomas-vilte/matecommit/internal/ui"
@@ -39,8 +41,19 @@ func NewSuggestionHandler(gitSvc gitService, vcs ports.VCSClient, t *i18n.Transl
 }
 
 func (h *SuggestionHandler) HandleSuggestions(ctx context.Context, suggestions []models.CommitSuggestion) error {
+	log := logger.FromContext(ctx)
+	log.Info("handling commit suggestions", "count", len(suggestions))
+
 	h.displaySuggestions(suggestions)
-	return h.handleCommitSelection(ctx, suggestions)
+
+	err := h.handleCommitSelection(ctx, suggestions)
+	if err != nil {
+		logger.Error(ctx, "failed to handle commit selection", err)
+		return err
+	}
+
+	log.Info("suggestions handled successfully")
+	return nil
 }
 
 func (h *SuggestionHandler) displaySuggestions(suggestions []models.CommitSuggestion) {
@@ -186,34 +199,45 @@ func (h *SuggestionHandler) getCriteriaStatusText(status models.CriteriaStatus) 
 }
 
 func (h *SuggestionHandler) handleCommitSelection(ctx context.Context, suggestions []models.CommitSuggestion) error {
+	log := logger.FromContext(ctx)
 	var selection int
 
 	prompt := color.New(color.FgCyan, color.Bold).Sprint(h.t.GetMessage("ui_selection.select_option", 0, nil))
 	fmt.Print(prompt + " ")
 
 	if _, err := fmt.Scan(&selection); err != nil {
+		logger.Error(ctx, "failed to read user selection", err)
 		msg := h.t.GetMessage("commit.error_reading_selection", 0, struct{ Error error }{err})
 		ui.PrintError(os.Stdout, msg)
 		return fmt.Errorf("%s", msg)
 	}
 
+	log.Debug("user selection received", "selection", selection)
+
 	if selection == 0 {
+		log.Info("user cancelled operation")
 		ui.PrintWarning(h.t.GetMessage("commit.operation_canceled", 0, nil))
 		return nil
 	}
 
 	if selection < 1 || selection > len(suggestions) {
+		log.Warn("invalid selection", "selection", selection, "max", len(suggestions))
 		msg := h.t.GetMessage("commit.invalid_selection", 0, struct{ Number int }{len(suggestions)})
 		ui.PrintError(os.Stdout, msg)
 		return fmt.Errorf("%s", msg)
 	}
 
+	log.Info("processing selected commit", "selection", selection)
 	return h.processCommit(ctx, suggestions[selection-1], h.gitService)
 }
 
 func (h *SuggestionHandler) processCommit(ctx context.Context, suggestion models.CommitSuggestion,
 	gitSvc gitService) error {
+	log := logger.FromContext(ctx)
+	start := time.Now()
+
 	commitTitle := strings.TrimSpace(strings.TrimPrefix(suggestion.CommitTitle, "Commit: "))
+	log.Info("processing commit", "title", commitTitle, "files_count", len(suggestion.Files))
 
 	fmt.Println()
 	ui.PrintInfo(h.t.GetMessage("ui_preview.commit_selected", 0, struct{ Title string }{commitTitle}))
@@ -229,6 +253,7 @@ func (h *SuggestionHandler) processCommit(ctx context.Context, suggestion models
 	}
 
 	if ui.AskConfirmation(h.t.GetMessage("ui_preview.ask_show_diff", 0, nil)) {
+		log.Debug("showing diff to user")
 		fmt.Println()
 		if err := ui.ShowDiff(suggestion.Files); err != nil {
 			ui.PrintWarning(h.t.GetMessage("ui_preview.error_showing_diff", 0, struct{ Error error }{err}))
@@ -237,26 +262,32 @@ func (h *SuggestionHandler) processCommit(ctx context.Context, suggestion models
 
 	finalCommitMessage := commitTitle
 	if ui.AskConfirmation(h.t.GetMessage("ui_preview.ask_edit_message", 0, nil)) {
+		log.Debug("user editing commit message")
 		editorError := h.t.GetMessage("ui_preview.editor_error", 0, nil)
 		editedMessage, err := ui.EditCommitMessage(commitTitle, editorError)
 		if err != nil {
+			logger.Error(ctx, "failed to edit commit message", err)
 			ui.PrintError(os.Stdout, h.t.GetMessage("ui_preview.error_editing_message", 0, struct{ Error error }{err}))
 			return err
 		}
 		finalCommitMessage = editedMessage
+		log.Debug("commit message edited", "new_message", finalCommitMessage)
 		ui.PrintSuccess(os.Stdout, h.t.GetMessage("ui_preview.message_updated", 0, nil))
 	}
 
 	if !ui.AskConfirmation(h.t.GetMessage("ui_preview.ask_confirm_commit", 0, nil)) {
+		log.Info("user cancelled commit")
 		ui.PrintWarning(h.t.GetMessage("ui_preview.commit_cancelled", 0, nil))
 		return nil
 	}
 
+	log.Debug("staging files", "count", len(suggestion.Files))
 	spinner := ui.NewSmartSpinner(h.t.GetMessage("ui.adding_to_staging", 0, nil))
 	spinner.Start()
 
 	for _, file := range suggestion.Files {
 		if err := gitSvc.AddFileToStaging(ctx, file); err != nil {
+			logger.Error(ctx, "failed to stage file", err, "file", file)
 			spinner.Error(h.t.GetMessage("commit.error_add_file_staging", 0, struct {
 				File  string
 				Error error
@@ -265,15 +296,23 @@ func (h *SuggestionHandler) processCommit(ctx context.Context, suggestion models
 		}
 	}
 
+	log.Debug("files staged successfully", "count", len(suggestion.Files))
 	spinner.Success(h.t.GetMessage("ui.files_added_to_staging", 0, struct{ Count int }{len(suggestion.Files)}))
 
+	log.Debug("creating commit", "message", finalCommitMessage)
 	spinner = ui.NewSmartSpinner(h.t.GetMessage("ui.creating_commit", 0, nil))
 	spinner.Start()
 
 	if err := gitSvc.CreateCommit(ctx, finalCommitMessage); err != nil {
+		logger.Error(ctx, "failed to create commit", err, "message", finalCommitMessage)
 		spinner.Error(h.t.GetMessage("commit.error_creating_commit", 0, struct{ Error error }{err}))
 		return fmt.Errorf("error creating commit: %w", err)
 	}
+
+	log.Info("commit created successfully",
+		"message", finalCommitMessage,
+		"files_count", len(suggestion.Files),
+		"duration_ms", time.Since(start).Milliseconds())
 
 	spinner.Success(h.t.GetMessage("ui.commit_created_successfully", 0, nil))
 	fmt.Printf("\n   %s\n\n", finalCommitMessage)

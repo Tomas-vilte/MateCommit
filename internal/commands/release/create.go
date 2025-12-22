@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/thomas-vilte/matecommit/internal/commands/completion_helper"
 	cfg "github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
+	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/ui"
 	"github.com/urfave/cli/v3"
 )
@@ -63,27 +65,61 @@ func (r *ReleaseCommandFactory) newCreateCommand(t *i18n.Translations) *cli.Comm
 
 func createReleaseAction(releaseSvc releaseService, trans *i18n.Translations, reader *bufio.Reader, config *cfg.Config) cli.ActionFunc {
 	return func(ctx context.Context, cmd *cli.Command) error {
+		log := logger.FromContext(ctx)
+		start := time.Now()
+
+		autoConfirm := cmd.Bool("auto")
+		version := cmd.String("version")
+		publish := cmd.Bool("publish")
+		draft := cmd.Bool("draft")
+		changelog := cmd.Bool("changelog")
+		buildBinaries := cmd.Bool("build-binaries")
+
+		log.Info("executing release create command",
+			"auto_confirm", autoConfirm,
+			"version", version,
+			"publish", publish,
+			"draft", draft,
+			"changelog", changelog,
+			"build_binaries", buildBinaries)
+
 		fmt.Println(trans.GetMessage("release.creating", 0, nil))
 		fmt.Println()
 
 		release, err := releaseSvc.AnalyzeNextRelease(ctx)
 		if err != nil {
+			log.Error("failed to analyze next release",
+				"error", err,
+				"duration_ms", time.Since(start).Milliseconds())
 			return fmt.Errorf("%s", trans.GetMessage("release.error_analyzing", 0, struct{ Error string }{err.Error()}))
 		}
+
+		log.Debug("release analyzed",
+			"version", release.Version,
+			"previous_version", release.PreviousVersion,
+			"version_bump", release.VersionBump)
 
 		if version := cmd.String("version"); version != "" {
 			release.Version = version
 		}
 
 		if err := releaseSvc.EnrichReleaseContext(ctx, release); err != nil {
+			log.Warn("failed to enrich release context", "error", err)
 			fmt.Printf("⚠️  %s\n", trans.GetMessage("release.warning_enrich_context", 0, struct{ Error string }{err.Error()}))
 		}
 
 		notes, err := releaseSvc.GenerateReleaseNotes(ctx, release)
 		if err != nil {
+			log.Error("failed to generate release notes",
+				"error", err,
+				"duration_ms", time.Since(start).Milliseconds())
 			ui.HandleAppError(err, trans)
 			return fmt.Errorf("%s", trans.GetMessage("release.error_generating_notes", 0, struct{ Error string }{err.Error()}))
 		}
+
+		log.Debug("release notes generated",
+			"title", notes.Title,
+			"highlights_count", len(notes.Highlights))
 
 		updateChangelog := cmd.Bool("changelog")
 		if config != nil && config.UpdateChangelog {
@@ -155,8 +191,15 @@ func createReleaseAction(releaseSvc releaseService, trans *i18n.Translations, re
 		message := fmt.Sprintf("%s\n\n%s", notes.Title, notes.Summary)
 		err = releaseSvc.CreateTag(ctx, release.Version, message)
 		if err != nil {
+			log.Error("failed to create tag",
+				"error", err,
+				"version", release.Version,
+				"duration_ms", time.Since(start).Milliseconds())
 			return fmt.Errorf("%s", trans.GetMessage("release.error_creating_tag", 0, struct{ Error string }{err.Error()}))
 		}
+
+		log.Info("tag created successfully",
+			"version", release.Version)
 
 		fmt.Println(trans.GetMessage("release.tag_created", 0, struct{ Version string }{release.Version}))
 
@@ -167,8 +210,15 @@ func createReleaseAction(releaseSvc releaseService, trans *i18n.Translations, re
 			buildBinaries := cmd.Bool("build-binaries")
 			err := releaseSvc.PublishRelease(ctx, release, notes, cmd.Bool("draft"), buildBinaries)
 			if err != nil {
+				log.Error("failed to publish release",
+					"error", err,
+					"version", release.Version,
+					"duration_ms", time.Since(start).Milliseconds())
 				return fmt.Errorf("%s", trans.GetMessage("release.error_publishing_release", 0, struct{ Error string }{err.Error()}))
 			}
+			log.Info("release published successfully",
+				"version", release.Version,
+				"draft", cmd.Bool("draft"))
 			fmt.Println(trans.GetMessage("release.release_published", 0, nil))
 		} else {
 			fmt.Println()
@@ -182,6 +232,10 @@ func createReleaseAction(releaseSvc releaseService, trans *i18n.Translations, re
 			fmt.Println()
 			ui.PrintTokenUsage(notes.Usage, trans)
 		}
+
+		log.Info("release create command completed successfully",
+			"version", release.Version,
+			"duration_ms", time.Since(start).Milliseconds())
 
 		fmt.Println()
 

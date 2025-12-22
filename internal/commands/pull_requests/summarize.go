@@ -3,10 +3,12 @@ package pull_requests
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/thomas-vilte/matecommit/internal/commands/completion_helper"
 	cfg "github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
+	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ui"
 	"github.com/urfave/cli/v3"
@@ -45,12 +47,25 @@ func (c *SummarizeCommand) CreateCommand(t *i18n.Translations, _ *cfg.Config) *c
 		},
 		ShellComplete: completion_helper.DefaultFlagComplete,
 		Action: func(ctx context.Context, cmd *cli.Command) error {
+			log := logger.FromContext(ctx)
+			start := time.Now()
+
+			prNumber := cmd.Int("pr-number")
+
+			log.Info("executing summarize-pr command",
+				"pr_number", prNumber)
+
 			prService, err := c.prProvider(ctx)
 			if err != nil {
+				log.Error("failed to create PR service",
+					"error", err,
+					"duration_ms", time.Since(start).Milliseconds())
 				return fmt.Errorf(t.GetMessage("error.pr_service_creation_error", 0, nil)+": %w", err)
 			}
-			prNumber := cmd.Int("pr-number")
+
 			if prNumber == 0 {
+				log.Error("PR number is required",
+					"duration_ms", time.Since(start).Milliseconds())
 				return fmt.Errorf("%s", t.GetMessage("error.pr_number_required", 0, nil))
 			}
 
@@ -76,10 +91,20 @@ func (c *SummarizeCommand) CreateCommand(t *i18n.Translations, _ *cfg.Config) *c
 				}
 			})
 			if err != nil {
+				log.Error("failed to summarize PR",
+					"error", err,
+					"pr_number", prNumber,
+					"duration_ms", time.Since(start).Milliseconds())
 				spinner.Error(t.GetMessage("ui.error_generating_pr_summary", 0, nil))
 				ui.HandleAppError(err, t)
 				return fmt.Errorf(t.GetMessage("error.pr_summary_error", 0, nil)+": %w", err)
 			}
+
+			log.Info("PR summarized successfully",
+				"pr_number", prNumber,
+				"title", summary.Title,
+				"labels_count", len(summary.Labels),
+				"duration_ms", time.Since(start).Milliseconds())
 
 			spinner.Success(t.GetMessage("ui.pr_updated_successfully", 0, struct {
 				Number int

@@ -7,10 +7,12 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/thomas-vilte/matecommit/internal/commands/completion_helper"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
+	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ui"
 	"github.com/urfave/cli/v3"
@@ -30,9 +32,9 @@ type IssueGeneratorService interface {
 
 // IssueTemplateService is a minimal interface for testing purposes
 type IssueTemplateService interface {
-	InitializeTemplates(force bool) error
-	GetTemplatesDir() (string, error)
-	ListTemplates() ([]models.TemplateMetadata, error)
+	InitializeTemplates(ctx context.Context, force bool) error
+	GetTemplatesDir(ctx context.Context) (string, error)
+	ListTemplates(ctx context.Context) ([]models.TemplateMetadata, error)
 }
 
 type IssueServiceProvider func(ctx context.Context) (IssueGeneratorService, error)
@@ -129,6 +131,9 @@ func (f *IssuesCommandFactory) createGenerateFlags(t *i18n.Translations) []cli.F
 
 func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *config.Config) cli.ActionFunc {
 	return func(ctx context.Context, command *cli.Command) error {
+		log := logger.FromContext(ctx)
+		start := time.Now()
+
 		fromDiff := command.Bool("from-diff")
 		fromPR := command.Int("from-pr")
 		description := command.String("description")
@@ -138,6 +143,17 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 		assignMe := command.Bool("assign-me")
 		checkoutBranch := command.Bool("checkout")
 		templateName := command.String("template")
+
+		log.Info("executing issue generate command",
+			"from_diff", fromDiff,
+			"from_pr", fromPR,
+			"has_description", description != "",
+			"has_hint", hint != "",
+			"no_labels", noLabels,
+			"dry_run", dryRun,
+			"assign_me", assignMe,
+			"checkout_branch", checkoutBranch,
+			"template", templateName)
 
 		sourcesCount := 0
 		if fromDiff {
@@ -151,11 +167,15 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 		}
 
 		if sourcesCount == 0 {
+			log.Error("no input source provided",
+				"duration_ms", time.Since(start).Milliseconds())
 			ui.PrintError(os.Stdout, t.GetMessage("issue.error_no_input", 0, nil))
 			return fmt.Errorf("%s", t.GetMessage("issue.error_no_input", 0, nil))
 		}
 
 		if sourcesCount > 1 {
+			log.Error("multiple input sources provided",
+				"duration_ms", time.Since(start).Milliseconds())
 			ui.PrintError(os.Stdout, t.GetMessage("issue.error_multiple_sources", 0, nil))
 			return fmt.Errorf("%s", t.GetMessage("issue.error_multiple_sources", 0, nil))
 		}
@@ -164,6 +184,9 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 
 		issueService, err := f.issueServiceProvider(ctx)
 		if err != nil {
+			log.Error("failed to create issue service",
+				"error", err,
+				"duration_ms", time.Since(start).Milliseconds())
 			ui.PrintError(os.Stdout, fmt.Sprintf("%s: %v", t.GetMessage("issue.error_generating", 0, nil), err))
 			return err
 		}
@@ -193,9 +216,18 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 		spinner.Stop()
 
 		if err != nil {
+			log.Error("failed to generate issue",
+				"error", err,
+				"from_diff", fromDiff,
+				"from_pr", fromPR,
+				"duration_ms", time.Since(start).Milliseconds())
 			ui.HandleAppError(err, t)
 			return err
 		}
+
+		log.Debug("issue generated",
+			"title", result.Title,
+			"labels_count", len(result.Labels))
 
 		f.printPreview(result, t, cfg)
 		ui.PrintTokenUsage(result.Usage, t)
@@ -233,9 +265,18 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 		spinner.Stop()
 
 		if err != nil {
+			log.Error("failed to create issue",
+				"error", err,
+				"duration_ms", time.Since(start).Milliseconds())
 			ui.HandleAppError(err, t)
 			return err
 		}
+
+		log.Info("issue created successfully",
+			"issue_number", issue.Number,
+			"issue_url", issue.URL,
+			"assignees_count", len(assignees),
+			"duration_ms", time.Since(start).Milliseconds())
 
 		ui.PrintSuccess(os.Stdout, t.GetMessage("issue.created_successfully", 0, struct {
 			Number int
@@ -356,15 +397,28 @@ func (f *IssuesCommandFactory) newLinkCommand(t *i18n.Translations, cfg *config.
 // createLinkAction creates the action to link a PR to an issue.
 func (f *IssuesCommandFactory) createLinkAction(t *i18n.Translations, _ *config.Config) cli.ActionFunc {
 	return func(ctx context.Context, command *cli.Command) error {
+		log := logger.FromContext(ctx)
+		start := time.Now()
+
 		prNumber := command.Int("pr")
 		issueNumber := command.Int("issue")
 
+		log.Info("executing issue link command",
+			"pr_number", prNumber,
+			"issue_number", issueNumber)
+
 		if prNumber <= 0 {
+			log.Error("invalid PR number",
+				"pr_number", prNumber,
+				"duration_ms", time.Since(start).Milliseconds())
 			ui.PrintError(os.Stdout, t.GetMessage("issue.error_invalid_pr", 0, nil))
 			return fmt.Errorf("invalid PR number")
 		}
 
 		if issueNumber <= 0 {
+			log.Error("invalid issue number",
+				"issue_number", issueNumber,
+				"duration_ms", time.Since(start).Milliseconds())
 			ui.PrintError(os.Stdout, t.GetMessage("issue.error_invalid_issue", 0, nil))
 			return fmt.Errorf("invalid issue number")
 		}
@@ -373,6 +427,9 @@ func (f *IssuesCommandFactory) createLinkAction(t *i18n.Translations, _ *config.
 
 		issueService, err := f.issueServiceProvider(ctx)
 		if err != nil {
+			log.Error("failed to create issue service",
+				"error", err,
+				"duration_ms", time.Since(start).Milliseconds())
 			ui.HandleAppError(err, t)
 			return err
 		}
@@ -387,9 +444,19 @@ func (f *IssuesCommandFactory) createLinkAction(t *i18n.Translations, _ *config.
 		spinner.Stop()
 
 		if err != nil {
+			log.Error("failed to link issue to PR",
+				"error", err,
+				"pr_number", prNumber,
+				"issue_number", issueNumber,
+				"duration_ms", time.Since(start).Milliseconds())
 			ui.PrintError(os.Stdout, fmt.Sprintf("%s: %v", t.GetMessage("issue.error_linking", 0, nil), err))
 			return err
 		}
+
+		log.Info("issue linked to PR successfully",
+			"pr_number", prNumber,
+			"issue_number", issueNumber,
+			"duration_ms", time.Since(start).Milliseconds())
 
 		ui.PrintSuccess(os.Stdout, t.GetMessage("issue.link_success", 0, struct {
 			PR    int

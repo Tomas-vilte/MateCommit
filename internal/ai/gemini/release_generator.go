@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/thomas-vilte/matecommit/internal/ai"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
+	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ports"
-	"github.com/thomas-vilte/matecommit/internal/ai"
 	"google.golang.org/genai"
 )
 
@@ -90,10 +91,25 @@ func (g *ReleaseNotesGenerator) defaultGenerate(ctx context.Context, mName strin
 }
 
 func (g *ReleaseNotesGenerator) GenerateNotes(ctx context.Context, release *models.Release) (*models.ReleaseNotes, error) {
+	log := logger.FromContext(ctx)
+
+	log.Info("generating release notes via gemini",
+		"version", release.Version,
+		"previous_version", release.PreviousVersion,
+		"features_count", len(release.Features),
+		"bugfixes_count", len(release.BugFixes),
+		"breaking_count", len(release.Breaking))
+
 	prompt := g.buildPrompt(release)
+
+	log.Debug("calling gemini API for release notes",
+		"prompt_length", len(prompt))
 
 	resp, usage, err := g.wrapper.WrapGenerate(ctx, "generate-release", prompt, g.generateFn)
 	if err != nil {
+		log.Error("failed to generate release notes",
+			"error", err,
+			"version", release.Version)
 		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error generating release notes", err)
 	}
 
@@ -105,15 +121,25 @@ func (g *ReleaseNotesGenerator) GenerateNotes(ctx context.Context, release *mode
 	}
 
 	if responseText == "" {
+		log.Error("empty response from gemini AI")
 		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "empty response from AI", nil)
 	}
 
+	log.Debug("gemini response received",
+		"response_length", len(responseText))
+
 	notes, err := g.parseJSONResponse(responseText, release)
 	if err != nil {
+		log.Error("failed to parse release notes response",
+			"error", err)
 		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error parsing AI JSON response", err)
 	}
 
 	notes.Usage = usage
+
+	log.Info("release notes generated successfully via gemini",
+		"title", notes.Title,
+		"highlights_count", len(notes.Highlights))
 
 	return notes, nil
 }

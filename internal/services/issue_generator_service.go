@@ -7,6 +7,7 @@ import (
 
 	"github.com/thomas-vilte/matecommit/internal/config"
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
+	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ports"
 	"github.com/thomas-vilte/matecommit/internal/regex"
@@ -20,7 +21,7 @@ type issueGitService interface {
 
 // issueTemplateService is a minimal interface for testing purposes
 type issueTemplateService interface {
-	GetTemplateByName(name string) (*models.IssueTemplate, error)
+	GetTemplateByName(ctx context.Context, name string) (*models.IssueTemplate, error)
 	MergeWithGeneratedContent(template *models.IssueTemplate, generated *models.IssueGenerationResult) *models.IssueGenerationResult
 }
 
@@ -70,23 +71,35 @@ func NewIssueGeneratorService(
 // GenerateFromDiff generates issue content based on the current git diff.
 // It analyzes local changes (staged and unstaged) to create an appropriate title, description, and labels.
 func (s *IssueGeneratorService) GenerateFromDiff(ctx context.Context, hint string, skipLabels bool) (*models.IssueGenerationResult, error) {
+	logger.Info(ctx, "generating issue from diff",
+		"has_hint", hint != "",
+		"skip_labels", skipLabels)
+
 	if s.ai == nil {
+		logger.Error(ctx, "AI service not configured", nil)
 		return nil, domainErrors.ErrAPIKeyMissing
 	}
 
 	diff, err := s.git.GetDiff(ctx)
 	if err != nil {
+		logger.Error(ctx, "failed to get diff", err)
 		return nil, domainErrors.NewAppError(domainErrors.TypeGit, "failed to get diff", err)
 	}
 
 	if diff == "" {
+		logger.Warn(ctx, "no changes to generate issue from")
 		return nil, domainErrors.ErrNoChanges
 	}
 
 	changedFiles, err := s.git.GetChangedFiles(ctx)
 	if err != nil {
+		logger.Error(ctx, "failed to get changed files", err)
 		return nil, domainErrors.NewAppError(domainErrors.TypeGit, "failed to get changed files", err)
 	}
+
+	logger.Debug(ctx, "git data retrieved",
+		"diff_size", len(diff),
+		"files_count", len(changedFiles))
 
 	request := models.IssueGenerationRequest{
 		Diff:         diff,
@@ -95,15 +108,23 @@ func (s *IssueGeneratorService) GenerateFromDiff(ctx context.Context, hint strin
 		Language:     s.config.Language,
 	}
 
+	logger.Debug(ctx, "calling AI for issue generation from diff")
+
 	result, err := s.ai.GenerateIssueContent(ctx, request)
 	if err != nil {
+		logger.Error(ctx, "failed to generate issue content", err)
 		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "failed to generate issue content", err)
 	}
 
 	if !skipLabels {
 		smartLabels := s.inferSmartLabels(diff, changedFiles)
 		result.Labels = s.mergeLabels(result.Labels, smartLabels)
+		logger.Debug(ctx, "labels inferred",
+			"total_labels", len(result.Labels))
 	}
+
+	logger.Info(ctx, "issue generated from diff successfully",
+		"title", result.Title)
 
 	return result, nil
 }
@@ -111,11 +132,17 @@ func (s *IssueGeneratorService) GenerateFromDiff(ctx context.Context, hint strin
 // GenerateFromDescription generates issue content based on a manual description.
 // Useful when the user wants to create an issue without having local changes.
 func (s *IssueGeneratorService) GenerateFromDescription(ctx context.Context, description string, skipLabels bool) (*models.IssueGenerationResult, error) {
+	logger.Info(ctx, "generating issue from description",
+		"description_length", len(description),
+		"skip_labels", skipLabels)
+
 	if s.ai == nil {
+		logger.Error(ctx, "AI service not configured", nil)
 		return nil, domainErrors.ErrAPIKeyMissing
 	}
 
 	if description == "" {
+		logger.Warn(ctx, "empty description provided")
 		return nil, domainErrors.NewAppError(domainErrors.TypeConfiguration, "description is required", nil)
 	}
 
@@ -126,8 +153,11 @@ func (s *IssueGeneratorService) GenerateFromDescription(ctx context.Context, des
 		request.Language = s.config.Language
 	}
 
+	logger.Debug(ctx, "calling AI for issue generation from description")
+
 	result, err := s.ai.GenerateIssueContent(ctx, request)
 	if err != nil {
+		logger.Error(ctx, "failed to generate issue content", err)
 		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "failed to generate issue content", err)
 	}
 
@@ -135,22 +165,38 @@ func (s *IssueGeneratorService) GenerateFromDescription(ctx context.Context, des
 		result.Labels = []string{}
 	}
 
+	logger.Info(ctx, "issue generated from description successfully",
+		"title", result.Title)
+
 	return result, nil
 }
 
 func (s *IssueGeneratorService) GenerateFromPR(ctx context.Context, prNumber int, hint string, skipLabels bool) (*models.IssueGenerationResult, error) {
+	logger.Info(ctx, "generating issue from PR",
+		"pr_number", prNumber,
+		"has_hint", hint != "",
+		"skip_labels", skipLabels)
+
 	if s.ai == nil {
+		logger.Error(ctx, "AI service not configured", nil)
 		return nil, domainErrors.ErrAPIKeyMissing
 	}
 
 	if s.vcsClient == nil {
+		logger.Error(ctx, "VCS client not configured", nil)
 		return nil, domainErrors.ErrConfigMissing
 	}
 
 	prData, err := s.vcsClient.GetPR(ctx, prNumber)
 	if err != nil {
+		logger.Error(ctx, "failed to get PR data", err,
+			"pr_number", prNumber)
 		return nil, domainErrors.NewAppError(domainErrors.TypeVCS, "failed to get PR", err)
 	}
+
+	logger.Debug(ctx, "PR data fetched for issue generation",
+		"pr_number", prNumber,
+		"diff_size", len(prData.Diff))
 
 	var contextBuilder strings.Builder
 	contextBuilder.WriteString(fmt.Sprintf("Pull Request #%d: %s\n\n", prNumber, prData.Title))
@@ -179,8 +225,12 @@ func (s *IssueGeneratorService) GenerateFromPR(ctx context.Context, prNumber int
 		Language:     s.config.Language,
 	}
 
+	logger.Debug(ctx, "calling AI for issue generation from PR")
+
 	result, err := s.ai.GenerateIssueContent(ctx, request)
 	if err != nil {
+		logger.Error(ctx, "failed to generate issue content from PR", err,
+			"pr_number", prNumber)
 		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "failed to generate issue content", err)
 	}
 
@@ -189,12 +239,19 @@ func (s *IssueGeneratorService) GenerateFromPR(ctx context.Context, prNumber int
 	if !skipLabels {
 		smartLabels := s.inferSmartLabels(prData.Diff, changedFiles)
 		result.Labels = s.mergeLabels(result.Labels, smartLabels)
+		logger.Debug(ctx, "labels inferred from PR",
+			"total_labels", len(result.Labels))
 	}
+
+	logger.Info(ctx, "issue generated from PR successfully",
+		"pr_number", prNumber,
+		"title", result.Title)
+
 	return result, nil
 }
 
 func (s *IssueGeneratorService) GenerateWithTemplate(ctx context.Context, templateName string, hint string, fromDiff bool, description string, skipLabels bool) (*models.IssueGenerationResult, error) {
-	template, err := s.templateService.GetTemplateByName(templateName)
+	template, err := s.templateService.GetTemplateByName(ctx, templateName)
 	if err != nil {
 		return nil, domainErrors.NewAppError(domainErrors.TypeConfiguration, fmt.Sprintf("failed to load template: %s", templateName), err)
 	}

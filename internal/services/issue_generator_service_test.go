@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/thomas-vilte/matecommit/internal/config"
-	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/thomas-vilte/matecommit/internal/config"
+	"github.com/thomas-vilte/matecommit/internal/models"
 )
 
 func TestIssueGeneratorService(t *testing.T) {
@@ -122,7 +122,7 @@ func TestIssueGeneratorService(t *testing.T) {
 			Assignees:   []string{"tester"},
 		}
 
-		mockTemplate.On("GetTemplateByName", "bug_report").Return(template, nil)
+		mockTemplate.On("GetTemplateByName", ctx, "bug_report").Return(template, nil)
 		mockGit.On("GetDiff", ctx).Return("some changes", nil)
 		mockGit.On("GetChangedFiles", ctx).Return([]string{"file.go"}, nil)
 		mockAI.On("GenerateIssueContent", ctx, mock.Anything).Return(generated, nil)

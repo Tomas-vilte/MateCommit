@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/thomas-vilte/matecommit/internal/ai"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
+	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ports"
-	"github.com/thomas-vilte/matecommit/internal/ai"
 	"google.golang.org/genai"
 )
 
@@ -82,10 +83,20 @@ func (gps *GeminiPRSummarizer) defaultGenerate(ctx context.Context, mName string
 }
 
 func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prContent string) (models.PRSummary, error) {
+	log := logger.FromContext(ctx)
+
+	log.Info("generating PR summary via gemini",
+		"content_length", len(prContent))
+
 	prompt := gps.generatePRPrompt(prContent)
+
+	log.Debug("calling gemini API for PR summary",
+		"prompt_length", len(prompt))
 
 	resp, usage, err := gps.wrapper.WrapGenerate(ctx, "summarize-pr", prompt, gps.generateFn)
 	if err != nil {
+		log.Error("failed to generate PR summary",
+			"error", err)
 		return models.PRSummary{}, domainErrors.NewAppError(domainErrors.TypeAI, "error generating PR summary", err)
 	}
 
@@ -109,8 +120,14 @@ func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prContent 
 		if respLen > 500 {
 			preview = responseText[:500] + "..."
 		}
+		log.Warn("AI generated no PR title",
+			"response_length", respLen)
 		return models.PRSummary{}, domainErrors.NewAppError(domainErrors.TypeAI, fmt.Sprintf("AI generated no PR title (length: %d): %s", respLen, preview), nil)
 	}
+
+	log.Info("PR summary generated successfully via gemini",
+		"labels_count", len(jsonSummary.Labels))
+
 	return models.PRSummary{
 		Title:  jsonSummary.Title,
 		Body:   jsonSummary.Body,

@@ -1,14 +1,15 @@
 package services
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/thomas-vilte/matecommit/internal/config"
-	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thomas-vilte/matecommit/internal/config"
+	"github.com/thomas-vilte/matecommit/internal/models"
 )
 
 func TestIssueTemplateService_GetTemplatesDir(t *testing.T) {
@@ -40,7 +41,7 @@ func TestIssueTemplateService_GetTemplatesDir(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := &config.Config{ActiveVCSProvider: tt.provider}
 			service := NewIssueTemplateService(WithTemplateConfig(cfg))
-			dir, err := service.GetTemplatesDir()
+			dir, err := service.GetTemplatesDir(context.Background())
 
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expected, dir)
@@ -71,7 +72,7 @@ body:
       label: "What happened?"
     validations:
       required: true`
-		template, err := service.parseTemplate(content, "test.yml")
+		template, err := service.parseTemplate(context.Background(), content, "test.yml")
 
 		require.NoError(t, err)
 		assert.Equal(t, "Bug Report", template.Name)
@@ -88,7 +89,7 @@ about: Suggest an idea
 title: '[FEATURE] '
 labels:
   - enhancement`
-		template, err := service.parseTemplate(content, "test.yml")
+		template, err := service.parseTemplate(context.Background(), content, "test.yml")
 
 		require.NoError(t, err)
 		assert.Equal(t, "Feature Request", template.Name)
@@ -100,7 +101,7 @@ labels:
 	t.Run("Invalid YAML", func(t *testing.T) {
 		content := `name: : invalid
 title: [unclosed`
-		_, err := service.parseTemplate(content, "test.yml")
+		_, err := service.parseTemplate(context.Background(), content, "test.yml")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "CONFIGURATION: failed to parse YAML template")
 	})
@@ -122,7 +123,7 @@ func TestIssueTemplateService_FilesystemOps(t *testing.T) {
 	service := NewIssueTemplateService(WithTemplateConfig(cfg))
 
 	t.Run("InitializeTemplates", func(t *testing.T) {
-		err := service.InitializeTemplates(false)
+		err := service.InitializeTemplates(context.Background(), false)
 		assert.NoError(t, err)
 
 		templatesDir := filepath.Join(tmpDir, ".github", "ISSUE_TEMPLATE")
@@ -133,37 +134,37 @@ func TestIssueTemplateService_FilesystemOps(t *testing.T) {
 	})
 
 	t.Run("InitializeTemplates - Already exists", func(t *testing.T) {
-		err := service.InitializeTemplates(false)
+		err := service.InitializeTemplates(context.Background(), false)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "CONFIGURATION: templates_already_exist")
 
-		err = service.InitializeTemplates(true)
+		err = service.InitializeTemplates(context.Background(), true)
 		assert.NoError(t, err)
 	})
 
 	t.Run("ListTemplates", func(t *testing.T) {
-		templates, err := service.ListTemplates()
+		templates, err := service.ListTemplates(context.Background())
 		assert.NoError(t, err)
 		assert.Len(t, templates, 3)
 
 		err = os.WriteFile(filepath.Join(tmpDir, ".github", "ISSUE_TEMPLATE", "test.txt"), []byte("..."), 0644)
 		require.NoError(t, err)
 
-		templates, err = service.ListTemplates()
+		templates, err = service.ListTemplates(context.Background())
 		assert.NoError(t, err)
 		assert.Len(t, templates, 3)
 	})
 
 	t.Run("GetTemplateByName", func(t *testing.T) {
-		template, err := service.GetTemplateByName("bug_report")
+		template, err := service.GetTemplateByName(context.Background(), "bug_report")
 		assert.NoError(t, err)
 		assert.NotNil(t, template)
 
-		template, err = service.GetTemplateByName("bug_report.yml")
+		template, err = service.GetTemplateByName(context.Background(), "bug_report.yml")
 		assert.NoError(t, err)
 		assert.NotNil(t, template)
 
-		_, err = service.GetTemplateByName("non_existent")
+		_, err = service.GetTemplateByName(context.Background(), "non_existent")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "not found")
 	})
@@ -254,7 +255,7 @@ func TestIssueTemplateService_MergeWithGeneratedContent(t *testing.T) {
 func TestIssueTemplateService_GetTemplateByName_NotFound(t *testing.T) {
 	cfg := &config.Config{ActiveVCSProvider: "github"}
 	service := NewIssueTemplateService(WithTemplateConfig(cfg))
-	_, err := service.GetTemplateByName("ghost")
+	_, err := service.GetTemplateByName(context.Background(), "ghost")
 	assert.Error(t, err)
 }
 

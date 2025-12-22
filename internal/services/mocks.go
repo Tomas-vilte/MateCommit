@@ -3,8 +3,8 @@ package services
 import (
 	"context"
 
-	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/stretchr/testify/mock"
+	"github.com/thomas-vilte/matecommit/internal/models"
 )
 
 type (
@@ -252,34 +252,34 @@ func (m *MockIssueContentGenerator) GenerateIssueContent(ctx context.Context, re
 	return args.Get(0).(*models.IssueGenerationResult), args.Error(1)
 }
 
-func (m *MockIssueTemplateService) GetTemplatesDir() (string, error) {
-	args := m.Called()
+func (m *MockIssueTemplateService) GetTemplatesDir(ctx context.Context) (string, error) {
+	args := m.Called(ctx)
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockIssueTemplateService) ListTemplates() ([]models.TemplateMetadata, error) {
-	args := m.Called()
+func (m *MockIssueTemplateService) ListTemplates(ctx context.Context) ([]models.TemplateMetadata, error) {
+	args := m.Called(ctx)
 	return args.Get(0).([]models.TemplateMetadata), args.Error(1)
 }
 
-func (m *MockIssueTemplateService) LoadTemplate(filePath string) (*models.IssueTemplate, error) {
-	args := m.Called(filePath)
+func (m *MockIssueTemplateService) LoadTemplate(ctx context.Context, filePath string) (*models.IssueTemplate, error) {
+	args := m.Called(ctx, filePath)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*models.IssueTemplate), args.Error(1)
 }
 
-func (m *MockIssueTemplateService) GetTemplateByName(name string) (*models.IssueTemplate, error) {
-	args := m.Called(name)
+func (m *MockIssueTemplateService) GetTemplateByName(ctx context.Context, name string) (*models.IssueTemplate, error) {
+	args := m.Called(ctx, name)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*models.IssueTemplate), args.Error(1)
 }
 
-func (m *MockIssueTemplateService) InitializeTemplates(force bool) error {
-	args := m.Called(force)
+func (m *MockIssueTemplateService) InitializeTemplates(ctx context.Context, force bool) error {
+	args := m.Called(ctx, force)
 	return args.Error(0)
 }
 

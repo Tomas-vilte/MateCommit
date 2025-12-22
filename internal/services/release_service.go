@@ -11,6 +11,7 @@ import (
 	"github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/dependency"
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
+	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ports"
 	"github.com/thomas-vilte/matecommit/internal/regex"
@@ -111,6 +112,23 @@ func (s *ReleaseService) AnalyzeNextRelease(ctx context.Context) (*models.Releas
 }
 
 func (s *ReleaseService) GenerateReleaseNotes(ctx context.Context, release *models.Release) (*models.ReleaseNotes, error) {
+	log := logger.FromContext(ctx)
+
+	log.Info("generating release notes",
+		"version", release.Version,
+		"previous_version", release.PreviousVersion,
+	)
+
+	log.Debug("categorizing commits",
+		"total_commits", len(release.AllCommits),
+	)
+
+	log.Debug("commits categorized",
+		"featues", len(release.Features),
+		"fixes", len(release.BugFixes),
+		"breaking", len(release.Breaking),
+		"other", len(release.Other),
+	)
 	if s.notesGen == nil {
 		return s.generateBasicNotes(release), nil
 	}
@@ -119,19 +137,68 @@ func (s *ReleaseService) GenerateReleaseNotes(ctx context.Context, release *mode
 }
 
 func (s *ReleaseService) PublishRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool) error {
+	log := logger.FromContext(ctx)
+
+	log.Info("publishing release",
+		"version", release.Version,
+		"draft", draft,
+		"build_binaries", buildBinaries)
+
 	if s.vcsClient == nil {
+		log.Error("VCS client not configured for release publishing")
 		return domainErrors.ErrConfigMissing
 	}
 
-	return s.vcsClient.CreateRelease(ctx, release, notes, draft, buildBinaries)
+	if err := s.vcsClient.CreateRelease(ctx, release, notes, draft, buildBinaries); err != nil {
+		log.Error("failed to publish release",
+			"error", err,
+			"version", release.Version)
+		return err
+	}
+
+	log.Info("release published successfully",
+		"version", release.Version,
+		"draft", draft)
+
+	return nil
 }
 
 func (s *ReleaseService) CreateTag(ctx context.Context, version, message string) error {
-	return s.git.CreateTag(ctx, version, message)
+	log := logger.FromContext(ctx)
+
+	log.Info("creating git tag",
+		"version", version)
+
+	if err := s.git.CreateTag(ctx, version, message); err != nil {
+		log.Error("failed to create git tag",
+			"error", err,
+			"version", version)
+		return err
+	}
+
+	log.Info("git tag created successfully",
+		"version", version)
+
+	return nil
 }
 
 func (s *ReleaseService) PushTag(ctx context.Context, version string) error {
-	return s.git.PushTag(ctx, version)
+	log := logger.FromContext(ctx)
+
+	log.Info("pushing git tag",
+		"version", version)
+
+	if err := s.git.PushTag(ctx, version); err != nil {
+		log.Error("failed to push git tag",
+			"error", err,
+			"version", version)
+		return err
+	}
+
+	log.Info("git tag pushed successfully",
+		"version", version)
+
+	return nil
 }
 
 func (s *ReleaseService) GetRelease(ctx context.Context, version string) (*models.VCSRelease, error) {
@@ -142,37 +209,74 @@ func (s *ReleaseService) GetRelease(ctx context.Context, version string) (*model
 }
 
 func (s *ReleaseService) UpdateRelease(ctx context.Context, version, body string) error {
+	log := logger.FromContext(ctx)
+
+	log.Info("updating release",
+		"version", version)
+
 	if s.vcsClient == nil {
+		log.Error("VCS client not configured for updating release")
 		return domainErrors.ErrConfigMissing
 	}
-	return s.vcsClient.UpdateRelease(ctx, version, body)
+
+	if err := s.vcsClient.UpdateRelease(ctx, version, body); err != nil {
+		log.Error("failed to update release",
+			"error", err,
+			"version", version)
+		return err
+	}
+
+	log.Info("release updated successfully",
+		"version", version)
+
+	return nil
 }
 
 func (s *ReleaseService) EnrichReleaseContext(ctx context.Context, release *models.Release) error {
+	log := logger.FromContext(ctx)
+
+	log.Info("enriching release context",
+		"version", release.Version,
+		"previous_version", release.PreviousVersion)
+
 	if s.vcsClient == nil {
+		log.Error("VCS client not configured for enriching release context")
 		return domainErrors.ErrConfigMissing
 	}
 
 	if issues, err := s.vcsClient.GetClosedIssuesBetweenTags(ctx, release.PreviousVersion, release.Version); err == nil {
 		release.ClosedIssues = issues
+		log.Debug("closed issues fetched",
+			"count", len(issues))
 	}
 
 	if prs, err := s.vcsClient.GetMergedPRsBetweenTags(ctx, release.PreviousVersion, release.Version); err == nil {
 		release.MergedPRs = prs
+		log.Debug("merged PRs fetched",
+			"count", len(prs))
 	}
 
 	if contributors, err := s.vcsClient.GetContributorsBetweenTags(ctx, release.PreviousVersion, release.Version); err == nil {
 		release.Contributors = contributors
 		release.NewContributors = contributors
+		log.Debug("contributors fetched",
+			"count", len(contributors))
 	}
 
 	if stats, err := s.vcsClient.GetFileStatsBetweenTags(ctx, release.PreviousVersion, release.Version); err == nil {
 		release.FileStats = *stats
+		log.Debug("file stats fetched",
+			"files_changed", stats.FilesChanged,
+			"insertions", stats.Insertions,
+			"deletions", stats.Deletions)
 	}
 
 	if deps, err := s.analyzeDependencyChanges(ctx, release); err == nil {
 		release.Dependencies = deps
+		log.Debug("dependencies analyzed")
 	}
+
+	log.Info("release context enriched successfully")
 
 	return nil
 }
@@ -180,9 +284,26 @@ func (s *ReleaseService) EnrichReleaseContext(ctx context.Context, release *mode
 func (s *ReleaseService) UpdateLocalChangelog(release *models.Release, notes *models.ReleaseNotes) error {
 	const changelogFile = "CHANGELOG.md"
 
+	log := logger.FromContext(context.Background())
+
+	log.Debug("updating local changelog",
+		"version", release.Version,
+		"file", changelogFile)
+
 	newContent := s.buildChangelogFromNotes(context.Background(), release, notes)
 
-	return s.prependToChangelog(changelogFile, newContent)
+	if err := s.prependToChangelog(changelogFile, newContent); err != nil {
+		log.Error("failed to update changelog",
+			"error", err,
+			"file", changelogFile)
+		return err
+	}
+
+	log.Info("changelog updated successfully",
+		"file", changelogFile,
+		"version", release.Version)
+
+	return nil
 }
 
 func (s *ReleaseService) prependToChangelog(filename, newContent string) error {

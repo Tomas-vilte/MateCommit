@@ -22,6 +22,7 @@ import (
 	cfg "github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/git"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
+	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/ports"
 	"github.com/thomas-vilte/matecommit/internal/providers"
 	"github.com/thomas-vilte/matecommit/internal/services"
@@ -31,6 +32,8 @@ import (
 )
 
 func main() {
+	logger.Initialize(false, false)
+
 	app, err := initializeApp()
 	if err != nil {
 		log.Fatalf("Error starting the CLI: %v", err)
@@ -62,8 +65,15 @@ func initializeApp() (*cli.Command, error) {
 	}
 
 	ctx := context.Background()
-
 	gitService := git.NewGitService()
+
+	isCompletion := false
+	for _, arg := range os.Args {
+		if arg == "completion" || arg == "--generate-shell-completion" {
+			isCompletion = true
+			break
+		}
+	}
 
 	var commitAI ports.CommitSummarizer
 	var prAI ports.PRSummarizer
@@ -73,33 +83,46 @@ func initializeApp() (*cli.Command, error) {
 		onConfirmation := createConfirmationCallback(translations)
 
 		commitAI, err = providers.NewCommitSummarizer(ctx, cfgApp, onConfirmation)
-		if err != nil {
-			log.Printf("Warning: could not create CommitSummarizer: %v", err)
-			log.Println("AI is not configured. You can configure it with 'mate-commit config init'")
+		if err != nil && !isCompletion {
+			logger.Warn(ctx, "could not create CommitSummarizer",
+				"error", err)
+			logger.Info(ctx, "AI is not configured. You can configure it with 'mate-commit config init'")
 		}
 
 		prAI, err = providers.NewPRSummarizer(ctx, cfgApp, onConfirmation)
 		if err != nil {
-			log.Printf("Warning: could not create PRSummarizer: %v", err)
+			if !isCompletion {
+				logger.Warn(ctx, "could not create PRSummarizer",
+					"error", err)
+			}
 			prAI = nil
 		}
 
 		issueAI, err = providers.NewIssueContentGenerator(ctx, cfgApp, onConfirmation)
 		if err != nil {
-			log.Printf("Warning: could not create IssueContentGenerator: %v", err)
+			if !isCompletion {
+				logger.Warn(ctx, "could not create IssueContentGenerator",
+					"error", err)
+			}
 			issueAI = nil
 		}
 	}
 
 	vcsClient, err := providers.NewVCSClient(ctx, gitService, cfgApp)
 	if err != nil {
-		log.Printf("Warning: could not create VCS client: %v", err)
+		if !isCompletion {
+			logger.Warn(ctx, "could not create VCS client",
+				"error", err)
+		}
 		vcsClient = nil
 	}
 
 	ticketMgr, err := providers.NewTicketManager(ctx, cfgApp)
 	if err != nil {
-		log.Printf("Warning: could not create Ticket manager: %v", err)
+		if !isCompletion {
+			logger.Warn(ctx, "could not create Ticket manager",
+				"error", err)
+		}
 		ticketMgr = nil
 	}
 
@@ -175,6 +198,21 @@ func initializeApp() (*cli.Command, error) {
 		Description:           translations.GetMessage("app_description", 0, nil),
 		Commands:              commands,
 		EnableShellCompletion: true,
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:  "debug",
+				Usage: translations.GetMessage("flags_global.debug_flag", 0, nil),
+			},
+			&cli.BoolFlag{
+				Name:    "verbose",
+				Aliases: []string{"v"},
+				Usage:   translations.GetMessage("flags_global.verbose_flag", 0, nil),
+			},
+		},
+		Before: func(ctx context.Context, c *cli.Command) (context.Context, error) {
+			logger.Initialize(c.Bool("debug"), c.Bool("verbose"))
+			return ctx, nil
+		},
 	}, nil
 }
 

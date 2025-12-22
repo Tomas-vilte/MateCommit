@@ -786,3 +786,7 @@ reason_balance = "Optimal balance between cost and quality"
 reason_default = "Default model"
 
 
+
+[flags_global]
+debug_flag = "Enable debug logging (very verbose, includes file:line)"
+verbose_flag = "Enable verbose logging (show info messages)"

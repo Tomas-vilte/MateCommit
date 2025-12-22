@@ -4,8 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/urfave/cli/v3"
 )
 
@@ -15,8 +16,8 @@ func TestIssueTemplateAction(t *testing.T) {
 		factory := NewIssuesCommandFactory(provider, mockTemp)
 		cmd := factory.CreateCommand(trans, cfg)
 
-		mockTemp.On("InitializeTemplates", false).Return(nil)
-		mockTemp.On("GetTemplatesDir").Return("/path/to/templates", nil)
+		mockTemp.On("InitializeTemplates", mock.Anything, false).Return(nil)
+		mockTemp.On("GetTemplatesDir", mock.Anything).Return("/path/to/templates", nil)
 
 		app := &cli.Command{Name: "test", Commands: []*cli.Command{cmd}}
 		err := app.Run(context.Background(), []string{"test", "issue", "template", "init"})
@@ -30,8 +31,8 @@ func TestIssueTemplateAction(t *testing.T) {
 		factory := NewIssuesCommandFactory(provider, mockTemp)
 		cmd := factory.CreateCommand(trans, cfg)
 
-		mockTemp.On("InitializeTemplates", true).Return(nil)
-		mockTemp.On("GetTemplatesDir").Return("/path/to/templates", nil)
+		mockTemp.On("InitializeTemplates", mock.Anything, true).Return(nil)
+		mockTemp.On("GetTemplatesDir", mock.Anything).Return("/path/to/templates", nil)
 
 		app := &cli.Command{Name: "test", Commands: []*cli.Command{cmd}}
 		err := app.Run(context.Background(), []string{"test", "issue", "template", "init", "--force"})
@@ -49,7 +50,7 @@ func TestIssueTemplateAction(t *testing.T) {
 			{Name: "Bug", About: "Bug report", FilePath: "bug.md"},
 			{Name: "Feature", About: "Feature request", FilePath: "feat.md"},
 		}
-		mockTemp.On("ListTemplates").Return(templates, nil)
+		mockTemp.On("ListTemplates", mock.Anything).Return(templates, nil)
 
 		app := &cli.Command{Name: "test", Commands: []*cli.Command{cmd}}
 		err := app.Run(context.Background(), []string{"test", "issue", "template", "list"})
@@ -63,7 +64,7 @@ func TestIssueTemplateAction(t *testing.T) {
 		factory := NewIssuesCommandFactory(provider, mockTemp)
 		cmd := factory.CreateCommand(trans, cfg)
 
-		mockTemp.On("ListTemplates").Return([]models.TemplateMetadata{}, nil)
+		mockTemp.On("ListTemplates", mock.Anything).Return([]models.TemplateMetadata{}, nil)
 
 		app := &cli.Command{Name: "test", Commands: []*cli.Command{cmd}}
 		err := app.Run(context.Background(), []string{"test", "issue", "template", "list"})
