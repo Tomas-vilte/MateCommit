@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/thomas-vilte/matecommit/internal/cache"
@@ -90,9 +91,17 @@ func (w *CostAwareWrapper) WrapGenerate(
 
 	contentHash := w.cache.GenerateHash(providerName + originalModel + prompt)
 
+	slog.Debug("checking cache for operation",
+		"command", command,
+		"cache_key_hash", contentHash)
+
 	if cachedData, hit, err := w.cache.Get(contentHash); err == nil && hit {
 		var cachedResp interface{}
 		if err := json.Unmarshal(cachedData, &cachedResp); err == nil {
+			slog.Info("cache hit",
+				"command", command,
+				"cache_key_hash", contentHash)
+
 			usage := &models.TokenUsage{
 				CacheHit:   true,
 				CostUSD:    0,
@@ -102,6 +111,9 @@ func (w *CostAwareWrapper) WrapGenerate(
 			return cachedResp, usage, nil
 		}
 	}
+
+	slog.Debug("cache miss, generating new content",
+		"command", command)
 
 	var inputTokens int
 	tokens, err := w.provider.CountTokens(ctx, prompt)
@@ -151,7 +163,15 @@ func (w *CostAwareWrapper) WrapGenerate(
 		return nil, nil, err
 	}
 
-	_ = w.cache.Set(contentHash, resp)
+	if err := w.cache.Set(contentHash, resp); err != nil {
+		slog.Warn("failed to cache response",
+			"command", command,
+			"error", err)
+	} else {
+		slog.Debug("response cached successfully",
+			"command", command,
+			"cache_key_hash", contentHash)
+	}
 
 	if usage != nil {
 		usage.Model = modelToUse

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/thomas-vilte/matecommit/internal/errors"
+	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/regex"
 )
@@ -27,9 +28,15 @@ func (s *GitService) HasStagedChanges(ctx context.Context) bool {
 }
 
 func (s *GitService) GetChangedFiles(ctx context.Context) ([]string, error) {
+	log := logger.FromContext(ctx)
+
+	log.Debug("getting changed files")
+
 	cmd := exec.CommandContext(ctx, "git", "status", "--porcelain")
 	output, err := cmd.Output()
 	if err != nil {
+		log.Error("git status failed",
+			"error", err)
 		return nil, err
 	}
 
@@ -46,19 +53,30 @@ func (s *GitService) GetChangedFiles(ctx context.Context) ([]string, error) {
 		}
 	}
 
+	log.Debug("changed files retrieved",
+		"count", len(changes))
+
 	return changes, nil
 }
 
 func (s *GitService) GetDiff(ctx context.Context) (string, error) {
+	log := logger.FromContext(ctx)
+
+	log.Debug("executing git diff")
+
 	stagedCmd := exec.CommandContext(ctx, "git", "diff", "--cached")
 	stagedOutput, err := stagedCmd.Output()
 	if err != nil {
+		log.Error("git diff --cached failed",
+			"error", err)
 		return "", err
 	}
 
 	unstagedCmd := exec.CommandContext(ctx, "git", "diff")
 	unstageOutput, err := unstagedCmd.Output()
 	if err != nil {
+		log.Error("git diff failed",
+			"error", err)
 		return "", err
 	}
 
@@ -80,13 +98,25 @@ func (s *GitService) GetDiff(ctx context.Context) (string, error) {
 			}
 		}
 	}
+
+	log.Debug("git diff completed",
+		"staged_size", len(stagedOutput),
+		"unstaged_size", len(unstageOutput),
+		"total_size", len(combinedDiff))
+
 	return combinedDiff, nil
 }
 
 func (s *GitService) CreateCommit(ctx context.Context, message string) error {
+	log := logger.FromContext(ctx)
+
 	if !s.HasStagedChanges(ctx) {
+		log.Warn("no staged changes to commit")
 		return errors.ErrNoChanges
 	}
+
+	log.Debug("creating git commit",
+		"message_length", len(message))
 
 	cmd := exec.CommandContext(ctx, "git", "commit", "-m", message)
 	var stderr strings.Builder
@@ -94,6 +124,10 @@ func (s *GitService) CreateCommit(ctx context.Context, message string) error {
 
 	if err := cmd.Run(); err != nil {
 		stderrStr := strings.TrimSpace(stderr.String())
+
+		log.Error("git commit failed",
+			"error", err,
+			"stderr", stderrStr)
 
 		if strings.Contains(stderrStr, "Please tell me who you are") ||
 			(strings.Contains(stderrStr, "user.name")) &&
@@ -110,6 +144,9 @@ func (s *GitService) CreateCommit(ctx context.Context, message string) error {
 		fullErr := fmt.Sprintf("%v: %s", err, stderrStr)
 		return fmt.Errorf("%w: %s", errors.ErrCreateCommit, fullErr)
 	}
+
+	log.Info("git commit created successfully")
+
 	return nil
 }
 
@@ -132,29 +169,58 @@ func (s *GitService) AddFileToStaging(ctx context.Context, file string) error {
 }
 
 func (s *GitService) GetCurrentBranch(ctx context.Context) (string, error) {
+	log := logger.FromContext(ctx)
+
+	log.Debug("getting current git branch")
+
 	cmd := exec.CommandContext(ctx, "git", "branch", "--show-current")
 	output, err := cmd.Output()
 	if err != nil {
+		log.Error("failed to get current branch",
+			"error", err)
 		return "", fmt.Errorf("%w: %v", errors.ErrGetBranch, err)
 	}
 
 	branchName := strings.TrimSpace(string(output))
 	if branchName == "" {
+		log.Warn("no branch name found (detached HEAD?)")
 		return "", errors.ErrNoBranch
 	}
+
+	log.Debug("current branch retrieved",
+		"branch", branchName)
 
 	return branchName, nil
 }
 
 func (s *GitService) GetRepoInfo(ctx context.Context) (string, string, string, error) {
+	log := logger.FromContext(ctx)
+
+	log.Debug("getting repository info")
+
 	cmd := exec.CommandContext(ctx, "git", "remote", "get-url", "origin")
 	output, err := cmd.Output()
 	if err != nil {
+		log.Error("failed to get remote URL",
+			"error", err)
 		return "", "", "", fmt.Errorf("%w: %v", errors.ErrGetRepoURL, err)
 	}
 
 	url := strings.TrimSpace(string(output))
-	return parseRepoURL(url)
+	owner, repo, provider, err := parseRepoURL(url)
+	if err != nil {
+		log.Error("failed to parse repository URL",
+			"url", url,
+			"error", err)
+		return "", "", "", err
+	}
+
+	log.Debug("repository info retrieved",
+		"owner", owner,
+		"repo", repo,
+		"provider", provider)
+
+	return owner, repo, provider, nil
 }
 
 func (s *GitService) GetLastTag(ctx context.Context) (string, error) {

@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/go-github/v80/github"
 	"github.com/thomas-vilte/matecommit/internal/builder"
+	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ports"
 	"github.com/thomas-vilte/matecommit/internal/regex"
@@ -184,8 +185,20 @@ func (ghc *GitHubClient) UpdatePR(ctx context.Context, prNumber int, summary mod
 }
 
 func (ghc *GitHubClient) GetPR(ctx context.Context, prNumber int) (models.PRData, error) {
+	log := logger.FromContext(ctx)
+
+	log.Debug("fetching github pull request",
+		"owner", ghc.owner,
+		"repo", ghc.repo,
+		"pr_number", prNumber)
+
 	pr, _, err := ghc.prService.Get(ctx, ghc.owner, ghc.repo, prNumber)
 	if err != nil {
+		log.Error("failed to fetch github PR",
+			"error", err,
+			"owner", ghc.owner,
+			"repo", ghc.repo,
+			"pr_number", prNumber)
 		return models.PRData{}, fmt.Errorf("failed to get PR #%d: %w", prNumber, err)
 	}
 
@@ -215,7 +228,7 @@ func (ghc *GitHubClient) GetPR(ctx context.Context, prNumber int) (models.PRData
 		}
 	}
 
-	return models.PRData{
+	prData := models.PRData{
 		ID:          prNumber,
 		Title:       pr.GetTitle(),
 		Creator:     pr.GetUser().GetLogin(),
@@ -223,7 +236,15 @@ func (ghc *GitHubClient) GetPR(ctx context.Context, prNumber int) (models.PRData
 		Diff:        diff,
 		BranchName:  pr.GetHead().GetRef(),
 		Description: pr.GetBody(),
-	}, nil
+	}
+
+	log.Debug("github PR fetched successfully",
+		"pr_number", prNumber,
+		"title", prData.Title,
+		"commits_count", len(prCommits),
+		"diff_size", len(diff))
+
+	return prData, nil
 
 }
 
@@ -508,8 +529,20 @@ func (ghc *GitHubClient) GetFileStatsBetweenTags(ctx context.Context, previousTa
 }
 
 func (ghc *GitHubClient) GetIssue(ctx context.Context, issueNumber int) (*models.Issue, error) {
+	log := logger.FromContext(ctx)
+
+	log.Debug("fetching github issue",
+		"owner", ghc.owner,
+		"repo", ghc.repo,
+		"issue_number", issueNumber)
+
 	issue, _, err := ghc.issuesService.Get(ctx, ghc.owner, ghc.repo, issueNumber)
 	if err != nil {
+		log.Error("failed to fetch github issue",
+			"error", err,
+			"owner", ghc.owner,
+			"repo", ghc.repo,
+			"issue_number", issueNumber)
 		return nil, fmt.Errorf("error getting issue #%d: %w", issueNumber, err)
 	}
 
@@ -542,6 +575,13 @@ func (ghc *GitHubClient) GetIssue(ctx context.Context, issueNumber int) (*models
 
 	criteria := extractAcceptanceCriteria(description)
 
+	log.Debug("github issue fetched successfully",
+		"issue_number", issueNumber,
+		"title", issue.GetTitle(),
+		"state", state,
+		"labels_count", len(labels),
+		"criteria_count", len(criteria))
+
 	return &models.Issue{
 		ID:          int(issue.GetID()),
 		Number:      issue.GetNumber(),
@@ -556,6 +596,15 @@ func (ghc *GitHubClient) GetIssue(ctx context.Context, issueNumber int) (*models
 }
 
 func (ghc *GitHubClient) CreateIssue(ctx context.Context, title string, body string, labels []string, assignees []string) (*models.Issue, error) {
+	log := logger.FromContext(ctx)
+
+	log.Info("creating github issue",
+		"owner", ghc.owner,
+		"repo", ghc.repo,
+		"title", title,
+		"labels_count", len(labels),
+		"assignees_count", len(assignees))
+
 	issueRequest := &github.IssueRequest{
 		Title:     github.Ptr(title),
 		Body:      github.Ptr(body),
@@ -565,6 +614,10 @@ func (ghc *GitHubClient) CreateIssue(ctx context.Context, title string, body str
 
 	ghIssue, _, err := ghc.issuesService.Create(ctx, ghc.owner, ghc.repo, issueRequest)
 	if err != nil {
+		log.Error("failed to create github issue",
+			"error", err,
+			"owner", ghc.owner,
+			"repo", ghc.repo)
 		return nil, fmt.Errorf("error creating issue: %w", err)
 	}
 
@@ -584,6 +637,11 @@ func (ghc *GitHubClient) CreateIssue(ctx context.Context, title string, body str
 			issue.Labels = append(issue.Labels, label.GetName())
 		}
 	}
+
+	log.Info("github issue created successfully",
+		"issue_number", issue.Number,
+		"issue_url", issue.URL)
+
 	return issue, nil
 }
 

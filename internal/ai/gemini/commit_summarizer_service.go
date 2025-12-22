@@ -10,6 +10,7 @@ import (
 	"github.com/thomas-vilte/matecommit/internal/ai"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
+	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ports"
 	"google.golang.org/genai"
@@ -89,18 +90,41 @@ func NewGeminiCommitSummarizer(ctx context.Context, cfg *config.Config, onConfir
 }
 
 func (s *GeminiCommitSummarizer) defaultGenerate(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
+	log := logger.FromContext(ctx)
+
+	log.Debug("calling gemini API",
+		"model", mName,
+		"prompt_length", len(p))
+
 	genConfig := GetGenerateConfig(mName, "application/json")
 
 	resp, err := s.Client.Models.GenerateContent(ctx, mName, genai.Text(p), genConfig)
 	if err != nil {
+		log.Error("gemini API call failed",
+			"error", err,
+			"model", mName)
 		return nil, nil, err
 	}
 
 	usage := extractUsage(resp)
+
+	log.Debug("gemini API response received",
+		"input_tokens", usage.InputTokens,
+		"output_tokens", usage.OutputTokens,
+		"candidates", len(resp.Candidates))
+
 	return resp, usage, nil
 }
 
 func (s *GeminiCommitSummarizer) GenerateSuggestions(ctx context.Context, info models.CommitInfo, count int) ([]models.CommitSuggestion, error) {
+	log := logger.FromContext(ctx)
+
+	log.Info("generating commit suggestions via gemini",
+		"count", count,
+		"files", len(info.Files),
+		"has_issue_info", info.IssueInfo != nil,
+		"has_ticket_info", info.TicketInfo != nil)
+
 	if count <= 0 {
 		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, "invalid suggestion count", nil)
 	}
@@ -111,8 +135,14 @@ func (s *GeminiCommitSummarizer) GenerateSuggestions(ctx context.Context, info m
 
 	prompt := s.generatePrompt(s.config.Language, info, count)
 
+	log.Debug("prompt generated",
+		"prompt_length", len(prompt),
+		"language", s.config.Language)
+
 	resp, usage, err := s.wrapper.WrapGenerate(ctx, "suggest-commits", prompt, s.generateFn)
 	if err != nil {
+		log.Error("failed to generate suggestions",
+			"error", err)
 		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error generating content", err)
 	}
 
@@ -137,14 +167,21 @@ func (s *GeminiCommitSummarizer) GenerateSuggestions(ctx context.Context, info m
 		return nil, domainErrors.NewAppError(domainErrors.TypeAI, fmt.Sprintf("error parsing AI JSON response (length: %d): %s", respLen, preview), err)
 	}
 	if len(suggestions) == 0 {
+		log.Warn("AI generated no suggestions")
 		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "AI generated no suggestions", nil)
 	}
 	for i := range suggestions {
 		suggestions[i].Usage = usage
 	}
 	if info.IssueInfo != nil && info.IssueInfo.Number > 0 {
+		log.Debug("ensuring issue reference in suggestions",
+			"issue_number", info.IssueInfo.Number)
 		suggestions = s.ensureIssueReference(suggestions, info.IssueInfo.Number)
 	}
+
+	log.Info("commit suggestions generated successfully",
+		"count", len(suggestions))
+
 	return suggestions, nil
 }
 
@@ -157,6 +194,7 @@ func (s *GeminiCommitSummarizer) parseSuggestionsJSON(responseText string) ([]mo
 
 	var jsonSuggestions []CommitSuggestionJSON
 	if err := json.Unmarshal([]byte(responseText), &jsonSuggestions); err != nil {
+		// Log at default level (no context available here)
 		return nil, fmt.Errorf("error parsing JSON: %w", err)
 	}
 
