@@ -804,3 +804,7 @@ reason_high_quality = "Operación de alta calidad, requiere mejor redacción"
 reason_large = "Operación grande (> 10k tokens), requiere mejor manejo de contexto"
 reason_balance = "Balance óptimo entre costo y calidad"
 reason_default = "Modelo por defecto"
+
+[flags_global]
+debug_flag = "Habilitar logging de depuración (muy detallado, incluye archivo:línea)"
+verbose_flag = "Habilitar logging detallado (mostrar mensajes informativos)"

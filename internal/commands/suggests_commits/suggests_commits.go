@@ -10,6 +10,7 @@ import (
 	"github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/git"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
+	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ui"
 	"github.com/urfave/cli/v3"
@@ -80,13 +81,25 @@ func (f *SuggestCommandFactory) createFlags(cfg *config.Config, t *i18n.Translat
 
 func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Translations) cli.ActionFunc {
 	return func(ctx context.Context, command *cli.Command) error {
-		emojiFlag := command.Bool("no-emoji")
-		if emojiFlag {
+		log := logger.FromContext(ctx)
+
+		count := command.Int("count")
+		issueNumber := command.Int("issue")
+		lang := command.String("lang")
+		noEmoji := command.Bool("no-emoji")
+
+		log.Info("executing suggest command",
+			"count", count,
+			"issue_number", issueNumber,
+			"language", lang,
+			"no_emoji", noEmoji)
+
+		if noEmoji {
 			cfg.UseEmoji = false
 		} else {
 			cfg.UseEmoji = true
 		}
-		count := command.Int("count")
+
 		if count < 1 || count > 10 {
 			msg := t.GetMessage("invalid_suggestions_count", 0, struct {
 				Min int
@@ -118,7 +131,6 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 		spinner := ui.NewSmartSpinner(t.GetMessage("analyzing_changes", 0, nil))
 		spinner.Start()
 
-		issueNumber := command.Int("issue")
 		var suggestions []models.CommitSuggestion
 		var err error
 
@@ -147,10 +159,17 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 		duration := time.Since(start)
 
 		if err != nil {
+			log.Error("failed to generate suggestions",
+				"error", err,
+				"duration_ms", duration.Milliseconds())
 			spinner.Error(t.GetMessage("ui.error_generating_suggestions", 0, nil))
 			ui.HandleAppError(err, t)
 			return fmt.Errorf("%s", t.GetMessage("suggestion_generation_error", 0, struct{ Error error }{err}))
 		}
+
+		log.Info("suggestions generated successfully",
+			"count", len(suggestions),
+			"duration_ms", duration.Milliseconds())
 
 		spinner.Stop()
 		ui.PrintDuration(t.GetMessage("ui.suggestions_generated", 0, struct{ Count int }{len(suggestions)}), duration)

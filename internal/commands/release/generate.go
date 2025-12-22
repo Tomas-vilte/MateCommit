@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/thomas-vilte/matecommit/internal/commands/completion_helper"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
+	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/ui"
 	"github.com/urfave/cli/v3"
 )
@@ -37,32 +39,61 @@ func (r *ReleaseCommandFactory) newGenerateCommand(trans *i18n.Translations) *cl
 
 func generateReleaseAction(releaseSvc releaseService, trans *i18n.Translations) cli.ActionFunc {
 	return func(ctx context.Context, cmd *cli.Command) error {
+		log := logger.FromContext(ctx)
+		start := time.Now()
+
+		outputFile := cmd.String("output")
+
+		log.Info("executing release generate command",
+			"output_file", outputFile)
+
 		fmt.Println(trans.GetMessage("release.generating", 0, nil))
 		fmt.Println()
 
 		release, err := releaseSvc.AnalyzeNextRelease(ctx)
 		if err != nil {
+			log.Error("failed to analyze next release",
+				"error", err,
+				"duration_ms", time.Since(start).Milliseconds())
 			ui.HandleAppError(err, trans)
 			return fmt.Errorf("%s", trans.GetMessage("release.error_analyzing", 0, struct{ Error string }{err.Error()}))
 		}
 
+		log.Debug("release analyzed",
+			"version", release.Version)
+
 		if err := releaseSvc.EnrichReleaseContext(ctx, release); err != nil {
+			log.Warn("failed to enrich release context", "error", err)
 			fmt.Printf("⚠️  %s\n", trans.GetMessage("release.warning_enrich_context", 0, struct{ Error string }{err.Error()}))
 		}
 
 		notes, err := releaseSvc.GenerateReleaseNotes(ctx, release)
 		if err != nil {
+			log.Error("failed to generate release notes",
+				"error", err,
+				"duration_ms", time.Since(start).Milliseconds())
 			ui.HandleAppError(err, trans)
 			return fmt.Errorf("%s", trans.GetMessage("release.error_generating_notes", 0, struct{ Error string }{err.Error()}))
 		}
 
+		log.Debug("release notes generated",
+			"title", notes.Title)
+
 		content := FormatReleaseMarkdown(release, notes, trans)
 
-		outputFile := cmd.String("output")
 		err = os.WriteFile(outputFile, []byte(content), 0644)
 		if err != nil {
+			log.Error("failed to write release notes file",
+				"error", err,
+				"output_file", outputFile,
+				"duration_ms", time.Since(start).Milliseconds())
 			return fmt.Errorf("%s", trans.GetMessage("release.error_writing_file", 0, struct{ Error string }{err.Error()}))
 		}
+
+		log.Info("release notes file written successfully",
+			"output_file", outputFile,
+			"version", release.Version,
+			"content_size", len(content))
 
 		fmt.Println(trans.GetMessage("release.notes_saved", 0, struct{ File string }{outputFile}))
 		fmt.Println(trans.GetMessage("release.version_label", 0, struct{ Version string }{release.Version}))
@@ -71,6 +102,9 @@ func generateReleaseAction(releaseSvc releaseService, trans *i18n.Translations) 
 			fmt.Println()
 			ui.PrintTokenUsage(notes.Usage, trans)
 		}
+
+		log.Info("release generate command completed successfully",
+			"duration_ms", time.Since(start).Milliseconds())
 
 		fmt.Println()
 

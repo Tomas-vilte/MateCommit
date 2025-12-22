@@ -36,12 +36,12 @@ func (f *IssuesCommandFactory) newTemplateCommand(t *i18n.Translations, _ *confi
 					ui.PrintSectionBanner(t.GetMessage("issue.template_init_banner", 0, nil))
 					ui.PrintInfo(t.GetMessage("issue.template_init_info", 0, nil))
 
-					if err := templateService.InitializeTemplates(force); err != nil {
+					if err := templateService.InitializeTemplates(ctx, force); err != nil {
 						ui.PrintError(os.Stdout, fmt.Sprintf("%s: %v", t.GetMessage("issue.template_init_error", 0, nil), err))
 						return err
 					}
 
-					templatesDir, _ := templateService.GetTemplatesDir()
+					templatesDir, _ := templateService.GetTemplatesDir(ctx)
 					ui.PrintSuccess(os.Stdout, t.GetMessage("issue.template_init_success", 0, struct{ Dir string }{templatesDir}))
 
 					return nil
@@ -52,7 +52,7 @@ func (f *IssuesCommandFactory) newTemplateCommand(t *i18n.Translations, _ *confi
 				Aliases: []string{"ls", "l"},
 				Usage:   t.GetMessage("issue.template_list_usage", 0, nil),
 				Action: func(ctx context.Context, cmd *cli.Command) error {
-					templates, err := templateService.ListTemplates()
+					templates, err := templateService.ListTemplates(ctx)
 					if err != nil {
 						ui.PrintError(os.Stdout, fmt.Sprintf("%s: %v", t.GetMessage("issue.template_list_error", 0, nil), err))
 						return err
