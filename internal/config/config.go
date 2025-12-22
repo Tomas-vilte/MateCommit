@@ -27,6 +27,7 @@ type (
 		UpdateChangelog   bool                 `json:"update_changelog"`
 		VersionFile       string               `json:"version_file,omitempty"`
 		VersionPattern    string               `json:"version_pattern,omitempty"`
+		AutoFetchTags     bool                 `json:"auto_fetch_tags"`
 	}
 
 	AIProviderConfig struct {
@@ -51,7 +52,7 @@ type (
 	}
 
 	VCSConfig struct {
-		Provider string `json:"provider"` // github or gitlab or whatever you want
+		Provider string `json:"provider"` // GitHub or gitlab or whatever you want
 		Token    string `json:"token,omitempty"`
 		Owner    string `json:"owner,omitempty"`
 		Repo     string `json:"repo,omitempty"`

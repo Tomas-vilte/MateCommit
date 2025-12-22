@@ -365,6 +365,7 @@ version_calculated = "📦 New version calculated: {{.Version}}"
 error_updating_app_version = "Error updating app version: {{.Error}}"
 app_version_updated = "✅ App version updated to {{.Version}}"
 commit_no_staged = "No changes to commit. Skipping commit step."
+error_invalid_branch = "❌ Error: Must be on 'main' or 'master' branch to create releases. {{.Error}}"
 
 # Generate Markdown
 md_version = "Version"

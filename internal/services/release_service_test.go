@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/thomas-vilte/matecommit/internal/config"
-	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/thomas-vilte/matecommit/internal/config"
+	"github.com/thomas-vilte/matecommit/internal/models"
 )
 
 func TestReleaseService_AnalyzeNextRelease(t *testing.T) {
@@ -462,6 +462,7 @@ func TestReleaseService_UpdateAppVersion(t *testing.T) {
 		cmdDir := filepath.Join(dir, "cmd")
 		err := os.MkdirAll(cmdDir, 0755)
 		require.NoError(t, err)
+		ctx := context.Background()
 
 		mainGoPath := filepath.Join(cmdDir, "main.go")
 		initialContent := `package main
@@ -478,7 +479,7 @@ var (
 
 		service := NewReleaseService(nil, WithReleaseConfig(cfg))
 
-		err = service.UpdateAppVersion("v1.1.0")
+		err = service.UpdateAppVersion(ctx, "v1.1.0")
 		assert.NoError(t, err)
 
 		newContent, err := os.ReadFile(mainGoPath)
@@ -490,6 +491,7 @@ var (
 	t.Run("should update version with custom pattern", func(t *testing.T) {
 		dir := t.TempDir()
 		versionFile := filepath.Join(dir, "version.go")
+		ctx := context.Background()
 
 		initialContent := `package version
 const CurrentVersion = "0.0.1"
@@ -504,7 +506,7 @@ const CurrentVersion = "0.0.1"
 
 		service := NewReleaseService(nil, WithReleaseConfig(cfg))
 
-		err = service.UpdateAppVersion("v0.0.2")
+		err = service.UpdateAppVersion(ctx, "v0.0.2")
 		assert.NoError(t, err)
 
 		newContent, err := os.ReadFile(versionFile)
@@ -515,6 +517,7 @@ const CurrentVersion = "0.0.1"
 
 	t.Run("should fail if pattern not found", func(t *testing.T) {
 		dir := t.TempDir()
+		ctx := context.Background()
 		versionFile := filepath.Join(dir, "version.go")
 		err := os.WriteFile(versionFile, []byte("package version\n"), 0644)
 		require.NoError(t, err)
@@ -522,7 +525,7 @@ const CurrentVersion = "0.0.1"
 		cfg := &config.Config{VersionFile: versionFile}
 		service := NewReleaseService(nil, WithReleaseConfig(cfg))
 
-		err = service.UpdateAppVersion("v1.0.0")
+		err = service.UpdateAppVersion(ctx, "v1.0.0")
 		assert.Error(t, err)
 	})
 }
@@ -632,5 +635,757 @@ func TestReleaseService_PrependToChangelog(t *testing.T) {
 		assert.Contains(t, string(content), "## [1.1.0]")
 		assert.Contains(t, string(content), "## [1.0.0]")
 		assert.True(t, strings.HasPrefix(string(content), "# Changelog"))
+	})
+}
+
+func TestReleaseService_FindVersionFile_RealScenarios(t *testing.T) {
+	t.Run("Go project with standard layout", func(t *testing.T) {
+		dir := t.TempDir()
+		origDir, _ := os.Getwd()
+		defer func() {
+			if err := os.Chdir(origDir); err != nil {
+				t.Fatal(err)
+			}
+		}()
+
+		goModPath := filepath.Join(dir, "go.mod")
+		err := os.WriteFile(goModPath, []byte("module test\n"), 0644)
+		require.NoError(t, err)
+
+		versionDir := filepath.Join(dir, "internal", "version")
+		err = os.MkdirAll(versionDir, 0755)
+		require.NoError(t, err)
+
+		versionFile := filepath.Join(versionDir, "version.go")
+		versionContent := `package version
+
+const Version = "1.0.0"
+`
+		err = os.WriteFile(versionFile, []byte(versionContent), 0644)
+		require.NoError(t, err)
+
+		err = os.Chdir(dir)
+		require.NoError(t, err)
+
+		service := &ReleaseService{}
+		foundFile, pattern, err := service.FindVersionFile(context.Background())
+
+		assert.NoError(t, err)
+		assert.Equal(t, "internal/version/version.go", foundFile)
+		assert.Contains(t, pattern, "Version")
+	})
+
+	t.Run("Python project with setup.py", func(t *testing.T) {
+		dir := t.TempDir()
+		origDir, _ := os.Getwd()
+		defer func() {
+			if err := os.Chdir(origDir); err != nil {
+				t.Fatal(err)
+			}
+		}()
+		setupPy := filepath.Join(dir, "setup.py")
+		setupContent := `from setuptools import setup
+
+setup(
+    name="test",
+    version="0.1.0",
+)
+`
+		err := os.WriteFile(setupPy, []byte(setupContent), 0644)
+		require.NoError(t, err)
+
+		err = os.Chdir(dir)
+		require.NoError(t, err)
+
+		service := &ReleaseService{}
+		foundFile, pattern, err := service.FindVersionFile(context.Background())
+
+		assert.NoError(t, err)
+		assert.Equal(t, "setup.py", foundFile)
+		assert.Contains(t, pattern, "version")
+	})
+
+	t.Run("JavaScript project with package.json", func(t *testing.T) {
+		dir := t.TempDir()
+		origDir, _ := os.Getwd()
+		defer func() {
+			if err := os.Chdir(origDir); err != nil {
+				t.Fatal(err)
+			}
+		}()
+		packageJSON := filepath.Join(dir, "package.json")
+		packageContent := `{
+  "name": "test-package",
+  "version": "2.3.4",
+  "description": "Test package"
+}
+`
+		err := os.WriteFile(packageJSON, []byte(packageContent), 0644)
+		require.NoError(t, err)
+
+		err = os.Chdir(dir)
+		require.NoError(t, err)
+
+		service := &ReleaseService{}
+		foundFile, pattern, err := service.FindVersionFile(context.Background())
+
+		assert.NoError(t, err)
+		assert.Equal(t, "package.json", foundFile)
+		assert.Contains(t, pattern, "version")
+	})
+
+	t.Run("Rust project with Cargo.toml", func(t *testing.T) {
+		dir := t.TempDir()
+		origDir, _ := os.Getwd()
+		defer func() {
+			if err := os.Chdir(origDir); err != nil {
+				t.Fatal(err)
+			}
+		}()
+		cargoToml := filepath.Join(dir, "Cargo.toml")
+		cargoContent := `[package]
+name = "test"
+version = "0.5.0"
+edition = "2021"
+`
+		err := os.WriteFile(cargoToml, []byte(cargoContent), 0644)
+		require.NoError(t, err)
+
+		err = os.Chdir(dir)
+		require.NoError(t, err)
+
+		service := &ReleaseService{}
+		foundFile, pattern, err := service.FindVersionFile(context.Background())
+
+		assert.NoError(t, err)
+		assert.Equal(t, "Cargo.toml", foundFile)
+		assert.Contains(t, pattern, "version")
+	})
+
+	t.Run("Config-specified version file takes precedence", func(t *testing.T) {
+		dir := t.TempDir()
+		origDir, _ := os.Getwd()
+		defer func() {
+			if err := os.Chdir(origDir); err != nil {
+				t.Fatal(err)
+			}
+		}()
+		customVersion := filepath.Join(dir, "custom_version.go")
+		content := `package main
+
+var AppVersion = "3.0.0"
+`
+		err := os.WriteFile(customVersion, []byte(content), 0644)
+		require.NoError(t, err)
+
+		err = os.Chdir(dir)
+		require.NoError(t, err)
+
+		cfg := &config.Config{
+			VersionFile:    customVersion,
+			VersionPattern: `AppVersion\s*=\s*".*"`,
+		}
+		service := &ReleaseService{config: cfg}
+
+		foundFile, pattern, err := service.FindVersionFile(context.Background())
+
+		assert.NoError(t, err)
+		assert.Equal(t, customVersion, foundFile)
+		assert.Equal(t, `AppVersion\s*=\s*".*"`, pattern)
+	})
+
+	t.Run("Recursive search finds version file in nested directory", func(t *testing.T) {
+		dir := t.TempDir()
+		origDir, _ := os.Getwd()
+		defer func() {
+			if err := os.Chdir(origDir); err != nil {
+				t.Fatal(err)
+			}
+		}()
+		goModPath := filepath.Join(dir, "go.mod")
+		err := os.WriteFile(goModPath, []byte("module test\n"), 0644)
+		require.NoError(t, err)
+
+		pkgVersionDir := filepath.Join(dir, "pkg", "version")
+		err = os.MkdirAll(pkgVersionDir, 0755)
+		require.NoError(t, err)
+
+		versionFile := filepath.Join(pkgVersionDir, "version.go")
+		content := `package version
+
+const Version = "1.2.3"
+`
+		err = os.WriteFile(versionFile, []byte(content), 0644)
+		require.NoError(t, err)
+
+		err = os.Chdir(dir)
+		require.NoError(t, err)
+
+		service := &ReleaseService{}
+		foundFile, pattern, err := service.FindVersionFile(context.Background())
+
+		assert.NoError(t, err)
+		assert.Equal(t, "pkg/version/version.go", foundFile)
+		assert.Contains(t, pattern, "Version")
+	})
+
+	t.Run("Error when no version file found", func(t *testing.T) {
+		dir := t.TempDir()
+		origDir, _ := os.Getwd()
+		defer func() {
+			if err := os.Chdir(origDir); err != nil {
+				t.Fatal(err)
+			}
+		}()
+		err := os.Chdir(dir)
+		require.NoError(t, err)
+
+		service := &ReleaseService{}
+		_, _, err = service.FindVersionFile(context.Background())
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "could not find version file")
+	})
+}
+
+func TestReleaseService_DetectProjectType_RealScenarios(t *testing.T) {
+	tests := []struct {
+		name         string
+		files        map[string]string
+		expectedType string
+	}{
+		{
+			name: "Go project with go.mod",
+			files: map[string]string{
+				"go.mod": "module test",
+			},
+			expectedType: "go",
+		},
+		{
+			name: "Python project with requirements.txt",
+			files: map[string]string{
+				"requirements.txt": "flask==2.0.0",
+			},
+			expectedType: "python",
+		},
+		{
+			name: "JavaScript project with package.json",
+			files: map[string]string{
+				"package.json": `{"name": "test"}`,
+			},
+			expectedType: "js",
+		},
+		{
+			name: "Rust project with Cargo.toml",
+			files: map[string]string{
+				"Cargo.toml": "[package]",
+			},
+			expectedType: "rust",
+		},
+		{
+			name: "PHP project with composer.json",
+			files: map[string]string{
+				"composer.json": `{"name": "test/package"}`,
+			},
+			expectedType: "php",
+		},
+		{
+			name: "Ruby project with Gemfile",
+			files: map[string]string{
+				"Gemfile": "source 'https://rubygems.org'",
+			},
+			expectedType: "ruby",
+		},
+		{
+			name: "Go project detected by .go files",
+			files: map[string]string{
+				"main.go": "package main",
+				"util.go": "package util",
+			},
+			expectedType: "go",
+		},
+		{
+			name: "Python project detected by .py files",
+			files: map[string]string{
+				"app.py":  "import flask",
+				"test.py": "import unittest",
+			},
+			expectedType: "python",
+		},
+		{
+			name:         "Unknown project type",
+			files:        map[string]string{},
+			expectedType: "unknown",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			origDir, _ := os.Getwd()
+			defer func() {
+				if err := os.Chdir(origDir); err != nil {
+					t.Fatal(err)
+				}
+			}()
+			for filename, content := range tt.files {
+				filePath := filepath.Join(dir, filename)
+				err := os.WriteFile(filePath, []byte(content), 0644)
+				require.NoError(t, err)
+			}
+
+			err := os.Chdir(dir)
+			require.NoError(t, err)
+
+			service := &ReleaseService{}
+			projectType := service.detectProjectType()
+
+			assert.Equal(t, tt.expectedType, projectType)
+		})
+	}
+}
+
+func TestReleaseService_ValidateMainBranch_RealScenarios(t *testing.T) {
+	t.Run("Valid main branch", func(t *testing.T) {
+		mockGit := new(MockGitService)
+		service := NewReleaseService(mockGit)
+
+		mockGit.On("GetCurrentBranch", mock.Anything).Return("main", nil)
+
+		err := service.ValidateMainBranch(context.Background())
+
+		assert.NoError(t, err)
+		mockGit.AssertExpectations(t)
+	})
+
+	t.Run("Valid master branch", func(t *testing.T) {
+		mockGit := new(MockGitService)
+		service := NewReleaseService(mockGit)
+
+		mockGit.On("GetCurrentBranch", mock.Anything).Return("master", nil)
+
+		err := service.ValidateMainBranch(context.Background())
+
+		assert.NoError(t, err)
+		mockGit.AssertExpectations(t)
+	})
+
+	t.Run("Invalid feature branch", func(t *testing.T) {
+		mockGit := new(MockGitService)
+		service := NewReleaseService(mockGit)
+
+		mockGit.On("GetCurrentBranch", mock.Anything).Return("feature/new-feature", nil)
+
+		err := service.ValidateMainBranch(context.Background())
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "currently on 'feature/new-feature'")
+		mockGit.AssertExpectations(t)
+	})
+
+	t.Run("Invalid develop branch", func(t *testing.T) {
+		mockGit := new(MockGitService)
+		service := NewReleaseService(mockGit)
+
+		mockGit.On("GetCurrentBranch", mock.Anything).Return("develop", nil)
+
+		err := service.ValidateMainBranch(context.Background())
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "currently on 'develop'")
+		mockGit.AssertExpectations(t)
+	})
+
+	t.Run("Git error getting branch", func(t *testing.T) {
+		mockGit := new(MockGitService)
+		service := NewReleaseService(mockGit)
+
+		mockGit.On("GetCurrentBranch", mock.Anything).Return("", errors.New("not a git repository"))
+
+		err := service.ValidateMainBranch(context.Background())
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "error getting current branch")
+		mockGit.AssertExpectations(t)
+	})
+}
+
+func TestReleaseService_CommitChangelog_RealScenarios(t *testing.T) {
+	t.Run("Successfully commit changelog with version file", func(t *testing.T) {
+		dir := t.TempDir()
+		versionFile := filepath.Join(dir, "cmd", "main.go")
+		err := os.MkdirAll(filepath.Dir(versionFile), 0755)
+		require.NoError(t, err)
+
+		content := `package main
+const Version = "1.0.0"
+`
+		err = os.WriteFile(versionFile, []byte(content), 0644)
+		require.NoError(t, err)
+
+		mockGit := new(MockGitService)
+		cfg := &config.Config{VersionFile: versionFile}
+		service := NewReleaseService(mockGit, WithReleaseConfig(cfg))
+
+		mockGit.On("AddFileToStaging", mock.Anything, versionFile).Return(nil)
+		mockGit.On("HasStagedChanges", mock.Anything).Return(true)
+		mockGit.On("CreateCommit", mock.Anything, "chore: update changelog and bump version to v1.1.0").Return(nil)
+
+		err = service.CommitChangelog(context.Background(), "v1.1.0")
+
+		assert.NoError(t, err)
+		mockGit.AssertExpectations(t)
+	})
+
+	t.Run("Error when no staged changes", func(t *testing.T) {
+		mockGit := new(MockGitService)
+		service := NewReleaseService(mockGit)
+
+		mockGit.On("HasStagedChanges", mock.Anything).Return(false)
+
+		err := service.CommitChangelog(context.Background(), "v1.1.0")
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "no staged changes detected")
+		mockGit.AssertExpectations(t)
+	})
+
+	t.Run("Skips missing version file and commits if other files staged", func(t *testing.T) {
+		mockGit := new(MockGitService)
+		cfg := &config.Config{VersionFile: "/non/existent/file.go"}
+		service := NewReleaseService(mockGit, WithReleaseConfig(cfg))
+
+		mockGit.On("HasStagedChanges", mock.Anything).Return(true)
+		mockGit.On("CreateCommit", mock.Anything, "chore: update changelog and bump version to v2.0.0").Return(nil)
+
+		err := service.CommitChangelog(context.Background(), "v2.0.0")
+
+		assert.NoError(t, err)
+		mockGit.AssertExpectations(t)
+	})
+
+	t.Run("Error adding file to staging", func(t *testing.T) {
+		dir := t.TempDir()
+		versionFile := filepath.Join(dir, "version.txt")
+		err := os.WriteFile(versionFile, []byte("1.0.0"), 0644)
+		require.NoError(t, err)
+
+		mockGit := new(MockGitService)
+		cfg := &config.Config{VersionFile: versionFile}
+		service := NewReleaseService(mockGit, WithReleaseConfig(cfg))
+
+		mockGit.On("AddFileToStaging", mock.Anything, versionFile).Return(errors.New("permission denied"))
+
+		err = service.CommitChangelog(context.Background(), "v1.1.0")
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to add version file to staging")
+		mockGit.AssertExpectations(t)
+	})
+
+	t.Run("Error creating commit", func(t *testing.T) {
+		mockGit := new(MockGitService)
+		service := NewReleaseService(mockGit)
+
+		mockGit.On("HasStagedChanges", mock.Anything).Return(true)
+		mockGit.On("CreateCommit", mock.Anything, mock.Anything).Return(errors.New("commit failed"))
+
+		err := service.CommitChangelog(context.Background(), "v1.0.0")
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to commit changelog and version bump")
+		mockGit.AssertExpectations(t)
+	})
+}
+
+func TestReleaseService_UpdateAppVersion_MultiLanguageRealScenarios(t *testing.T) {
+	tests := []struct {
+		name            string
+		fileExt         string
+		initialContent  string
+		versionPattern  string
+		expectedContent string
+		version         string
+	}{
+		{
+			name:    "Go file with const Version",
+			fileExt: ".go",
+			initialContent: `package version
+
+const Version = "1.0.0"
+`,
+			versionPattern:  `const\s+Version\s*=\s*"[^"]*"`,
+			expectedContent: `const Version = "2.0.0"`,
+			version:         "v2.0.0",
+		},
+		{
+			name:    "Python file with __version__",
+			fileExt: ".py",
+			initialContent: `"""Version module"""
+
+__version__ = "0.1.0"
+`,
+			versionPattern:  `__version__\s*=\s*"[^"]*"`,
+			expectedContent: `__version__ = "0.2.0"`,
+			version:         "v0.2.0",
+		},
+		{
+			name:    "JavaScript package.json",
+			fileExt: ".json",
+			initialContent: `{
+  "name": "test",
+  "version": "1.2.3",
+  "description": "Test"
+}`,
+			versionPattern:  `"version"\s*:\s*"[^"]*"`,
+			expectedContent: `"version": "1.3.0"`,
+			version:         "v1.3.0",
+		},
+		{
+			name:    "Rust Cargo.toml",
+			fileExt: ".toml",
+			initialContent: `[package]
+name = "test"
+version = "0.1.0"
+edition = "2021"`,
+			versionPattern:  `version\s*=\s*"[^"]*"`,
+			expectedContent: `version = "0.2.0"`,
+			version:         "v0.2.0",
+		},
+		{
+			name:    "Ruby version.rb",
+			fileExt: ".rb",
+			initialContent: `module MyGem
+  VERSION = "1.0.0"
+end`,
+			versionPattern:  `VERSION\s*=\s*"[^"]*"`,
+			expectedContent: `VERSION = "1.1.0"`,
+			version:         "v1.1.0",
+		},
+		{
+			name:    "PHP composer.json",
+			fileExt: ".json",
+			initialContent: `{
+  "name": "vendor/package",
+  "version": "2.0.0"
+}`,
+			versionPattern:  `"version"\s*:\s*"[^"]*"`,
+			expectedContent: `"version": "3.0.0"`,
+			version:         "v3.0.0",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			versionFile := filepath.Join(dir, "version"+tt.fileExt)
+			err := os.WriteFile(versionFile, []byte(tt.initialContent), 0644)
+			require.NoError(t, err)
+
+			cfg := &config.Config{
+				VersionFile:    versionFile,
+				VersionPattern: tt.versionPattern,
+			}
+			service := &ReleaseService{config: cfg}
+
+			err = service.UpdateAppVersion(context.Background(), tt.version)
+			assert.NoError(t, err)
+
+			updatedContent, err := os.ReadFile(versionFile)
+			require.NoError(t, err)
+
+			assert.Contains(t, string(updatedContent), tt.expectedContent)
+		})
+	}
+}
+
+func TestReleaseService_FilterValidCommits_RealScenarios(t *testing.T) {
+	service := &ReleaseService{}
+
+	tests := []struct {
+		name     string
+		commits  []models.Commit
+		expected int
+	}{
+		{
+			name: "All conventional commits",
+			commits: []models.Commit{
+				{Message: "feat: add feature"},
+				{Message: "fix: fix bug"},
+				{Message: "docs: update docs"},
+			},
+			expected: 3,
+		},
+		{
+			name: "Mixed conventional and non-conventional",
+			commits: []models.Commit{
+				{Message: "feat: add feature"},
+				{Message: "WIP: work in progress"},
+				{Message: "fix: fix bug"},
+				{Message: "random commit message"},
+			},
+			expected: 2,
+		},
+		{
+			name: "No conventional commits",
+			commits: []models.Commit{
+				{Message: "WIP"},
+				{Message: "update stuff"},
+				{Message: "changes"},
+			},
+			expected: 0,
+		},
+		{
+			name: "Conventional commits with scopes",
+			commits: []models.Commit{
+				{Message: "feat(api): add endpoint"},
+				{Message: "fix(ui): fix button"},
+				{Message: "refactor(core): improve logic"},
+			},
+			expected: 3,
+		},
+		{
+			name: "Breaking changes",
+			commits: []models.Commit{
+				{Message: "feat!: breaking change"},
+				{Message: "fix: normal fix"},
+			},
+			expected: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			valid := service.filterValidCommits(tt.commits)
+			assert.Len(t, valid, tt.expected)
+		})
+	}
+}
+
+func TestReleaseService_PushChanges_RealScenarios(t *testing.T) {
+	t.Run("Successfully push changes", func(t *testing.T) {
+		mockGit := new(MockGitService)
+		service := NewReleaseService(mockGit)
+
+		mockGit.On("Push", mock.Anything).Return(nil)
+
+		err := service.PushChanges(context.Background())
+
+		assert.NoError(t, err)
+		mockGit.AssertExpectations(t)
+	})
+
+	t.Run("Error pushing to remote", func(t *testing.T) {
+		mockGit := new(MockGitService)
+		service := NewReleaseService(mockGit)
+
+		mockGit.On("Push", mock.Anything).Return(errors.New("failed to push: remote rejected"))
+
+		err := service.PushChanges(context.Background())
+
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "remote rejected")
+		mockGit.AssertExpectations(t)
+	})
+}
+
+func TestReleaseService_UpdateLocalChangelog_RealScenarios(t *testing.T) {
+	t.Run("Update changelog with basic notes", func(t *testing.T) {
+		dir := t.TempDir()
+		origDir, _ := os.Getwd()
+		defer func() {
+			if err := os.Chdir(origDir); err != nil {
+				t.Fatal(err)
+			}
+		}()
+		err := os.Chdir(dir)
+		require.NoError(t, err)
+
+		mockGit := new(MockGitService)
+		service := NewReleaseService(mockGit)
+
+		release := &models.Release{
+			Version:         "v1.1.0",
+			PreviousVersion: "v1.0.0",
+		}
+
+		notes := &models.ReleaseNotes{
+			Title:   "Version 1.1.0",
+			Summary: "This release includes 2 new features",
+			Highlights: []string{
+				"Improved performance",
+				"Added new API endpoint",
+			},
+		}
+
+		mockGit.On("GetTagDate", mock.Anything, "v1.1.0").Return("2025-01-15", nil)
+		mockGit.On("GetRepoInfo", mock.Anything).Return("user", "repo", "github", nil)
+
+		err = service.UpdateLocalChangelog(release, notes)
+
+		assert.NoError(t, err)
+
+		changelogPath := filepath.Join(dir, "CHANGELOG.md")
+		content, err := os.ReadFile(changelogPath)
+		require.NoError(t, err)
+
+		assert.Contains(t, string(content), "## [v1.1.0]")
+		assert.Contains(t, string(content), "2025-01-15")
+		assert.Contains(t, string(content), "This release includes 2 new features")
+		assert.Contains(t, string(content), "Improved performance")
+		mockGit.AssertExpectations(t)
+	})
+
+	t.Run("Prepend to existing changelog", func(t *testing.T) {
+		dir := t.TempDir()
+		origDir, _ := os.Getwd()
+		defer func() {
+			if err := os.Chdir(origDir); err != nil {
+				t.Fatal(err)
+			}
+		}()
+		changelogPath := filepath.Join(dir, "CHANGELOG.md")
+		existingContent := `# Changelog
+
+## [v1.0.0] - 2025-01-01
+
+Initial release
+`
+		err := os.WriteFile(changelogPath, []byte(existingContent), 0644)
+		require.NoError(t, err)
+
+		err = os.Chdir(dir)
+		require.NoError(t, err)
+
+		mockGit := new(MockGitService)
+		service := NewReleaseService(mockGit)
+
+		release := &models.Release{
+			Version:         "v1.1.0",
+			PreviousVersion: "v1.0.0",
+		}
+
+		notes := &models.ReleaseNotes{
+			Title:   "Version 1.1.0",
+			Summary: "Bug fixes and improvements",
+		}
+
+		mockGit.On("GetTagDate", mock.Anything, "v1.1.0").Return("2025-01-15", nil)
+		mockGit.On("GetRepoInfo", mock.Anything).Return("", "", "", errors.New("not a repo"))
+
+		err = service.UpdateLocalChangelog(release, notes)
+
+		assert.NoError(t, err)
+
+		content, err := os.ReadFile(changelogPath)
+		require.NoError(t, err)
+
+		contentStr := string(content)
+		assert.Contains(t, contentStr, "## [v1.1.0]")
+		assert.Contains(t, contentStr, "## [v1.0.0]")
+		v110Pos := strings.Index(contentStr, "## [v1.1.0]")
+		v100Pos := strings.Index(contentStr, "## [v1.0.0]")
+		assert.Less(t, v110Pos, v100Pos, "New version should come before old version")
+		mockGit.AssertExpectations(t)
 	})
 }

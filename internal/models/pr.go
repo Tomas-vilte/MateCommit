@@ -41,6 +41,10 @@ type (
 
 	// Commit represents a commit included in the PR.
 	Commit struct {
+		Hash    string
+		Author  string
+		Email   string
+		Date    string
 		Message string
 	}
 

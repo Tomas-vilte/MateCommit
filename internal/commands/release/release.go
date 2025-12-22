@@ -28,7 +28,8 @@ type releaseService interface {
 	UpdateLocalChangelog(release *models.Release, notes *models.ReleaseNotes) error
 	CommitChangelog(ctx context.Context, version string) error
 	PushChanges(ctx context.Context) error
-	UpdateAppVersion(version string) error
+	UpdateAppVersion(ctx context.Context, version string) error
+	ValidateMainBranch(ctx context.Context) error
 }
 
 // gitService is a minimal interface for testing purposes
@@ -48,6 +49,9 @@ type gitService interface {
 	HasStagedChanges(ctx context.Context) bool
 	CreateCommit(ctx context.Context, message string) error
 	Push(ctx context.Context) error
+	FetchTags(ctx context.Context) error
+	ValidateGitConfig(ctx context.Context) error
+	ValidateTagExists(ctx context.Context, tag string) error
 }
 
 type ReleaseCommandFactory struct {
