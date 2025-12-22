@@ -30,7 +30,7 @@ func Initialize(debug, verbose bool) {
 		}
 	}
 
-	handler := slog.NewTextHandler(os.Stderr, opts)
+	handler := NewPrettyHandler(os.Stderr, opts)
 	slog.SetDefault(slog.New(handler))
 }
 
