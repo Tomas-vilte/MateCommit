@@ -7,11 +7,11 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/thomas-vilte/matecommit/internal/i18n"
+	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/urfave/cli/v3"
 )
 
@@ -63,6 +63,7 @@ func TestCreateCommand_Success(t *testing.T) {
 	}
 
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
+	mockService.On("ValidateMainBranch", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
 	mockService.On("CreateTag", mock.Anything, "v1.1.0", "Release v1.1.0\n\nSummary of release").Return(nil)
@@ -85,6 +86,7 @@ func TestCreateCommand_WithVersionOverride(t *testing.T) {
 		Title: "Release v2.0.0",
 	}
 
+	mockService.On("ValidateMainBranch", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
 	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, mock.MatchedBy(func(r *models.Release) bool {
@@ -103,6 +105,7 @@ func TestCreateCommand_AutoConfirm(t *testing.T) {
 	release := &models.Release{Version: "v1.0.1"}
 	notes := &models.ReleaseNotes{Title: "Fix"}
 
+	mockService.On("ValidateMainBranch", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
 	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
@@ -117,6 +120,7 @@ func TestCreateCommand_Cancelled(t *testing.T) {
 	release := &models.Release{Version: "v1.0.1"}
 	notes := &models.ReleaseNotes{Title: "Fix"}
 
+	mockService.On("ValidateMainBranch", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
 	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
@@ -128,6 +132,7 @@ func TestCreateCommand_Cancelled(t *testing.T) {
 
 func TestCreateCommand_AnalyzeError(t *testing.T) {
 	mockService := new(MockReleaseService)
+	mockService.On("ValidateMainBranch", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return((*models.Release)(nil), errors.New("git error"))
 	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 
@@ -140,6 +145,7 @@ func TestCreateCommand_AnalyzeError(t *testing.T) {
 func TestCreateCommand_GenerateNotesError(t *testing.T) {
 	mockService := new(MockReleaseService)
 	release := &models.Release{Version: "v1.0.0"}
+	mockService.On("ValidateMainBranch", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
 	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return((*models.ReleaseNotes)(nil), errors.New("ai error"))
@@ -156,6 +162,7 @@ func TestCreateCommand_CreateTagError(t *testing.T) {
 	release := &models.Release{Version: "v1.0.0"}
 	notes := &models.ReleaseNotes{Title: "Title"}
 
+	mockService.On("ValidateMainBranch", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
 	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
@@ -173,12 +180,12 @@ func TestCreateCommand_WithPublish(t *testing.T) {
 	release := &models.Release{Version: "v1.0.0"}
 	notes := &models.ReleaseNotes{Title: "Title"}
 
+	mockService.On("ValidateMainBranch", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
 	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
 	mockService.On("CreateTag", mock.Anything, "v1.0.0", mock.Anything).Return(nil)
 
-	// Expect PublishRelease with buildBinaries=true (default)
 	mockService.On("PublishRelease", mock.Anything, release, notes, false, true).Return(nil)
 
 	err := runCreateTest(t, "y\n", []string{"--publish"}, mockService)
@@ -192,12 +199,12 @@ func TestCreateCommand_WithPublishDraft(t *testing.T) {
 	release := &models.Release{Version: "v1.0.0"}
 	notes := &models.ReleaseNotes{Title: "Title"}
 
+	mockService.On("ValidateMainBranch", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
 	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
 	mockService.On("CreateTag", mock.Anything, "v1.0.0", mock.Anything).Return(nil)
 
-	// Expect PublishRelease with draft=true and buildBinaries=true (default)
 	mockService.On("PublishRelease", mock.Anything, release, notes, true, true).Return(nil)
 
 	err := runCreateTest(t, "y\n", []string{"--publish", "--draft"}, mockService)
@@ -211,12 +218,12 @@ func TestCreateCommand_PublishError(t *testing.T) {
 	release := &models.Release{Version: "v1.0.0"}
 	notes := &models.ReleaseNotes{Title: "Title"}
 
+	mockService.On("ValidateMainBranch", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
 	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
 	mockService.On("CreateTag", mock.Anything, "v1.0.0", mock.Anything).Return(nil)
 
-	// Expect PublishRelease error
 	mockService.On("PublishRelease", mock.Anything, release, notes, false, true).Return(errors.New("publish error"))
 
 	err := runCreateTest(t, "y\n", []string{"--publish"}, mockService)
@@ -229,12 +236,13 @@ func TestCreateCommand_WithChangelog(t *testing.T) {
 	release := &models.Release{Version: "v1.0.0"}
 	notes := &models.ReleaseNotes{Title: "Title"}
 
+	mockService.On("ValidateMainBranch", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
 	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
 
 	mockService.On("UpdateLocalChangelog", release, notes).Return(nil)
-	mockService.On("UpdateAppVersion", "v1.0.0").Return(nil)
+	mockService.On("UpdateAppVersion", mock.Anything, "v1.0.0").Return(nil)
 	mockService.On("CommitChangelog", mock.Anything, "v1.0.0").Return(nil)
 	mockService.On("PushChanges", mock.Anything).Return(nil)
 

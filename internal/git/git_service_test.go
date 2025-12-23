@@ -3,14 +3,15 @@ package git
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/stretchr/testify/assert"
+	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 )
 
 var originalDir string
@@ -70,22 +71,18 @@ func TestGitService(t *testing.T) {
 
 		service := NewGitService()
 
-		// Act - Verificar sin cambios staged
 		hasStagedBefore := service.HasStagedChanges(context.Background())
 
-		// Crear y hacer stage de un archivo
 		testFile := filepath.Join("test.txt")
 		if err := os.WriteFile(testFile, []byte("test content"), 0644); err != nil {
 			t.Fatalf("Error creando archivo de prueba: %v", err)
 		}
 
-		// Stage el archivo
 		cmd := exec.Command("git", "add", "test.txt")
 		if err := cmd.Run(); err != nil {
 			t.Fatalf("Error haciendo stage del archivo: %v", err)
 		}
 
-		// Act - Verificar con cambios staged
 		hasStagedAfter := service.HasStagedChanges(context.Background())
 
 		// Assert
@@ -104,7 +101,6 @@ func TestGitService(t *testing.T) {
 
 		service := NewGitService()
 
-		// Act - Obtener la branch actual (debería ser 'main' por defecto)
 		branchName, err := service.GetCurrentBranch(context.Background())
 
 		// Assert
@@ -321,9 +317,12 @@ func TestGitService(t *testing.T) {
 		// Act
 		diff, err := service.GetDiff(context.Background())
 
-		// Assert
-		if err != nil {
-			t.Errorf("Error obteniendo diff: %v", err)
+		if err == nil {
+			t.Error("Expected ErrNoDiff when there are no changes")
+		}
+
+		if !errors.Is(err, domainErrors.ErrNoDiff) {
+			t.Errorf("Expected ErrNoDiff, got: %v", err)
 		}
 
 		if diff != "" {
@@ -348,7 +347,6 @@ func TestAddFileToStaging(t *testing.T) {
 			t.Fatalf("Error inesperado: %v", err)
 		}
 
-		// verificar staging
 		cmd := exec.Command("git", "diff", "--cached", "--name-status")
 		output, _ := cmd.Output()
 		if !strings.Contains(string(output), "A\t"+testFile) {
@@ -363,7 +361,6 @@ func TestAddFileToStaging(t *testing.T) {
 		service := NewGitService()
 		testFile := "deleted.txt"
 
-		// Crear y committear archivo
 		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
 			return
 		}
@@ -374,7 +371,6 @@ func TestAddFileToStaging(t *testing.T) {
 			t.Fatalf("Error al crear commit inicial: %v", err)
 		}
 
-		// Eliminar y agregar al staging
 		if err := os.Remove(testFile); err != nil {
 			return
 		}
@@ -383,7 +379,6 @@ func TestAddFileToStaging(t *testing.T) {
 			t.Fatalf("Error inesperado: %v", err)
 		}
 
-		// Verificar eliminación en staging
 		cmd := exec.Command("git", "diff", "--cached", "--name-status")
 		output, _ := cmd.Output()
 		if !strings.Contains(string(output), "D\t"+testFile) {
@@ -534,12 +529,10 @@ func TestGitService_NewMethods(t *testing.T) {
 
 		service := NewGitService()
 
-		// Caso 1: Sin tags
 		tag, err := service.GetLastTag(context.Background())
 		assert.NoError(t, err)
 		assert.Equal(t, "", tag, "Debería retornar string vacío si no hay tags")
 
-		// Caso 2: Con tags
 		createCommitHelper(t, "file1.txt", "Initial commit")
 
 		err = exec.Command("git", "tag", "-a", "v0.1.0", "-m", "Version 0.1.0").Run()
@@ -560,22 +553,18 @@ func TestGitService_NewMethods(t *testing.T) {
 
 		service := NewGitService()
 
-		// Crear historial
 		createCommitHelper(t, "init.txt", "chore: initial commit")
 		_ = exec.Command("git", "tag", "-a", "v1.0.0", "-m", "v1.0.0").Run()
 
 		createCommitHelper(t, "feat.txt", "feat: amazing feature")
 		createCommitHelper(t, "fix.txt", "fix: critical bug")
 
-		// Caso 1: Commits desde v1.0.0
 		commits, err := service.GetCommitsSinceTag(context.Background(), "v1.0.0")
 		assert.NoError(t, err)
 		assert.Len(t, commits, 2)
-		// Git log suele devolver en orden cronológico inverso (el más reciente primero)
 		assert.Contains(t, commits[0].Message, "fix: critical bug")
 		assert.Contains(t, commits[1].Message, "feat: amazing feature")
 
-		// Caso 2: Sin tag previo (debería traer todos)
 		commits, err = service.GetCommitsSinceTag(context.Background(), "")
 		assert.NoError(t, err)
 		assert.Len(t, commits, 3) // feat, fix, chore
@@ -591,7 +580,6 @@ func TestGitService_NewMethods(t *testing.T) {
 		err := service.CreateTag(context.Background(), "v2.0.0", "Release v2.0.0")
 		assert.NoError(t, err)
 
-		// Verificar que el tag existe
 		output, _ := exec.Command("git", "tag", "-l", "v2.0.0").Output()
 		assert.Contains(t, string(output), "v2.0.0")
 	})
@@ -602,8 +590,6 @@ func TestGitService_NewMethods(t *testing.T) {
 
 		service := NewGitService()
 
-		// Repositorio vacío (recién inicializado, sin commits) puede dar error o 0 dependiendo de la versión de git/setup
-		// Vamos a crear al menos uno para asegurar
 		createCommitHelper(t, "one.txt", "one")
 		count, err := service.GetCommitCount(context.Background())
 		assert.NoError(t, err)
@@ -616,11 +602,9 @@ func TestGitService_NewMethods(t *testing.T) {
 	})
 
 	t.Run("PushTag", func(t *testing.T) {
-		// Setup local repo
 		localDir := setupTestRepo(t)
 		defer cleanupTestRepo(t, localDir)
 
-		// Setup bare remote repo to simulate origin
 		remoteDir, err := os.MkdirTemp("", "git-remote-test")
 		if err != nil {
 			t.Fatalf("Error creando dir remoto: %v", err)
@@ -631,12 +615,10 @@ func TestGitService_NewMethods(t *testing.T) {
 			}
 		}()
 
-		// Init bare repo
 		if err := exec.Command("git", "init", "--bare", remoteDir).Run(); err != nil {
 			t.Fatalf("Error iniciando bare repo: %v", err)
 		}
 
-		// Add remote to local
 		if err := exec.Command("git", "remote", "add", "origin", remoteDir).Run(); err != nil {
 			t.Fatalf("Error agregando remote: %v", err)
 		}
@@ -644,18 +626,368 @@ func TestGitService_NewMethods(t *testing.T) {
 		service := NewGitService()
 		createCommitHelper(t, "code.txt", "ready to release")
 
-		// Push antes de tener el tag debería fallar o no hacer nada relevante, primero creamos el tag
 		err = service.CreateTag(context.Background(), "v1.0.0", "Release")
 		assert.NoError(t, err)
 
-		// Test PushTag
 		err = service.PushTag(context.Background(), "v1.0.0")
 		assert.NoError(t, err)
 
-		// Verificar en el remoto que el tag existe
 		cmd := exec.Command("git", "--git-dir", remoteDir, "tag")
 		out, err := cmd.Output()
 		assert.NoError(t, err)
 		assert.Contains(t, string(out), "v1.0.0")
+	})
+}
+
+func TestGitService_ErrorHandling(t *testing.T) {
+	t.Run("GetDiff returns ErrNoDiff when no changes", func(t *testing.T) {
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		service := NewGitService()
+
+		testFile := "test.txt"
+		if err := os.WriteFile(testFile, []byte("initial content"), 0644); err != nil {
+			t.Fatalf("Error creating file: %v", err)
+		}
+		cmd := exec.Command("git", "add", "test.txt")
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("Error staging file: %v", err)
+		}
+		cmd = exec.Command("git", "commit", "-m", "initial commit")
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("Error committing: %v", err)
+		}
+
+		_, err := service.GetDiff(context.Background())
+		assert.Error(t, err)
+		assert.ErrorIs(t, err, domainErrors.ErrNoDiff)
+	})
+
+	t.Run("CreateTag with error returns proper AppError with context", func(t *testing.T) {
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		service := NewGitService()
+
+		testFile := "test.txt"
+		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+			t.Fatalf("Error creating file: %v", err)
+		}
+		cmd := exec.Command("git", "add", "test.txt")
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("Error staging: %v", err)
+		}
+		cmd = exec.Command("git", "commit", "-m", "initial")
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("Error committing: %v", err)
+		}
+
+		err := service.CreateTag(context.Background(), "v1.0.0", "Release v1.0.0")
+		assert.NoError(t, err)
+
+		err = service.CreateTag(context.Background(), "v1.0.0", "Duplicate")
+		assert.Error(t, err)
+
+		var appErr *domainErrors.AppError
+		assert.True(t, errors.As(err, &appErr))
+		assert.Equal(t, domainErrors.TypeGit, appErr.Type)
+		assert.Equal(t, "v1.0.0", appErr.Context["version"])
+	})
+
+	t.Run("AddFileToStaging with non-existent file returns error with context", func(t *testing.T) {
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		service := NewGitService()
+
+		err := service.AddFileToStaging(context.Background(), "non-existent.txt")
+		assert.Error(t, err)
+
+		var appErr *domainErrors.AppError
+		assert.True(t, errors.As(err, &appErr))
+		assert.Equal(t, domainErrors.TypeGit, appErr.Type)
+		assert.Equal(t, "non-existent.txt", appErr.Context["file"])
+		errMsg := err.Error()
+		hasExpectedMsg := strings.Contains(errMsg, "did not match any files") ||
+			strings.Contains(errMsg, "no concordó con ningún archivo")
+		assert.True(t, hasExpectedMsg, "Expected error message about file not matching, got: %s", errMsg)
+	})
+
+	t.Run("GetCommitCount returns error with proper wrapping", func(t *testing.T) {
+		tempDir, err := os.MkdirTemp("", "not-git-repo")
+		assert.NoError(t, err)
+		defer func() {
+			if err := os.RemoveAll(tempDir); err != nil {
+				t.Fatalf("Error removing temp dir: %v", err)
+			}
+		}()
+
+		originalWd, _ := os.Getwd()
+		defer func() {
+			if err := os.Chdir(originalWd); err != nil {
+				t.Fatalf("Error changing working directory: %v", err)
+			}
+		}()
+
+		err = os.Chdir(tempDir)
+		assert.NoError(t, err)
+
+		service := NewGitService()
+		count, err := service.GetCommitCount(context.Background())
+		assert.Error(t, err)
+		assert.Equal(t, 0, count)
+
+		var appErr *domainErrors.AppError
+		assert.True(t, errors.As(err, &appErr))
+		assert.Equal(t, domainErrors.TypeGit, appErr.Type)
+		assert.Contains(t, err.Error(), "failed to get commit count")
+	})
+}
+
+// TestGitService_ValidateTagExists tests tag validation
+func TestGitService_ValidateTagExists(t *testing.T) {
+	t.Run("ValidateTagExists returns error for non-existent tag", func(t *testing.T) {
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		service := NewGitService()
+
+		testFile := "test.txt"
+		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+			t.Fatalf("Error creating file: %v", err)
+		}
+		cmd := exec.Command("git", "add", "test.txt")
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("Error staging: %v", err)
+		}
+		cmd = exec.Command("git", "commit", "-m", "test")
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("Error committing: %v", err)
+		}
+
+		err := service.ValidateTagExists(context.Background(), "v999.999.999")
+		assert.Error(t, err)
+
+		var appErr *domainErrors.AppError
+		assert.True(t, errors.As(err, &appErr))
+		assert.Equal(t, "v999.999.999", appErr.Context["tag"])
+	})
+
+	t.Run("ValidateTagExists succeeds for existing tag", func(t *testing.T) {
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		service := NewGitService()
+
+		testFile := "test.txt"
+		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+			t.Fatalf("Error creating file: %v", err)
+		}
+		cmd := exec.Command("git", "add", "test.txt")
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("Error staging: %v", err)
+		}
+		cmd = exec.Command("git", "commit", "-m", "test")
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("Error committing: %v", err)
+		}
+
+		err := service.CreateTag(context.Background(), "v1.0.0", "Test tag")
+		assert.NoError(t, err)
+
+		err = service.ValidateTagExists(context.Background(), "v1.0.0")
+		assert.NoError(t, err)
+	})
+}
+
+// TestGitService_GetRecentCommitMessages tests getting recent commit messages
+func TestGitService_GetRecentCommitMessages(t *testing.T) {
+	t.Run("GetRecentCommitMessages returns messages", func(t *testing.T) {
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		service := NewGitService()
+
+		commits := []string{"First commit", "Second commit", "Third commit"}
+		for i, msg := range commits {
+			testFile := filepath.Join(tempDir, fmt.Sprintf("file%d.txt", i))
+			if err := os.WriteFile(testFile, []byte("content"), 0644); err != nil {
+				t.Fatalf("Error creating file: %v", err)
+			}
+			cmd := exec.Command("git", "add", ".")
+			if err := cmd.Run(); err != nil {
+				t.Fatalf("Error staging: %v", err)
+			}
+			cmd = exec.Command("git", "commit", "-m", msg)
+			if err := cmd.Run(); err != nil {
+				t.Fatalf("Error committing: %v", err)
+			}
+		}
+
+		messages, err := service.GetRecentCommitMessages(context.Background(), 2)
+		assert.NoError(t, err)
+		assert.Len(t, messages, 2)
+		assert.Contains(t, messages[0], "Third commit")
+		assert.Contains(t, messages[1], "Second commit")
+	})
+
+	t.Run("GetRecentCommitMessages returns error with context when not in repo", func(t *testing.T) {
+		tempDir, err := os.MkdirTemp("", "not-git-repo")
+		assert.NoError(t, err)
+		defer func() {
+			if err := os.RemoveAll(tempDir); err != nil {
+				t.Fatalf("Error removing temp dir: %v", err)
+			}
+		}()
+
+		originalWd, _ := os.Getwd()
+		defer func() {
+			if err := os.Chdir(originalWd); err != nil {
+				t.Fatalf("Error changing working directory: %v", err)
+			}
+		}()
+
+		err = os.Chdir(tempDir)
+		assert.NoError(t, err)
+
+		service := NewGitService()
+		messages, err := service.GetRecentCommitMessages(context.Background(), 5)
+		assert.Error(t, err)
+		assert.Nil(t, messages)
+
+		var appErr *domainErrors.AppError
+		assert.True(t, errors.As(err, &appErr))
+		assert.Equal(t, domainErrors.TypeGit, appErr.Type)
+		assert.Equal(t, 5, appErr.Context["count"])
+	})
+}
+
+// TestGitService_GetGitUserInfo tests getting git user configuration
+func TestGitService_GetGitUserInfo(t *testing.T) {
+	t.Run("GetGitUserName returns configured name", func(t *testing.T) {
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		service := NewGitService()
+		name, err := service.GetGitUserName(context.Background())
+		assert.NoError(t, err)
+		assert.Equal(t, "Test User", name)
+	})
+
+	t.Run("GetGitUserEmail returns configured email", func(t *testing.T) {
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		service := NewGitService()
+		email, err := service.GetGitUserEmail(context.Background())
+		assert.NoError(t, err)
+		assert.Equal(t, "test@example.com", email)
+	})
+
+	t.Run("GetGitUserName returns error with context when not configured", func(t *testing.T) {
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		cmd := exec.Command("git", "config", "--local", "--unset", "user.name")
+		_ = cmd.Run()
+		cmd = exec.Command("git", "config", "--global", "--unset", "user.name")
+		_ = cmd.Run()
+
+		cmd = exec.Command("git", "config", "user.name")
+		_, err := cmd.Output()
+		if err == nil {
+			t.Skip("Cannot fully unset git user.name due to global/system config")
+		}
+
+		service := NewGitService()
+		name, err := service.GetGitUserName(context.Background())
+		if err != nil {
+			assert.Empty(t, name)
+			var appErr *domainErrors.AppError
+			if errors.As(err, &appErr) {
+				assert.Equal(t, "user.name", appErr.Context["config_key"])
+			}
+		}
+	})
+}
+
+func TestGitService_GetTagDate(t *testing.T) {
+	t.Run("GetTagDate returns date for existing tag", func(t *testing.T) {
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		service := NewGitService()
+
+		testFile := "test.txt"
+		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+			t.Fatalf("Error creating file: %v", err)
+		}
+		cmd := exec.Command("git", "add", "test.txt")
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("Error staging: %v", err)
+		}
+		cmd = exec.Command("git", "commit", "-m", "test")
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("Error committing: %v", err)
+		}
+
+		err := service.CreateTag(context.Background(), "v1.0.0", "Release")
+		assert.NoError(t, err)
+
+		date, err := service.GetTagDate(context.Background(), "v1.0.0")
+		assert.NoError(t, err)
+		assert.NotEmpty(t, date)
+		assert.Len(t, date, 10)
+	})
+
+	t.Run("GetTagDate returns error with context for non-existent tag", func(t *testing.T) {
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		service := NewGitService()
+
+		date, err := service.GetTagDate(context.Background(), "v999.0.0")
+		assert.Error(t, err)
+		assert.Empty(t, date)
+
+		var appErr *domainErrors.AppError
+		assert.True(t, errors.As(err, &appErr))
+		assert.Equal(t, "v999.0.0", appErr.Context["tag"])
+	})
+}
+
+func TestGitService_Push(t *testing.T) {
+	t.Run("Push returns error when no remote configured", func(t *testing.T) {
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		service := NewGitService()
+
+		err := service.Push(context.Background())
+		assert.Error(t, err)
+
+		var appErr *domainErrors.AppError
+		assert.True(t, errors.As(err, &appErr))
+		assert.Equal(t, domainErrors.TypeGit, appErr.Type)
+		assert.Contains(t, err.Error(), "failed to push to remote")
+	})
+}
+
+func TestGitService_GetCommitsBetweenTags(t *testing.T) {
+	t.Run("GetCommitsBetweenTags returns error with tag context", func(t *testing.T) {
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		service := NewGitService()
+
+		commits, err := service.GetCommitsBetweenTags(context.Background(), "v1.0.0", "v2.0.0")
+		assert.Error(t, err)
+		assert.Nil(t, commits)
+
+		var appErr *domainErrors.AppError
+		assert.True(t, errors.As(err, &appErr))
+		assert.Equal(t, "v1.0.0", appErr.Context["from_tag"])
+		assert.Equal(t, "v2.0.0", appErr.Context["to_tag"])
 	})
 }

@@ -3,8 +3,8 @@ package release
 import (
 	"context"
 
-	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/stretchr/testify/mock"
+	"github.com/thomas-vilte/matecommit/internal/models"
 )
 
 type MockReleaseService struct {
@@ -75,8 +75,8 @@ func (m *MockReleaseService) PushChanges(ctx context.Context) error {
 	return args.Error(0)
 }
 
-func (m *MockReleaseService) UpdateAppVersion(version string) error {
-	args := m.Called(version)
+func (m *MockReleaseService) UpdateAppVersion(ctx context.Context, version string) error {
+	args := m.Called(ctx, version)
 	return args.Error(0)
 }
 
@@ -168,4 +168,24 @@ func (m *MockGitService) Push(ctx context.Context) error {
 func (m *MockGitService) GetRecentCommitMessages(ctx context.Context, count int) ([]string, error) {
 	args := m.Called(ctx, count)
 	return args.Get(0).([]string), args.Error(1)
+}
+
+func (m *MockReleaseService) ValidateMainBranch(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
+func (m *MockGitService) FetchTags(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
+func (m *MockGitService) ValidateGitConfig(ctx context.Context) error {
+	args := m.Called(ctx)
+	return args.Error(0)
+}
+
+func (m *MockGitService) ValidateTagExists(ctx context.Context, tag string) error {
+	args := m.Called(ctx, tag)
+	return args.Error(0)
 }

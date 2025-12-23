@@ -8,7 +8,6 @@ import (
 
 	"github.com/thomas-vilte/matecommit/internal/commands/completion_helper"
 	"github.com/thomas-vilte/matecommit/internal/config"
-	"github.com/thomas-vilte/matecommit/internal/git"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
@@ -26,15 +25,21 @@ type commitHandler interface {
 	HandleSuggestions(ctx context.Context, suggestions []models.CommitSuggestion) error
 }
 
+type gitService interface {
+	ValidateGitConfig(ctx context.Context) error
+}
+
 type SuggestCommandFactory struct {
 	commitService commitService
 	commitHandler commitHandler
+	gitService    gitService
 }
 
-func NewSuggestCommandFactory(commitSvc commitService, commitHdlr commitHandler) *SuggestCommandFactory {
+func NewSuggestCommandFactory(commitSvc commitService, commitHdlr commitHandler, gitSvc gitService) *SuggestCommandFactory {
 	return &SuggestCommandFactory{
 		commitService: commitSvc,
 		commitHandler: commitHdlr,
+		gitService:    gitSvc,
 	}
 }
 
@@ -122,8 +127,7 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 
 		ui.PrintSectionBanner(t.GetMessage("ui.generating_suggestions_banner", 0, nil))
 
-		gitSvc := git.NewGitService()
-		if err := gitSvc.ValidateGitConfig(ctx); err != nil {
+		if err := f.gitService.ValidateGitConfig(ctx); err != nil {
 			ui.HandleAppError(err, t)
 			return err
 		}

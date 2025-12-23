@@ -50,6 +50,12 @@ func generateReleaseAction(releaseSvc releaseService, trans *i18n.Translations) 
 		fmt.Println(trans.GetMessage("release.generating", 0, nil))
 		fmt.Println()
 
+		if err := releaseSvc.ValidateMainBranch(ctx); err != nil {
+			log.Error("branch validation failed",
+				"error", err)
+			return fmt.Errorf("%s", trans.GetMessage("release.error_invalid_branch", 0, struct{ Error string }{err.Error()}))
+		}
+
 		release, err := releaseSvc.AnalyzeNextRelease(ctx)
 		if err != nil {
 			log.Error("failed to analyze next release",

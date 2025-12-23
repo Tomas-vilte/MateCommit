@@ -59,7 +59,14 @@ func publishReleaseAction(releaseSvc releaseService,
 		log.Info("executing release publish command",
 			"version", version,
 			"draft", draft,
-			"build_binaries", buildBinaries)
+			"build_binaries", buildBinaries,
+		)
+
+		if err := releaseSvc.ValidateMainBranch(ctx); err != nil {
+			log.Error("branch validation failed",
+				"error", err)
+			return fmt.Errorf("%s", trans.GetMessage("release.error_invalid_branch", 0, struct{ Error string }{err.Error()}))
+		}
 
 		release, err := releaseSvc.AnalyzeNextRelease(ctx)
 		if err != nil {

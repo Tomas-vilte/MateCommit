@@ -26,7 +26,6 @@ var (
 
 	// Emojis with colors
 	SuccessEmoji = Success.Sprint("✓")
-	ErrorEmoji   = Error.Sprint("✗")
 	WarningEmoji = Warning.Sprint("⚠")
 	InfoEmoji    = Info.Sprint("*")
 	RocketEmoji  = Accent.Sprint("🚀")
@@ -234,6 +233,9 @@ func HandleAppError(err error, t *i18n.Translations) {
 		if errors.Is(appErr, domainErrors.ErrNoChanges) {
 			msg = t.GetMessage("ui_error.no_changes_detected", 0, nil)
 			suggestion = t.GetMessage("ui_error.ensure_modified_files", 0, nil)
+		} else if errors.Is(appErr, domainErrors.ErrNoDiff) {
+			msg = t.GetMessage("ui_error.no_changes_detected", 0, nil)
+			suggestion = t.GetMessage("ui_error.ensure_modified_files", 0, nil)
 		} else if errors.Is(appErr, domainErrors.ErrGitUserNotConfigured) {
 			msg = t.GetMessage("ui_error.git_user_not_configured", 0, nil)
 			suggestion = t.GetMessage("ui_error.git_config_user_suggestion", 0, nil)
@@ -243,10 +245,26 @@ func HandleAppError(err error, t *i18n.Translations) {
 		} else if errors.Is(appErr, domainErrors.ErrNotInGitRepo) {
 			msg = t.GetMessage("ui_error.not_in_git_repo", 0, nil)
 			suggestion = t.GetMessage("ui_error.git_init_suggestion", 0, nil)
+		} else if errors.Is(appErr, domainErrors.ErrInvalidBranch) {
+			msg = appErr.Message
+			suggestion = "Switch to main or master branch to create releases"
+		} else if errors.Is(appErr, domainErrors.ErrTagNotFound) {
+			msg = appErr.Message
+			if tagCtx, ok := appErr.Context["tag"].(string); ok {
+				suggestion = fmt.Sprintf("Tag '%s' not found in repository. Check available tags with: git tag -l", tagCtx)
+			}
+		} else if errors.Is(appErr, domainErrors.ErrInvalidTagFormat) {
+			msg = appErr.Message
+			suggestion = "Tags must follow semantic versioning format (vX.Y.Z), e.g., v1.0.0"
 		} else {
 			msg = appErr.Message
 			if appErr.Err != nil {
 				suggestion = appErr.Err.Error()
+			}
+			if appErr.Context != nil {
+				if file, ok := appErr.Context["file"].(string); ok {
+					suggestion = fmt.Sprintf("File: %s - %s", file, suggestion)
+				}
 			}
 		}
 	case domainErrors.TypeAI:

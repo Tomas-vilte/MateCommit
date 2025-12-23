@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/thomas-vilte/matecommit/internal/i18n"
+	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/urfave/cli/v3"
 )
 
@@ -55,6 +55,7 @@ func TestGenerateCommand_Success(t *testing.T) {
 		Highlights: []string{"Highlight 1"},
 	}
 
+	mockService.On("ValidateMainBranch", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
 	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
@@ -75,6 +76,7 @@ func TestGenerateCommand_Success(t *testing.T) {
 
 func TestGenerateCommand_AnalyzeError(t *testing.T) {
 	mockService := new(MockReleaseService)
+	mockService.On("ValidateMainBranch", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return((*models.Release)(nil), errors.New("git error"))
 	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 
@@ -88,6 +90,7 @@ func TestGenerateCommand_AnalyzeError(t *testing.T) {
 func TestGenerateCommand_GenerateError(t *testing.T) {
 	mockService := new(MockReleaseService)
 	release := &models.Release{Version: "v1.0.0"}
+	mockService.On("ValidateMainBranch", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
 	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return((*models.ReleaseNotes)(nil), errors.New("ai error"))
@@ -104,6 +107,7 @@ func TestGenerateCommand_WriteError(t *testing.T) {
 	release := &models.Release{Version: "v1.0.0"}
 	notes := &models.ReleaseNotes{Title: "Title"}
 
+	mockService.On("ValidateMainBranch", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
 	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
