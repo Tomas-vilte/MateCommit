@@ -283,3 +283,59 @@ func TestIssueTemplateService_MergeWithGeneratedContent_Realistic(t *testing.T) 
 	assert.Equal(t, "[BUG] Server error 500", result.Title)
 	assert.Contains(t, result.Description, "- Go to /home")
 }
+
+func TestIssueTemplateService_PRTemplates(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	origCwd, _ := os.Getwd()
+	err := os.Chdir(tmpDir)
+	require.NoError(t, err)
+	defer func() { _ = os.Chdir(origCwd) }()
+
+	cfg := &config.Config{ActiveVCSProvider: "github"}
+	service := NewIssueTemplateService(WithTemplateConfig(cfg))
+
+	t.Run("GetPRTemplatesDir", func(t *testing.T) {
+		dir, err := service.GetPRTemplatesDir(context.Background())
+		assert.NoError(t, err)
+		assert.Contains(t, dir, ".github/PULL_REQUEST_TEMPLATE")
+	})
+
+	t.Run("ListPRTemplates - Single File", func(t *testing.T) {
+		_ = os.MkdirAll(filepath.Join(tmpDir, ".github"), 0755)
+		err := os.WriteFile(filepath.Join(tmpDir, ".github", "PULL_REQUEST_TEMPLATE.md"), []byte("## Template"), 0644)
+		require.NoError(t, err)
+
+		templates, err := service.ListPRTemplates(context.Background())
+		assert.NoError(t, err)
+		assert.Len(t, templates, 1)
+		assert.Equal(t, "PULL_REQUEST_TEMPLATE.md", templates[0].FilePath)
+	})
+
+	t.Run("ListPRTemplates - Directory", func(t *testing.T) {
+		_ = os.Remove(filepath.Join(tmpDir, ".github", "PULL_REQUEST_TEMPLATE.md"))
+
+		targetDir := filepath.Join(tmpDir, ".github", "PULL_REQUEST_TEMPLATE")
+		_ = os.MkdirAll(targetDir, 0755)
+
+		err := os.WriteFile(filepath.Join(targetDir, "custom.md"), []byte("## Custom"), 0644)
+		require.NoError(t, err)
+
+		templates, err := service.ListPRTemplates(context.Background())
+		assert.NoError(t, err)
+		assert.Len(t, templates, 1)
+		assert.Equal(t, "custom.md", templates[0].FilePath)
+	})
+
+	t.Run("GetPRTemplate - Single File", func(t *testing.T) {
+		_ = os.WriteFile(filepath.Join(tmpDir, ".github", "PULL_REQUEST_TEMPLATE.md"), []byte("## Main\nContent"), 0644)
+
+		tmpl, err := service.GetPRTemplate(context.Background(), "")
+		assert.NoError(t, err)
+		assert.Contains(t, tmpl.BodyContent, "## Main")
+
+		tmpl, err = service.GetPRTemplate(context.Background(), "PULL_REQUEST_TEMPLATE.md")
+		assert.NoError(t, err)
+		assert.Contains(t, tmpl.BodyContent, "Content")
+	})
+}
