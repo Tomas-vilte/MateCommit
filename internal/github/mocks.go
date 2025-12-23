@@ -4,9 +4,9 @@ import (
 	"context"
 	"os"
 
-	"github.com/thomas-vilte/matecommit/internal/builder"
 	"github.com/google/go-github/v80/github"
 	"github.com/stretchr/testify/mock"
+	"github.com/thomas-vilte/matecommit/internal/builder"
 )
 
 type MockPRService struct {

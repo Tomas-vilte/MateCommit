@@ -180,6 +180,7 @@ ai_models_label = "Modelos de IA configurados:"
 no_ai_models_configured = "No hay modelos de IA configurados"
 [error]
 pr_service_creation_error = "Error al crear el servicio de PR: {{.Error}}"
+pr_template_creation_error = "Error al crear el servicio de template de PR: {{.Error}}"
 pr_summary_error = "Error al generar el resumen del PR: {{.Error}}"
 get_labels = "Error al obtener las etiquetas"
 create_label = "Error al crear la etiqueta '{{.label}}'"
@@ -743,6 +744,11 @@ template_list_empty = "No se encontraron templates"
 template_list_hint = "Ejecutá 'matecommit issue template init' para crear templates por defecto"
 template_list_usage_hint = "Usá --template <filename> con el comando generate"
 template_list_error = "Error listando templates"
+# Template selection
+templates_found = "📋 Se encontraron {{.Count}} template(s) en tu repositorio"
+template_none = "Ninguno (usar solo IA)"
+template_select_prompt = "Seleccioná un template"
+template_selected = "✓ Usando template: {{.Template}}"
 
 [stats]
 usage = "Mostrar estadísticas de costo y uso"
@@ -809,3 +815,6 @@ reason_default = "Modelo por defecto"
 [flags_global]
 debug_flag = "Habilitar logging de depuración (muy detallado, incluye archivo:línea)"
 verbose_flag = "Habilitar logging detallado (mostrar mensajes informativos)"
+
+[pr]
+using_template = "📋 Usando template de PR: {{.Template}}"

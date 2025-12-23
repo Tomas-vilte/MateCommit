@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/thomas-vilte/matecommit/internal/config"
-	"github.com/thomas-vilte/matecommit/internal/ports"
 	"github.com/thomas-vilte/matecommit/internal/ai"
 	"github.com/thomas-vilte/matecommit/internal/ai/gemini"
+	"github.com/thomas-vilte/matecommit/internal/config"
+	"github.com/thomas-vilte/matecommit/internal/ports"
 )
 
 // NewCommitSummarizer creates a CommitSummarizer based on the configured provider

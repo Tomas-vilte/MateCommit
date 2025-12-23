@@ -5,9 +5,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/stretchr/testify/assert"
 	"google.golang.org/genai"
 )
 

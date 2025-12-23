@@ -2,9 +2,9 @@ package ui
 
 import (
 	"fmt"
-	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/fatih/color"
+	"github.com/thomas-vilte/matecommit/internal/i18n"
+	"github.com/thomas-vilte/matecommit/internal/models"
 )
 
 func PrintTokenUsage(usage *models.TokenUsage, t *i18n.Translations) {

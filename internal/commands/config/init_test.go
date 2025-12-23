@@ -10,10 +10,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/thomas-vilte/matecommit/internal/config"
-	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thomas-vilte/matecommit/internal/config"
+	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/urfave/cli/v3"
 )
 

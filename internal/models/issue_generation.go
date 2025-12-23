@@ -17,6 +17,9 @@ type IssueGenerationRequest struct {
 
 	// Language is the language for content generation (e.g.: "es", "en")
 	Language string
+
+	// Template is the project's issue template to guide generation (optional)
+	Template *IssueTemplate
 }
 
 // IssueGenerationResult contains the result of an issue's content generation.

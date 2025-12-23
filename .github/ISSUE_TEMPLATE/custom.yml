@@ -1,21 +1,21 @@
 body:
     - attributes:
-        value: Describí el tema que querés reportar o discutir.
+        value: Describe the topic you want to report or discuss.
       type: markdown
     - attributes:
-        description: Contame de qué se trata
-        label: Descripción
-        placeholder: Quisiera proponer/reportar/discutir...
+        description: Tell me what it's about
+        label: Description
+        placeholder: I would like to propose/report/discuss...
       id: description
       type: textarea
       validations:
         required: true
     - attributes:
-        description: Cualquier detalle extra que sea relevante
-        label: Información adicional
+        description: Any additional details that are relevant
+        label: Additional information
       id: additional
       type: textarea
-description: Crea una issue personalizada
+description: Create a custom issue
 labels: []
-name: Issue Personalizada
+name: Custom Issue
 title: '[ISSUE] '

@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	"github.com/thomas-vilte/matecommit/internal/config"
-	"github.com/thomas-vilte/matecommit/internal/ports"
 	"github.com/thomas-vilte/matecommit/internal/git"
 	"github.com/thomas-vilte/matecommit/internal/github"
+	"github.com/thomas-vilte/matecommit/internal/ports"
 )
 
 // NewVCSClient creates a VCSClient based on the configuration and automatic detection of the remote

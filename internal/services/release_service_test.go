@@ -1403,10 +1403,14 @@ const Version = "dev"
 		service := &ReleaseService{}
 
 		cwd, _ := os.Getwd()
-		defer os.Chdir(cwd)
-		os.Chdir(dir)
+		defer func() {
+			if err := os.Chdir(cwd); err != nil {
+				t.Fatal(err)
+			}
+		}()
+		_ = os.Chdir(dir)
 
-		os.WriteFile("go.mod", []byte("module test"), 0644)
+		_ = os.WriteFile("go.mod", []byte("module test"), 0644)
 
 		foundFile, pattern, err := service.FindVersionFile(context.Background())
 		assert.Error(t, err)
@@ -1417,16 +1421,20 @@ const Version = "dev"
 	t.Run("Should ignore node_modules", func(t *testing.T) {
 		dir := t.TempDir()
 		cwd, _ := os.Getwd()
-		defer os.Chdir(cwd)
-		os.Chdir(dir)
+		defer func() {
+			if err := os.Chdir(cwd); err != nil {
+				t.Fatal(err)
+			}
+		}()
+		_ = os.Chdir(dir)
 
-		os.WriteFile("package.json", []byte(`{"name":"test"}`), 0644)
+		_ = os.WriteFile("package.json", []byte(`{"name":"test"}`), 0644)
 
 		nodeModules := filepath.Join(dir, "node_modules")
-		os.Mkdir(nodeModules, 0755)
+		_ = os.Mkdir(nodeModules, 0755)
 
 		ignoredFile := filepath.Join(nodeModules, "package.json")
-		os.WriteFile(ignoredFile, []byte(`{"version": "1.0.0"}`), 0644)
+		_ = os.WriteFile(ignoredFile, []byte(`{"version": "1.0.0"}`), 0644)
 
 		service := &ReleaseService{}
 		foundFile, _, err := service.FindVersionFile(context.Background())
@@ -1438,15 +1446,19 @@ const Version = "dev"
 	t.Run("Should respect max recursion depth", func(t *testing.T) {
 		dir := t.TempDir()
 		cwd, _ := os.Getwd()
-		defer os.Chdir(cwd)
-		os.Chdir(dir)
-		os.WriteFile("go.mod", []byte("module test"), 0644)
+		defer func() {
+			if err := os.Chdir(cwd); err != nil {
+				t.Fatal(err)
+			}
+		}()
+		_ = os.Chdir(dir)
+		_ = os.WriteFile("go.mod", []byte("module test"), 0644)
 
 		deepDir := filepath.Join(dir, "1", "2", "3", "4", "5", "6")
-		os.MkdirAll(deepDir, 0755)
+		_ = os.MkdirAll(deepDir, 0755)
 
 		versionFile := filepath.Join(deepDir, "version.go")
-		os.WriteFile(versionFile, []byte(`package main
+		_ = os.WriteFile(versionFile, []byte(`package main
 const Version = "1.0.0"`), 0644)
 
 		service := &ReleaseService{}
@@ -1459,15 +1471,19 @@ const Version = "1.0.0"`), 0644)
 	t.Run("Should find file within recursion depth", func(t *testing.T) {
 		dir := t.TempDir()
 		cwd, _ := os.Getwd()
-		defer os.Chdir(cwd)
-		os.Chdir(dir)
-		os.WriteFile("go.mod", []byte("module test"), 0644)
+		defer func() {
+			if err := os.Chdir(cwd); err != nil {
+				t.Fatal(err)
+			}
+		}()
+		_ = os.Chdir(dir)
+		_ = os.WriteFile("go.mod", []byte("module test"), 0644)
 
 		shallowDir := filepath.Join(dir, "internal")
-		os.MkdirAll(shallowDir, 0755)
+		_ = os.MkdirAll(shallowDir, 0755)
 
 		versionFile := filepath.Join(shallowDir, "version.go")
-		os.WriteFile(versionFile, []byte(`package main
+		_ = os.WriteFile(versionFile, []byte(`package main
 const Version = "1.0.0"`), 0644)
 
 		service := &ReleaseService{}

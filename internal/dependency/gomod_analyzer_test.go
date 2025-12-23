@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/thomas-vilte/matecommit/internal/models"
 )
 
 // MockVCSClient es un mock del VCSClient
