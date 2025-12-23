@@ -76,12 +76,24 @@ func (s *IssueTemplateService) ListTemplates(ctx context.Context) ([]models.Temp
 
 	templates := make([]models.TemplateMetadata, 0)
 	for _, entry := range entries {
-		if entry.IsDir() || (!strings.HasSuffix(entry.Name(), ".yml") && !strings.HasSuffix(entry.Name(), ".yaml")) {
+		if entry.IsDir() {
+			continue
+		}
+
+		if !strings.HasSuffix(entry.Name(), ".yml") &&
+			!strings.HasSuffix(entry.Name(), ".yaml") &&
+			!strings.HasSuffix(entry.Name(), ".md") {
 			continue
 		}
 
 		filePath := filepath.Join(templatesDir, entry.Name())
-		template, err := s.LoadTemplate(ctx, filePath)
+		var template *models.IssueTemplate
+
+		if strings.HasSuffix(entry.Name(), ".md") {
+			template, err = s.LoadMarkdownTemplate(ctx, filePath)
+		} else {
+			template, err = s.LoadTemplate(ctx, filePath)
+		}
 		if err != nil {
 			logger.Warn(ctx, "skipping invalid template", "path", filePath, "error", err)
 			continue
@@ -185,6 +197,168 @@ func (s *IssueTemplateService) InitializeTemplates(ctx context.Context, force bo
 		return domainErrors.NewAppError(domainErrors.TypeConfiguration, "templates_already_exist", nil)
 	}
 	return nil
+}
+
+// GetPRTemplatesDir returns the directory where PR templates are stored
+func (s *IssueTemplateService) GetPRTemplatesDir(ctx context.Context) (string, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		logger.Error(ctx, "failed to get current working directory", err)
+		return "", domainErrors.NewAppError(domainErrors.TypeInternal, "failed to get current working directory", err)
+	}
+	provider := strings.ToLower(s.config.ActiveVCSProvider)
+	var templatesDir string
+	switch provider {
+	case "gitlab":
+		templatesDir = filepath.Join(cwd, ".gitlab", "merge_request_templates")
+	case "github":
+		fallthrough
+	default:
+		templatesDir = filepath.Join(cwd, ".github", "PULL_REQUEST_TEMPLATE")
+	}
+	logger.Debug(ctx, "identified PR templates directory", "provider", provider, "path", templatesDir)
+	return templatesDir, nil
+}
+
+func (s *IssueTemplateService) ListPRTemplates(ctx context.Context) ([]models.TemplateMetadata, error) {
+	templatesDir, err := s.GetPRTemplatesDir(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	templates := make([]models.TemplateMetadata, 0)
+
+	singleTemplatePath := filepath.Join(filepath.Dir(templatesDir), "PULL_REQUEST_TEMPLATE.md")
+	if _, err := os.Stat(singleTemplatePath); err == nil {
+		template, err := s.LoadMarkdownTemplate(ctx, singleTemplatePath)
+		if err != nil {
+			logger.Warn(ctx, "failed to load single PR template", "path", singleTemplatePath, "error", err)
+		} else {
+			templates = append(templates, models.TemplateMetadata{
+				Name:     "Default PR Template",
+				About:    template.GetAbout(),
+				FilePath: "PULL_REQUEST_TEMPLATE.md",
+			})
+		}
+	}
+
+	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
+		logger.Debug(ctx, "PR templates directory does not exist", "path", templatesDir)
+		return templates, nil
+	}
+
+	entries, err := os.ReadDir(templatesDir)
+	if err != nil {
+		logger.Error(ctx, "failed to read PR templates directory", err, "path", templatesDir)
+		return templates, nil
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		if !strings.HasSuffix(entry.Name(), ".md") &&
+			!strings.HasSuffix(entry.Name(), ".yml") &&
+			!strings.HasSuffix(entry.Name(), ".yaml") {
+			continue
+		}
+
+		filePath := filepath.Join(templatesDir, entry.Name())
+		var template *models.IssueTemplate
+		var err error
+
+		if strings.HasSuffix(entry.Name(), ".md") {
+			template, err = s.LoadMarkdownTemplate(ctx, filePath)
+		} else {
+			template, err = s.LoadTemplate(ctx, filePath)
+		}
+		if err != nil {
+			logger.Warn(ctx, "skipping invalid PR template", "path", filePath, "error", err)
+			continue
+		}
+
+		templates = append(templates, models.TemplateMetadata{
+			Name:     entry.Name(),
+			About:    template.GetAbout(),
+			FilePath: entry.Name(),
+		})
+	}
+
+	logger.Debug(ctx, "listed PR templates",
+		"count", len(templates),
+	)
+	return templates, nil
+}
+
+// LoadMarkdownTemplate loads a Markdown template file
+func (s *IssueTemplateService) LoadMarkdownTemplate(ctx context.Context, filePath string) (*models.IssueTemplate, error) {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		logger.Error(ctx, "failed to read markdown template file", err, "path", filePath)
+		return nil, domainErrors.NewAppError(domainErrors.TypeConfiguration, fmt.Sprintf("failed to read template file: %s", filePath), err)
+	}
+
+	return s.parseMarkdownTemplate(ctx, string(content), filePath)
+}
+
+// parseMarkdownTemplate parses a Markdown template, extracting YAML frontmatter if present
+func (s *IssueTemplateService) parseMarkdownTemplate(ctx context.Context, content string, filePath string) (*models.IssueTemplate, error) {
+	template := &models.IssueTemplate{
+		FilePath: filePath,
+	}
+
+	if strings.HasPrefix(content, "---\n") {
+		parts := strings.SplitN(content, "---\n", 3)
+		if len(parts) >= 3 {
+			frontmatter := parts[1]
+			if err := yaml.Unmarshal([]byte(frontmatter), template); err != nil {
+				logger.Warn(ctx, "failed to parse YAML frontmatter, using as plain markdown", "path", filePath, "error", err)
+			}
+			template.BodyContent = strings.TrimSpace(parts[2])
+		} else {
+			template.BodyContent = content
+		}
+	} else {
+		template.BodyContent = content
+	}
+
+	if template.Name == "" {
+		template.Name = strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath))
+	}
+
+	logger.Debug(ctx, "successfully loaded/parsed markdown template", "name", template.Name, "path", filePath)
+	return template, nil
+}
+
+// GetPRTemplate loads a specific PR template by name
+func (s *IssueTemplateService) GetPRTemplate(ctx context.Context, name string) (*models.IssueTemplate, error) {
+	templatesDir, err := s.GetPRTemplatesDir(ctx)
+	if err != nil {
+		return nil, err
+	}
+	singleTemplatePath := filepath.Join(filepath.Dir(templatesDir), "PULL_REQUEST_TEMPLATE.md")
+	if name == "" || name == "PULL_REQUEST_TEMPLATE.md" {
+		if _, err := os.Stat(singleTemplatePath); err == nil {
+			return s.LoadMarkdownTemplate(ctx, singleTemplatePath)
+		}
+	}
+	possiblePaths := []string{
+		filepath.Join(templatesDir, name+".md"),
+		filepath.Join(templatesDir, name+".yml"),
+		filepath.Join(templatesDir, name+".yaml"),
+		filepath.Join(templatesDir, name),
+	}
+	for _, path := range possiblePaths {
+		if _, err := os.Stat(path); err == nil {
+			if strings.HasSuffix(path, ".md") {
+				return s.LoadMarkdownTemplate(ctx, path)
+			}
+			return s.LoadTemplate(ctx, path)
+		}
+	}
+	logger.Warn(ctx, "PR template not found by name", "name", name, "searched_paths", possiblePaths)
+	return nil, domainErrors.NewAppError(domainErrors.TypeConfiguration, fmt.Sprintf("PR template '%s' not found", name), nil)
 }
 
 func (s *IssueTemplateService) buildTemplateContent(templateType string) string {

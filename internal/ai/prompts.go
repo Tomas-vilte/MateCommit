@@ -567,6 +567,135 @@ func GetIssueReferenceInstructions(lang string) string {
 }
 
 const (
+	templateInstructionsES = `## Template del Proyecto
+
+El proyecto tiene un template específico. DEBES seguir su estructura y formato al generar el contenido.
+
+IMPORTANTE: Generá el contenido siguiendo la estructura y formato mostrado en el template arriba. Completá cada sección basándote en los cambios de código y el contexto proporcionado.`
+
+	templateInstructionsEN = `## Project Template
+
+The project has a specific template. You MUST follow its structure and format when generating the content.
+
+IMPORTANT: Generate the content following the structure and format shown in the template above. Fill in each section based on the code changes and context provided.`
+
+	prTemplateInstructionsES = `## Template de PR del Proyecto
+
+El proyecto tiene un template específico de PR. DEBES seguir su estructura y formato al generar la descripción del PR.
+
+IMPORTANTE: Generá la descripción del PR siguiendo la estructura y formato mostrado en el template arriba. Completá cada sección basándote en los cambios de código y el contexto proporcionado.`
+
+	prTemplateInstructionsEN = `## Project PR Template
+
+The project has a specific PR template. You MUST follow its structure and format when generating the PR description.
+
+IMPORTANT: Generate the PR description following the structure and format shown in the template above. Fill in each section based on the code changes and context provided.`
+)
+
+// GetTemplateInstructions returns template instructions based on the language
+func GetTemplateInstructions(lang string) string {
+	switch lang {
+	case "es":
+		return templateInstructionsES
+	default:
+		return templateInstructionsEN
+	}
+}
+
+// GetPRTemplateInstructions returns PR template instructions based on the language
+func GetPRTemplateInstructions(lang string) string {
+	switch lang {
+	case "es":
+		return prTemplateInstructionsES
+	default:
+		return prTemplateInstructionsEN
+	}
+}
+
+// FormatTemplateForPrompt formats a template for inclusion in an AI prompt.
+// It handles both Issue and PR templates with proper language support.
+func FormatTemplateForPrompt(template *models.IssueTemplate, lang string, templateType string) string {
+	if template == nil {
+		return ""
+	}
+
+	if lang == "" {
+		lang = "en"
+	}
+
+	var sb strings.Builder
+	isIssue := templateType == "issue"
+
+	if lang == "es" {
+		if isIssue {
+			sb.WriteString("## Template de Issue del Proyecto\n\n")
+			sb.WriteString("El proyecto tiene un template específico de issue. DEBES seguir su estructura y formato al generar el contenido del issue.\n\n")
+		} else {
+			sb.WriteString("## Template de PR del Proyecto\n\n")
+			sb.WriteString("El proyecto tiene un template específico de PR. DEBES seguir su estructura y formato al generar la descripción del PR.\n\n")
+		}
+	} else {
+		if isIssue {
+			sb.WriteString("## Project Issue Template\n\n")
+			sb.WriteString("The project has a specific issue template. You MUST follow its structure and format when generating the issue content.\n\n")
+		} else {
+			sb.WriteString("## Project PR Template\n\n")
+			sb.WriteString("The project has a specific PR template. You MUST follow its structure and format when generating the PR description.\n\n")
+		}
+	}
+
+	if template.Name != "" {
+		if lang == "es" {
+			sb.WriteString(fmt.Sprintf("Nombre del Template: %s\n", template.Name))
+		} else {
+			sb.WriteString(fmt.Sprintf("Template Name: %s\n", template.Name))
+		}
+	}
+
+	if template.GetAbout() != "" {
+		if lang == "es" {
+			sb.WriteString(fmt.Sprintf("Descripción del Template: %s\n", template.GetAbout()))
+		} else {
+			sb.WriteString(fmt.Sprintf("Template Description: %s\n", template.GetAbout()))
+		}
+	}
+
+	if template.BodyContent != "" {
+		if lang == "es" {
+			sb.WriteString("\nEstructura del Template:\n```markdown\n")
+		} else {
+			sb.WriteString("\nTemplate Structure:\n```markdown\n")
+		}
+		sb.WriteString(template.BodyContent)
+		sb.WriteString("\n```\n\n")
+		if isIssue {
+			sb.WriteString(GetTemplateInstructions(lang))
+		} else {
+			sb.WriteString(GetPRTemplateInstructions(lang))
+		}
+		sb.WriteString("\n\n")
+	} else if template.Body != nil {
+		if lang == "es" {
+			if isIssue {
+				sb.WriteString("\nTipo de Template: GitHub Issue Form (YAML)\n")
+			} else {
+				sb.WriteString("\nTipo de Template: GitHub PR Template (YAML/Markdown)\n")
+			}
+			sb.WriteString("El template define campos específicos. Generá contenido que coincida con la estructura esperada.\n\n")
+		} else {
+			if isIssue {
+				sb.WriteString("\nTemplate Type: GitHub Issue Form (YAML)\n")
+			} else {
+				sb.WriteString("\nTemplate Type: GitHub PR Template (YAML/Markdown)\n")
+			}
+			sb.WriteString("The template defines specific fields. Generate content that matches the expected structure.\n\n")
+		}
+	}
+
+	return sb.String()
+}
+
+const (
 	prIssueContextInstructionsES = `
   **IMPORTANTE - Contexto de Issues/Tickets:**
   Este PR está relacionado con los siguientes issues:

@@ -159,6 +159,14 @@ func (s *GeminiIssueContentGenerator) buildIssuePrompt(request models.IssueGener
 		sb.WriteString(fmt.Sprintf("User Hint: %s\n\n", request.Hint))
 	}
 
+	if request.Template != nil {
+		lang := request.Language
+		if lang == "" {
+			lang = "en"
+		}
+		sb.WriteString(ai.FormatTemplateForPrompt(request.Template, lang, "issue"))
+	}
+
 	templateStr := ai.GetIssuePromptTemplate(request.Language)
 	data := ai.PromptData{
 		IssueInfo: sb.String(),

@@ -24,10 +24,17 @@ type prAIProvider interface {
 	GeneratePRSummary(ctx context.Context, prompt string) (models.PRSummary, error)
 }
 
+// prTemplateService defines the methods needed by PRService for template management.
+type prTemplateService interface {
+	GetPRTemplate(ctx context.Context, name string) (*models.IssueTemplate, error)
+	ListPRTemplates(ctx context.Context) ([]models.TemplateMetadata, error)
+}
+
 type PRService struct {
-	vcsClient prVCSClient
-	aiService prAIProvider
-	config    *config.Config
+	vcsClient       prVCSClient
+	aiService       prAIProvider
+	templateService prTemplateService
+	config          *config.Config
 }
 
 type PROption func(*PRService)
@@ -47,6 +54,12 @@ func WithPRAIProvider(ai prAIProvider) PROption {
 func WithPRConfig(cfg *config.Config) PROption {
 	return func(s *PRService) {
 		s.config = cfg
+	}
+}
+
+func WithPRTemplateService(ts prTemplateService) PROption {
+	return func(s *PRService) {
+		s.templateService = ts
 	}
 }
 
@@ -115,7 +128,20 @@ func (s *PRService) SummarizePR(ctx context.Context, prNumber int, progress func
 	log.Debug("building PR prompt",
 		"has_issues", len(prData.RelatedIssues) > 0)
 
-	prompt := s.buildPRPrompt(prData)
+	var prTemplate *models.IssueTemplate
+	if s.templateService != nil {
+		templates, err := s.templateService.ListPRTemplates(ctx)
+		if err == nil && len(templates) > 0 {
+			prTemplate, _ = s.templateService.GetPRTemplate(ctx, templates[0].FilePath)
+			if prTemplate != nil {
+				log.Info("auto-detected PR template",
+					"template_name", prTemplate.Name,
+					"template_path", templates[0].FilePath)
+			}
+		}
+	}
+
+	prompt := s.buildPRPrompt(prData, prTemplate)
 
 	log.Debug("calling AI for PR summary generation",
 		"pr_number", prNumber)
@@ -181,11 +207,19 @@ func (s *PRService) SummarizePR(ctx context.Context, prNumber int, progress func
 	return summary, nil
 }
 
-func (s *PRService) buildPRPrompt(prData models.PRData) string {
+func (s *PRService) buildPRPrompt(prData models.PRData, template *models.IssueTemplate) string {
 	var prompt string
 
 	prompt += fmt.Sprintf("PR #%d by %s\n", prData.ID, prData.Creator)
 	prompt += fmt.Sprintf("Branch: %s\n\n", prData.BranchName)
+
+	if template != nil {
+		lang := s.config.Language
+		if lang == "" {
+			lang = "en"
+		}
+		prompt += ai.FormatTemplateForPrompt(template, lang, "pr")
+	}
 
 	commitCount := len(prData.Commits)
 	diffLines := strings.Count(prData.Diff, "\n")
