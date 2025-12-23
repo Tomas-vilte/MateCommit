@@ -19,6 +19,26 @@ import (
 	"golang.org/x/mod/semver"
 )
 
+const (
+	maxSearchDepth = 5
+	maxFilesToScan = 100
+)
+
+var ignoreDirs = map[string]bool{
+	".git":          true,
+	"node_modules":  true,
+	"vendor":        true,
+	"target":        true,
+	"dist":          true,
+	"build":         true,
+	".next":         true,
+	".nuxt":         true,
+	"__pycache__":   true,
+	".pytest_cache": true,
+	"venv":          true,
+	".venv":         true,
+}
+
 // releaseGitService defines only the methods needed by ReleaseService.
 type releaseGitService interface {
 	GetLastTag(ctx context.Context) (string, error)
@@ -43,6 +63,12 @@ type ReleaseService struct {
 	notesGen    ports.ReleaseNotesGenerator
 	depAnalyzer *dependency.AnalyzerRegistry
 	config      *config.Config
+
+	versionFileCache struct {
+		file    string
+		pattern string
+		lang    string
+	}
 }
 
 type ReleaseOption func(*ReleaseService)
@@ -758,23 +784,16 @@ func (s *ReleaseService) UpdateAppVersion(ctx context.Context, version string) e
 	return nil
 }
 
-var commonVersionPatterns = []struct {
-	name    string
-	pattern string
-}{
-	{"const Version", `const\s+Version\s*=\s*"([^"]+)"`},
-	{"var Version", `var\s+Version\s*=\s*"([^"]+)"`},
-	{"const Version", `const\s+Version\s*=\s*([\d.]+)`},
-	{"var Version", `var\s+Version\s*=\s*([\d.]+)`},
-	{"Version:", `Version:\s*"([^"]+)"`},
-	{"Version =", `Version\s*=\s*"([^"]+)"`},
-	{"CurrentVersion", `CurrentVersion\s*=\s*"([^"]+)"`},
-	{"AppVersion", `AppVersion\s*=\s*"([^"]+)"`},
-	{"VERSION", `VERSION\s*=\s*"([^"]+)"`},
-}
-
 func (s *ReleaseService) FindVersionFile(ctx context.Context) (string, string, error) {
 	log := logger.FromContext(ctx)
+
+	if s.versionFileCache.file != "" && s.versionFileCache.pattern != "" {
+		log.Debug("using cached version file",
+			"file", s.versionFileCache.file,
+			"pattern", s.versionFileCache.pattern,
+		)
+		return s.versionFileCache.file, s.versionFileCache.pattern, nil
+	}
 
 	if s.config != nil && s.config.VersionFile != "" {
 		pattern := s.config.VersionPattern
@@ -789,6 +808,10 @@ func (s *ReleaseService) FindVersionFile(ctx context.Context) (string, string, e
 		log.Debug("using configured version file",
 			"file", s.config.VersionFile,
 			"pattern", pattern)
+
+		s.versionFileCache.file = s.config.VersionFile
+		s.versionFileCache.pattern = pattern
+
 		return s.config.VersionFile, pattern, nil
 	}
 
@@ -812,7 +835,12 @@ func (s *ReleaseService) FindVersionFile(ctx context.Context) (string, string, e
 					log.Debug("version file found automatically",
 						"file", filePath,
 						"pattern", pattern,
-						"language", projectType)
+						"language", projectType,
+					)
+
+					s.versionFileCache.file = filePath
+					s.versionFileCache.pattern = pattern
+					s.versionFileCache.lang = projectType
 					return filePath, pattern, nil
 				}
 			}
@@ -823,7 +851,13 @@ func (s *ReleaseService) FindVersionFile(ctx context.Context) (string, string, e
 	if err == nil && foundFile != "" {
 		log.Debug("version file found recursively",
 			"file", foundFile,
-			"pattern", foundPattern)
+			"pattern", foundPattern,
+		)
+
+		s.versionFileCache.file = foundFile
+		s.versionFileCache.pattern = foundPattern
+		s.versionFileCache.lang = projectType
+
 		return foundFile, foundPattern, nil
 	}
 
@@ -868,6 +902,165 @@ func (s *ReleaseService) validateVersionIncrement(oldVersion, newVersion string)
 	return nil
 }
 
+func (s *ReleaseService) validateVersionString(versionStr string) error {
+	cleanVersion := strings.TrimPrefix(versionStr, "v")
+
+	if !semver.IsValid("v" + cleanVersion) {
+		return fmt.Errorf("invalid semver format: %s", versionStr)
+	}
+	return nil
+}
+
+type versionPatternInfo struct {
+	name               string
+	detectionPattern   string
+	replacementPattern string
+}
+
+var consolidatedVersionPatterns = map[string][]versionPatternInfo{
+	"go": {
+		{
+			name:               "const Version",
+			detectionPattern:   `const\s+Version\s*=\s*"([^"]+)"`,
+			replacementPattern: `const\s+Version\s*=\s*"[^"]*"`,
+		},
+		{
+			name:               "var Version",
+			detectionPattern:   `var\s+Version\s*=\s*"([^"]+)"`,
+			replacementPattern: `var\s+Version\s*=\s*"[^"]*"`,
+		},
+		{
+			name:               "const Version unquoted",
+			detectionPattern:   `const\s+Version\s*=\s*([\d.]+)`,
+			replacementPattern: `const\s+Version\s*=\s*[\d.]+`,
+		},
+		{
+			name:               "var Version unquoted",
+			detectionPattern:   `var\s+Version\s*=\s*([\d.]+)`,
+			replacementPattern: `var\s+Version\s*=\s*[\d.]+`,
+		},
+		{
+			name:               "Version:",
+			detectionPattern:   `Version:\s*"([^"]+)"`,
+			replacementPattern: `Version:\s*"[^"]*"`,
+		},
+		{
+			name:               "Version =",
+			detectionPattern:   `Version\s*=\s*"([^"]+)"`,
+			replacementPattern: `Version\s*=\s*"[^"]*"`,
+		},
+	},
+	"python": {
+		{
+			name:               "__version__ double quotes",
+			detectionPattern:   `__version__\s*=\s*"([^"]+)"`,
+			replacementPattern: `__version__\s*=\s*"[^"]*"`,
+		},
+		{
+			name:               "__version__ single quotes",
+			detectionPattern:   `__version__\s*=\s*'([^']+)'`,
+			replacementPattern: `__version__\s*=\s*'[^']*'`,
+		},
+		{
+			name:               "version double quotes",
+			detectionPattern:   `version\s*=\s*"([^"]+)"`,
+			replacementPattern: `version\s*=\s*"[^"]*"`,
+		},
+		{
+			name:               "version any quotes",
+			detectionPattern:   `version\s*=\s*['"]([^'"]+)['"]`,
+			replacementPattern: `version\s*=\s*['"][^'"]*['"]`,
+		},
+		{
+			name:               "VERSION",
+			detectionPattern:   `VERSION\s*=\s*"([^"]+)"`,
+			replacementPattern: `VERSION\s*=\s*"[^"]*"`,
+		},
+	},
+	"js": {
+		{
+			name:               "version in JSON",
+			detectionPattern:   `"version"\s*:\s*"([^"]+)"`,
+			replacementPattern: `"version"\s*:\s*"[^"]*"`,
+		},
+		{
+			name:               "version in JSON single quotes",
+			detectionPattern:   `'version'\s*:\s*'([^']+)'`,
+			replacementPattern: `'version'\s*:\s*'[^']*'`,
+		},
+		{
+			name:               "export const version",
+			detectionPattern:   `export\s+const\s+version\s*=\s*"([^"]+)"`,
+			replacementPattern: `export\s+const\s+version\s*=\s*"[^"]*"`,
+		},
+		{
+			name:               "export const version single quotes",
+			detectionPattern:   `export\s+const\s+version\s*=\s*'([^']+)'`,
+			replacementPattern: `export\s+const\s+version\s*=\s*'[^']*'`,
+		},
+	},
+	"rust": {
+		{
+			name:               "version in TOML",
+			detectionPattern:   `version\s*=\s*"([^"]+)"`,
+			replacementPattern: `version\s*=\s*"[^"]*"`,
+		},
+	},
+	"java": {
+		{
+			name:               "version in XML",
+			detectionPattern:   `<version>([^<]+)</version>`,
+			replacementPattern: `<version>[^<]+</version>`,
+		},
+		{
+			name:               "version in properties",
+			detectionPattern:   `version\s*=\s*['"]([^'"]+)['"]`,
+			replacementPattern: `version\s*=\s*['"][^'"]*['"]`,
+		},
+	},
+	"csharp": {
+		{
+			name:               "AssemblyVersion",
+			detectionPattern:   `AssemblyVersion\s*\(\s*"([^"]+)"`,
+			replacementPattern: `AssemblyVersion\s*\(\s*"[^"]*"`,
+		},
+		{
+			name:               "Version in XML",
+			detectionPattern:   `<Version>([^<]+)</Version>`,
+			replacementPattern: `<Version>[^<]+</Version>`,
+		},
+		{
+			name:               "version in JSON",
+			detectionPattern:   `"version"\s*:\s*"([^"]+)"`,
+			replacementPattern: `"version"\s*:\s*"[^"]*"`,
+		},
+	},
+	"php": {
+		{
+			name:               "version in JSON",
+			detectionPattern:   `"version"\s*:\s*"([^"]+)"`,
+			replacementPattern: `"version"\s*:\s*"[^"]*"`,
+		},
+		{
+			name:               "const VERSION",
+			detectionPattern:   `const\s+VERSION\s*=\s*['"]([^'"]+)['"]`,
+			replacementPattern: `const\s+VERSION\s*=\s*['"][^'"]*['"]`,
+		},
+	},
+	"ruby": {
+		{
+			name:               "VERSION",
+			detectionPattern:   `VERSION\s*=\s*['"]([^'"]+)['"]`,
+			replacementPattern: `VERSION\s*=\s*['"][^'"]*['"]`,
+		},
+		{
+			name:               ".version",
+			detectionPattern:   `\.version\s*=\s*['"]([^'"]+)['"]`,
+			replacementPattern: `\.version\s*=\s*['"][^'"]*['"]`,
+		},
+	},
+}
+
 func (s *ReleaseService) detectPatternInFile(filePath string) (string, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
@@ -875,66 +1068,45 @@ func (s *ReleaseService) detectPatternInFile(filePath string) (string, error) {
 	}
 
 	fileContent := string(content)
-
 	lang := detectLanguageFromFile(filePath)
 
-	for _, patternInfo := range commonVersionPatterns {
-		re, err := regexp.Compile(patternInfo.pattern)
-		if err != nil {
-			continue
-		}
-		if re.MatchString(fileContent) {
-			adjustedPattern := s.adjustPatternForReplacement(patternInfo.pattern, fileContent, lang)
-			return adjustedPattern, nil
-		}
-	}
-	return "", fmt.Errorf("no version pattern found in file")
-}
-
-func (s *ReleaseService) adjustPatternForReplacement(basePattern, content, lang string) string {
-	patterns := map[string][]string{
-		"go": {
-			`const\s+Version\s*=\s*"[^"]*"`,
-			`var\s+Version\s*=\s*"[^"]*"`,
-			`Version:\s*"[^"]*"`,
-		},
-		"python": {
-			`__version__\s*=\s*"[^"]*"`,
-			`__version__\s*=\s*'[^']*'`,
-			`version\s*=\s*"[^"]*"`,
-		},
-		"js": {
-			`"version"\s*:\s*"[^"]*"`,
-			`'version'\s*:\s*'[^']*'`,
-		},
-		"rust": {
-			`version\s*=\s*"[^"]*"`,
-		},
-		"java": {
-			`<version>[^<]+</version>`,
-		},
-		"csharp": {
-			`AssemblyVersion\s*\(\s*"[^"]*"`,
-			`<Version>[^<]+</Version>`,
-		},
-		"php": {
-			`"version"\s*:\s*"[^"]*"`,
-		},
-		"ruby": {
-			`VERSION\s*=\s*['"][^'"]*['"]`,
-		},
-	}
-
-	if langPatterns, ok := patterns[lang]; ok {
-		for _, pattern := range langPatterns {
-			re := regexp.MustCompile(pattern)
-			if re.MatchString(content) {
-				return pattern
+	if patterns, ok := consolidatedVersionPatterns[lang]; ok {
+		for _, patternInfo := range patterns {
+			re, err := regexp.Compile(patternInfo.detectionPattern)
+			if err != nil {
+				continue
+			}
+			if re.MatchString(fileContent) {
+				matches := re.FindStringSubmatch(fileContent)
+				if len(matches) > 1 {
+					if err := s.validateVersionString(matches[1]); err != nil {
+						continue
+					}
+				}
+				return patternInfo.replacementPattern, nil
 			}
 		}
 	}
 
-	return basePattern
+	for _, patterns := range consolidatedVersionPatterns {
+		for _, patternInfo := range patterns {
+			re, err := regexp.Compile(patternInfo.detectionPattern)
+			if err != nil {
+				continue
+			}
+			if re.MatchString(fileContent) {
+				matches := re.FindStringSubmatch(fileContent)
+				if len(matches) > 1 {
+					if err := s.validateVersionString(matches[1]); err != nil {
+						continue
+					}
+				}
+				return patternInfo.replacementPattern, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("no version pattern found in file")
 }
 
 func (s *ReleaseService) searchVersionFileRecursive(lang string) (string, string, error) {
@@ -970,14 +1142,34 @@ func (s *ReleaseService) searchVersionFileRecursive(lang string) (string, string
 		exts = []string{""}
 	}
 
+	filesScanned := 0
+
 	for _, dir := range dirs {
+		var foundPath string
+		var foundPattern string
+
 		err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return nil
 			}
+
+			if filesScanned >= maxFilesToScan {
+				return filepath.SkipDir
+			}
+
 			if info.IsDir() {
+				if ignoreDirs[info.Name()] {
+					return filepath.SkipDir
+				}
+
+				depth := len(strings.Split(path, string(os.PathSeparator)))
+				if depth > maxSearchDepth {
+					return filepath.SkipDir
+				}
 				return nil
 			}
+
+			filesScanned++
 
 			hasValidExt := false
 			for _, ext := range exts {
@@ -995,6 +1187,8 @@ func (s *ReleaseService) searchVersionFileRecursive(lang string) (string, string
 				path == "package.json" || path == "Cargo.toml" || path == "setup.py" {
 				pattern, err := s.detectPatternInFileForLanguage(path, lang)
 				if err == nil && pattern != "" {
+					foundPath = path
+					foundPattern = pattern
 					return fmt.Errorf("found: %s", path)
 				}
 			}
@@ -1002,13 +1196,27 @@ func (s *ReleaseService) searchVersionFileRecursive(lang string) (string, string
 		})
 
 		if err != nil && strings.HasPrefix(err.Error(), "found: ") {
-			foundPath := strings.TrimPrefix(err.Error(), "found: ")
-			pattern, _ := s.detectPatternInFileForLanguage(foundPath, lang)
-			return foundPath, pattern, nil
+			return foundPath, foundPattern, nil
 		}
 	}
 
 	return "", "", fmt.Errorf("version file not found")
+}
+
+func (s *ReleaseService) adjustPatternForReplacement(basePattern, content, lang string) string {
+	patterns, ok := consolidatedVersionPatterns[lang]
+	if !ok {
+		return basePattern
+	}
+
+	for _, patternInfo := range patterns {
+		re := regexp.MustCompile(patternInfo.detectionPattern)
+		if re.MatchString(content) {
+			return patternInfo.replacementPattern
+		}
+	}
+
+	return basePattern
 }
 
 func (s *ReleaseService) detectProjectType() string {
@@ -1108,53 +1316,6 @@ var versionFilesByLanguage = map[string][]string{
 	},
 }
 
-var versionPatternsByLanguage = map[string][]struct {
-	name    string
-	pattern string
-}{
-	"go": {
-		{"const Version", `const\s+Version\s*=\s*"([^"]+)"`},
-		{"var Version", `var\s+Version\s*=\s*"([^"]+)"`},
-		{"const Version", `const\s+Version\s*=\s*([\d.]+)`},
-		{"var Version", `var\s+Version\s*=\s*([\d.]+)`},
-		{"Version:", `Version:\s*"([^"]+)"`},
-		{"Version =", `Version\s*=\s*"([^"]+)"`},
-	},
-	"python": {
-		{"__version__", `__version__\s*=\s*"([^"]+)"`},
-		{"__version__", `__version__\s*=\s*['"]([^'"]+)['"]`},
-		{"version", `version\s*=\s*"([^"]+)"`},
-		{"version", `version\s*=\s*['"]([^'"]+)['"]`},
-		{"VERSION", `VERSION\s*=\s*"([^"]+)"`},
-	},
-	"js": {
-		{"version", `"version"\s*:\s*"([^"]+)"`},
-		{"version", `'version'\s*:\s*'([^']+)'`},
-		{"export const version", `export\s+const\s+version\s*=\s*"([^"]+)"`},
-		{"export const version", `export\s+const\s+version\s*=\s*'([^']+)'`},
-	},
-	"rust": {
-		{"version", `version\s*=\s*"([^"]+)"`},
-	},
-	"java": {
-		{"version", `<version>([^<]+)</version>`},
-		{"version", `version\s*=\s*['"]([^'"]+)['"]`},
-	},
-	"csharp": {
-		{"AssemblyVersion", `AssemblyVersion\s*\(\s*"([^"]+)"`},
-		{"Version", `<Version>([^<]+)</Version>`},
-		{"version", `"version"\s*:\s*"([^"]+)"`},
-	},
-	"php": {
-		{"version", `"version"\s*:\s*"([^"]+)"`},
-		{"const VERSION", `const\s+VERSION\s*=\s*['"]([^'"]+)['"]`},
-	},
-	"ruby": {
-		{"VERSION", `VERSION\s*=\s*['"]([^'"]+)['"]`},
-		{"version", `\.version\s*=\s*['"]([^'"]+)['"]`},
-	},
-}
-
 func (s *ReleaseService) detectPatternInFileForLanguage(filePath, lang string) (string, error) {
 	content, err := os.ReadFile(filePath)
 	if err != nil {
@@ -1162,19 +1323,25 @@ func (s *ReleaseService) detectPatternInFileForLanguage(filePath, lang string) (
 	}
 
 	fileContent := string(content)
-	patterns, ok := versionPatternsByLanguage[lang]
+	patterns, ok := consolidatedVersionPatterns[lang]
 	if !ok {
 		return s.detectPatternInFile(filePath)
 	}
 
 	for _, patternInfo := range patterns {
-		re, err := regexp.Compile(patternInfo.pattern)
+		re, err := regexp.Compile(patternInfo.detectionPattern)
 		if err != nil {
 			continue
 		}
 		if re.MatchString(fileContent) {
-			adjustedPattern := s.adjustPatternForReplacement(patternInfo.pattern, fileContent, lang)
-			return adjustedPattern, nil
+			matches := re.FindStringSubmatch(fileContent)
+			if len(matches) > 1 {
+				versionValue := matches[1]
+				if err := s.validateVersionString(versionValue); err != nil {
+					continue
+				}
+			}
+			return patternInfo.replacementPattern, nil
 		}
 	}
 
