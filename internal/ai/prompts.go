@@ -76,22 +76,61 @@ const (
   # Golden Rules (Constraints)
   1. **No Hallucinations:** If it's not in the diff, DO NOT invent it.
   2. **Tone:** Professional, direct, technical. Use first person ("I implemented", "I added").
-  3. **Format:** Raw JSON only. Do not wrap in markdown blocks (like ` + "```json" + `).
+  3. **Format:** Raw JSON only. Do not wrap in markdown blocks (like ` + "" + `).
 
   # Instructions
   1. Title: Catchy but descriptive (max 80 chars).
   2. Key Changes: Filter the noise. Explain the *technical impact*, not just the code change.
   3. Labels: Choose wisely (feature, fix, refactor, docs, infra, test, breaking-change).
 
-  # Output Format
-  Respond with ONLY valid JSON (no markdown):
+  # STRICT OUTPUT FORMAT
+  ⚠️ CRITICAL: You MUST return ONLY valid JSON. No markdown blocks, no explanations, no text before/after.
+  ⚠️ ALL field types are STRICTLY enforced. DO NOT change types or add extra fields.
+  
+  ## JSON Schema (MANDATORY):
   {
-    "title": "PR title",
-    "body": "Detailed markdown body with:\n- Overview\n- Key changes\n- Technical impact",
-    "labels": ["label1", "label2"]
+    "type": "object",
+    "required": ["title", "body", "labels"],
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "PR title (max 80 chars)"
+      },
+      "body": {
+        "type": "string",
+        "description": "Detailed markdown body with overview, key changes, and technical impact"
+      },
+      "labels": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Array of label strings (feature, fix, refactor, docs, infra, test, breaking-change)"
+      }
+    },
+    "additionalProperties": false
   }
 
-  Generate the summary now.`
+  ## Type Rules (STRICT):
+  - "title": MUST be string (never number, never null, never empty)
+  - "body": MUST be string (never number, never null, can contain markdown)
+  - "labels": MUST be array of strings (never array of numbers, never null, use [] if empty)
+
+  ## Prohibited Actions:
+  ❌ DO NOT add any fields not listed in the schema
+  ❌ DO NOT change field types (e.g., title to number)
+  ❌ DO NOT wrap JSON in markdown code blocks
+  ❌ DO NOT add explanatory text before/after JSON
+  ❌ DO NOT use null values for required fields
+
+  ## Valid Example:
+  {
+    "title": "feat(auth): implement OAuth2 authentication",
+    "body": "## Overview\nI implemented OAuth2 authentication to improve security.\n\n## Key Changes\n- Added OAuth2 client\n- Updated login flow\n\n## Technical Impact\nImproves security and allows SSO integration.",
+    "labels": ["feature", "auth"]
+  }
+
+  Generate the summary now. Return ONLY the JSON object, nothing else.`
 
 	prPromptTemplateES = `# Tarea
   Actuá como un Desarrollador Senior y genera un resumen del Pull Request.
@@ -109,17 +148,55 @@ const (
   2. Cambios Clave: Filtrá el ruido. Explicá el *impacto* técnico y el propósito, no solo qué línea cambió.
   3. Etiquetas: Elegí con criterio (feature, fix, refactor, docs, infra, test, breaking-change).
 
-  # Formato de Salida
+  # FORMATO DE SALIDA ESTRICTO
+  ⚠️ CRÍTICO: DEBES devolver SOLO JSON válido. Sin bloques de markdown, sin explicaciones, sin texto antes/después.
+  ⚠️ TODOS los tipos de campos están ESTRICTAMENTE definidos. NO cambies tipos ni agregues campos extra.
   IMPORTANTE: Responde en ESPAÑOL. Todo el contenido del JSON debe estar en español.
-
-  Responde SOLO con JSON válido (sin markdown):
+  
+  ## Schema JSON (OBLIGATORIO):
   {
-    "title": "título del PR",
-    "body": "cuerpo detallado en markdown con:\n- Resumen (qué hice y por qué)\n- Cambios clave\n- Impacto técnico",
-    "labels": ["etiqueta1", "etiqueta2"]
+    "type": "object",
+    "required": ["title", "body", "labels"],
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "Título del PR (máx 80 caracteres)"
+      },
+      "body": {
+        "type": "string",
+        "description": "Cuerpo detallado en markdown con resumen, cambios clave e impacto técnico"
+      },
+      "labels": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Array de etiquetas como strings (feature, fix, refactor, docs, infra, test, breaking-change)"
+      }
+    },
+    "additionalProperties": false
   }
 
-  Genera el resumen ahora.`
+  ## Reglas de Tipos (ESTRICTAS):
+  - "title": DEBE ser string (nunca número, nunca null, nunca vacío)
+  - "body": DEBE ser string (nunca número, nunca null, puede contener markdown)
+  - "labels": DEBE ser array de strings (nunca array de números, nunca null, usar [] si está vacío)
+
+  ## Acciones Prohibidas:
+  ❌ NO agregues campos que no estén en el schema
+  ❌ NO cambies tipos de campos (ej: title a número)
+  ❌ NO envuelvas el JSON en bloques de markdown
+  ❌ NO agregues texto explicativo antes/después del JSON
+  ❌ NO uses null para campos requeridos
+
+  ## Ejemplo Válido:
+  {
+    "title": "feat(auth): implementar autenticación OAuth2",
+    "body": "## Resumen\nImplementé autenticación OAuth2 para mejorar la seguridad.\n\n## Cambios Clave\n- Agregué cliente OAuth2\n- Actualicé el flujo de login\n\n## Impacto Técnico\nMejora la seguridad y permite integración SSO.",
+    "labels": ["feature", "auth"]
+  }
+
+  Genera el resumen ahora. Devuelve SOLO el objeto JSON, nada más.`
 )
 
 const (
@@ -150,29 +227,110 @@ const (
      - If you see file names or function names in the diff indicating prior implementation (e.g., "stats.go", "CountTokens"), assume it exists.
      - Focus on what's missing NOW in the current commit context, not in the entire project.
 
-  # Output Format
-  Respond with ONLY valid JSON array (no markdown).
+  # STRICT OUTPUT FORMAT
+  ⚠️ CRITICAL: You MUST return ONLY valid JSON. No markdown blocks, no explanations, no text before/after.
+  ⚠️ ALL field types are STRICTLY enforced. DO NOT change types or add extra fields.
+  
+  ## JSON Schema (MANDATORY):
+  {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "required": ["title", "desc", "files"],
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Commit title (type(scope): message)"
+        },
+        "desc": {
+          "type": "string",
+          "description": "Detailed explanation in first person"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of file paths as strings"
+        },
+        "analysis": {
+          "type": "object",
+          "required": ["overview", "purpose", "impact"],
+          "properties": {
+            "overview": {"type": "string"},
+            "purpose": {"type": "string"},
+            "impact": {"type": "string"}
+          },
+          "additionalProperties": false
+        },
+        "requirements": {
+          "type": "object",
+          "required": ["status", "missing", "completed_indices", "suggestions"],
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": ["full_met", "partially_met", "not_met"]
+            },
+            "missing": {
+              "type": "array",
+              "items": {"type": "string"}
+            },
+            "completed_indices": {
+              "type": "array",
+              "items": {"type": "integer"}
+            },
+            "suggestions": {
+              "type": "array",
+              "items": {"type": "string"}
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
 
+  ## Type Rules (STRICT):
+  - "title": MUST be string (never number, never null)
+  - "desc": MUST be string (never number, never null, can be empty string "")
+  - "files": MUST be array of strings (never array of numbers, never null)
+  - "analysis.overview": MUST be string
+  - "analysis.purpose": MUST be string
+  - "analysis.impact": MUST be string
+  - "requirements.status": MUST be one of: "full_met" | "partially_met" | "not_met" (exact strings)
+  - "requirements.missing": MUST be array of strings (never null, use [] if empty)
+  - "requirements.completed_indices": MUST be array of integers (never strings, never null, use [] if empty)
+  - "requirements.suggestions": MUST be array of strings (never null, use [] if empty)
+
+  ## Prohibited Actions:
+  ❌ DO NOT add any fields not listed in the schema
+  ❌ DO NOT change field types (e.g., desc to number)
+  ❌ DO NOT wrap JSON in markdown code blocks
+  ❌ DO NOT add explanatory text before/after JSON
+  ❌ DO NOT use null values for required string fields (use "" instead)
+
+  ## Valid Example:
   [
     {
-      "title": "type(scope): short message (#N)",
-      "desc": "detailed technical explanation in first person", 
-      "files": ["file1.go", "file2.go"],
+      "title": "fix(auth): handle null token error (#42)",
+      "desc": "I added validation to prevent null token errors in the authentication flow",
+      "files": ["internal/auth/auth.go", "internal/auth/auth_test.go"],
       "analysis": {
-        "overview": "brief summary",
-        "purpose": "main goal",
-        "impact": "technical impact"
+        "overview": "Added null check for token",
+        "purpose": "Prevent panic when token is null",
+        "impact": "Improves error handling"
       },
       "requirements": {
-        "status": "full_met | partially_met | not_met",
-        "missing": ["missing test", "missing doc"],
-        "completed_indices": [0, 2],
-        "suggestions": ["improvement 1", "improvement 2"]
+        "status": "full_met",
+        "missing": [],
+        "completed_indices": [0, 1],
+        "suggestions": []
       }
     }
   ]
 
-  Generate {{.Count}} suggestions now.`
+  Generate {{.Count}} suggestions now. Return ONLY the JSON array, nothing else.`
 
 	promptTemplateWithTicketES = `# Tarea
   Actuá como un especialista en Git y genera {{.Count}} sugerencias de commits.
@@ -199,31 +357,111 @@ const (
      - Si ves nombres de archivos o funciones en el diff que indican implementación previa (ej: "stats.go", "CountTokens"), asume que ya existe.
      - Enfocate en lo que falta AHORA en el contexto del commit actual, no en el proyecto completo.
 
-  # Formato de Salida
+  # FORMATO DE SALIDA ESTRICTO
+  ⚠️ CRÍTICO: DEBES devolver SOLO JSON válido. Sin bloques de markdown, sin explicaciones, sin texto antes/después.
+  ⚠️ TODOS los tipos de campos están ESTRICTAMENTE definidos. NO cambies tipos ni agregues campos extra.
   IMPORTANTE: Responde en ESPAÑOL. Todo el contenido del JSON debe estar en español.
-  EXCEPTO el campo "status" que debe ser uno de los valores permitidos exactos. JSON crudo, sin markdown.
+  
+  ## Schema JSON (OBLIGATORIO):
+  {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "required": ["title", "desc", "files"],
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Título del commit (tipo(scope): mensaje)"
+        },
+        "desc": {
+          "type": "string",
+          "description": "Explicación detallada en primera persona"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array de rutas de archivos como strings"
+        },
+        "analysis": {
+          "type": "object",
+          "required": ["overview", "purpose", "impact"],
+          "properties": {
+            "overview": {"type": "string"},
+            "purpose": {"type": "string"},
+            "impact": {"type": "string"}
+          },
+          "additionalProperties": false
+        },
+        "requirements": {
+          "type": "object",
+          "required": ["status", "missing", "completed_indices", "suggestions"],
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": ["full_met", "partially_met", "not_met"]
+            },
+            "missing": {
+              "type": "array",
+              "items": {"type": "string"}
+            },
+            "completed_indices": {
+              "type": "array",
+              "items": {"type": "integer"}
+            },
+            "suggestions": {
+              "type": "array",
+              "items": {"type": "string"}
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
 
-  Responde SOLO con este array JSON:
+  ## Reglas de Tipos (ESTRICTAS):
+  - "title": DEBE ser string (nunca número, nunca null)
+  - "desc": DEBE ser string (nunca número, nunca null, puede ser "" si está vacío)
+  - "files": DEBE ser array de strings (nunca array de números, nunca null)
+  - "analysis.overview": DEBE ser string
+  - "analysis.purpose": DEBE ser string
+  - "analysis.impact": DEBE ser string
+  - "requirements.status": DEBE ser uno de: "full_met" | "partially_met" | "not_met" (strings exactos)
+  - "requirements.missing": DEBE ser array de strings (nunca null, usar [] si está vacío)
+  - "requirements.completed_indices": DEBE ser array de enteros (nunca strings, nunca null, usar [] si está vacío)
+  - "requirements.suggestions": DEBE ser array de strings (nunca null, usar [] si está vacío)
+
+  ## Acciones Prohibidas:
+  ❌ NO agregues campos que no estén en el schema
+  ❌ NO cambies tipos de campos (ej: desc a número)
+  ❌ NO envuelvas el JSON en bloques de markdown
+  ❌ NO agregues texto explicativo antes/después del JSON
+  ❌ NO uses null para campos string requeridos (usa "" en su lugar)
+
+  ## Ejemplo Válido:
   [
     {
-      "title": "tipo(scope): mensaje corto (#N)",
-      "desc": "explicación técnica detallada y natural",
-      "files": ["archivo_modificado.go"],
+      "title": "fix(auth): manejo de error en token nulo (#42)",
+      "desc": "Agregué validación para prevenir errores cuando el token es nulo",
+      "files": ["internal/auth/auth.go", "internal/auth/auth_test.go"],
       "analysis": {
-        "overview": "qué cambiaste",
-        "purpose": "para qué lo cambiaste",
-        "impact": "qué mejora esto"
+        "overview": "Agregué validación de token nulo",
+        "purpose": "Prevenir panic cuando el token es null",
+        "impact": "Mejora el manejo de errores"
       },
       "requirements": {
-        "status": "full_met | partially_met | not_met",
-        "missing": ["falta test", "falta doc"],
-        "completed_indices": [0],
-        "suggestions": ["agregar test de integración"]
+        "status": "full_met",
+        "missing": [],
+        "completed_indices": [0, 1],
+        "suggestions": []
       }
     }
   ]
 
-  Generate {{.Count}} suggestions now.`
+  Genera {{.Count}} sugerencias ahora. Devuelve SOLO el array JSON, nada más.`
 )
 
 const (
@@ -252,26 +490,80 @@ const (
   - ❌ "se corrigió el error" (Voz pasiva, muy robótico)
   - ✅ "fix(cli): corrijo panic al no tener config" (Bien)
 
-  # Formato de Salida
-  IMPORTANTE: Responde en ESPAÑOL. Todo el contenido del JSON debe estar en español. JSON crudo, sin markdown.
+  # FORMATO DE SALIDA ESTRICTO
+  ⚠️ CRÍTICO: DEBES devolver SOLO JSON válido. Sin bloques de markdown, sin explicaciones, sin texto antes/después.
+  ⚠️ TODOS los tipos de campos están ESTRICTAMENTE definidos. NO cambies tipos ni agregues campos extra.
+  IMPORTANTE: Responde en ESPAÑOL. Todo el contenido del JSON debe estar en español.
+  
+  ## Schema JSON (OBLIGATORIO):
+  {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "required": ["title", "desc", "files", "analysis"],
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Título del commit (tipo(scope): mensaje)"
+        },
+        "desc": {
+          "type": "string",
+          "description": "Explicación detallada en primera persona"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array de rutas de archivos como strings"
+        },
+        "analysis": {
+          "type": "object",
+          "required": ["overview", "purpose", "impact"],
+          "properties": {
+            "overview": {"type": "string"},
+            "purpose": {"type": "string"},
+            "impact": {"type": "string"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
 
-  Responde SOLO con un array JSON válido:
+  ## Reglas de Tipos (ESTRICTAS):
+  - "title": DEBE ser string (nunca número, nunca null)
+  - "desc": DEBE ser string (nunca número, nunca null, puede ser "" si está vacío)
+  - "files": DEBE ser array de strings (nunca array de números, nunca null)
+  - "analysis.overview": DEBE ser string
+  - "analysis.purpose": DEBE ser string
+  - "analysis.impact": DEBE ser string
+
+  ## Acciones Prohibidas:
+  ❌ NO agregues campos que no estén en el schema
+  ❌ NO cambies tipos de campos (ej: desc a número)
+  ❌ NO envuelvas el JSON en bloques de markdown
+  ❌ NO agregues texto explicativo antes/después del JSON
+  ❌ NO uses null para campos string requeridos (usa "" en su lugar)
+
+  ## Ejemplo Válido:
   [
     {
-      "title": "tipo(scope): mensaje",
-      "desc": "explicación clara en primera persona",
-      "files": ["archivo1.go", "archivo2.go"],
+      "title": "fix(cli): corrijo panic al no tener config",
+      "desc": "Agregué validación para evitar panic cuando no hay archivo de configuración",
+      "files": ["internal/config/config.go"],
       "analysis": {
-        "overview": "resumen breve",
-        "purpose": "objetivo principal",
-        "impact": "impacto técnico"
+        "overview": "Agregué validación de configuración",
+        "purpose": "Prevenir panic cuando falta config",
+        "impact": "Mejora la robustez del CLI"
       }
     }
   ]
 
   {{.TechnicalInfo}}
 
-  Generate {{.Count}} suggestions now.`
+  Genera {{.Count}} sugerencias ahora. Devuelve SOLO el array JSON, nada más.`
 
 	promptTemplateWithoutTicketEN = `# Task
   Act as a Git Specialist and generate {{.Count}} commit message suggestions based on code changes.
@@ -298,25 +590,79 @@ const (
   - ❌ "error was fixed" (Passive voice)
   - ✅ "fix(cli): handle panic when config is missing" (Perfect)
 
-  # Output Format
-  Respond with ONLY valid JSON array (no markdown).
+  # STRICT OUTPUT FORMAT
+  ⚠️ CRITICAL: You MUST return ONLY valid JSON. No markdown blocks, no explanations, no text before/after.
+  ⚠️ ALL field types are STRICTLY enforced. DO NOT change types or add extra fields.
+  
+  ## JSON Schema (MANDATORY):
+  {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "required": ["title", "desc", "files", "analysis"],
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Commit title (type(scope): message)"
+        },
+        "desc": {
+          "type": "string",
+          "description": "Detailed explanation in first person"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Array of file paths as strings"
+        },
+        "analysis": {
+          "type": "object",
+          "required": ["overview", "purpose", "impact"],
+          "properties": {
+            "overview": {"type": "string"},
+            "purpose": {"type": "string"},
+            "impact": {"type": "string"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
 
+  ## Type Rules (STRICT):
+  - "title": MUST be string (never number, never null)
+  - "desc": MUST be string (never number, never null, can be empty string "")
+  - "files": MUST be array of strings (never array of numbers, never null)
+  - "analysis.overview": MUST be string
+  - "analysis.purpose": MUST be string
+  - "analysis.impact": MUST be string
+
+  ## Prohibited Actions:
+  ❌ DO NOT add any fields not listed in the schema
+  ❌ DO NOT change field types (e.g., desc to number)
+  ❌ DO NOT wrap JSON in markdown code blocks
+  ❌ DO NOT add explanatory text before/after JSON
+  ❌ DO NOT use null values for required string fields (use "" instead)
+
+  ## Valid Example:
   [
     {
-      "title": "type(scope): message",
-      "desc": "detailed explanation in first person",
-      "files": ["file1.go", "file2.go"],
+      "title": "fix(cli): handle panic when config is missing",
+      "desc": "I added validation to prevent panic when configuration file is missing",
+      "files": ["internal/config/config.go"],
       "analysis": {
-        "overview": "brief summary",
-        "purpose": "main goal",
-        "impact": "technical impact"
+        "overview": "Added configuration validation",
+        "purpose": "Prevent panic when config is missing",
+        "impact": "Improves CLI robustness"
       }
     }
   ]
 
   {{.TechnicalInfo}}
 
-  Generate {{.Count}} suggestions now.`
+  Generate {{.Count}} suggestions now. Return ONLY the JSON array, nothing else.`
 )
 
 const (
@@ -382,32 +728,60 @@ Cada release debe contar una historia:
 - **Highlights:** Agrupar por tema (UX, Automatización, Performance, etc.)
 - Cada highlight debe responder: "¿Qué ganó el usuario con esto?"
 
-## 5. FORMATO DE SALIDA
-IMPORTANTE: TODO en español. JSON válido sin markdown.
+## 5. FORMATO DE SALIDA ESTRICTO
+⚠️ CRÍTICO: DEBES devolver SOLO JSON válido. Sin bloques de markdown, sin explicaciones, sin texto antes/después.
+⚠️ TODOS los tipos de campos están ESTRICTAMENTE definidos. NO cambies tipos ni agregues campos extra.
 
+## Schema JSON (OBLIGATORIO):
 {
-  "title": "Título conciso y descriptivo (ej: 'Mejoras de UX y Automatización')",
-  "summary": "2-3 oraciones explicando el foco del release en primera persona plural. Debe dar contexto de por qué estos cambios importan.",
-  "highlights": [
-    "Highlight 1: Agrupación de features relacionadas con explicación de valor",
-    "Highlight 2: Otra mejora importante",
-    "Highlight 3: Correcciones relevantes"
-  ],
-  "breaking_changes": ["Descripción clara del breaking change y cómo migrar" (o [] si no hay)],
-  "contributors": "Gracias a @user1, @user2" o "N/A"
+  "type": "object",
+  "required": ["title", "summary", "highlights", "breaking_changes", "contributors"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Título conciso y descriptivo"
+    },
+    "summary": {
+      "type": "string",
+      "description": "2-3 oraciones explicando el foco del release en primera persona plural"
+    },
+    "highlights": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Array de highlights como strings"
+    },
+    "breaking_changes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Array de breaking changes como strings (o [] si no hay)"
+    },
+    "contributors": {
+      "type": "string",
+      "description": "Texto con contribuidores (ej: 'Gracias a @user1, @user2') o 'N/A'"
+    }
+  },
+  "additionalProperties": false
 }
 
-# Ejemplo de Calidad Esperada
+## Reglas de Tipos (ESTRICTAS):
+- "title": DEBE ser string (nunca número, nunca null)
+- "summary": DEBE ser string (nunca número, nunca null)
+- "highlights": DEBE ser array de strings (nunca array de números, nunca null, usar [] si está vacío)
+- "breaking_changes": DEBE ser array de strings (nunca array de números, nunca null, usar [] si no hay)
+- "contributors": DEBE ser string (nunca número, nunca null, usar "N/A" si no hay contribuidores)
 
-**Input (commits crudos):**
-- feat: add spinners to long operations
-- feat: add colors to output
-- feat: improve visual feedback
-- feat(mock): implement GetIssue in MockVCSClient
-- fix: correct spinner formatting
-- chore: update dependencies
+## Acciones Prohibidas:
+❌ NO agregues campos que no estén en el schema
+❌ NO cambies tipos de campos (ej: highlights a objeto)
+❌ NO envuelvas el JSON en bloques de markdown
+❌ NO agregues texto explicativo antes/después del JSON
+❌ NO uses null para campos requeridos (usa [] para arrays vacíos, "N/A" para contributors vacío)
 
-**Output esperado:**
+## Ejemplo Válido:
 {
   "title": "Mejoras de Experiencia de Usuario",
   "summary": "En esta versión nos enfocamos en mejorar la experiencia de usuario agregando feedback visual completo. Ya no vas a sentir que la terminal se colgó durante operaciones largas.",
@@ -482,32 +856,60 @@ Each release should tell a story:
 - **Highlights:** Group by theme (UX, Automation, Performance, etc.)
 - Each highlight should answer: "What did the user gain from this?"
 
-## 5. OUTPUT FORMAT
-IMPORTANT: Everything in English. Valid JSON without markdown.
+## 5. STRICT OUTPUT FORMAT
+⚠️ CRITICAL: You MUST return ONLY valid JSON. No markdown blocks, no explanations, no text before/after.
+⚠️ ALL field types are STRICTLY enforced. DO NOT change types or add extra fields.
 
+## JSON Schema (MANDATORY):
 {
-  "title": "Concise and descriptive title (e.g., 'UX Improvements and Automation')",
-  "summary": "2-3 sentences explaining the release focus in first person plural. Should provide context on why these changes matter.",
-  "highlights": [
-    "Highlight 1: Grouping of related features with value explanation",
-    "Highlight 2: Another important improvement",
-    "Highlight 3: Relevant fixes"
-  ],
-  "breaking_changes": ["Clear description of breaking change and how to migrate" (or [] if none)],
-  "contributors": "Thanks to @user1, @user2" or "N/A"
+  "type": "object",
+  "required": ["title", "summary", "highlights", "breaking_changes", "contributors"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Concise and descriptive title"
+    },
+    "summary": {
+      "type": "string",
+      "description": "2-3 sentences explaining the release focus in first person plural"
+    },
+    "highlights": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Array of highlight strings"
+    },
+    "breaking_changes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Array of breaking change strings (or [] if none)"
+    },
+    "contributors": {
+      "type": "string",
+      "description": "Contributors text (e.g., 'Thanks to @user1, @user2') or 'N/A'"
+    }
+  },
+  "additionalProperties": false
 }
 
-# Expected Quality Example
+## Type Rules (STRICT):
+- "title": MUST be string (never number, never null)
+- "summary": MUST be string (never number, never null)
+- "highlights": MUST be array of strings (never array of numbers, never null, use [] if empty)
+- "breaking_changes": MUST be array of strings (never array of numbers, never null, use [] if none)
+- "contributors": MUST be string (never number, never null, use "N/A" if no contributors)
 
-**Input (raw commits):**
-- feat: add spinners to long operations
-- feat: add colors to output
-- feat: improve visual feedback
-- feat(mock): implement GetIssue in MockVCSClient
-- fix: correct spinner formatting
-- chore: update dependencies
+## Prohibited Actions:
+❌ DO NOT add any fields not listed in the schema
+❌ DO NOT change field types (e.g., highlights to object)
+❌ DO NOT wrap JSON in markdown code blocks
+❌ DO NOT add explanatory text before/after JSON
+❌ DO NOT use null values for required fields (use [] for empty arrays, "N/A" for empty contributors)
 
-**Expected output:**
+## Valid Example:
 {
   "title": "User Experience Improvements",
   "summary": "In this release, we focused on improving the user experience by adding complete visual feedback. You'll no longer feel like the terminal froze during long operations.",
@@ -864,15 +1266,54 @@ const (
   - ### Technical Details (Architectural changes, new models, etc.)
   - ### Impact (Benefits)
 
-  # Output Format
-  Respond with ONLY valid JSON (no markdown):
+  # STRICT OUTPUT FORMAT
+  ⚠️ CRITICAL: You MUST return ONLY valid JSON. No markdown blocks, no explanations, no text before/after.
+  ⚠️ ALL field types are STRICTLY enforced. DO NOT change types or add extra fields.
+  
+  ## JSON Schema (MANDATORY):
   {
-    "title": "Concise and descriptive title",
-    "description": "Markdown body following the structure above",
-    "labels": ["label1", "label2"]
+    "type": "object",
+    "required": ["title", "description", "labels"],
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "Concise and descriptive title"
+      },
+      "description": {
+        "type": "string",
+        "description": "Markdown body following the structure: Context, Technical Details, Impact"
+      },
+      "labels": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Array of label strings (feature, fix, refactor, docs, test, infra)"
+      }
+    },
+    "additionalProperties": false
   }
 
-  Generate the issue now.`
+  ## Type Rules (STRICT):
+  - "title": MUST be string (never number, never null, never empty)
+  - "description": MUST be string (never number, never null, can contain markdown)
+  - "labels": MUST be array of strings (never array of numbers, never null, use [] if empty)
+
+  ## Prohibited Actions:
+  ❌ DO NOT add any fields not listed in the schema
+  ❌ DO NOT change field types (e.g., title to number)
+  ❌ DO NOT wrap JSON in markdown code blocks
+  ❌ DO NOT add explanatory text before/after JSON
+  ❌ DO NOT use null values for required fields
+
+  ## Valid Example:
+  {
+    "title": "feat: implement user authentication",
+    "description": "### Context\nWe need user authentication to secure the application.\n\n### Technical Details\n- Added auth models\n- Implemented JWT tokens\n\n### Impact\nUsers can now securely access the application.",
+    "labels": ["feature", "auth"]
+  }
+
+  Generate the issue now. Return ONLY the JSON object, nothing else.`
 
 	issuePromptTemplateES = `# Tarea
   Actuá como un Tech Lead y generá un issue de GitHub profesional basado en los inputs.
@@ -886,7 +1327,7 @@ const (
   3. **Categorización Precisa:** Elegí siempre al menos una categoría principal: 'feature', 'fix', o 'refactor'. Solo usá 'fix' si ves una corrección de un bug. Usá 'refactor' para mejoras de código sin cambios lógicos. Usá 'feature' para funcionalidades nuevas.
   4. **Cero Emojis:** No uses emojis ni en el título ni en el cuerpo del issue. Mantené un estilo sobrio y técnico.
   5. **Etiquetado Equilibrado:** Buscá entre 2 y 4 etiquetas relevantes. Asegurate de incluir la categoría principal más cualquier etiqueta de tipo de archivo como 'test', 'docs', o 'infra' si corresponde.
-  6. **Formato:** JSON crudo. No incluyas bloques de markdown (como ` + "```json" + `).
+  6. **Formato:** JSON crudo. No incluyas bloques de markdown (como ` + "" + `).
 
   # Estructura de la Descripción
   El campo "description" tiene que ser Markdown y seguir esta estructura estricta:
@@ -894,17 +1335,55 @@ const (
   - ### Detalles Técnicos (Lista de cambios importantes, modelos nuevos, refactors)
   - ### Impacto (¿Qué gana el usuario o el desarrollador con esto?)
 
-  # Formato de Salida
+  # FORMATO DE SALIDA ESTRICTO
+  ⚠️ CRÍTICO: DEBES devolver SOLO JSON válido. Sin bloques de markdown, sin explicaciones, sin texto antes/después.
+  ⚠️ TODOS los tipos de campos están ESTRICTAMENTE definidos. NO cambies tipos ni agregues campos extra.
   IMPORTANTE: Responde en ESPAÑOL. Todo el contenido del JSON debe estar en español.
-
-  Responde SOLO con JSON válido (sin markdown):
+  
+  ## Schema JSON (OBLIGATORIO):
   {
-    "title": "título descriptivo y con gancho",
-    "description": "Cuerpo en markdown siguiendo la estructura pedida",
-    "labels": ["etiqueta1", "etiqueta2"]
+    "type": "object",
+    "required": ["title", "description", "labels"],
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "Título descriptivo y con gancho"
+      },
+      "description": {
+        "type": "string",
+        "description": "Cuerpo en markdown siguiendo la estructura: Contexto, Detalles Técnicos, Impacto"
+      },
+      "labels": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Array de etiquetas como strings (feature, fix, refactor, docs, test, infra)"
+      }
+    },
+    "additionalProperties": false
   }
 
-  Generá el issue ahora.`
+  ## Reglas de Tipos (ESTRICTAS):
+  - "title": DEBE ser string (nunca número, nunca null, nunca vacío)
+  - "description": DEBE ser string (nunca número, nunca null, puede contener markdown)
+  - "labels": DEBE ser array de strings (nunca array de números, nunca null, usar [] si está vacío)
+
+  ## Acciones Prohibidas:
+  ❌ NO agregues campos que no estén en el schema
+  ❌ NO cambies tipos de campos (ej: title a número)
+  ❌ NO envuelvas el JSON en bloques de markdown
+  ❌ NO agregues texto explicativo antes/después del JSON
+  ❌ NO uses null para campos requeridos
+
+  ## Ejemplo Válido:
+  {
+    "title": "feat: implementar autenticación de usuarios",
+    "description": "### Contexto\nNecesitamos autenticación de usuarios para asegurar la aplicación.\n\n### Detalles Técnicos\n- Agregué modelos de auth\n- Implementé tokens JWT\n\n### Impacto\nLos usuarios ahora pueden acceder de forma segura a la aplicación.",
+    "labels": ["feature", "auth"]
+  }
+
+  Generá el issue ahora. Devuelve SOLO el objeto JSON, nada más.`
 )
 
 // GetIssuePromptTemplate returns the appropriate issue generation template based on language
