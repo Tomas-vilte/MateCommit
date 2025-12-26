@@ -170,6 +170,12 @@ func (s *IssueTemplateService) InitializeTemplates(ctx context.Context, force bo
 		"bug_report.yml":      s.buildTemplateContent("bug_report"),
 		"feature_request.yml": s.buildTemplateContent("feature_request"),
 		"custom.yml":          s.buildTemplateContent("custom"),
+		"performance.yml":     s.buildPerformanceTemplate(),
+		"documentation.yml":   s.buildDocumentationTemplate(),
+		"security.yml":        s.buildSecurityTemplate(),
+		"tech_debt.yml":       s.buildTechDebtTemplate(),
+		"question.yml":        s.buildQuestionTemplate(),
+		"dependency.yml":      s.buildDependencyTemplate(),
 	}
 
 	created := 0
@@ -556,7 +562,202 @@ func (s *IssueTemplateService) buildCustomTemplate() string {
 	return string(content)
 }
 
+func (s *IssueTemplateService) buildPerformanceTemplate() string {
+	template := map[string]interface{}{
+		"name":        "Performance Issue",
+		"description": "Report a performance issue or inefficiency",
+		"title":       "[PERF] ",
+		"labels":      []string{"performance", "optimization"},
+		"body": []map[string]interface{}{
+			{
+				"type": "markdown",
+				"attributes": map[string]string{
+					"value": "Thanks for helping us make things faster! Please describe the performance issue in detail.",
+				},
+			},
+			{
+				"type": "textarea",
+				"id":   "description",
+				"attributes": map[string]interface{}{
+					"label":       "Description",
+					"description": "What is slow or inefficient?",
+					"placeholder": "The dashboard takes 5 seconds to load...",
+				},
+				"validations": map[string]bool{"required": true},
+			},
+			{
+				"type": "input",
+				"id":   "metric",
+				"attributes": map[string]interface{}{
+					"label":       "Metric (optional)",
+					"description": "e.g., Response time, CPU usage, Memory",
+					"placeholder": "500ms -> 2s",
+				},
+			},
+			{
+				"type": "textarea",
+				"id":   "repro",
+				"attributes": map[string]interface{}{
+					"label":       "Steps to reproduce",
+					"description": "How can we observe this?",
+				},
+			},
+		},
+	}
+	content, _ := yaml.Marshal(template)
+	return string(content)
+}
+func (s *IssueTemplateService) buildDocumentationTemplate() string {
+	template := map[string]interface{}{
+		"name":        "Documentation",
+		"description": "Improvements or additions to documentation",
+		"title":       "[DOCS] ",
+		"labels":      []string{"documentation"},
+		"body": []map[string]interface{}{
+			{
+				"type": "textarea",
+				"id":   "description",
+				"attributes": map[string]interface{}{
+					"label":       "Description",
+					"description": "What needs to be documented or improved?",
+				},
+				"validations": map[string]bool{"required": true},
+			},
+			{
+				"type": "textarea",
+				"id":   "location",
+				"attributes": map[string]interface{}{
+					"label":       "Relevant files/sections",
+					"description": "Where should this check go?",
+				},
+			},
+		},
+	}
+	content, _ := yaml.Marshal(template)
+	return string(content)
+}
+func (s *IssueTemplateService) buildSecurityTemplate() string {
+	template := map[string]interface{}{
+		"name":        "Security Vulnerability",
+		"description": "Report a security vulnerability",
+		"title":       "[SECURITY] ",
+		"labels":      []string{"security", "critical"},
+		"body": []map[string]interface{}{
+			{
+				"type": "markdown",
+				"attributes": map[string]string{
+					"value": "**IMPORTANT:** Please do not disclose security vulnerabilities publicly until they have been addressed.",
+				},
+			},
+			{
+				"type": "textarea",
+				"id":   "description",
+				"attributes": map[string]interface{}{
+					"label":       "Vulnerability Description",
+					"description": "Describe the security issue.",
+				},
+				"validations": map[string]bool{"required": true},
+			},
+			{
+				"type": "textarea",
+				"id":   "impact",
+				"attributes": map[string]interface{}{
+					"label":       "Impact",
+					"description": "What is the potential impact of this vulnerability?",
+				},
+			},
+		},
+	}
+	content, _ := yaml.Marshal(template)
+	return string(content)
+}
+func (s *IssueTemplateService) buildTechDebtTemplate() string {
+	template := map[string]interface{}{
+		"name":        "Tech Debt / Refactor",
+		"description": "Propose a refactoring or technical improvement",
+		"title":       "[REFACTOR] ",
+		"labels":      []string{"refactor", "tech-debt"},
+		"body": []map[string]interface{}{
+			{
+				"type": "textarea",
+				"id":   "description",
+				"attributes": map[string]interface{}{
+					"label":       "Description",
+					"description": "What code needs refactoring?",
+				},
+				"validations": map[string]bool{"required": true},
+			},
+			{
+				"type": "textarea",
+				"id":   "reason",
+				"attributes": map[string]interface{}{
+					"label":       "Reason",
+					"description": "Why should we do this? (e.g. readability, maintainability)",
+				},
+			},
+		},
+	}
+	content, _ := yaml.Marshal(template)
+	return string(content)
+}
+func (s *IssueTemplateService) buildQuestionTemplate() string {
+	template := map[string]interface{}{
+		"name":        "Question",
+		"description": "Ask a question about the project",
+		"title":       "[QUESTION] ",
+		"labels":      []string{"question"},
+		"body": []map[string]interface{}{
+			{
+				"type": "textarea",
+				"id":   "question",
+				"attributes": map[string]interface{}{
+					"label":       "Question",
+					"description": "What would you like to know?",
+				},
+				"validations": map[string]bool{"required": true},
+			},
+		},
+	}
+	content, _ := yaml.Marshal(template)
+	return string(content)
+}
+func (s *IssueTemplateService) buildDependencyTemplate() string {
+	template := map[string]interface{}{
+		"name":        "Dependency Update",
+		"description": "Update a project dependency",
+		"title":       "[DEPENDENCY] ",
+		"labels":      []string{"dependencies"},
+		"body": []map[string]interface{}{
+			{
+				"type": "input",
+				"id":   "package",
+				"attributes": map[string]interface{}{
+					"label": "Package Name",
+				},
+				"validations": map[string]bool{"required": true},
+			},
+			{
+				"type": "textarea",
+				"id":   "reason",
+				"attributes": map[string]interface{}{
+					"label":       "Reason for update",
+					"description": "Security fix, new features, etc.",
+				},
+			},
+		},
+	}
+	content, _ := yaml.Marshal(template)
+	return string(content)
+}
+
 func (s *IssueTemplateService) MergeWithGeneratedContent(template *models.IssueTemplate, generated *models.IssueGenerationResult) *models.IssueGenerationResult {
+	ctx := context.Background()
+
+	logger.Debug(ctx, "merging template with generated content",
+		"template_title", template.Title,
+		"generated_title", generated.Title,
+		"generated_description_length", len(generated.Description))
+
 	result := &models.IssueGenerationResult{
 		Labels:    make([]string, 0),
 		Assignees: make([]string, 0),
@@ -573,13 +774,16 @@ func (s *IssueTemplateService) MergeWithGeneratedContent(template *models.IssueT
 	descBuilder.WriteString(generated.Description)
 	descBuilder.WriteString("\n\n")
 
-	// Only for .md templates that have Body as a string
 	if template.BodyContent != "" {
 		descBuilder.WriteString("---\n\n")
 		descBuilder.WriteString(template.BodyContent)
 	}
 
 	result.Description = descBuilder.String()
+
+	logger.Debug(ctx, "merge result",
+		"result_title", result.Title,
+		"result_description_length", len(result.Description))
 
 	labelMap := make(map[string]bool)
 	for _, label := range template.Labels {

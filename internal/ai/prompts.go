@@ -973,13 +973,17 @@ const (
 
 El proyecto tiene un template específico. DEBES seguir su estructura y formato al generar el contenido.
 
-IMPORTANTE: Generá el contenido siguiendo la estructura y formato mostrado en el template arriba. Completá cada sección basándote en los cambios de código y el contexto proporcionado.`
+IMPORTANTE: Generá el contenido siguiendo la estructura y formato mostrado en el template arriba. Completá cada sección basándote en los cambios de código y el contexto proporcionado.
+
+⚠️ CRÍTICO: A pesar del template arriba, tu respuesta DEBE SER JSON válido siguiendo el schema exacto definido en este prompt. El contenido del template debe incorporarse en el campo "description" como texto markdown, pero la respuesta general DEBE ser un objeto JSON con los campos "title", "description" y "labels". NO generes markdown o prosa - SOLO genera JSON válido.`
 
 	templateInstructionsEN = `## Project Template
 
 The project has a specific template. You MUST follow its structure and format when generating the content.
 
-IMPORTANT: Generate the content following the structure and format shown in the template above. Fill in each section based on the code changes and context provided.`
+IMPORTANT: Generate the content following the structure and format shown in the template above. Fill in each section based on the code changes and context provided.
+
+⚠️ CRITICAL: Despite the template above, your response MUST STILL be valid JSON following the exact schema defined in this prompt. The template content should be incorporated into the "description" field as markdown text, but the overall response MUST be a JSON object with "title", "description", and "labels" fields. Do NOT output markdown or prose - ONLY output valid JSON.`
 
 	prTemplateInstructionsES = `## Template de PR del Proyecto
 
@@ -1246,30 +1250,11 @@ func GetReleaseNotesSectionHeaders(locale string) map[string]string {
 }
 
 const (
-	issuePromptTemplateEN = `# Task
-  Act as a Senior Tech Lead and generate a high-quality GitHub issue based on the provided inputs.
-
-  # Inputs
-  {{.IssueInfo}}
-
-  # Golden Rules (Constraints)
-  1. **Active Voice:** Write in FIRST PERSON ("I implemented", "I added", "We refactored"). Avoid passive voice like "It was implemented".
-  2. **Context First:** Explain the WHY before the WHAT.
-  3. **Accurate Categorization:** Always choose at least one primary category: 'feature', 'fix', or 'refactor'. Use 'fix' ONLY for bug corrections. Use 'refactor' for code improvements without logic changes. Use 'feature' for new functionality.
-  4. **No Emojis:** Do not use emojis in the title or description. Keep it purely textual and professional.
-  5. **Balanced Labeling:** Aim for 2-4 relevant labels. Ensure you include the primary category plus any relevant file-based labels like 'test', 'docs', or 'infra' if applicable.
-  6. **Format:** Raw JSON only. Do not wrap in markdown blocks.
-
-  # Description Structure
-  The 'description' field must follow this Markdown structure:
-  - ### Context (Motivation)
-  - ### Technical Details (Architectural changes, new models, etc.)
-  - ### Impact (Benefits)
-
-  # STRICT OUTPUT FORMAT
+	issuePromptTemplateEN = `# STRICT OUTPUT FORMAT
   ⚠️ CRITICAL: You MUST return ONLY valid JSON. No markdown blocks, no explanations, no text before/after.
   ⚠️ ALL field types are STRICTLY enforced. DO NOT change types or add extra fields.
-  
+  ⚠️ DO NOT RETURN AN ARRAY. You MUST return a JSON OBJECT with exactly these fields: title, description, labels.
+
   ## JSON Schema (MANDATORY):
   {
     "type": "object",
@@ -1300,6 +1285,7 @@ const (
   - "labels": MUST be array of strings (never array of numbers, never null, use [] if empty)
 
   ## Prohibited Actions:
+  ❌ DO NOT return an array like []
   ❌ DO NOT add any fields not listed in the schema
   ❌ DO NOT change field types (e.g., title to number)
   ❌ DO NOT wrap JSON in markdown code blocks
@@ -1313,33 +1299,34 @@ const (
     "labels": ["feature", "auth"]
   }
 
-  Generate the issue now. Return ONLY the JSON object, nothing else.`
+  # Task
+  Act as a Senior Tech Lead and generate a high-quality GitHub issue based on the provided inputs.
 
-	issuePromptTemplateES = `# Tarea
-  Actuá como un Tech Lead y generá un issue de GitHub profesional basado en los inputs.
-
-  # Entradas (Inputs)
+  # Inputs
   {{.IssueInfo}}
 
-  # Reglas de Oro (Constraints)
-  1. **Voz Activa:** Escribí en PRIMERA PERSONA ("Implementé", "Agregué", "Corregí"). Prohibido usar voz pasiva robótica.
-  2. **Contexto Real:** Explicá el POR QUÉ del cambio, no solo qué líneas tocaste.
-  3. **Categorización Precisa:** Elegí siempre al menos una categoría principal: 'feature', 'fix', o 'refactor'. Solo usá 'fix' si ves una corrección de un bug. Usá 'refactor' para mejoras de código sin cambios lógicos. Usá 'feature' para funcionalidades nuevas.
-  4. **Cero Emojis:** No uses emojis ni en el título ni en el cuerpo del issue. Mantené un estilo sobrio y técnico.
-  5. **Etiquetado Equilibrado:** Buscá entre 2 y 4 etiquetas relevantes. Asegurate de incluir la categoría principal más cualquier etiqueta de tipo de archivo como 'test', 'docs', o 'infra' si corresponde.
-  6. **Formato:** JSON crudo. No incluyas bloques de markdown (como ` + "" + `).
+  # Golden Rules (Constraints)
+  1. **Active Voice:** Write in FIRST PERSON ("I implemented", "I added", "We refactored"). Avoid passive voice like "It was implemented".
+  2. **Context First:** Explain the WHY before the WHAT.
+  3. **Accurate Categorization:** Always choose at least one primary category: 'feature', 'fix', or 'refactor'. Use 'fix' ONLY for bug corrections. Use 'refactor' for code improvements without logic changes. Use 'feature' for new functionality.
+  4. **No Emojis:** Do not use emojis in the title or description. Keep it purely textual and professional.
+  5. **Balanced Labeling:** Aim for 2-4 relevant labels. Ensure you include the primary category plus any relevant file-based labels like 'test', 'docs', or 'infra' if applicable.
+  6. **Format:** Raw JSON only. Do not wrap in markdown blocks.
 
-  # Estructura de la Descripción
-  El campo "description" tiene que ser Markdown y seguir esta estructura estricta:
-  - ### Contexto (¿Cuál es la motivación o el dolor que resuelve esto?)
-  - ### Detalles Técnicos (Lista de cambios importantes, modelos nuevos, refactors)
-  - ### Impacto (¿Qué gana el usuario o el desarrollador con esto?)
+  # Description Structure
+  The 'description' field must follow this Markdown structure:
+  - ### Context (Motivation)
+  - ### Technical Details (Architectural changes, new models, etc.)
+  - ### Impact (Benefits)
 
-  # FORMATO DE SALIDA ESTRICTO
+  Generate the issue now. Return ONLY the JSON object (NOT an array), nothing else.`
+
+	issuePromptTemplateES = `# FORMATO DE SALIDA ESTRICTO
   ⚠️ CRÍTICO: DEBES devolver SOLO JSON válido. Sin bloques de markdown, sin explicaciones, sin texto antes/después.
   ⚠️ TODOS los tipos de campos están ESTRICTAMENTE definidos. NO cambies tipos ni agregues campos extra.
+  ⚠️ NO DEVUELVAS UN ARRAY. DEBES devolver un OBJETO JSON con exactamente estos campos: title, description, labels.
   IMPORTANTE: Responde en ESPAÑOL. Todo el contenido del JSON debe estar en español.
-  
+
   ## Schema JSON (OBLIGATORIO):
   {
     "type": "object",
@@ -1370,6 +1357,7 @@ const (
   - "labels": DEBE ser array de strings (nunca array de números, nunca null, usar [] si está vacío)
 
   ## Acciones Prohibidas:
+  ❌ NO devuelvas un array como []
   ❌ NO agregues campos que no estén en el schema
   ❌ NO cambies tipos de campos (ej: title a número)
   ❌ NO envuelvas el JSON en bloques de markdown
@@ -1383,7 +1371,27 @@ const (
     "labels": ["feature", "auth"]
   }
 
-  Generá el issue ahora. Devuelve SOLO el objeto JSON, nada más.`
+  # Tarea
+  Actuá como un Tech Lead y generá un issue de GitHub profesional basado en los inputs.
+
+  # Entradas (Inputs)
+  {{.IssueInfo}}
+
+  # Reglas de Oro (Constraints)
+  1. **Voz Activa:** Escribí en PRIMERA PERSONA ("Implementé", "Agregué", "Corregí"). Prohibido usar voz pasiva robótica.
+  2. **Contexto Real:** Explicá el POR QUÉ del cambio, no solo qué líneas tocaste.
+  3. **Categorización Precisa:** Elegí siempre al menos una categoría principal: 'feature', 'fix', o 'refactor'. Solo usá 'fix' si ves una corrección de un bug. Usá 'refactor' para mejoras de código sin cambios lógicos. Usá 'feature' para funcionalidades nuevas.
+  4. **Cero Emojis:** No uses emojis ni en el título ni en el cuerpo del issue. Mantené un estilo sobrio y técnico.
+  5. **Etiquetado Equilibrado:** Buscá entre 2 y 4 etiquetas relevantes. Asegurate de incluir la categoría principal más cualquier etiqueta de tipo de archivo como 'test', 'docs', o 'infra' si corresponde.
+  6. **Formato:** JSON crudo. No incluyas bloques de markdown (como ` + "" + `).
+
+  # Estructura de la Descripción
+  El campo "description" tiene que ser Markdown y seguir esta estructura estricta:
+  - ### Contexto (¿Cuál es la motivación o el dolor que resuelve esto?)
+  - ### Detalles Técnicos (Lista de cambios importantes, modelos nuevos, refactors)
+  - ### Impacto (¿Qué gana el usuario o el desarrollador con esto?)
+
+  Generá el issue ahora. Devuelve SOLO el objeto JSON (NO un array), nada más.`
 )
 
 // GetIssuePromptTemplate returns the appropriate issue generation template based on language

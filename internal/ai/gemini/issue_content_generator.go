@@ -67,7 +67,8 @@ func NewGeminiIssueContentGenerator(ctx context.Context, cfg *config.Config, onC
 }
 
 func (s *GeminiIssueContentGenerator) defaultGenerate(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
-	genConfig := GetGenerateConfig(mName, "application/json")
+	// Don't force JSON mode - let the model return structured text
+	genConfig := GetGenerateConfig(mName, "")
 
 	resp, err := s.Client.Models.GenerateContent(ctx, mName, genai.Text(p), genConfig)
 	if err != nil {
@@ -102,18 +103,39 @@ func (s *GeminiIssueContentGenerator) GenerateIssueContent(ctx context.Context, 
 
 	var responseText string
 	if geminiResp, ok := resp.(*genai.GenerateContentResponse); ok {
+		log.Debug("formatResponse received GenerateContentResponse",
+			"candidates_count", len(geminiResp.Candidates))
 		responseText = formatResponse(geminiResp)
+		if len(responseText) > 0 {
+			preview := responseText
+			if len(responseText) > 100 {
+				preview = responseText[:100]
+			}
+			log.Debug("formatResponse result",
+				"response_length", len(responseText),
+				"response_preview", preview)
+		} else {
+			log.Debug("formatResponse result empty")
+		}
 	} else if str, ok := resp.(string); ok {
 		responseText = str
+		log.Debug("received string response", "length", len(str))
+	} else if respMap, ok := resp.(map[string]interface{}); ok {
+		log.Debug("received map response from cache, extracting text")
+		responseText = extractTextFromMap(respMap)
+		log.Debug("extracted text from map", "length", len(responseText))
+	} else {
+		log.Warn("unexpected response type", "type", fmt.Sprintf("%T", resp))
 	}
 
 	if responseText == "" {
-		log.Error("empty response from gemini AI")
+		log.Error("empty response from gemini AI after format")
 		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "empty response from AI", nil)
 	}
 
 	log.Debug("gemini response received",
-		"response_length", len(responseText))
+		"response_length", len(responseText),
+		"response_text", responseText)
 
 	result, err := s.parseIssueResponse(responseText)
 	if err != nil {
@@ -131,8 +153,79 @@ func (s *GeminiIssueContentGenerator) GenerateIssueContent(ctx context.Context, 
 	return result, nil
 }
 
+// extractTextFromMap extracts text from a cached response that was deserialized from JSON.
+// The map structure mirrors genai.GenerateContentResponse but as map[string]interface{}.
+// JSON tags use lowercase keys: "candidates", "content", "parts", "text", "thought"
+func extractTextFromMap(respMap map[string]interface{}) string {
+	var result strings.Builder
+
+	// Navigate: respMap["candidates"] -> []interface{} of candidates
+	candidates, ok := respMap["candidates"]
+	if !ok {
+		return ""
+	}
+
+	candidatesList, ok := candidates.([]interface{})
+	if !ok {
+		return ""
+	}
+
+	for _, cand := range candidatesList {
+		candMap, ok := cand.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		// Navigate: candMap["content"] -> map with parts
+		content, ok := candMap["content"]
+		if !ok {
+			continue
+		}
+
+		contentMap, ok := content.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		// Navigate: contentMap["parts"] -> []interface{} of parts
+		parts, ok := contentMap["parts"]
+		if !ok {
+			continue
+		}
+
+		partsList, ok := parts.([]interface{})
+		if !ok {
+			continue
+		}
+
+		for _, part := range partsList {
+			partMap, ok := part.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			// Check if this is a thinking part (skip it)
+			if thought, ok := partMap["thought"].(bool); ok && thought {
+				continue
+			}
+
+			// Extract text from part
+			if text, ok := partMap["text"].(string); ok && text != "" {
+				result.WriteString(text)
+			}
+		}
+	}
+
+	return result.String()
+}
+
 // buildIssuePrompt builds the prompt to generate issue content.
 func (s *GeminiIssueContentGenerator) buildIssuePrompt(request models.IssueGenerationRequest) string {
+	if request.Description != "" && request.Diff == "" && request.Hint == "" &&
+		request.Template == nil && len(request.ChangedFiles) == 0 {
+		return request.Description
+	}
+
 	var sb strings.Builder
 
 	if request.Description != "" {
@@ -177,16 +270,62 @@ func (s *GeminiIssueContentGenerator) buildIssuePrompt(request models.IssueGener
 		return ""
 	}
 
+	if request.Template != nil {
+		rendered += `
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🚨 FINAL REMINDER - CRITICAL OUTPUT REQUIREMENT 🚨
+
+YOU MUST OUTPUT **ONLY** VALID JSON.
+
+The template structure above should be used to FILL the "description" field with markdown content.
+
+BUT your actual response MUST be a JSON object like this:
+{
+  "title": "string here",
+  "description": "markdown content following the template structure",
+  "labels": ["array", "of", "strings"]
+}
+
+❌ DO NOT output prose like "Here is a high-quality GitHub issue..."
+❌ DO NOT output markdown text directly
+❌ DO NOT output explanations
+
+✅ ONLY output the JSON object
+✅ Use the template to structure the markdown in the "description" field
+✅ Return valid parseable JSON
+
+BEGIN YOUR JSON OUTPUT NOW:`
+
+		logger.Debug(context.Background(), "full prompt with template and final JSON reminder",
+			"prompt_length", len(rendered),
+			"prompt", rendered)
+	}
+
 	return rendered
 }
 
 // parseIssueResponse parses the Gemini JSON response.
 func (s *GeminiIssueContentGenerator) parseIssueResponse(content string) (*models.IssueGenerationResult, error) {
 	if content == "" {
+		logger.Error(context.Background(), "received empty response from Gemini AI", nil)
 		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "empty response from AI", nil)
 	}
 
+	if len(content) > 0 {
+		preview := content
+		if len(content) > 200 {
+			preview = content[:200]
+		}
+		logger.Debug(context.Background(), "parsing Gemini response", "content_length", len(content), "content_preview", preview)
+	}
+
 	content = ExtractJSON(content)
+
+	logger.Debug(context.Background(), "extracted JSON content",
+		"content_length", len(content),
+		"content", content)
 
 	var jsonResult struct {
 		Title       string   `json:"title"`
@@ -195,12 +334,20 @@ func (s *GeminiIssueContentGenerator) parseIssueResponse(content string) (*model
 	}
 
 	if err := json.Unmarshal([]byte(content), &jsonResult); err != nil {
+		logger.Warn(context.Background(), "failed to unmarshal JSON, using fallback",
+			"error", err.Error(),
+			"content", content)
 		return &models.IssueGenerationResult{
 			Title:       "Generated Issue",
 			Description: content,
 			Labels:      []string{},
 		}, nil
 	}
+
+	logger.Debug(context.Background(), "successfully parsed JSON",
+		"title", jsonResult.Title,
+		"description_length", len(jsonResult.Description),
+		"labels_count", len(jsonResult.Labels))
 
 	result := &models.IssueGenerationResult{
 		Title:       strings.TrimSpace(jsonResult.Title),
