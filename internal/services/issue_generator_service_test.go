@@ -55,7 +55,7 @@ index 1234567..abcdefg 100644
 
 		mockAI.On("GenerateIssueContent", ctx, expectedRequest).Return(expectedResult, nil)
 
-		result, err := service.GenerateFromDiff(ctx, "Add user creation functionality", false)
+		result, err := service.GenerateFromDiff(ctx, "Add user creation functionality", false, false)
 
 		assert.NoError(t, err)
 		assert.Equal(t, "Add CreateUser method to UserService", result.Title)
@@ -111,7 +111,7 @@ index 1234567..abcdefg 100644
 
 		mockAI.On("GenerateIssueContent", ctx, mock.Anything).Return(expectedResult, nil)
 
-		result, err := service.GenerateFromDiff(ctx, "", false)
+		result, err := service.GenerateFromDiff(ctx, "", false, false)
 
 		assert.NoError(t, err)
 		assert.Equal(t, "Fix token validation length requirement", result.Title)
@@ -127,7 +127,7 @@ index 1234567..abcdefg 100644
 
 		mockGit.On("GetDiff", ctx).Return("", nil)
 
-		result, err := service.GenerateFromDiff(ctx, "", false)
+		result, err := service.GenerateFromDiff(ctx, "", false, false)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -143,7 +143,7 @@ index 1234567..abcdefg 100644
 		gitError := errors.New("git: not a git repository")
 		mockGit.On("GetDiff", ctx).Return("", gitError)
 
-		result, err := service.GenerateFromDiff(ctx, "", false)
+		result, err := service.GenerateFromDiff(ctx, "", false, false)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -154,7 +154,7 @@ index 1234567..abcdefg 100644
 		mockGit := new(MockGitService)
 		service := NewIssueGeneratorService(mockGit, nil, WithIssueConfig(cfg))
 
-		result, err := service.GenerateFromDiff(ctx, "", false)
+		result, err := service.GenerateFromDiff(ctx, "", false, false)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -172,7 +172,7 @@ index 1234567..abcdefg 100644
 		aiError := errors.New("AI service rate limit exceeded")
 		mockAI.On("GenerateIssueContent", ctx, mock.Anything).Return(nil, aiError)
 
-		result, err := service.GenerateFromDiff(ctx, "", false)
+		result, err := service.GenerateFromDiff(ctx, "", false, false)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -196,7 +196,7 @@ index 1234567..abcdefg 100644
 
 		mockAI.On("GenerateIssueContent", ctx, mock.Anything).Return(expectedResult, nil)
 
-		result, err := service.GenerateFromDiff(ctx, "", true)
+		result, err := service.GenerateFromDiff(ctx, "", true, false)
 
 		assert.NoError(t, err)
 		assert.NotContains(t, result.Labels, "test")
@@ -226,7 +226,7 @@ func TestIssueGeneratorService_GenerateFromDescription(t *testing.T) {
 
 		mockAI.On("GenerateIssueContent", ctx, expectedRequest).Return(expectedResult, nil)
 
-		result, err := service.GenerateFromDescription(ctx, description, false)
+		result, err := service.GenerateFromDescription(ctx, description, false, false)
 
 		assert.NoError(t, err)
 		assert.Equal(t, "Add OAuth2 authentication support", result.Title)
@@ -247,7 +247,7 @@ func TestIssueGeneratorService_GenerateFromDescription(t *testing.T) {
 
 		mockAI.On("GenerateIssueContent", ctx, mock.Anything).Return(expectedResult, nil)
 
-		result, err := service.GenerateFromDescription(ctx, description, false)
+		result, err := service.GenerateFromDescription(ctx, description, false, false)
 
 		assert.NoError(t, err)
 		assert.Equal(t, "Fix file upload timeout for large files", result.Title)
@@ -266,7 +266,7 @@ func TestIssueGeneratorService_GenerateFromDescription(t *testing.T) {
 
 		mockAI.On("GenerateIssueContent", ctx, mock.Anything).Return(expectedResult, nil)
 
-		result, err := service.GenerateFromDescription(ctx, "manual description", true)
+		result, err := service.GenerateFromDescription(ctx, "manual description", true, false)
 
 		assert.NoError(t, err)
 		assert.Equal(t, "Manual Issue", result.Title)
@@ -278,7 +278,7 @@ func TestIssueGeneratorService_GenerateFromDescription(t *testing.T) {
 		mockAI := new(MockIssueContentGenerator)
 		service := NewIssueGeneratorService(nil, mockAI, WithIssueConfig(cfg))
 
-		result, err := service.GenerateFromDescription(ctx, "", false)
+		result, err := service.GenerateFromDescription(ctx, "", false, false)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -287,7 +287,7 @@ func TestIssueGeneratorService_GenerateFromDescription(t *testing.T) {
 	t.Run("Error - AI service not configured", func(t *testing.T) {
 		service := NewIssueGeneratorService(nil, nil, WithIssueConfig(cfg))
 
-		result, err := service.GenerateFromDescription(ctx, "some description", false)
+		result, err := service.GenerateFromDescription(ctx, "some description", false, false)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -301,7 +301,7 @@ func TestIssueGeneratorService_GenerateFromDescription(t *testing.T) {
 		aiError := errors.New("AI service unavailable")
 		mockAI.On("GenerateIssueContent", ctx, mock.Anything).Return(nil, aiError)
 
-		result, err := service.GenerateFromDescription(ctx, "description", false)
+		result, err := service.GenerateFromDescription(ctx, "description", false, false)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -348,7 +348,7 @@ index 0000000..1234567
 
 		mockAI.On("GenerateIssueContent", ctx, mock.Anything).Return(expectedResult, nil)
 
-		result, err := service.GenerateFromPR(ctx, 42, "", false)
+		result, err := service.GenerateFromPR(ctx, 42, "", false, false)
 
 		assert.NoError(t, err)
 		assert.Equal(t, "Implement user profile page", result.Title)
@@ -381,7 +381,7 @@ index 0000000..1234567
 
 		mockAI.On("GenerateIssueContent", ctx, mock.Anything).Return(expectedResult, nil)
 
-		result, err := service.GenerateFromPR(ctx, 123, "Focus on performance impact", false)
+		result, err := service.GenerateFromPR(ctx, 123, "Focus on performance impact", false, false)
 
 		assert.NoError(t, err)
 		assert.Contains(t, result.Description, "Related PR: #123")
@@ -393,7 +393,7 @@ index 0000000..1234567
 		mockAI := new(MockIssueContentGenerator)
 		service := NewIssueGeneratorService(nil, mockAI, WithIssueConfig(cfg))
 
-		result, err := service.GenerateFromPR(ctx, 1, "", false)
+		result, err := service.GenerateFromPR(ctx, 1, "", false, false)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -404,7 +404,7 @@ index 0000000..1234567
 		mockVCS := new(MockVCSClient)
 		service := NewIssueGeneratorService(nil, nil, WithIssueVCSClient(mockVCS), WithIssueConfig(cfg))
 
-		result, err := service.GenerateFromPR(ctx, 1, "", false)
+		result, err := service.GenerateFromPR(ctx, 1, "", false, false)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -419,7 +419,7 @@ index 0000000..1234567
 		prError := errors.New("PR #999 not found")
 		mockVCS.On("GetPR", ctx, 999).Return(models.PRData{}, prError)
 
-		result, err := service.GenerateFromPR(ctx, 999, "", false)
+		result, err := service.GenerateFromPR(ctx, 999, "", false, false)
 
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -456,7 +456,6 @@ func TestIssueGeneratorService_GenerateWithTemplate(t *testing.T) {
 		}
 
 		mockTemplate.On("GetTemplateByName", ctx, "bug_report").Return(template, nil)
-		mockTemplate.On("ListTemplates", ctx).Return([]models.TemplateMetadata{}, nil)
 		mockGit.On("GetDiff", ctx).Return("some changes", nil)
 		mockGit.On("GetChangedFiles", ctx).Return([]string{"config/loader.go"}, nil)
 		mockAI.On("GenerateIssueContent", ctx, mock.Anything).Return(generated, nil)
@@ -495,7 +494,6 @@ func TestIssueGeneratorService_GenerateWithTemplate(t *testing.T) {
 		}
 
 		mockTemplate.On("GetTemplateByName", ctx, "feature_request").Return(template, nil)
-		mockTemplate.On("ListTemplates", ctx).Return([]models.TemplateMetadata{}, nil)
 		mockAI.On("GenerateIssueContent", ctx, mock.Anything).Return(generated, nil)
 		mockTemplate.On("MergeWithGeneratedContent", template, mock.Anything).Return(merged)
 

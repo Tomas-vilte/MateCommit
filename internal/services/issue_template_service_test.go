@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/models"
+	"gopkg.in/yaml.v3"
 )
 
 func TestIssueTemplateService_GetTemplatesDir(t *testing.T) {
@@ -145,14 +146,14 @@ func TestIssueTemplateService_FilesystemOps(t *testing.T) {
 	t.Run("ListTemplates", func(t *testing.T) {
 		templates, err := service.ListTemplates(context.Background())
 		assert.NoError(t, err)
-		assert.Len(t, templates, 3)
+		assert.Len(t, templates, 9)
 
 		err = os.WriteFile(filepath.Join(tmpDir, ".github", "ISSUE_TEMPLATE", "test.txt"), []byte("..."), 0644)
 		require.NoError(t, err)
 
 		templates, err = service.ListTemplates(context.Background())
 		assert.NoError(t, err)
-		assert.Len(t, templates, 3)
+		assert.Len(t, templates, 9)
 	})
 
 	t.Run("GetTemplateByName", func(t *testing.T) {
@@ -337,5 +338,27 @@ func TestIssueTemplateService_PRTemplates(t *testing.T) {
 		tmpl, err = service.GetPRTemplate(context.Background(), "PULL_REQUEST_TEMPLATE.md")
 		assert.NoError(t, err)
 		assert.Contains(t, tmpl.BodyContent, "Content")
+	})
+}
+
+func TestIssueTemplateService_NewTemplates(t *testing.T) {
+	service := &IssueTemplateService{}
+
+	t.Run("Performance Template is valid YAML", func(t *testing.T) {
+		content := service.buildPerformanceTemplate()
+		var tmpl models.IssueTemplate
+		err := yaml.Unmarshal([]byte(content), &tmpl)
+		assert.NoError(t, err)
+		assert.Equal(t, "Performance Issue", tmpl.Name)
+		assert.Contains(t, tmpl.Labels, "performance")
+	})
+
+	t.Run("Security Template is valid YAML", func(t *testing.T) {
+		content := service.buildSecurityTemplate()
+		var tmpl models.IssueTemplate
+		err := yaml.Unmarshal([]byte(content), &tmpl)
+		assert.NoError(t, err)
+		assert.Equal(t, "Security Vulnerability", tmpl.Name)
+		assert.Contains(t, tmpl.Labels, "security")
 	})
 }

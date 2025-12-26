@@ -723,6 +723,8 @@ template_list_empty = "No templates found"
 template_list_hint = "Run 'matecommit issue template init' to create default templates"
 template_list_usage_hint = "Use --template <filename> with the generate command"
 template_list_error = "Error listing templates"
+auto_template_flag = "Automatically select template using AI if none specified"
+auto_selected_template = "🤖 Auto-selected template: {{.Template}}"
 # Template selection
 templates_found = "📋 Found {{.Count}} template(s) in your repository"
 template_none = "None (use AI only)"

@@ -37,6 +37,7 @@ type (
 		BranchName    string
 		RelatedIssues []Issue
 		Description   string
+		Labels        []string
 	}
 
 	// Commit represents a commit included in the PR.

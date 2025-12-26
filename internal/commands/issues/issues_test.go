@@ -80,7 +80,7 @@ func TestIssueGenerateAction(t *testing.T) {
 			Labels:      []string{"bug"},
 		}
 
-		mockGen.On("GenerateFromDiff", mock.Anything, "hint", false).Return(expectedResult, nil)
+		mockGen.On("GenerateFromDiff", mock.Anything, "hint", false, true).Return(expectedResult, nil)
 		mockGen.On("CreateIssue", mock.Anything, expectedResult, []string(nil)).Return(&models.Issue{Number: 1, URL: "http://test.com"}, nil)
 
 		withStdin("y\n", func() {
@@ -102,7 +102,7 @@ func TestIssueGenerateAction(t *testing.T) {
 			Description: "Dry Run Desc",
 		}
 
-		mockGen.On("GenerateFromDescription", mock.Anything, "desc", false).Return(expectedResult, nil)
+		mockGen.On("GenerateFromDescription", mock.Anything, "desc", false, true).Return(expectedResult, nil)
 
 		app := &cli.Command{Name: "test", Commands: []*cli.Command{cmd}}
 		err := app.Run(context.Background(), []string{"test", "issue", "generate", "--description", "desc", "--dry-run"})
@@ -121,7 +121,7 @@ func TestIssueGenerateAction(t *testing.T) {
 			Title: "Assigned Issue",
 		}
 
-		mockGen.On("GenerateFromDiff", mock.Anything, "", false).Return(expectedResult, nil)
+		mockGen.On("GenerateFromDiff", mock.Anything, "", false, true).Return(expectedResult, nil)
 		mockGen.On("GetAuthenticatedUser", mock.Anything).Return("test-user", nil)
 		mockGen.On("CreateIssue", mock.Anything, expectedResult, []string{"test-user"}).Return(&models.Issue{Number: 1}, nil)
 
@@ -139,7 +139,7 @@ func TestIssueGenerateAction(t *testing.T) {
 		factory := NewIssuesCommandFactory(provider, mockTemp)
 		cmd := factory.CreateCommand(trans, cfg)
 
-		mockGen.On("GenerateFromDiff", mock.Anything, "", false).Return(&models.IssueGenerationResult{Title: "T"}, nil)
+		mockGen.On("GenerateFromDiff", mock.Anything, "", false, true).Return(&models.IssueGenerationResult{Title: "T"}, nil)
 
 		withStdin("n\n", func() {
 			app := &cli.Command{Name: "test", Commands: []*cli.Command{cmd}}

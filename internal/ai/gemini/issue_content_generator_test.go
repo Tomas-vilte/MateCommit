@@ -59,7 +59,7 @@ func TestBuildIssuePrompt(t *testing.T) {
 				Description: "user description",
 				Language:    "en",
 			},
-			contains: []string{"Global Description: user description"},
+			contains: []string{"user description"},
 		},
 		{
 			name: "full request",
@@ -81,6 +81,136 @@ func TestBuildIssuePrompt(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBuildIssuePrompt_WithTemplate(t *testing.T) {
+	cfg := &config.Config{}
+	gen := &GeminiIssueContentGenerator{
+		config: cfg,
+	}
+
+	t.Run("adds final JSON reminder when template is present", func(t *testing.T) {
+		template := &models.IssueTemplate{
+			Name:        "Bug Report",
+			Title:       "Bug: {{title}}",
+			BodyContent: "## Description\n{{description}}",
+		}
+
+		request := models.IssueGenerationRequest{
+			Diff:     "test diff",
+			Template: template,
+			Language: "en",
+		}
+
+		prompt := gen.buildIssuePrompt(request)
+
+		// Should contain the template
+		assert.Contains(t, prompt, "Bug Report")
+
+		// Should contain the final JSON reminder
+		assert.Contains(t, prompt, "🚨 FINAL REMINDER - CRITICAL OUTPUT REQUIREMENT 🚨")
+		assert.Contains(t, prompt, "YOU MUST OUTPUT **ONLY** VALID JSON")
+		assert.Contains(t, prompt, "BEGIN YOUR JSON OUTPUT NOW:")
+
+		// Should contain instructions about using template in description field
+		assert.Contains(t, prompt, "The template structure above should be used to FILL the \"description\" field")
+
+		// Should contain prohibitions
+		assert.Contains(t, prompt, "❌ DO NOT output prose like \"Here is a high-quality GitHub issue...\"")
+		assert.Contains(t, prompt, "❌ DO NOT output markdown text directly")
+
+		// Verify the reminder is at the end
+		lastIndex := len(prompt) - 500
+		if lastIndex < 0 {
+			lastIndex = 0
+		}
+		finalSection := prompt[lastIndex:]
+		assert.Contains(t, finalSection, "BEGIN YOUR JSON OUTPUT NOW:")
+	})
+
+	t.Run("does NOT add final reminder when no template", func(t *testing.T) {
+		request := models.IssueGenerationRequest{
+			Diff:     "test diff",
+			Template: nil,
+			Language: "en",
+		}
+
+		prompt := gen.buildIssuePrompt(request)
+
+		// Should NOT contain the final JSON reminder
+		assert.NotContains(t, prompt, "🚨 FINAL REMINDER - CRITICAL OUTPUT REQUIREMENT 🚨")
+		assert.NotContains(t, prompt, "BEGIN YOUR JSON OUTPUT NOW:")
+	})
+
+	t.Run("includes template in Spanish", func(t *testing.T) {
+		template := &models.IssueTemplate{
+			Name:        "Reporte de Bug",
+			Title:       "Bug: {{title}}",
+			BodyContent: "## Descripción\n{{description}}",
+		}
+
+		request := models.IssueGenerationRequest{
+			Description: "descripción del problema",
+			Template:    template,
+			Language:    "es",
+		}
+
+		prompt := gen.buildIssuePrompt(request)
+
+		// Should contain the template
+		assert.Contains(t, prompt, "Reporte de Bug")
+
+		// Should still contain the final JSON reminder (in English for consistency)
+		assert.Contains(t, prompt, "🚨 FINAL REMINDER - CRITICAL OUTPUT REQUIREMENT 🚨")
+		assert.Contains(t, prompt, "BEGIN YOUR JSON OUTPUT NOW:")
+	})
+
+	t.Run("handles template with all fields", func(t *testing.T) {
+		template := &models.IssueTemplate{
+			Name:        "Feature Request",
+			Title:       "Feature: {{title}}",
+			BodyContent: "## Problem\n{{problem}}\n## Solution\n{{solution}}",
+			Labels:      []string{"enhancement", "feature"},
+		}
+
+		request := models.IssueGenerationRequest{
+			Diff:         "test diff",
+			Template:     template,
+			Language:     "en",
+			ChangedFiles: []string{"main.go", "test.go"},
+		}
+
+		prompt := gen.buildIssuePrompt(request)
+
+		// Should contain template information
+		assert.Contains(t, prompt, "Feature Request")
+
+		// Should contain changed files
+		assert.Contains(t, prompt, "main.go")
+		assert.Contains(t, prompt, "test.go")
+
+		// Should contain the final reminder
+		assert.Contains(t, prompt, "🚨 FINAL REMINDER - CRITICAL OUTPUT REQUIREMENT 🚨")
+		assert.Contains(t, prompt, "BEGIN YOUR JSON OUTPUT NOW:")
+	})
+
+	t.Run("reminder contains complete JSON structure example", func(t *testing.T) {
+		template := &models.IssueTemplate{
+			Name: "Test Template",
+		}
+
+		request := models.IssueGenerationRequest{
+			Template: template,
+			Language: "en",
+		}
+
+		prompt := gen.buildIssuePrompt(request)
+
+		// Should show the expected JSON structure
+		assert.Contains(t, prompt, `"title": "string here"`)
+		assert.Contains(t, prompt, `"description": "markdown content following the template structure"`)
+		assert.Contains(t, prompt, `"labels": ["array", "of", "strings"]`)
+	})
 }
 
 func TestParseIssueResponse(t *testing.T) {
@@ -168,6 +298,108 @@ func TestCleanLabels(t *testing.T) {
 			assert.ElementsMatch(t, tt.expected, result)
 		})
 	}
+}
+
+func TestExtractTextFromMap(t *testing.T) {
+	t.Run("extracts text from valid map structure", func(t *testing.T) {
+		respMap := map[string]interface{}{
+			"candidates": []interface{}{
+				map[string]interface{}{
+					"content": map[string]interface{}{
+						"parts": []interface{}{
+							map[string]interface{}{
+								"text":    "This is the response",
+								"thought": false,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		result := extractTextFromMap(respMap)
+		assert.Equal(t, "This is the response", result)
+	})
+
+	t.Run("skips thinking parts", func(t *testing.T) {
+		respMap := map[string]interface{}{
+			"candidates": []interface{}{
+				map[string]interface{}{
+					"content": map[string]interface{}{
+						"parts": []interface{}{
+							map[string]interface{}{
+								"text":    "This is thinking",
+								"thought": true,
+							},
+							map[string]interface{}{
+								"text":    "This is the actual response",
+								"thought": false,
+							},
+						},
+					},
+				},
+			},
+		}
+
+		result := extractTextFromMap(respMap)
+		assert.Equal(t, "This is the actual response", result)
+	})
+
+	t.Run("handles multiple candidates and parts", func(t *testing.T) {
+		respMap := map[string]interface{}{
+			"candidates": []interface{}{
+				map[string]interface{}{
+					"content": map[string]interface{}{
+						"parts": []interface{}{
+							map[string]interface{}{
+								"text": "Part 1",
+							},
+							map[string]interface{}{
+								"text": " Part 2",
+							},
+						},
+					},
+				},
+			},
+		}
+
+		result := extractTextFromMap(respMap)
+		assert.Equal(t, "Part 1 Part 2", result)
+	})
+
+	t.Run("returns empty string for missing candidates key", func(t *testing.T) {
+		respMap := map[string]interface{}{}
+		result := extractTextFromMap(respMap)
+		assert.Equal(t, "", result)
+	})
+
+	t.Run("returns empty string for invalid structure", func(t *testing.T) {
+		respMap := map[string]interface{}{
+			"candidates": "not an array",
+		}
+		result := extractTextFromMap(respMap)
+		assert.Equal(t, "", result)
+	})
+
+	t.Run("skips malformed candidates gracefully", func(t *testing.T) {
+		respMap := map[string]interface{}{
+			"candidates": []interface{}{
+				"invalid candidate",
+				map[string]interface{}{
+					"content": map[string]interface{}{
+						"parts": []interface{}{
+							map[string]interface{}{
+								"text": "Valid text",
+							},
+						},
+					},
+				},
+			},
+		}
+
+		result := extractTextFromMap(respMap)
+		assert.Equal(t, "Valid text", result)
+	})
 }
 
 func TestGenerateIssueContent_HappyPath(t *testing.T) {
