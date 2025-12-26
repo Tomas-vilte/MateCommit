@@ -642,14 +642,22 @@ func (s *ReleaseService) formatReleaseItem(item models.ReleaseItem) string {
 }
 
 func (s *ReleaseService) CommitChangelog(ctx context.Context, version string) error {
-	mainGoFile := "cmd/main.go"
-	if s.config != nil && s.config.VersionFile != "" {
-		mainGoFile = s.config.VersionFile
+	if err := s.git.AddFileToStaging(ctx, "CHANGELOG.md"); err != nil {
+		return domainErrors.NewAppError(domainErrors.TypeGit, "failed to add CHANGELOG.md to staging", err)
 	}
 
-	if _, err := os.Stat(mainGoFile); err == nil {
-		if err := s.git.AddFileToStaging(ctx, mainGoFile); err != nil {
-			return domainErrors.NewAppError(domainErrors.TypeGit, fmt.Sprintf("failed to add version file to staging: %s", mainGoFile), err)
+	versionFile, _, err := s.FindVersionFile(ctx)
+	if err != nil {
+		if s.config != nil && s.config.VersionFile != "" {
+			versionFile = s.config.VersionFile
+		} else {
+			versionFile = "cmd/main.go"
+		}
+	}
+
+	if _, err := os.Stat(versionFile); err == nil {
+		if err := s.git.AddFileToStaging(ctx, versionFile); err != nil {
+			return domainErrors.NewAppError(domainErrors.TypeGit, fmt.Sprintf("failed to add version file to staging: %s", versionFile), err)
 		}
 	}
 
@@ -662,6 +670,7 @@ func (s *ReleaseService) CommitChangelog(ctx context.Context, version string) er
 		return domainErrors.NewAppError(domainErrors.TypeGit, "failed to commit changelog and version bump", err)
 	}
 	return nil
+
 }
 
 // PushChanges pushes committed changes to the remote repository

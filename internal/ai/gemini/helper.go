@@ -43,7 +43,7 @@ func GetGenerateConfig(modelName string, responseType string) *genai.GenerateCon
 	return config
 }
 
-// ExtractJSON attempts to extract a valid JSON block from text, handling markdown code blocks
+// ExtractJSON attempts to extract a valid JSON block from text, handling Markdown code blocks
 // and possible extra text that models with "Thinking" mode might generate.
 func ExtractJSON(text string) string {
 	text = strings.TrimSpace(text)
@@ -147,4 +147,70 @@ func SanitizeJSON(s string) string {
 
 func float32Ptr(f float32) *float32 {
 	return &f
+}
+
+// extractTextFromMap extracts text from a cached response that was deserialized from JSON.
+// The map structure mirrors genai.GenerateContentResponse but as map[string]interface{}.
+// JSON tags use lowercase keys: "candidates", "content", "parts", "text", "thought"
+func extractTextFromMap(respMap map[string]interface{}) string {
+	var result strings.Builder
+
+	// Navigate: respMap["candidates"] -> []interface{} of candidates
+	candidates, ok := respMap["candidates"]
+	if !ok {
+		return ""
+	}
+
+	candidatesList, ok := candidates.([]interface{})
+	if !ok {
+		return ""
+	}
+
+	for _, cand := range candidatesList {
+		candMap, ok := cand.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		// Navigate: candMap["content"] -> map with parts
+		content, ok := candMap["content"]
+		if !ok {
+			continue
+		}
+
+		contentMap, ok := content.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		// Navigate: contentMap["parts"] -> []interface{} of parts
+		parts, ok := contentMap["parts"]
+		if !ok {
+			continue
+		}
+
+		partsList, ok := parts.([]interface{})
+		if !ok {
+			continue
+		}
+
+		for _, part := range partsList {
+			partMap, ok := part.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			// Check if this is a thinking part (skip it)
+			if thought, ok := partMap["thought"].(bool); ok && thought {
+				continue
+			}
+
+			// Extract text from part
+			if text, ok := partMap["text"].(string); ok && text != "" {
+				result.WriteString(text)
+			}
+		}
+	}
+
+	return result.String()
 }

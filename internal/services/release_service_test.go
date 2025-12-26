@@ -1027,6 +1027,7 @@ const Version = "1.0.0"
 		cfg := &config.Config{VersionFile: versionFile}
 		service := NewReleaseService(mockGit, WithReleaseConfig(cfg))
 
+		mockGit.On("AddFileToStaging", mock.Anything, "CHANGELOG.md").Return(nil)
 		mockGit.On("AddFileToStaging", mock.Anything, versionFile).Return(nil)
 		mockGit.On("HasStagedChanges", mock.Anything).Return(true)
 		mockGit.On("CreateCommit", mock.Anything, "chore: update changelog and bump version to v1.1.0").Return(nil)
@@ -1041,6 +1042,7 @@ const Version = "1.0.0"
 		mockGit := new(MockGitService)
 		service := NewReleaseService(mockGit)
 
+		mockGit.On("AddFileToStaging", mock.Anything, "CHANGELOG.md").Return(nil)
 		mockGit.On("HasStagedChanges", mock.Anything).Return(false)
 
 		err := service.CommitChangelog(context.Background(), "v1.1.0")
@@ -1055,6 +1057,7 @@ const Version = "1.0.0"
 		cfg := &config.Config{VersionFile: "/non/existent/file.go"}
 		service := NewReleaseService(mockGit, WithReleaseConfig(cfg))
 
+		mockGit.On("AddFileToStaging", mock.Anything, "CHANGELOG.md").Return(nil)
 		mockGit.On("HasStagedChanges", mock.Anything).Return(true)
 		mockGit.On("CreateCommit", mock.Anything, "chore: update changelog and bump version to v2.0.0").Return(nil)
 
@@ -1074,6 +1077,7 @@ const Version = "1.0.0"
 		cfg := &config.Config{VersionFile: versionFile}
 		service := NewReleaseService(mockGit, WithReleaseConfig(cfg))
 
+		mockGit.On("AddFileToStaging", mock.Anything, "CHANGELOG.md").Return(nil)
 		mockGit.On("AddFileToStaging", mock.Anything, versionFile).Return(errors.New("permission denied"))
 
 		err = service.CommitChangelog(context.Background(), "v1.1.0")
@@ -1087,6 +1091,7 @@ const Version = "1.0.0"
 		mockGit := new(MockGitService)
 		service := NewReleaseService(mockGit)
 
+		mockGit.On("AddFileToStaging", mock.Anything, "CHANGELOG.md").Return(nil)
 		mockGit.On("HasStagedChanges", mock.Anything).Return(true)
 		mockGit.On("CreateCommit", mock.Anything, mock.Anything).Return(errors.New("commit failed"))
 

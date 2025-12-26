@@ -115,9 +115,18 @@ func (g *ReleaseNotesGenerator) GenerateNotes(ctx context.Context, release *mode
 
 	var responseText string
 	if geminiResp, ok := resp.(*genai.GenerateContentResponse); ok {
+		log.Debug("formatResponse received GenerateContentResponse",
+			"candidates_count", len(geminiResp.Candidates))
 		responseText = formatResponse(geminiResp)
 	} else if str, ok := resp.(string); ok {
 		responseText = str
+		log.Debug("received string response", "length", len(str))
+	} else if respMap, ok := resp.(map[string]interface{}); ok {
+		log.Debug("received map response from cache, extracting text")
+		responseText = extractTextFromMap(respMap)
+		log.Debug("extracted text from map", "length", len(responseText))
+	} else {
+		log.Warn("unexpected response type", "type", fmt.Sprintf("%T", resp))
 	}
 
 	if responseText == "" {
