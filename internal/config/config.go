@@ -28,6 +28,12 @@ type (
 		VersionFile       string               `json:"version_file,omitempty"`
 		VersionPattern    string               `json:"version_pattern,omitempty"`
 		AutoFetchTags     bool                 `json:"auto_fetch_tags"`
+		GitFallback       GitConfig            `json:"git_fallback,omitempty"`
+	}
+
+	GitConfig struct {
+		UserName  string `json:"user_name,omitempty"`
+		UserEmail string `json:"user_email,omitempty"`
 	}
 
 	AIProviderConfig struct {
@@ -71,7 +77,7 @@ func LoadConfig(path string) (*Config, error) {
 	if filepath.Ext(path) == ".json" {
 		configPath = path
 	} else {
-		configDir := filepath.Join(path, ".mate-commit")
+		configDir := filepath.Join(path, ".config", "matecommit")
 		configPath = filepath.Join(configDir, "config.json")
 
 		if _, err := os.Stat(configDir); os.IsNotExist(err) {

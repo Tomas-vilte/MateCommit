@@ -755,7 +755,7 @@ func TestGitService_ValidateTagExists(t *testing.T) {
 
 		testFile := "test.txt"
 		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
-			t.Fatalf("Error creating file: %v", err)
+			t.Fatalf("Error creando file: %v", err)
 		}
 		cmd := exec.Command("git", "add", "test.txt")
 		if err := cmd.Run(); err != nil {
@@ -782,7 +782,7 @@ func TestGitService_ValidateTagExists(t *testing.T) {
 
 		testFile := "test.txt"
 		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
-			t.Fatalf("Error creating file: %v", err)
+			t.Fatalf("Error creando file: %v", err)
 		}
 		cmd := exec.Command("git", "add", "test.txt")
 		if err := cmd.Run(); err != nil {
@@ -989,5 +989,51 @@ func TestGitService_GetCommitsBetweenTags(t *testing.T) {
 		assert.True(t, errors.As(err, &appErr))
 		assert.Equal(t, "v1.0.0", appErr.Context["from_tag"])
 		assert.Equal(t, "v2.0.0", appErr.Context["to_tag"])
+	})
+}
+
+func TestGitService_Fallback(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	t.Run("ValidateGitConfig with fallback", func(t *testing.T) {
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		_ = exec.Command("git", "config", "--unset", "user.name").Run()
+		_ = exec.Command("git", "config", "--unset", "user.email").Run()
+
+		service := NewGitService()
+		service.SetFallback("Fallback Name", "fallback@example.com")
+
+		err := service.ValidateGitConfig(context.Background())
+		assert.NoError(t, err)
+	})
+
+	t.Run("GetGitUserName with fallback", func(t *testing.T) {
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		_ = exec.Command("git", "config", "--unset", "user.name").Run()
+
+		service := NewGitService()
+		service.SetFallback("Fallback Name", "")
+
+		name, err := service.GetGitUserName(context.Background())
+		assert.NoError(t, err)
+		assert.Equal(t, "Fallback Name", name)
+	})
+
+	t.Run("GetGitUserEmail with fallback", func(t *testing.T) {
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		_ = exec.Command("git", "config", "--unset", "user.email").Run()
+
+		service := NewGitService()
+		service.SetFallback("", "fallback@example.com")
+
+		email, err := service.GetGitUserEmail(context.Background())
+		assert.NoError(t, err)
+		assert.Equal(t, "fallback@example.com", email)
 	})
 }

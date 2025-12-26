@@ -43,6 +43,18 @@ other = "🔍 Analyzing changes..."
 [suggestion_generation_error]
 other = "❌ Error generating suggestions: {{.Error}}"
 
+[config_set_usage]
+other = "Set a specific configuration value"
+
+[config_set_args_usage]
+other = "<key> <value>"
+
+[config_set_error_args]
+other = "Missing arguments. Usage: config set <key> <value>"
+
+[config_set_success]
+other = "Configuration updated: %s = %s"
+
 [config_command_usage]
 other = "Manage configuration"
 
@@ -508,7 +520,8 @@ message_updated = "Message updated"
 [ui_selection]
 select_option = "Select an option:"
 select_suggestion_range = "Select suggestion"
-cancel_operation = "Cancel"
+manual_option = "Edit message manually"
+cancel_operation = "Cancel operation"
 
 # UI - Labels
 [ui_labels]
@@ -577,7 +590,11 @@ editor_not_set = "EDITOR variable not set (detected: {{.Editor}})"
 no_editor_found = "No editor found"
 install_editor = "Install nano, vim or code"
 editor_not_found = "Editor '{{.Editor}}' not found"
-set_valid_editor = "Set a valid editor with: export EDITOR=nano"
+set_valid_editor = "Configure a valid editor with: export EDITOR=nano"
+
+github_missing_scopes = "The GitHub token is missing the following permissions (scopes): {{.Scopes}}"
+github_scopes_suggestion = "Update your GitHub token to include the necessary scopes (minimum 'repo')"
+github_configured_with_scopes = "configured (scopes: {{.Scopes}})"
 
 # Config improvements
 [config]

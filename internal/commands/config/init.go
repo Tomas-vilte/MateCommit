@@ -85,14 +85,7 @@ func runFullSetup(ctx context.Context, command *cli.Command, reader *bufio.Reade
 
 	printConfigSummary(cfg, t)
 
-	fmt.Println()
-	fmt.Print(t.GetMessage("init.prompt_run_again", 0, nil))
-	runAgain, err := reader.ReadString('\n')
-	if err != nil {
-		return fmt.Errorf("error reading input: %w", err)
-	}
-
-	if isYes(runAgain) {
+	if ui.AskConfirmation(t.GetMessage("init.prompt_run_again", 0, nil)) {
 		return runFullSetup(ctx, command, reader, cfg, t)
 	}
 
@@ -125,9 +118,7 @@ func configureWelcome(ctx context.Context, reader *bufio.Reader, cfg *config.Con
 	if apiKey != "" {
 		if !validateGeminiAPIKey(ctx, apiKey, t) {
 			ui.PrintWarning(t.GetMessage("config.api_key_saved_unverified", 0, nil))
-			fmt.Print(t.GetMessage("config.retry_api_key", 0, nil) + " (y/n): ")
-			retry, _ := reader.ReadString('\n')
-			if strings.ToLower(strings.TrimSpace(retry)) == "y" {
+			if ui.AskConfirmation(t.GetMessage("config.retry_api_key", 0, nil)) {
 				return configureWelcome(ctx, reader, cfg, t)
 			}
 		}
@@ -152,7 +143,7 @@ func configureWelcome(ctx context.Context, reader *bufio.Reader, cfg *config.Con
 
 	cfg.AIProviders["gemini"] = config.AIProviderConfig{
 		APIKey:      apiKey,
-		Model:       string(config.ModelGeminiV15Flash),
+		Model:       selectedModel,
 		Temperature: 0.3,
 		MaxTokens:   10000,
 	}
@@ -193,15 +184,7 @@ func configureVCS(reader *bufio.Reader, cfg *config.Config, t *i18n.Translations
 	vcsProvidersStr := strings.Join(vcsProviders, ", ")
 
 	printSection(t.GetMessage("init.section_vcs", 0, nil))
-	fmt.Print(t.GetMessage("init.prompt_vcs_enable_blank_no", 0, struct{ Providers string }{vcsProvidersStr}))
-
-	ansVCS, err := reader.ReadString('\n')
-	if err != nil {
-		return fmt.Errorf("error reading VCS response: %w", err)
-	}
-	ansVCS = strings.TrimSpace(strings.ToLower(ansVCS))
-
-	if isYes(ansVCS) {
+	if ui.AskConfirmation(t.GetMessage("init.prompt_vcs_enable_blank_no", 0, struct{ Providers string }{vcsProvidersStr})) {
 		provider := "github"
 		fmt.Print(t.GetMessage("init.prompt_github_token_blank_skip", 0, nil))
 		token, err := reader.ReadString('\n')
@@ -231,15 +214,7 @@ func configureTickets(reader *bufio.Reader, cfg *config.Config, t *i18n.Translat
 	ticketProviders := config.SupportedTicketServices()
 	ticketProvidersStr := strings.Join(ticketProviders, ", ")
 	printSection(t.GetMessage("init.section_tickets", 0, nil))
-	fmt.Print(t.GetMessage("init.prompt_ticket_enable_blank_no", 0, struct{ Providers string }{ticketProvidersStr}))
-
-	ansJira, err := reader.ReadString('\n')
-	if err != nil {
-		return fmt.Errorf("error reading Jira response: %w", err)
-	}
-	ansJira = strings.TrimSpace(strings.ToLower(ansJira))
-
-	if !isYes(ansJira) {
+	if !ui.AskConfirmation(t.GetMessage("init.prompt_ticket_enable_blank_no", 0, struct{ Providers string }{ticketProvidersStr})) {
 		disableTickets(cfg)
 		return nil
 	}
@@ -399,15 +374,6 @@ func validateGeminiAPIKey(ctx context.Context, apiKey string, t *i18n.Translatio
 func disableTickets(cfg *config.Config) {
 	cfg.UseTicket = false
 	cfg.ActiveTicketService = ""
-}
-
-func isYes(s string) bool {
-	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "y", "yes", "s":
-		return true
-	default:
-		return false
-	}
 }
 
 func isValidLanguage(lang string) bool {

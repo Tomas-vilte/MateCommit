@@ -22,6 +22,7 @@ func (c *ConfigCommandFactory) CreateCommand(t *i18n.Translations, cfg *config.C
 			c.newShowCommand(t, cfg),
 			c.newInitCommand(t, cfg),
 			c.newEditCommand(t, cfg),
+			c.newSetCommand(t, cfg),
 		},
 	}
 }

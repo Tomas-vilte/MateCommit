@@ -28,14 +28,14 @@ type commitGitService interface {
 type CommitService struct {
 	git           commitGitService
 	ai            ports.CommitSummarizer
-	ticketManager ports.TickerManager
+	ticketManager ports.TicketManager
 	vcsClient     ports.VCSClient
 	config        *config.Config
 }
 
 type Option func(*CommitService)
 
-func WithTicketManager(tm ports.TickerManager) Option {
+func WithTicketManager(tm ports.TicketManager) Option {
 	return func(s *CommitService) {
 		s.ticketManager = tm
 	}

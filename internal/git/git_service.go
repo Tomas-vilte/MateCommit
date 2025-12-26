@@ -15,10 +15,18 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-type GitService struct{}
+type GitService struct {
+	fallbackName  string
+	fallbackEmail string
+}
 
 func NewGitService() *GitService {
 	return &GitService{}
+}
+
+func (s *GitService) SetFallback(name, email string) {
+	s.fallbackName = name
+	s.fallbackEmail = email
 }
 
 // HasStagedChanges checks if there are changes in the staging area
@@ -432,43 +440,91 @@ func (s *GitService) FetchTags(ctx context.Context) error {
 
 // ValidateGitConfig checks if git user.name and user.email are configured
 func (s *GitService) ValidateGitConfig(ctx context.Context) error {
-	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--git-dir")
-	if err := cmd.Run(); err != nil {
+	log := logger.FromContext(ctx)
+	repoRoot, err := s.getRepoRoot(ctx)
+	if err != nil {
+		log.Error("failed to get repo root for config validation", "error", err)
 		return errors.ErrNotInGitRepo
 	}
 
-	cmd = exec.CommandContext(ctx, "git", "config", "user.name")
-	output, err := cmd.Output()
-	if err != nil || strings.TrimSpace(string(output)) == "" {
-		return errors.ErrGitUserNotConfigured
+	validate := func(key string, errType *errors.AppError) error {
+		cmd := exec.CommandContext(ctx, "git", "config", key)
+		cmd.Dir = repoRoot
+		output, err := cmd.Output()
+		val := strings.TrimSpace(string(output))
+
+		if err != nil || val == "" {
+			log.Error("git config check failed",
+				"key", key,
+				"error", err,
+				"output", val,
+				"repo_root", repoRoot)
+			return errType
+		}
+		log.Debug("git config check passed", "key", key, "value", val)
+		return nil
 	}
 
-	cmd = exec.CommandContext(ctx, "git", "config", "user.email")
-	output, err = cmd.Output()
-	if err != nil || strings.TrimSpace(string(output)) == "" {
-		return errors.ErrGitEmailNotConfigured
+	if err := validate("user.name", errors.ErrGitUserNotConfigured); err != nil {
+		if s.fallbackName != "" {
+			log.Info("using fallback git user.name", "name", s.fallbackName)
+		} else {
+			return err
+		}
 	}
+	if err := validate("user.email", errors.ErrGitEmailNotConfigured); err != nil {
+		if s.fallbackEmail != "" {
+			log.Info("using fallback git user.email", "email", s.fallbackEmail)
+		} else {
+			return err
+		}
+	}
+
 	return nil
 }
 
 // GetGitUserName returns the configured git user.name
 func (s *GitService) GetGitUserName(ctx context.Context) (string, error) {
+	log := logger.FromContext(ctx)
+	repoRoot, _ := s.getRepoRoot(ctx)
+
 	cmd := exec.CommandContext(ctx, "git", "config", "user.name")
+	if repoRoot != "" {
+		cmd.Dir = repoRoot
+	}
 	output, err := cmd.Output()
+	val := strings.TrimSpace(string(output))
+	if (err != nil || val == "") && s.fallbackName != "" {
+		log.Debug("using fallback git user.name", "name", s.fallbackName)
+		return s.fallbackName, nil
+	}
 	if err != nil {
+		log.Error("failed to get git user.name", "error", err, "repo_root", repoRoot)
 		return "", errors.ErrGetGitUser.WithError(err).WithContext("config_key", "user.name")
 	}
-	return strings.TrimSpace(string(output)), nil
+	return val, nil
 }
 
 // GetGitUserEmail returns the configured git user.email
 func (s *GitService) GetGitUserEmail(ctx context.Context) (string, error) {
+	log := logger.FromContext(ctx)
+	repoRoot, _ := s.getRepoRoot(ctx)
+
 	cmd := exec.CommandContext(ctx, "git", "config", "user.email")
+	if repoRoot != "" {
+		cmd.Dir = repoRoot
+	}
 	output, err := cmd.Output()
+	val := strings.TrimSpace(string(output))
+	if (err != nil || val == "") && s.fallbackEmail != "" {
+		log.Debug("using fallback git user.email", "email", s.fallbackEmail)
+		return s.fallbackEmail, nil
+	}
 	if err != nil {
+		log.Error("failed to get git user.email", "error", err, "repo_root", repoRoot)
 		return "", errors.ErrGetGitUser.WithError(err).WithContext("config_key", "user.email")
 	}
-	return strings.TrimSpace(string(output)), nil
+	return val, nil
 }
 
 func (s *GitService) ValidateTagExists(ctx context.Context, tag string) error {

@@ -43,8 +43,20 @@ other = "🔍 Analizando cambios..."
 [suggestion_generation_error]
 other = "❌ Error al generar sugerencias: {{.Error}}"
 
+[config_set_usage]
+other = "Establece un valor de configuración específico"
+
+[config_set_args_usage]
+other = "<clave> <valor>"
+
+[config_set_error_args]
+other = "Faltan argumentos. Uso: config set <clave> <valor>"
+
+[config_set_success]
+other = "Configuración actualizada: %s = %s"
+
 [config_command_usage]
-other = "Administrar configuración"
+other = "Gestiona la configuración de la aplicación"
 
 [config_init_usage]
 other = "🚀 Iniciar asistente de configuración"
@@ -527,9 +539,10 @@ message_updated = "Mensaje actualizado"
 
 # UI - Selection
 [ui_selection]
-select_option = "Selecciona una opción:"
+select_option = "Seleccioná una opción:"
 select_suggestion_range = "Seleccionar sugerencia"
-cancel_operation = "Cancelar"
+manual_option = "Editar mensaje manualmente"
+cancel_operation = "Cancelar operación"
 
 # UI - Labels
 [ui_labels]
@@ -599,6 +612,14 @@ no_editor_found = "No se encontró ningún editor"
 install_editor = "Instala nano, vim o code"
 editor_not_found = "Editor '{{.Editor}}' no encontrado"
 set_valid_editor = "Configura un editor válido con: export EDITOR=nano"
+
+check_internet = "Conexión a internet"
+no_internet = "No se pudo establecer conexión a internet"
+check_connection_suggestion = "Verificá tu conexión a internet o la configuración del proxy"
+no_active_ai = "No hay una IA activa configurada"
+github_missing_scopes = "Al token de GitHub le faltan los siguientes permisos (scopes): {{.Scopes}}"
+github_scopes_suggestion = "Actualizá tu token en GitHub para incluir los scopes necesarios (mínimo 'repo')"
+github_configured_with_scopes = "configurado (scopes: {{.Scopes}})"
 
 # Config improvements
 [config]

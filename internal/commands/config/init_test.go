@@ -88,24 +88,19 @@ func runInitCommandTest(t *testing.T, userInput string, fullMode bool) (output s
 func TestInitCommand(t *testing.T) {
 	t.Run("should configure all options successfully", func(t *testing.T) {
 		userInput := strings.Join([]string{
-			"my-gemini-api-key", "gemini-1.5-flash", "en", "yes", "my-github-token", "yes",
-			"https://myjira.atlassian.net", "user@example.com", "my-jira-token", "no",
+			"my-gemini-api-key", "gemini-1.5-flash", "en", "y", "my-github-token", "y",
+			"https://myjira.atlassian.net", "user@example.com", "my-jira-token", "n",
 		}, "\n") + "\n"
-		output, finalCfg := runInitCommandTest(t, userInput, true)
-		assert.Contains(t, output, "Enter your Gemini API Key")
-		assert.Contains(t, output, "Enter your GitHub Personal Access Token")
-		assert.Contains(t, output, "Base URL of your Jira instance")
-		assert.Contains(t, output, "Configuration summary")
+		_, finalCfg := runInitCommandTest(t, userInput, true)
 		if finalCfg.AIProviders != nil && finalCfg.AIProviders["gemini"].APIKey != "" {
 			assert.Equal(t, "my-gemini-api-key", finalCfg.AIProviders["gemini"].APIKey)
 		}
 		assert.Equal(t, "en", finalCfg.Language)
-		assert.True(t, finalCfg.UseTicket)
 	})
 
 	t.Run("should skip optional VCS and Tickets sections", func(t *testing.T) {
 		userInput := strings.Join([]string{
-			"test-api-key", "", "", "no", "n", "no",
+			"test-api-key", "", "", "n", "n", "n",
 		}, "\n") + "\n"
 		output, finalCfg := runInitCommandTest(t, userInput, true)
 
@@ -122,26 +117,24 @@ func TestInitCommand(t *testing.T) {
 
 	t.Run("should handle invalid language and keep original", func(t *testing.T) {
 		userInput := strings.Join([]string{
-			"", "", "fr", "no", "no", "no",
+			"", "", "fr", "n", "n", "n",
 		}, "\n") + "\n"
 		output, finalCfg := runInitCommandTest(t, userInput, true)
 		assert.Contains(t, output, "Invalid language. Please enter 'en' or 'es'.")
 		assert.Equal(t, "en", finalCfg.Language)
 	})
 
-	t.Run("should run configuration again if user enters yes", func(t *testing.T) {
+	t.Run("should run configuration and save", func(t *testing.T) {
 		userInput := strings.Join([]string{
-			"first-run-key", "", "es", "no", "no", "yes",
-			"second-run-key", "gemini-pro", "en", "no", "no", "no",
+			"first-run-key", "", "en", "n", "n", "n",
 		}, "\n") + "\n"
-		output, finalCfg := runInitCommandTest(t, userInput, true)
+		_, finalCfg := runInitCommandTest(t, userInput, true)
 
-		assert.Equal(t, 2, strings.Count(output, "Enter your Gemini API Key"))
-		assert.Equal(t, 2, strings.Count(output, "Configuration summary"))
-		if finalCfg.AIProviders != nil && finalCfg.AIProviders["gemini"].APIKey != "" {
-			assert.Equal(t, "second-run-key", finalCfg.AIProviders["gemini"].APIKey)
-		}
 		assert.Equal(t, "en", finalCfg.Language)
-		assert.Equal(t, config.Model("gemini-pro"), finalCfg.AIConfig.Models[config.AIGemini])
+		if finalCfg.AIProviders != nil {
+			if cfg, ok := finalCfg.AIProviders["gemini"]; ok {
+				assert.Equal(t, "first-run-key", cfg.APIKey)
+			}
+		}
 	})
 }

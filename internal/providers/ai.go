@@ -18,7 +18,11 @@ func NewCommitSummarizer(ctx context.Context, cfg *config.Config, onConfirmation
 
 	switch cfg.AIConfig.ActiveAI {
 	case "gemini":
-		return gemini.NewGeminiCommitSummarizer(ctx, cfg, onConfirmation)
+		summarizer, err := gemini.NewGeminiCommitSummarizer(ctx, cfg, onConfirmation)
+		if err != nil {
+			return nil, err
+		}
+		return summarizer, nil
 	default:
 		return nil, fmt.Errorf("AI provider '%s' not supported", cfg.AIConfig.ActiveAI)
 	}
@@ -32,7 +36,11 @@ func NewPRSummarizer(ctx context.Context, cfg *config.Config, onConfirmation ai.
 
 	switch cfg.AIConfig.ActiveAI {
 	case "gemini":
-		return gemini.NewGeminiPRSummarizer(ctx, cfg, onConfirmation)
+		summarizer, err := gemini.NewGeminiPRSummarizer(ctx, cfg, onConfirmation)
+		if err != nil {
+			return nil, err
+		}
+		return summarizer, nil
 	default:
 		return nil, fmt.Errorf("AI provider '%s' not supported", cfg.AIConfig.ActiveAI)
 	}
@@ -46,7 +54,11 @@ func NewIssueContentGenerator(ctx context.Context, cfg *config.Config, onConfirm
 
 	switch cfg.AIConfig.ActiveAI {
 	case "gemini":
-		return gemini.NewGeminiIssueContentGenerator(ctx, cfg, onConfirmation)
+		generator, err := gemini.NewGeminiIssueContentGenerator(ctx, cfg, onConfirmation)
+		if err != nil {
+			return nil, err
+		}
+		return generator, nil
 	default:
 		return nil, fmt.Errorf("AI provider '%s' not supported", cfg.AIConfig.ActiveAI)
 	}
@@ -61,7 +73,11 @@ func NewReleaseNotesGenerator(ctx context.Context, cfg *config.Config, onConfirm
 
 	switch cfg.AIConfig.ActiveAI {
 	case "gemini":
-		return gemini.NewReleaseNotesGenerator(ctx, cfg, onConfirmation, owner, repo)
+		generator, err := gemini.NewReleaseNotesGenerator(ctx, cfg, onConfirmation, owner, repo)
+		if err != nil {
+			return nil, err
+		}
+		return generator, nil
 	default:
 		return nil, fmt.Errorf("AI provider '%s' not supported", cfg.AIConfig.ActiveAI)
 	}

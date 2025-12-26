@@ -25,9 +25,10 @@ var (
 	Dim     = color.New(color.FgHiBlack)
 
 	// Emojis with colors
-	SuccessEmoji = Success.Sprint("✓")
-	WarningEmoji = Warning.Sprint("⚠")
-	InfoEmoji    = Info.Sprint("*")
+	MateEmoji    = "🧉"
+	SuccessEmoji = Success.Sprint("✅")
+	WarningEmoji = Warning.Sprint("⚠️")
+	InfoEmoji    = Info.Sprint("ℹ️")
 	RocketEmoji  = Accent.Sprint("🚀")
 	StatsEmoji   = Accent.Sprint("📊")
 )
@@ -46,7 +47,7 @@ func NewSmartSpinner(initialMessage string) *SmartSpinner {
 		spinner.CharSets[14],
 		100*time.Millisecond,
 		spinner.WithColor("cyan"),
-		spinner.WithSuffix(" "+initialMessage),
+		spinner.WithSuffix(" "+MateEmoji+" "+initialMessage),
 	)
 	return &SmartSpinner{spinner: s}
 }
@@ -166,17 +167,17 @@ func (b *SpinnerBuilder) Build() *SmartSpinner {
 		spinner.CharSets[b.charset],
 		b.speed,
 		spinner.WithColor(b.color),
-		spinner.WithSuffix(" "+b.message),
+		spinner.WithSuffix(" "+MateEmoji+" "+b.message),
 	)
 	return &SmartSpinner{spinner: s}
 }
 
 func PrintSuccess(w io.Writer, msg string) {
-	_, _ = fmt.Fprintf(w, "%s ✓ %s\n", color.GreenString("Success:"), msg)
+	_, _ = fmt.Fprintf(w, "%s %s\n", SuccessEmoji, Success.Sprint(msg))
 }
 
 func PrintError(w io.Writer, msg string) {
-	_, _ = fmt.Fprintf(w, "%s ❌ %s\n", color.RedString("Error:"), msg)
+	_, _ = fmt.Fprintf(w, "%s %s\n", Error.Sprint("❌"), Error.Sprint(msg))
 }
 
 func PrintWarning(msg string) {

@@ -11,7 +11,7 @@ import (
 )
 
 // NewTicketManager creates a TicketManager based on the configured provider
-func NewTicketManager(ctx context.Context, cfg *config.Config) (ports.TickerManager, error) {
+func NewTicketManager(ctx context.Context, cfg *config.Config) (ports.TicketManager, error) {
 	if cfg.ActiveTicketService == "" || !cfg.UseTicket {
 		return nil, nil // Tickets disabled
 	}

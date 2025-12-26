@@ -3,11 +3,13 @@ package config
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"strings"
 	"time"
 
+	"github.com/google/go-github/v80/github"
 	"github.com/thomas-vilte/matecommit/internal/ai/gemini"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
@@ -36,15 +38,14 @@ func (d *DoctorCommand) runHealthCheck(ctx context.Context, t *i18n.Translations
 	ui.PrintSectionBanner(t.GetMessage("doctor.running_checks", 0, nil))
 
 	checks := []healthCheck{
+		{name: "doctor.check_internet", fn: d.checkInternet},
 		{name: "doctor.check_config_file", fn: d.checkConfigFile},
 		{name: "doctor.check_git_repo", fn: d.checkGitRepo},
 		{name: "doctor.check_git_installed", fn: d.checkGitInstalled},
 		{name: "doctor.check_git_user_name", fn: d.checkGitUserName},
 		{name: "doctor.check_git_user_email", fn: d.checkGitUserEmail},
-		{name: "doctor.check_gemini_key", fn: func(ctx context.Context, t *i18n.Translations, cfg *config.Config) checkResult {
-			return d.checkGeminiAPIKey(ctx, t, cfg)
-		}},
-		{name: "doctor.check_github_token", fn: d.checkGitHubToken},
+		{name: "doctor.check_ai_provider", fn: d.checkActiveAIProvider},
+		{name: "doctor.check_github_token", fn: d.checkGitHubTokenWithScopes},
 		{name: "doctor.check_editor", fn: d.checkEditor},
 	}
 
@@ -224,28 +225,6 @@ func (d *DoctorCommand) checkGeminiAPIKey(ctx context.Context, t *i18n.Translati
 	}
 }
 
-func (d *DoctorCommand) checkGitHubToken(_ context.Context, t *i18n.Translations, cfg *config.Config) checkResult {
-	hasGitHub := false
-	if cfg.VCSConfigs != nil {
-		if githubConfig, ok := cfg.VCSConfigs["github"]; ok && githubConfig.Token != "" {
-			hasGitHub = true
-		}
-	}
-
-	if !hasGitHub {
-		return checkResult{
-			status:     checkStatusWarning,
-			message:    t.GetMessage("doctor.github_not_configured", 0, nil),
-			suggestion: t.GetMessage("doctor.github_optional", 0, nil),
-		}
-	}
-
-	return checkResult{
-		status:  checkStatusOK,
-		message: t.GetMessage("doctor.github_configured", 0, nil),
-	}
-}
-
 func (d *DoctorCommand) checkEditor(_ context.Context, t *i18n.Translations, _ *config.Config) checkResult {
 	editor := os.Getenv("EDITOR")
 	if editor == "" {
@@ -326,5 +305,94 @@ func (d *DoctorCommand) checkGitUserEmail(ctx context.Context, t *i18n.Translati
 	return checkResult{
 		status:  checkStatusOK,
 		message: fmt.Sprintf("(%s)", userEmail),
+	}
+}
+
+func (d *DoctorCommand) checkInternet(ctx context.Context, t *i18n.Translations, _ *config.Config) checkResult {
+	timeout := 2 * time.Second
+	dialer := &net.Dialer{Timeout: timeout}
+	conn, err := dialer.DialContext(ctx, "tcp", "8.8.8.8:53")
+	if err != nil {
+		return checkResult{
+			status:     checkStatusWarning,
+			message:    t.GetMessage("doctor.no_internet", 0, nil),
+			suggestion: t.GetMessage("doctor.check_connection_suggestion", 0, nil),
+		}
+	}
+	_ = conn.Close()
+	return checkResult{status: checkStatusOK}
+}
+
+func (d *DoctorCommand) checkActiveAIProvider(ctx context.Context, t *i18n.Translations, cfg *config.Config) checkResult {
+	activeAI := cfg.AIConfig.ActiveAI
+	if activeAI == "" {
+		return checkResult{
+			status:     checkStatusError,
+			message:    t.GetMessage("doctor.no_active_ai", 0, nil),
+			suggestion: t.GetMessage("doctor.run_config_init", 0, nil),
+		}
+	}
+
+	providerCfg, exists := cfg.AIProviders[string(activeAI)]
+	if !exists || providerCfg.APIKey == "" {
+		return checkResult{
+			status:     checkStatusError,
+			message:    t.GetMessage("doctor.ai_not_configured", 0, struct{ Provider string }{string(activeAI)}),
+			suggestion: t.GetMessage("doctor.run_config_init", 0, nil),
+		}
+	}
+
+	switch activeAI {
+	case config.AIGemini:
+		return d.checkGeminiAPIKey(ctx, t, cfg)
+	default:
+		return checkResult{
+			status:  checkStatusOK,
+			message: fmt.Sprintf("%s configured", activeAI),
+		}
+	}
+}
+
+func (d *DoctorCommand) checkGitHubTokenWithScopes(ctx context.Context, t *i18n.Translations, cfg *config.Config) checkResult {
+	vcsCfg, ok := cfg.VCSConfigs["github"]
+	if !ok || vcsCfg.Token == "" {
+		return checkResult{
+			status:     checkStatusWarning,
+			message:    t.GetMessage("doctor.github_not_configured", 0, nil),
+			suggestion: t.GetMessage("doctor.github_optional", 0, nil),
+		}
+	}
+
+	client := github.NewClient(nil).WithAuthToken(vcsCfg.Token)
+	_, resp, err := client.Users.Get(ctx, "")
+	if err != nil {
+		return checkResult{
+			status:     checkStatusError,
+			message:    t.GetMessage("doctor.github_token_invalid", 0, nil),
+			suggestion: t.GetMessage("doctor.check_github_token_suggestion", 0, nil),
+		}
+	}
+
+	scopes := resp.Header.Get("X-OAuth-Scopes")
+	required := []string{"repo"}
+	var missing []string
+
+	for _, req := range required {
+		if !strings.Contains(scopes, req) {
+			missing = append(missing, req)
+		}
+	}
+
+	if len(missing) > 0 {
+		return checkResult{
+			status:     checkStatusWarning,
+			message:    t.GetMessage("doctor.github_missing_scopes", 0, struct{ Scopes string }{strings.Join(missing, ", ")}),
+			suggestion: t.GetMessage("doctor.github_scopes_suggestion", 0, nil),
+		}
+	}
+
+	return checkResult{
+		status:  checkStatusOK,
+		message: t.GetMessage("doctor.github_configured_with_scopes", 0, struct{ Scopes string }{scopes}),
 	}
 }

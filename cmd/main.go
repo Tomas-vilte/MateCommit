@@ -32,8 +32,6 @@ import (
 )
 
 func main() {
-	logger.Initialize(false, false)
-
 	app, err := initializeApp()
 	if err != nil {
 		log.Fatalf("Error starting the CLI: %v", err)
@@ -66,66 +64,97 @@ func initializeApp() (*cli.Command, error) {
 
 	ctx := context.Background()
 	gitService := git.NewGitService()
+	gitService.SetFallback(cfgApp.GitFallback.UserName, cfgApp.GitFallback.UserEmail)
+	isCompletion := checkCompletion()
 
-	isCompletion := false
+	commitAI, prAI, issueAI := initAIProviders(ctx, cfgApp, translations, isCompletion)
+	vcsClient := initVCSClient(ctx, gitService, cfgApp, isCompletion)
+	ticketMgr := initTicketManager(ctx, cfgApp, isCompletion)
+
+	commitService, prService, issueService, templateService := initServices(cfgApp, gitService, commitAI, prAI, issueAI, vcsClient, ticketMgr)
+
+	commitHandler := handler.NewSuggestionHandler(gitService, vcsClient, translations)
+	commands := setupCommands(translations, cfgApp, gitService, commitService, prService, issueService, templateService, commitHandler)
+
+	startBackgroundVersionCheck()
+
+	return &cli.Command{
+		Name:                  "mate-commit",
+		Usage:                 translations.GetMessage("app_usage", 0, nil),
+		Version:               version.Version,
+		Description:           translations.GetMessage("app_description", 0, nil),
+		Commands:              commands,
+		EnableShellCompletion: true,
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:  "debug",
+				Usage: translations.GetMessage("flags_global.debug_flag", 0, nil),
+			},
+			&cli.BoolFlag{
+				Name:    "verbose",
+				Aliases: []string{"v"},
+				Usage:   translations.GetMessage("flags_global.verbose_flag", 0, nil),
+			},
+		},
+		Before: func(ctx context.Context, c *cli.Command) (context.Context, error) {
+			logger.Initialize(c.Bool("debug"), c.Bool("verbose"))
+			handleVersionNotification(translations)
+			return ctx, nil
+		},
+	}, nil
+}
+
+func checkCompletion() bool {
 	for _, arg := range os.Args {
 		if arg == "completion" || arg == "--generate-shell-completion" {
-			isCompletion = true
-			break
+			return true
 		}
 	}
+	return false
+}
 
-	var commitAI ports.CommitSummarizer
-	var prAI ports.PRSummarizer
-	var issueAI ports.IssueContentGenerator
-
-	if cfgApp.AIConfig.ActiveAI != "" {
-		onConfirmation := createConfirmationCallback(translations)
-
-		commitAI, err = providers.NewCommitSummarizer(ctx, cfgApp, onConfirmation)
-		if err != nil && !isCompletion {
-			logger.Warn(ctx, "could not create CommitSummarizer",
-				"error", err)
-			logger.Info(ctx, "AI is not configured. You can configure it with 'mate-commit config init'")
-		}
-
-		prAI, err = providers.NewPRSummarizer(ctx, cfgApp, onConfirmation)
-		if err != nil {
-			if !isCompletion {
-				logger.Warn(ctx, "could not create PRSummarizer",
-					"error", err)
-			}
-			prAI = nil
-		}
-
-		issueAI, err = providers.NewIssueContentGenerator(ctx, cfgApp, onConfirmation)
-		if err != nil {
-			if !isCompletion {
-				logger.Warn(ctx, "could not create IssueContentGenerator",
-					"error", err)
-			}
-			issueAI = nil
-		}
+func initAIProviders(ctx context.Context, cfgApp *cfg.Config, t *i18n.Translations, isCompletion bool) (ports.CommitSummarizer, ports.PRSummarizer, ports.IssueContentGenerator) {
+	if cfgApp.AIConfig.ActiveAI == "" {
+		return nil, nil, nil
 	}
 
+	onConfirmation := createConfirmationCallback(t)
+	commitAI, err := providers.NewCommitSummarizer(ctx, cfgApp, onConfirmation)
+	if err != nil && !isCompletion {
+		logger.Warn(ctx, "could not create CommitSummarizer", "error", err)
+		logger.Info(ctx, "AI is not configured. You can configure it with 'mate-commit config init'")
+	}
+
+	prAI, err := providers.NewPRSummarizer(ctx, cfgApp, onConfirmation)
+	if err != nil && !isCompletion {
+		logger.Warn(ctx, "could not create PRSummarizer", "error", err)
+	}
+
+	issueAI, err := providers.NewIssueContentGenerator(ctx, cfgApp, onConfirmation)
+	if err != nil && !isCompletion {
+		logger.Warn(ctx, "could not create IssueContentGenerator", "error", err)
+	}
+
+	return commitAI, prAI, issueAI
+}
+
+func initVCSClient(ctx context.Context, gitService *git.GitService, cfgApp *cfg.Config, isCompletion bool) ports.VCSClient {
 	vcsClient, err := providers.NewVCSClient(ctx, gitService, cfgApp)
-	if err != nil {
-		if !isCompletion {
-			logger.Warn(ctx, "could not create VCS client",
-				"error", err)
-		}
-		vcsClient = nil
+	if err != nil && !isCompletion {
+		logger.Warn(ctx, "could not create VCS client", "error", err)
 	}
+	return vcsClient
+}
 
+func initTicketManager(ctx context.Context, cfgApp *cfg.Config, isCompletion bool) ports.TicketManager {
 	ticketMgr, err := providers.NewTicketManager(ctx, cfgApp)
-	if err != nil {
-		if !isCompletion {
-			logger.Warn(ctx, "could not create Ticket manager",
-				"error", err)
-		}
-		ticketMgr = nil
+	if err != nil && !isCompletion {
+		logger.Warn(ctx, "could not create Ticket manager", "error", err)
 	}
+	return ticketMgr
+}
 
+func initServices(cfgApp *cfg.Config, gitService *git.GitService, commitAI ports.CommitSummarizer, prAI ports.PRSummarizer, issueAI ports.IssueContentGenerator, vcsClient ports.VCSClient, ticketMgr ports.TicketManager) (*services.CommitService, *services.PRService, *services.IssueGeneratorService, *services.IssueTemplateService) {
 	commitService := services.NewCommitService(
 		gitService,
 		commitAI,
@@ -153,80 +182,61 @@ func initializeApp() (*cli.Command, error) {
 		services.WithIssueConfig(cfgApp),
 	)
 
-	commitHandler := handler.NewSuggestionHandler(gitService, vcsClient, translations)
+	return commitService, prService, issueService, templateService
+}
 
+func setupCommands(t *i18n.Translations, cfgApp *cfg.Config, gitService *git.GitService, commitService *services.CommitService, prService *services.PRService, issueService *services.IssueGeneratorService, templateService *services.IssueTemplateService, commitHandler *handler.SuggestionHandler) []*cli.Command {
 	issueProvider := func(ctx context.Context) (issues.IssueGeneratorService, error) {
 		return issueService, nil
 	}
+
 	commands := []*cli.Command{
-		suggests_commits.NewSuggestCommandFactory(commitService, commitHandler, gitService).CreateCommand(translations, cfgApp),
-		issues.NewIssuesCommandFactory(
-			issueProvider,
-			templateService,
-		).CreateCommand(translations, cfgApp),
+		suggests_commits.NewSuggestCommandFactory(commitService, commitHandler, gitService).CreateCommand(t, cfgApp),
+		issues.NewIssuesCommandFactory(issueProvider, templateService).CreateCommand(t, cfgApp),
 		pull_requests.NewSummarizeCommand(func(ctx context.Context) (pull_requests.PRService, error) {
 			return prService, nil
-		}).CreateCommand(translations, cfgApp),
-		release.NewReleaseCommandFactory(gitService, cfgApp).CreateCommand(translations, cfgApp),
-		config.NewConfigCommandFactory().CreateCommand(translations, cfgApp),
-		config.NewDoctorCommand().CreateCommand(translations, cfgApp),
-		update.NewUpdateCommandFactory("v1.4.0").CreateCommand(translations, cfgApp),
-		completion.NewCompletionCommand(translations),
-		stats.NewStatsCommand().CreateCommand(translations, cfgApp),
-		cache.NewCacheCommand().CreateCommand(translations, cfgApp),
+		}).CreateCommand(t, cfgApp),
+		release.NewReleaseCommandFactory(gitService, cfgApp).CreateCommand(t, cfgApp),
+		config.NewConfigCommandFactory().CreateCommand(t, cfgApp),
+		config.NewDoctorCommand().CreateCommand(t, cfgApp),
+		update.NewUpdateCommandFactory("v1.4.0").CreateCommand(t, cfgApp),
+		completion.NewCompletionCommand(t),
+		stats.NewStatsCommand().CreateCommand(t, cfgApp),
+		cache.NewCacheCommand().CreateCommand(t, cfgApp),
 	}
 
 	commands = append(commands, &cli.Command{
 		Name:    "help",
 		Aliases: []string{"h"},
-		Usage:   translations.GetMessage("help_command_usage", 0, nil),
+		Usage:   t.GetMessage("help_command_usage", 0, nil),
 		Action: func(ctx context.Context, cmd *cli.Command) error {
 			return cli.ShowAppHelp(cmd)
 		},
 	})
 
+	return commands
+}
+
+func startBackgroundVersionCheck() {
 	go func() {
 		checker := services.NewVersionUpdater(
 			services.WithCurrentVersion(version.FullVersion()),
 		)
 		_, _ = checker.CheckForUpdates(context.Background())
 	}()
+}
 
-	return &cli.Command{
-		Name:                  "mate-commit",
-		Usage:                 translations.GetMessage("app_usage", 0, nil),
-		Version:               version.Version,
-		Description:           translations.GetMessage("app_description", 0, nil),
-		Commands:              commands,
-		EnableShellCompletion: true,
-		Flags: []cli.Flag{
-			&cli.BoolFlag{
-				Name:  "debug",
-				Usage: translations.GetMessage("flags_global.debug_flag", 0, nil),
-			},
-			&cli.BoolFlag{
-				Name:    "verbose",
-				Aliases: []string{"v"},
-				Usage:   translations.GetMessage("flags_global.verbose_flag", 0, nil),
-			},
-		},
-		Before: func(ctx context.Context, c *cli.Command) (context.Context, error) {
-			logger.Initialize(c.Bool("debug"), c.Bool("verbose"))
-
-			args := os.Args
-			if len(args) > 1 {
-				cmdName := args[1]
-				if cmdName != "update" && cmdName != "completion" {
-					checker := services.NewVersionUpdater(
-						services.WithCurrentVersion(version.FullVersion()),
-					)
-					checker.NotifyUpdate(translations)
-				}
-			}
-
-			return ctx, nil
-		},
-	}, nil
+func handleVersionNotification(t *i18n.Translations) {
+	args := os.Args
+	if len(args) > 1 {
+		cmdName := args[1]
+		if cmdName != "update" && cmdName != "completion" {
+			checker := services.NewVersionUpdater(
+				services.WithCurrentVersion(version.FullVersion()),
+			)
+			checker.NotifyUpdate(t)
+		}
+	}
 }
 
 func createConfirmationCallback(t *i18n.Translations) ai.ConfirmationCallback {
