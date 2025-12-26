@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fatih/color"
+	"github.com/thomas-vilte/matecommit/internal/cache"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
-	"github.com/thomas-vilte/matecommit/internal/cache"
-	"github.com/fatih/color"
 	"github.com/urfave/cli/v3"
 )
 

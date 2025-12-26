@@ -6,9 +6,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/stretchr/testify/assert"
 	"google.golang.org/genai"
 )
 
@@ -207,7 +207,7 @@ func TestGeminiCommitSummarizer(t *testing.T) {
 		// assert
 		assert.Contains(t, prompt, "commit", "El prompt debería contener 'commit'")
 		assert.Contains(t, prompt, "Archivos Modificados", "El prompt debería contener 'Archivos modificados'")
-		assert.Contains(t, prompt, "explicación", "El prompt debería contener 'Explicación'")
+		assert.Contains(t, prompt, "Explicación", "El prompt debería contener 'Explicación'")
 		assert.Contains(t, prompt, "feat", "El prompt debería contener tipos de commit")
 		assert.Contains(t, prompt, "fix", "El prompt debería contener tipos de commit")
 		assert.Contains(t, prompt, "refactor", "El prompt debería contener tipos de commit")

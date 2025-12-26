@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thomas-vilte/matecommit/internal/i18n"
-	"github.com/thomas-vilte/matecommit/internal/services/cost"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thomas-vilte/matecommit/internal/i18n"
+	"github.com/thomas-vilte/matecommit/internal/services/cost"
 )
 
 func TestNewStatsCommand(t *testing.T) {

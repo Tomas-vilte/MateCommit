@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/models"
+	"gopkg.in/yaml.v3"
 )
 
 func TestIssueTemplateService_GetTemplatesDir(t *testing.T) {
@@ -145,14 +146,14 @@ func TestIssueTemplateService_FilesystemOps(t *testing.T) {
 	t.Run("ListTemplates", func(t *testing.T) {
 		templates, err := service.ListTemplates(context.Background())
 		assert.NoError(t, err)
-		assert.Len(t, templates, 3)
+		assert.Len(t, templates, 9)
 
 		err = os.WriteFile(filepath.Join(tmpDir, ".github", "ISSUE_TEMPLATE", "test.txt"), []byte("..."), 0644)
 		require.NoError(t, err)
 
 		templates, err = service.ListTemplates(context.Background())
 		assert.NoError(t, err)
-		assert.Len(t, templates, 3)
+		assert.Len(t, templates, 9)
 	})
 
 	t.Run("GetTemplateByName", func(t *testing.T) {
@@ -282,4 +283,82 @@ func TestIssueTemplateService_MergeWithGeneratedContent_Realistic(t *testing.T) 
 	result := service.MergeWithGeneratedContent(template, generated)
 	assert.Equal(t, "[BUG] Server error 500", result.Title)
 	assert.Contains(t, result.Description, "- Go to /home")
+}
+
+func TestIssueTemplateService_PRTemplates(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	origCwd, _ := os.Getwd()
+	err := os.Chdir(tmpDir)
+	require.NoError(t, err)
+	defer func() { _ = os.Chdir(origCwd) }()
+
+	cfg := &config.Config{ActiveVCSProvider: "github"}
+	service := NewIssueTemplateService(WithTemplateConfig(cfg))
+
+	t.Run("GetPRTemplatesDir", func(t *testing.T) {
+		dir, err := service.GetPRTemplatesDir(context.Background())
+		assert.NoError(t, err)
+		assert.Contains(t, dir, ".github/PULL_REQUEST_TEMPLATE")
+	})
+
+	t.Run("ListPRTemplates - Single File", func(t *testing.T) {
+		_ = os.MkdirAll(filepath.Join(tmpDir, ".github"), 0755)
+		err := os.WriteFile(filepath.Join(tmpDir, ".github", "PULL_REQUEST_TEMPLATE.md"), []byte("## Template"), 0644)
+		require.NoError(t, err)
+
+		templates, err := service.ListPRTemplates(context.Background())
+		assert.NoError(t, err)
+		assert.Len(t, templates, 1)
+		assert.Equal(t, "PULL_REQUEST_TEMPLATE.md", templates[0].FilePath)
+	})
+
+	t.Run("ListPRTemplates - Directory", func(t *testing.T) {
+		_ = os.Remove(filepath.Join(tmpDir, ".github", "PULL_REQUEST_TEMPLATE.md"))
+
+		targetDir := filepath.Join(tmpDir, ".github", "PULL_REQUEST_TEMPLATE")
+		_ = os.MkdirAll(targetDir, 0755)
+
+		err := os.WriteFile(filepath.Join(targetDir, "custom.md"), []byte("## Custom"), 0644)
+		require.NoError(t, err)
+
+		templates, err := service.ListPRTemplates(context.Background())
+		assert.NoError(t, err)
+		assert.Len(t, templates, 1)
+		assert.Equal(t, "custom.md", templates[0].FilePath)
+	})
+
+	t.Run("GetPRTemplate - Single File", func(t *testing.T) {
+		_ = os.WriteFile(filepath.Join(tmpDir, ".github", "PULL_REQUEST_TEMPLATE.md"), []byte("## Main\nContent"), 0644)
+
+		tmpl, err := service.GetPRTemplate(context.Background(), "")
+		assert.NoError(t, err)
+		assert.Contains(t, tmpl.BodyContent, "## Main")
+
+		tmpl, err = service.GetPRTemplate(context.Background(), "PULL_REQUEST_TEMPLATE.md")
+		assert.NoError(t, err)
+		assert.Contains(t, tmpl.BodyContent, "Content")
+	})
+}
+
+func TestIssueTemplateService_NewTemplates(t *testing.T) {
+	service := &IssueTemplateService{}
+
+	t.Run("Performance Template is valid YAML", func(t *testing.T) {
+		content := service.buildPerformanceTemplate()
+		var tmpl models.IssueTemplate
+		err := yaml.Unmarshal([]byte(content), &tmpl)
+		assert.NoError(t, err)
+		assert.Equal(t, "Performance Issue", tmpl.Name)
+		assert.Contains(t, tmpl.Labels, "performance")
+	})
+
+	t.Run("Security Template is valid YAML", func(t *testing.T) {
+		content := service.buildSecurityTemplate()
+		var tmpl models.IssueTemplate
+		err := yaml.Unmarshal([]byte(content), &tmpl)
+		assert.NoError(t, err)
+		assert.Equal(t, "Security Vulnerability", tmpl.Name)
+		assert.Contains(t, tmpl.Labels, "security")
+	})
 }

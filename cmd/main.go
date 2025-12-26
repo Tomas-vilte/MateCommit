@@ -134,14 +134,15 @@ func initializeApp() (*cli.Command, error) {
 		services.WithConfig(cfgApp),
 	)
 
+	templateService := services.NewIssueTemplateService(
+		services.WithTemplateConfig(cfgApp),
+	)
+
 	prService := services.NewPRService(
 		services.WithPRVCSClient(vcsClient),
 		services.WithPRAIProvider(prAI),
 		services.WithPRConfig(cfgApp),
-	)
-
-	templateService := services.NewIssueTemplateService(
-		services.WithTemplateConfig(cfgApp),
+		services.WithPRTemplateService(templateService),
 	)
 
 	issueService := services.NewIssueGeneratorService(

@@ -5,10 +5,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/thomas-vilte/matecommit/internal/ports"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/thomas-vilte/matecommit/internal/models"
+	"github.com/thomas-vilte/matecommit/internal/ports"
 )
 
 // MockAnalyzer es un mock de DependencyAnalyzer

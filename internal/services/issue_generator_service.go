@@ -23,6 +23,7 @@ type issueGitService interface {
 type issueTemplateService interface {
 	GetTemplateByName(ctx context.Context, name string) (*models.IssueTemplate, error)
 	MergeWithGeneratedContent(template *models.IssueTemplate, generated *models.IssueGenerationResult) *models.IssueGenerationResult
+	ListTemplates(ctx context.Context) ([]models.TemplateMetadata, error)
 }
 
 type IssueGeneratorService struct {
@@ -70,7 +71,7 @@ func NewIssueGeneratorService(
 
 // GenerateFromDiff generates issue content based on the current git diff.
 // It analyzes local changes (staged and unstaged) to create an appropriate title, description, and labels.
-func (s *IssueGeneratorService) GenerateFromDiff(ctx context.Context, hint string, skipLabels bool) (*models.IssueGenerationResult, error) {
+func (s *IssueGeneratorService) GenerateFromDiff(ctx context.Context, hint string, skipLabels bool, autoTemplate bool) (*models.IssueGenerationResult, error) {
 	logger.Info(ctx, "generating issue from diff",
 		"has_hint", hint != "",
 		"skip_labels", skipLabels)
@@ -101,19 +102,32 @@ func (s *IssueGeneratorService) GenerateFromDiff(ctx context.Context, hint strin
 		"diff_size", len(diff),
 		"files_count", len(changedFiles))
 
+	var template *models.IssueTemplate
+	if autoTemplate {
+		template, _ = s.SelectTemplateWithAI(ctx, "", hint, changedFiles, nil)
+	}
+
 	request := models.IssueGenerationRequest{
 		Diff:         diff,
 		ChangedFiles: changedFiles,
 		Hint:         hint,
 		Language:     s.config.Language,
+		Template:     template,
 	}
 
-	logger.Debug(ctx, "calling AI for issue generation from diff")
+	logger.Debug(ctx, "calling AI for issue generation from diff",
+		"has_template", template != nil)
 
 	result, err := s.ai.GenerateIssueContent(ctx, request)
 	if err != nil {
 		logger.Error(ctx, "failed to generate issue content", err)
 		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "failed to generate issue content", err)
+	}
+
+	if template != nil {
+		result = s.templateService.MergeWithGeneratedContent(template, result)
+		logger.Debug(ctx, "merged template with generated content",
+			"template_name", template.Name)
 	}
 
 	if !skipLabels {
@@ -131,7 +145,7 @@ func (s *IssueGeneratorService) GenerateFromDiff(ctx context.Context, hint strin
 
 // GenerateFromDescription generates issue content based on a manual description.
 // Useful when the user wants to create an issue without having local changes.
-func (s *IssueGeneratorService) GenerateFromDescription(ctx context.Context, description string, skipLabels bool) (*models.IssueGenerationResult, error) {
+func (s *IssueGeneratorService) GenerateFromDescription(ctx context.Context, description string, skipLabels bool, autoTemplate bool) (*models.IssueGenerationResult, error) {
 	logger.Info(ctx, "generating issue from description",
 		"description_length", len(description),
 		"skip_labels", skipLabels)
@@ -146,19 +160,36 @@ func (s *IssueGeneratorService) GenerateFromDescription(ctx context.Context, des
 		return nil, domainErrors.NewAppError(domainErrors.TypeConfiguration, "description is required", nil)
 	}
 
+	var template *models.IssueTemplate
+	if autoTemplate {
+		var err error
+		template, err = s.SelectTemplateWithAI(ctx, "", description, nil, nil)
+		if err != nil {
+			logger.Warn(ctx, "failed to auto-select template via AI", err)
+		}
+	}
+
 	request := models.IssueGenerationRequest{
 		Description: description,
+		Template:    template,
 	}
 	if s.config != nil {
 		request.Language = s.config.Language
 	}
 
-	logger.Debug(ctx, "calling AI for issue generation from description")
+	logger.Debug(ctx, "calling AI for issue generation from description",
+		"has_template", template != nil)
 
 	result, err := s.ai.GenerateIssueContent(ctx, request)
 	if err != nil {
 		logger.Error(ctx, "failed to generate issue content", err)
 		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "failed to generate issue content", err)
+	}
+
+	if template != nil {
+		result = s.templateService.MergeWithGeneratedContent(template, result)
+		logger.Debug(ctx, "merged template with generated content",
+			"template_name", template.Name)
 	}
 
 	if skipLabels {
@@ -171,7 +202,7 @@ func (s *IssueGeneratorService) GenerateFromDescription(ctx context.Context, des
 	return result, nil
 }
 
-func (s *IssueGeneratorService) GenerateFromPR(ctx context.Context, prNumber int, hint string, skipLabels bool) (*models.IssueGenerationResult, error) {
+func (s *IssueGeneratorService) GenerateFromPR(ctx context.Context, prNumber int, hint string, skipLabels bool, autoTemplate bool) (*models.IssueGenerationResult, error) {
 	logger.Info(ctx, "generating issue from PR",
 		"pr_number", prNumber,
 		"has_hint", hint != "",
@@ -217,21 +248,34 @@ func (s *IssueGeneratorService) GenerateFromPR(ctx context.Context, prNumber int
 
 	changedFiles := s.extractFilesFromDiff(prData.Diff)
 
+	var template *models.IssueTemplate
+	if autoTemplate {
+		template, _ = s.SelectTemplateWithAI(ctx, prData.Title, prData.Description, changedFiles, prData.Labels)
+	}
+
 	request := models.IssueGenerationRequest{
 		Description:  contextBuilder.String(),
 		Diff:         prData.Diff,
 		ChangedFiles: changedFiles,
 		Hint:         hint,
 		Language:     s.config.Language,
+		Template:     template,
 	}
 
-	logger.Debug(ctx, "calling AI for issue generation from PR")
+	logger.Debug(ctx, "calling AI for issue generation from PR",
+		"has_template", template != nil)
 
 	result, err := s.ai.GenerateIssueContent(ctx, request)
 	if err != nil {
 		logger.Error(ctx, "failed to generate issue content from PR", err,
 			"pr_number", prNumber)
 		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "failed to generate issue content", err)
+	}
+
+	if template != nil {
+		result = s.templateService.MergeWithGeneratedContent(template, result)
+		logger.Debug(ctx, "merged template with generated content",
+			"template_name", template.Name)
 	}
 
 	result.Description = fmt.Sprintf("%s\n\n---\n*Related PR: #%d*", result.Description, prNumber)
@@ -258,9 +302,9 @@ func (s *IssueGeneratorService) GenerateWithTemplate(ctx context.Context, templa
 
 	var baseResult *models.IssueGenerationResult
 	if fromDiff {
-		baseResult, err = s.GenerateFromDiff(ctx, hint, skipLabels)
+		baseResult, err = s.GenerateFromDiff(ctx, hint, skipLabels, false)
 	} else if description != "" {
-		baseResult, err = s.GenerateFromDescription(ctx, description, skipLabels)
+		baseResult, err = s.GenerateFromDescription(ctx, description, skipLabels, false)
 	} else {
 		return nil, domainErrors.NewAppError(domainErrors.TypeConfiguration, "no input provided", nil)
 	}
@@ -275,6 +319,18 @@ func (s *IssueGeneratorService) GenerateWithTemplate(ctx context.Context, templa
 	}
 
 	return result, nil
+}
+
+func (s *IssueGeneratorService) SuggestTemplates(ctx context.Context) ([]models.TemplateMetadata, error) {
+	if s.templateService == nil {
+		return []models.TemplateMetadata{}, nil
+	}
+
+	templates, err := s.templateService.ListTemplates(ctx)
+	if err != nil {
+		return []models.TemplateMetadata{}, nil
+	}
+	return templates, nil
 }
 
 func (s *IssueGeneratorService) mergeAssignees(genAssignees, templateAssignees []string) []string {
@@ -295,6 +351,95 @@ func (s *IssueGeneratorService) mergeAssignees(genAssignees, templateAssignees [
 		result = append(result, a)
 	}
 	return result
+}
+
+// SelectTemplateWithAI uses AI to analyze the context (diff/description) and select the best template
+func (s *IssueGeneratorService) SelectTemplateWithAI(ctx context.Context, title, description string, changedFiles, labels []string) (*models.IssueTemplate, error) {
+	if s.ai == nil || s.templateService == nil {
+		return nil, nil
+	}
+
+	templates, err := s.templateService.ListTemplates(ctx)
+	if err != nil || len(templates) == 0 {
+		return nil, nil
+	}
+
+	var templateListBuilder strings.Builder
+	for _, t := range templates {
+		templateListBuilder.WriteString(fmt.Sprintf("- %s: %s\n", t.Name, t.About))
+	}
+
+	var contextBuilder strings.Builder
+	if title != "" {
+		contextBuilder.WriteString(fmt.Sprintf("Title: %s\n", title))
+	}
+	if description != "" {
+		contextBuilder.WriteString(fmt.Sprintf("Description: %s\n", description))
+	}
+	if len(changedFiles) > 0 {
+		contextBuilder.WriteString(fmt.Sprintf("Changed files: %s\n", strings.Join(changedFiles, ", ")))
+	}
+	if len(labels) > 0 {
+		contextBuilder.WriteString(fmt.Sprintf("Labels: %s\n", strings.Join(labels, ", ")))
+	}
+
+	prompt := fmt.Sprintf(`You are an intelligent assistant helping to select the correct issue template for a software project.
+Available templates:
+%s
+Context (Metadata):
+%s
+Based on the context, select the SINGLE most appropriate template name from the list above.
+Respond ONLY with valid JSON in this exact format:
+{
+  "title": "Template Name",
+  "description": "",
+  "labels": []
+}
+The title field must contain ONLY the template name exactly as it appears in the list (e.g., "Bug Report", "Feature Request").
+If no template fits perfectly, choose "Custom Issue" or the most generic one.`, templateListBuilder.String(), contextBuilder.String())
+
+	request := models.IssueGenerationRequest{
+		Description: prompt,
+		Language:    "en",
+	}
+
+	result, err := s.ai.GenerateIssueContent(ctx, request)
+	if err != nil {
+		logger.Warn(ctx, "failed to auto-select template via AI", err)
+		return nil, nil
+	}
+
+	selectedName := strings.TrimSpace(result.Title)
+
+	logger.Info(ctx, "AI template selection response",
+		"selectedName", selectedName,
+		"templates_count", len(templates),
+	)
+
+	var bestMatch *models.TemplateMetadata
+	for i, t := range templates {
+		logger.Debug(ctx, "checking template match",
+			"index", i,
+			"template_name", t.Name,
+			"selected_name", selectedName,
+			"exact_match", strings.EqualFold(t.Name, selectedName),
+			"contains_match", strings.Contains(strings.ToLower(selectedName), strings.ToLower(t.Name)))
+		if strings.EqualFold(t.Name, selectedName) || strings.Contains(strings.ToLower(selectedName), strings.ToLower(t.Name)) {
+			bestMatch = &t
+			break
+		}
+	}
+
+	logger.Info(ctx, "template matching result", "found_match", bestMatch != nil)
+
+	if bestMatch != nil {
+		logger.Info(ctx, "AI auto-selected template", "template", bestMatch.Name)
+		templateName := strings.TrimSuffix(bestMatch.FilePath, ".yml")
+		templateName = strings.TrimSuffix(templateName, ".yaml")
+		templateName = strings.TrimSuffix(templateName, ".md")
+		return s.templateService.GetTemplateByName(ctx, templateName)
+	}
+	return nil, nil
 }
 
 func (s *IssueGeneratorService) extractFilesFromDiff(diff string) []string {

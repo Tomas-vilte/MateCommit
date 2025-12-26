@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
-	"github.com/stretchr/testify/assert"
 )
 
 func setupConfigTest(t *testing.T) (*config.Config, *i18n.Translations, string, func()) {

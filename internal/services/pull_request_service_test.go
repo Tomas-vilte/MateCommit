@@ -7,14 +7,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/thomas-vilte/matecommit/internal/config"
-	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
-	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/thomas-vilte/matecommit/internal/ai/gemini"
-	"github.com/thomas-vilte/matecommit/internal/github"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/thomas-vilte/matecommit/internal/ai/gemini"
+	"github.com/thomas-vilte/matecommit/internal/config"
+	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
+	"github.com/thomas-vilte/matecommit/internal/github"
+	"github.com/thomas-vilte/matecommit/internal/models"
 )
 
 func TestPRService_SummarizePR_Success(t *testing.T) {
@@ -298,7 +298,7 @@ func TestBuildPRPrompt(t *testing.T) {
 	service := PRService{}
 
 	// Act
-	prompt := service.buildPRPrompt(prData)
+	prompt := service.buildPRPrompt(prData, nil)
 
 	// Assert
 	expected := `PR #456 by dev123
@@ -317,6 +317,31 @@ Changes (diff completo):
 diff --git a/api.go b/api.go`
 
 	assert.Equal(t, expected, prompt)
+
+}
+
+func TestBuildPRPrompt_WithTemplate(t *testing.T) {
+	// Arrange
+	prData := models.PRData{
+		ID:      789,
+		Creator: "dev",
+		Diff:    "diff content",
+	}
+
+	template := &models.IssueTemplate{
+		Name:        "MyTemplate",
+		BodyContent: "## TODO\n- [ ] Check this",
+	}
+
+	service := PRService{config: &config.Config{}}
+
+	// Act
+	prompt := service.buildPRPrompt(prData, template)
+
+	// Assert
+	assert.Contains(t, prompt, "## TODO")
+	assert.Contains(t, prompt, "- [ ] Check this")
+	assert.Contains(t, prompt, "PR #789")
 }
 
 type TestConfig struct {
@@ -406,4 +431,121 @@ func TestPRService_SummarizePR_Integration(t *testing.T) {
 
 		t.Logf("Resumen generado: %+v", summary)
 	})
+}
+
+type MockPRTemplateService struct {
+	mock.Mock
+}
+
+func (m *MockPRTemplateService) GetPRTemplate(ctx context.Context, name string) (*models.IssueTemplate, error) {
+	args := m.Called(ctx, name)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.IssueTemplate), args.Error(1)
+}
+
+func (m *MockPRTemplateService) ListPRTemplates(ctx context.Context) ([]models.TemplateMetadata, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.TemplateMetadata), args.Error(1)
+}
+
+func TestPRService_SummarizePR_WithTemplate(t *testing.T) {
+	ctx := context.Background()
+	prNumber := 123
+
+	mockVCS := new(MockVCSClient)
+	mockAI := new(MockPRSummarizer)
+	mockTemplate := new(MockPRTemplateService)
+	cfg := &config.Config{}
+
+	prData := models.PRData{
+		ID:      prNumber,
+		Creator: "user1",
+		Commits: []models.Commit{{Message: "feat: something"}},
+		Diff:    "diff content",
+	}
+
+	expectedSummary := models.PRSummary{
+		Title: "Title",
+		Body:  "Body",
+	}
+
+	mockVCS.On("GetPR", ctx, prNumber).Return(prData, nil)
+	mockVCS.On("GetPRIssues", ctx, mock.Anything, mock.Anything, mock.Anything).Return([]models.Issue(nil), nil)
+
+	// Template setup
+	mockTemplate.On("ListPRTemplates", ctx).Return([]models.TemplateMetadata{
+		{Name: "Default", FilePath: "PULL_REQUEST_TEMPLATE.md"},
+	}, nil)
+
+	templateContent := &models.IssueTemplate{
+		Name:        "Default",
+		BodyContent: "## Checklist\n- [ ] Done",
+	}
+	mockTemplate.On("GetPRTemplate", ctx, "PULL_REQUEST_TEMPLATE.md").Return(templateContent, nil)
+
+	mockAI.On("GeneratePRSummary", ctx, mock.MatchedBy(func(prompt string) bool {
+		return strings.Contains(prompt, "## Checklist") && strings.Contains(prompt, "- [ ] Done")
+	})).Return(expectedSummary, nil)
+
+	mockVCS.On("UpdatePR", ctx, prNumber, expectedSummary).Return(nil)
+
+	service := NewPRService(
+		WithPRVCSClient(mockVCS),
+		WithPRAIProvider(mockAI),
+		WithPRConfig(cfg),
+		WithPRTemplateService(mockTemplate),
+	)
+
+	_, err := service.SummarizePR(ctx, prNumber, func(e models.ProgressEvent) {})
+
+	assert.NoError(t, err)
+	mockVCS.AssertExpectations(t)
+	mockAI.AssertExpectations(t)
+	mockTemplate.AssertExpectations(t)
+}
+
+func TestPRService_SummarizePR_WithTemplateError(t *testing.T) {
+	ctx := context.Background()
+	prNumber := 123
+
+	mockVCS := new(MockVCSClient)
+	mockAI := new(MockPRSummarizer)
+	mockTemplate := new(MockPRTemplateService)
+	cfg := &config.Config{}
+
+	prData := models.PRData{
+		ID:      prNumber,
+		Creator: "user1",
+		Commits: []models.Commit{{Message: "feat: something"}},
+	}
+
+	expectedSummary := models.PRSummary{Title: "Title", Body: "Body"}
+
+	mockVCS.On("GetPR", ctx, prNumber).Return(prData, nil)
+	mockVCS.On("GetPRIssues", ctx, mock.Anything, mock.Anything, mock.Anything).Return([]models.Issue(nil), nil)
+
+	mockTemplate.On("ListPRTemplates", ctx).Return([]models.TemplateMetadata(nil), errors.New("io error"))
+
+	mockAI.On("GeneratePRSummary", ctx, mock.Anything).Return(expectedSummary, nil)
+
+	mockVCS.On("UpdatePR", ctx, prNumber, expectedSummary).Return(nil)
+
+	service := NewPRService(
+		WithPRVCSClient(mockVCS),
+		WithPRAIProvider(mockAI),
+		WithPRConfig(cfg),
+		WithPRTemplateService(mockTemplate),
+	)
+
+	_, err := service.SummarizePR(ctx, prNumber, func(e models.ProgressEvent) {})
+
+	assert.NoError(t, err)
+	mockVCS.AssertExpectations(t)
+	mockAI.AssertExpectations(t)
+	mockTemplate.AssertExpectations(t)
 }

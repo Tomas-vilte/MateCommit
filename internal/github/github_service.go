@@ -214,6 +214,11 @@ func (ghc *GitHubClient) GetPR(ctx context.Context, prNumber int) (models.PRData
 		}
 	}
 
+	prLabels := make([]string, len(pr.Labels))
+	for i, label := range pr.Labels {
+		prLabels[i] = label.GetName()
+	}
+
 	diff, resp, err := ghc.prService.GetRaw(ctx, ghc.owner, ghc.repo, prNumber, github.RawOptions{Type: github.Diff})
 	if err != nil {
 		// If 406 error (diff too large), use fallback commit by commit
@@ -236,6 +241,7 @@ func (ghc *GitHubClient) GetPR(ctx context.Context, prNumber int) (models.PRData
 		Diff:        diff,
 		BranchName:  pr.GetHead().GetRef(),
 		Description: pr.GetBody(),
+		Labels:      prLabels,
 	}
 
 	log.Debug("github PR fetched successfully",

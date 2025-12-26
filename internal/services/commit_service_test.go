@@ -5,11 +5,11 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 )
 
 func setupTest(t *testing.T) (*MockGitService, *MockAIProvider, *MockJiraService, *MockVCSClient, *config.Config) {

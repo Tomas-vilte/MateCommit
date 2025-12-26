@@ -168,6 +168,7 @@ error_invalid_language = "Invalid Language: {{.Language}}"
 
 [error]
 pr_service_creation_error = "Error creating PR service: {{.Error}}"
+pr_template_creation_error = "Error creating PR template service: {{.Error}}"
 get_labels = "Error getting labels"
 create_label = "Error creating label '{{.label}}'"
 update_pr = "Error updating PR #{{.pr_number}}"
@@ -722,6 +723,13 @@ template_list_empty = "No templates found"
 template_list_hint = "Run 'matecommit issue template init' to create default templates"
 template_list_usage_hint = "Use --template <filename> with the generate command"
 template_list_error = "Error listing templates"
+auto_template_flag = "Automatically select template using AI if none specified"
+auto_selected_template = "🤖 Auto-selected template: {{.Template}}"
+# Template selection
+templates_found = "📋 Found {{.Count}} template(s) in your repository"
+template_none = "None (use AI only)"
+template_select_prompt = "Select a template"
+template_selected = "✓ Using template: {{.Template}}"
 
 
 [stats]
@@ -791,3 +799,6 @@ reason_default = "Default model"
 [flags_global]
 debug_flag = "Enable debug logging (very verbose, includes file:line)"
 verbose_flag = "Enable verbose logging (show info messages)"
+
+[pr]
+using_template = "📋 Using PR template: {{.Template}}"

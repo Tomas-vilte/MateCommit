@@ -1203,22 +1203,6 @@ func (s *ReleaseService) searchVersionFileRecursive(lang string) (string, string
 	return "", "", fmt.Errorf("version file not found")
 }
 
-func (s *ReleaseService) adjustPatternForReplacement(basePattern, content, lang string) string {
-	patterns, ok := consolidatedVersionPatterns[lang]
-	if !ok {
-		return basePattern
-	}
-
-	for _, patternInfo := range patterns {
-		re := regexp.MustCompile(patternInfo.detectionPattern)
-		if re.MatchString(content) {
-			return patternInfo.replacementPattern
-		}
-	}
-
-	return basePattern
-}
-
 func (s *ReleaseService) detectProjectType() string {
 	indicators := map[string][]string{
 		"go":     {"go.mod", "Gopkg.toml", "glide.yaml"},

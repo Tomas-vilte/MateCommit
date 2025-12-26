@@ -7,8 +7,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/stretchr/testify/assert"
+	"github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/urfave/cli/v3"
 )
 

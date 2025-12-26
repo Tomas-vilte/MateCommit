@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/google/go-github/v80/github"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"github.com/thomas-vilte/matecommit/internal/models"
 )
 
 func newTestClient(pr *MockPRService, issues *MockIssuesService, release *MockReleaseService, userService *MockUserService) *GitHubClient {

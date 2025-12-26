@@ -8,10 +8,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/thomas-vilte/matecommit/internal/i18n"
+	"github.com/thomas-vilte/matecommit/internal/models"
 )
 
 type mockGitService struct {

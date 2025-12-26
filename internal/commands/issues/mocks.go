@@ -11,24 +11,24 @@ type MockIssueGeneratorService struct {
 	mock.Mock
 }
 
-func (m *MockIssueGeneratorService) GenerateFromDiff(ctx context.Context, hint string, skipLabels bool) (*models.IssueGenerationResult, error) {
-	args := m.Called(ctx, hint, skipLabels)
+func (m *MockIssueGeneratorService) GenerateFromDiff(ctx context.Context, hint string, skipLabels bool, autoTemplate bool) (*models.IssueGenerationResult, error) {
+	args := m.Called(ctx, hint, skipLabels, autoTemplate)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*models.IssueGenerationResult), args.Error(1)
 }
 
-func (m *MockIssueGeneratorService) GenerateFromDescription(ctx context.Context, description string, skipLabels bool) (*models.IssueGenerationResult, error) {
-	args := m.Called(ctx, description, skipLabels)
+func (m *MockIssueGeneratorService) GenerateFromDescription(ctx context.Context, description string, skipLabels bool, autoTemplate bool) (*models.IssueGenerationResult, error) {
+	args := m.Called(ctx, description, skipLabels, autoTemplate)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*models.IssueGenerationResult), args.Error(1)
 }
 
-func (m *MockIssueGeneratorService) GenerateFromPR(ctx context.Context, prNumber int, hint string, skipLabels bool) (*models.IssueGenerationResult, error) {
-	args := m.Called(ctx, prNumber, hint, skipLabels)
+func (m *MockIssueGeneratorService) GenerateFromPR(ctx context.Context, prNumber int, hint string, skipLabels bool, autoTemplate bool) (*models.IssueGenerationResult, error) {
+	args := m.Called(ctx, prNumber, hint, skipLabels, autoTemplate)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

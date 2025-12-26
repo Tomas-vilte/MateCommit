@@ -20,9 +20,9 @@ import (
 
 // IssueGeneratorService is a minimal interface for testing purposes
 type IssueGeneratorService interface {
-	GenerateFromDiff(ctx context.Context, hint string, skipLabels bool) (*models.IssueGenerationResult, error)
-	GenerateFromDescription(ctx context.Context, description string, skipLabels bool) (*models.IssueGenerationResult, error)
-	GenerateFromPR(ctx context.Context, prNumber int, hint string, skipLabels bool) (*models.IssueGenerationResult, error)
+	GenerateFromDiff(ctx context.Context, hint string, skipLabels bool, autoTemplate bool) (*models.IssueGenerationResult, error)
+	GenerateFromDescription(ctx context.Context, description string, skipLabels bool, autoTemplate bool) (*models.IssueGenerationResult, error)
+	GenerateFromPR(ctx context.Context, prNumber int, hint string, skipLabels bool, autoTemplate bool) (*models.IssueGenerationResult, error)
 	GenerateWithTemplate(ctx context.Context, templateName string, hint string, fromDiff bool, description string, skipLabels bool) (*models.IssueGenerationResult, error)
 	CreateIssue(ctx context.Context, result *models.IssueGenerationResult, assignees []string) (*models.Issue, error)
 	GetAuthenticatedUser(ctx context.Context) (string, error)
@@ -126,6 +126,11 @@ func (f *IssuesCommandFactory) createGenerateFlags(t *i18n.Translations) []cli.F
 			Aliases: []string{"c"},
 			Usage:   t.GetMessage("issue.flag_checkout", 0, nil),
 		},
+		&cli.BoolFlag{
+			Name:  "auto-template",
+			Usage: t.GetMessage("issue.auto_template_flag", 0, nil),
+			Value: true,
+		},
 	}
 }
 
@@ -143,6 +148,7 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 		assignMe := command.Bool("assign-me")
 		checkoutBranch := command.Bool("checkout")
 		templateName := command.String("template")
+		autoTemplate := command.Bool("auto-template")
 
 		log.Info("executing issue generate command",
 			"from_diff", fromDiff,
@@ -206,11 +212,11 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 		if templateName != "" {
 			result, err = issueService.GenerateWithTemplate(ctx, templateName, hint, fromDiff, description, noLabels)
 		} else if fromDiff {
-			result, err = issueService.GenerateFromDiff(ctx, hint, noLabels)
+			result, err = issueService.GenerateFromDiff(ctx, hint, noLabels, autoTemplate)
 		} else if fromPR > 0 {
-			result, err = issueService.GenerateFromPR(ctx, fromPR, hint, noLabels)
+			result, err = issueService.GenerateFromPR(ctx, fromPR, hint, noLabels, autoTemplate)
 		} else {
-			result, err = issueService.GenerateFromDescription(ctx, description, noLabels)
+			result, err = issueService.GenerateFromDescription(ctx, description, noLabels, autoTemplate)
 		}
 
 		spinner.Stop()
