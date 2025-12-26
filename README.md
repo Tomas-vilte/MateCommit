@@ -1,96 +1,311 @@
-<div style="text-align:center">
-  <img src="./assets/logo.jpeg" alt="MateCommit Logo" width="1376">
+<div align="center">
+  <img src="./assets/logo.jpeg" alt="MateCommit Logo" width="600">
 
-  # MateCommit
+  # MateCommit 🧉
 
-  **I built this because I honestly couldn't be bothered to think of a name for every single commit.**
+  **AI-powered Git workflow automation: from commits to releases**
 
-  <img src="./assets/leny-pensando.jpg" alt="Lenny Thinking Meme" width="439">
+  Stop wasting time on commit messages, PR descriptions, and release notes.
+  Let AI handle the boring parts while you focus on code.
 
-  You know that feeling when you're staring at the terminal after hours of coding, and your brain just goes blank? Yeah, me too. MateCommit was born out of that exact frustration. It's an AI-powered CLI that reads your changes and suggests clear, meaningful commit messages so you can focus on the actual work and leave the creative writing to the LLMs.
+  [![Go Report Card](https://goreportcard.com/badge/github.com/thomas-vilte/matecommit)](https://goreportcard.com/report/github.com/thomas-vilte/matecommit)
+  [![License](https://img.shields.io/github/license/thomas-vilte/matecommit)](https://opensource.org/licenses/MIT)
+  [![Build Status](https://github.com/thomas-vilte/matecommit/actions/workflows/ci.yml/badge.svg)](https://github.com/thomas-vilte/matecommit/actions)
 
-  [![Go Report Card](https://goreportcard.com/badge/github.com/Tomas-vilte/MateCommit)](https://goreportcard.com/report/github.com/Tomas-vilte/MateCommit)
-  [![License](https://img.shields.io/github/license/Tomas-vilte/MateCommit)](https://opensource.org/licenses/MIT)
-  [![Build Status](https://github.com/Tomas-vilte/MateCommit/actions/workflows/ci.yml/badge.svg)](https://github.com/Tomas-vilte/MateCommit/actions)
+  [Quick Start](#-quick-start-60-seconds) • [Features](#-what-makes-it-different) • [Documentation](./COMMANDS.md) • [Contributing](./CONTRIBUTING.md)
 
 </div>
 
 ---
 
-### Languages
-*   [Traducción al Español (🇦🇷)](./docs/es/README.md)
+## 🎯 The Problem
+
+You've spent 4 hours coding. Your brain is fried. Now you need to:
+- ✍️ Write meaningful commit messages
+- 📝 Summarize your PR with test plans and breaking changes
+- 🎫 Create JIRA tickets from your changes
+- 🚀 Manage releases with SemVer and changelogs
+
+**MateCommit does all of this in seconds.**
 
 ---
 
-## Why MateCommit exists 🧉
+## 🎬 Demo
 
-Let's be real: writing good commit messages and PR descriptions is crucial, but when you're in the zone or just finished a massive task, the last thing you want to do is spend mental energy explaining a `diff`.
+<div align="center">
+  <img src="./assets/demo.gif" alt="MateCommit Demo" width="800">
+</div>
 
-I built MateCommit to automate the boring parts of my Git workflow, but doing it the right way:
+<details>
+<summary>📝 See example output</summary>
 
-- **No more "fix", "update", or "changes"**: It uses advanced LLMs (like Google Gemini) to understand the *actual* context of your code.
-- **Effortless conventions**: It follows *Conventional Commits* automatically, so your history stays pristine without you having to remember every prefix.
-- **Modular by design**: It's built to integrate with different AI models and platforms, starting with GitHub and Jira.
-- **Cost awareness**: I added a token tracker so you know exactly how much each request is costing you.
+```bash
+$ git add .
+$ matecommit suggest
 
-## What does it do for you?
+🧉 Analyzing changes...
+✓ Found 3 files changed, 127 insertions, 45 deletions
 
-- **Instant Suggestions**: Run a command and get message options based on what you actually changed.
-- **Automatic PRs**: Generate structured Pull Request summaries with test plans and breaking change warnings.
-- **Stress-free Releases**: It handles versioning, generates changelogs, and creates Git tags for you.
-- **Great DX**: Built for dev productivity with shell autocompletion and diagnostic tools.
+Suggestions:
+1. feat(auth): implement JWT-based authentication with refresh tokens
+2. feat: add user authentication system with JWT support
+3. feat(api): integrate JWT authentication middleware for secure endpoints
+
+Select a suggestion (1-3): 1
+✓ Committed: feat(auth): implement JWT-based authentication with refresh tokens
+```
+
+</details>
 
 ---
 
-## Start now
+## ⚡ Quick Start (60 seconds)
 
-### 1. Installation
-If you have Go installed:
-
+### 1. Install
 ```bash
 go install github.com/thomas-vilte/matecommit/cmd/matecommit@latest
 ```
 
-### 2. Configuration
-Set up your credentials and preferred providers:
-
+### 2. Configure (one-time setup)
 ```bash
-matecommit config init
+matecommit config quick
+# Enter your Gemini API key and you're done
 ```
 
-### 3. Usage
-Stage your changes and let the AI do its magic:
-
+### 3. Use it
 ```bash
 git add .
 matecommit suggest
 ```
 
-#### Common Flags
-- `-n` : How many suggestions you want to see (if you're feeling picky).
-- `-l` : Force a specific language (e.g., if the repo is English but your config is Spanish).
-- `-i` : Pass an issue number for even more precise suggestions.
-- `--no-emoji` : For when the environment is serious, and you don't want little icons.
+Done. ✅
 
 ---
 
-## Looking forward
+## 🚀 What Makes It Different
 
-MateCommit is designed to grow with the community:
+MateCommit isn't just another commit message generator. It's a **complete Git workflow automation platform**.
 
-*   **Modular AI**: Easily switch between different models as we add support.
-*   **Custom Templates**: Tailor the output to exactly how your team likes it.
+| Feature | MateCommit | Other Tools* |
+|---------|------------|--------------|
+| **Commit Messages** | ✅ AI-powered, Conventional Commits | ✅ |
+| **PR Summaries** | ✅ With test plans + breaking changes | ❌ |
+| **Issue Generation** | ✅ From diff, PR, or description | ❌ |
+| **Release Automation** | ✅ SemVer + Changelog + Tags | ❌ |
+| **Jira Integration** | ✅ Ticket linking + auto-updates | ❌ |
+| **Multi-language** | ✅ English + Spanish | ⚠️ Limited |
+| **Token Tracking** | ✅ Cost awareness built-in | ❌ |
+| **Templates** | ✅ Customizable issue templates | ❌ |
 
-For a full technical deep dive into all commands, check out [COMMANDS.md](./COMMANDS.md).
+<sub>*Compared to aicommits, OpenCommit, aicommit2</sub>
 
 ---
 
-## Contributing
+## 💎 Core Features
 
-I'd love your help! Whether it's adding a new AI model or a new VCS platform, check the [Contributing Guidelines](./CONTRIBUTING.md) to get started.
+### 🧠 Intelligent Commit Messages
+```bash
+matecommit suggest -n 5          # Get 5 suggestions
+matecommit suggest -i 123        # Include context from issue #123
+matecommit suggest -l es         # Generate in Spanish
+```
+
+**Smart features:**
+- Analyzes full diff context, not just file names
+- Follows Conventional Commits automatically
+- Learns from issue context when provided
+- Handles large diffs with intelligent truncation
 
 ---
 
-## License
+### 📋 PR Automation
+```bash
+matecommit spr 456               # Summarize PR #456
+```
 
-Distributed under the MIT License. See [LICENSE](./LICENSE) for more information.
+Generates:
+- Executive summary of changes
+- Detailed test plan
+- Breaking change detection
+- Auto-updates PR description on GitHub
+
+---
+
+### 🎫 Issue Management
+```bash
+matecommit issue generate -d                    # Generate from diff
+matecommit issue generate -m "Add dark mode"    # From description
+matecommit issue generate --from-pr 123         # From existing PR
+matecommit issue generate -d -c                 # Generate + auto-checkout branch
+```
+
+**Includes:**
+- Auto-generated title and description
+- Smart label suggestions
+- Jira integration support
+- Automatic branch creation and checkout
+
+---
+
+### 🚀 Release Automation
+```bash
+matecommit release                              # Interactive release wizard
+```
+
+**Handles everything:**
+- Analyzes commits since last release
+- Suggests version bump (patch/minor/major)
+- Generates changelog from conventional commits
+- Creates Git tags
+- Publishes GitHub releases with AI-generated notes
+
+---
+
+### 🔧 Developer Experience
+```bash
+matecommit config doctor        # Health check for all integrations
+matecommit config show          # View current configuration
+matecommit stats                # Track token usage and costs
+```
+
+**Built for productivity:**
+- Shell autocompletion (bash, zsh, fish)
+- Comprehensive error messages
+- Diagnostic tools for debugging
+- Token usage tracking to monitor AI costs
+
+---
+
+## 🎨 Use Cases
+
+### For Solo Developers
+- Never think about commit messages again
+- Professional PR descriptions without effort
+- Automated release notes
+
+### For Teams
+- Consistent commit history across contributors
+- Standardized PR format
+- JIRA ticket integration
+- Release coordination
+
+### For Open Source
+- High-quality commit messages attract contributors
+- Professional PR summaries
+- Clear release notes for users
+
+---
+
+## 📚 Documentation
+
+- [**Commands Reference**](./COMMANDS.md) - Deep dive into all commands
+- [**Contributing Guide**](./CONTRIBUTING.md) - Help improve MateCommit
+- [**Español**](./docs/es/README.md) - Documentación en español
+
+---
+
+## 🏗️ How It Works
+
+```
+┌─────────────┐
+│  Your Code  │
+└──────┬──────┘
+       │
+       ▼
+┌─────────────────┐
+│  Git Diff       │ ──▶ Analyzes changes
+└─────────┬───────┘
+          │
+          ▼
+┌─────────────────┐
+│  AI Provider    │ ──▶ Gemini (OpenAI/Claude coming soon)
+│  (Gemini)       │
+└─────────┬───────┘
+          │
+          ▼
+┌─────────────────┐
+│  MateCommit     │ ──▶ Generates suggestions
+│  Engine         │
+└─────────┬───────┘
+          │
+          ▼
+┌─────────────────┐
+│  Your Choice    │ ──▶ Select and commit
+└─────────────────┘
+```
+
+**Tech Stack:**
+- **Language:** Go (fast, single binary, cross-platform)
+- **AI:** Google Gemini (OpenAI, Claude, Ollama coming soon)
+- **VCS:** GitHub (GitLab, Bitbucket planned)
+- **Tickets:** Jira, GitHub Issues
+
+---
+
+## 🛣️ Roadmap
+
+### Coming Soon
+- [ ] **Ollama Support** - Use local models for free, private commits
+- [ ] **OpenAI & Claude** - More AI provider options
+- [ ] **Code Review** - AI-powered review before commit
+- [ ] **Test Generation** - Auto-generate unit tests from changes
+- [ ] **GitLab/Bitbucket** - Support more VCS platforms
+
+### Under Consideration
+- [ ] Watch mode - Smart auto-commit on logical checkpoints
+- [ ] Team templates - Share configurations across teams
+- [ ] Slack/Discord notifications
+- [ ] Custom AI prompts
+
+**Have ideas?** [Open an issue](https://github.com/thomas-vilte/matecommit/issues/new) or join the discussion!
+
+---
+
+## 🤝 Contributing
+
+MateCommit is open source and welcomes contributions!
+
+**Good first issues:**
+- Add support for new AI providers (OpenAI, Claude, Ollama)
+- Improve commit message templates
+- Add translations (French, German, Portuguese)
+- Write tests for uncovered code
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+
+---
+
+## 🙏 Acknowledgments
+
+Inspired by the frustration of writing commit messages at 2 AM.
+
+Built with:
+- [Google Gemini](https://ai.google.dev/) - AI provider
+- [urfave/cli](https://github.com/urfave/cli) - CLI framework
+- [charmbracelet/bubbletea](https://github.com/charmbracelet/bubbletea) - TUI components
+
+---
+
+## 📄 License
+
+MIT License - see [LICENSE](./LICENSE) for details.
+
+---
+
+## ⭐ Support
+
+If MateCommit saves you time, consider:
+- Starring the repo ⭐
+- Sharing with other developers
+- [Contributing](./CONTRIBUTING.md) new features
+- [Sponsoring development](https://github.com/sponsors/thomas-vilte) (if available)
+
+---
+
+<div align="center">
+
+**Made with 🧉 by developers, for developers**
+
+[⬆ Back to top](#matecommit-)
+
+</div>
