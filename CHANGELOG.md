@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.5.0]
+
+[v1.5.0]: https://github.com/thomas-vilte/matecommit/compare/v1.4.0...v1.5.0
+
+In this release, we focused on significantly enhancing the AI-driven workflow, improving release automation, and refining the overall command-line interface experience. We've introduced powerful new features and made the tool more robust and user-friendly.
+
+### ✨ Highlights
+
+- **Enhanced AI Template Integration**: We've significantly improved our AI workflow by refining auto-template logic, enhancing prompt guidance, and integrating templates directly into PR and issue generation. This ensures more reliable and consistent AI-generated content. (Closes #66)
+- **Smart Routing, Cost Control, and Performance Insights**: We've introduced smart routing, cost intelligence, and new commands for stats and cache management. This provides better control over AI usage and offers insights into token consumption. (Closes #50)
+- **Comprehensive Issue and PR Management**: We've added new commands to generate and manage issues with AI, and to link PRs to existing issues, streamlining your development workflow. (Closes #51)
+- **Robust Release Automation and Versioning**: We've enhanced our release process with improved version file detection, branch validation, multi-language versioning, and enforcement of the main branch for release operations, making releases more reliable.
+- **Improved CLI Experience and Automation**: We've added update notifications, visual spinners for long-running operations, and integrated AI token usage visibility into key commands. We also automated binary compilation and upload to releases, and improved the push of changes. (Closes #53)
+- **Enhanced Stability and Error Handling**: We've implemented structured logging with context propagation and improved error handling for Git and AI operations, leading to a more stable and debuggable application.
+- **Bug Fix**: We addressed an issue in the PR command to ensure it correctly utilizes the dependency injection container.
+
 ## [v1.4.0]
 
 [v1.4.0]: https://github.com/Tomas-vilte/MateCommit/compare/v1.3.0...v1.4.0
