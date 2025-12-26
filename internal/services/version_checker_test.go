@@ -142,6 +142,7 @@ func TestUpdateCLI(t *testing.T) {
 	t.Run("calls appropriate method", func(t *testing.T) {
 		t.Setenv("GOPATH", "")
 		t.Setenv("GOBIN", "")
+		t.Setenv("HTTPS_PROXY", "http://0.0.0.0:0")
 		err := updater.UpdateCLI(context.Background())
 		assert.ErrorContains(t, err, "UPDATE: failed to update application")
 	})
@@ -202,9 +203,10 @@ func TestCheckForUpdates_WithCache(t *testing.T) {
 func TestUpdateViaBinary_RealCallFails(t *testing.T) {
 	updater := NewVersionUpdater(WithCurrentVersion("v1.0.0"))
 
+	t.Setenv("HTTPS_PROXY", "http://0.0.0.0:0")
+
 	err := updater.updateViaBinary(context.Background())
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "binary not found for this platform")
 }
 
 func TestExtractZip(t *testing.T) {

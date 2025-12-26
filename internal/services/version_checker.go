@@ -17,10 +17,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/google/go-github/v80/github"
 	"golang.org/x/mod/semver"
 
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
+	translations "github.com/thomas-vilte/matecommit/internal/i18n"
 )
 
 type VersionUpdater struct {
@@ -99,6 +101,34 @@ func (v *VersionUpdater) UpdateCLI(ctx context.Context) error {
 		return domainErrors.NewAppError(domainErrors.TypeUpdate, "failed to update application", err)
 	}
 	return nil
+}
+
+func (v *VersionUpdater) NotifyUpdate(trans *translations.Translations) {
+	if os.Getenv("MATECOMMIT_DISABLE_UPDATE_CHECK") != "" {
+		return
+	}
+
+	cache, err := v.loadCache()
+	if err != nil || cache.LatestKnown == "" {
+		return
+	}
+
+	if v.isUpdateAvailable(cache.LatestKnown) {
+		yellow := color.New(color.FgYellow, color.Bold)
+		cyan := color.New(color.FgCyan)
+
+		fmt.Println()
+		_, _ = cyan.Println(trans.GetMessage("update.box_top", 0, nil))
+		_, _ = yellow.Println(trans.GetMessage("update.available", 0, map[string]interface{}{
+			"Current": v.currentVersion,
+			"Latest":  cache.LatestKnown,
+		}))
+		fmt.Println(trans.GetMessage("update.command", 0, map[string]interface{}{
+			"Command": "matecommit update",
+		}))
+		_, _ = cyan.Println(trans.GetMessage("update.box_bottom", 0, nil))
+		fmt.Println()
+	}
 }
 
 func (v *VersionUpdater) detectInstallMethod() string {

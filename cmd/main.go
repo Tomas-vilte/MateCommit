@@ -212,6 +212,18 @@ func initializeApp() (*cli.Command, error) {
 		},
 		Before: func(ctx context.Context, c *cli.Command) (context.Context, error) {
 			logger.Initialize(c.Bool("debug"), c.Bool("verbose"))
+
+			args := os.Args
+			if len(args) > 1 {
+				cmdName := args[1]
+				if cmdName != "update" && cmdName != "completion" {
+					checker := services.NewVersionUpdater(
+						services.WithCurrentVersion(version.FullVersion()),
+					)
+					checker.NotifyUpdate(translations)
+				}
+			}
+
 			return ctx, nil
 		},
 	}, nil

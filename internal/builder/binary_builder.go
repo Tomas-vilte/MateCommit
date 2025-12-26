@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thomas-vilte/matecommit/internal/errors"
@@ -257,20 +258,52 @@ func (b *BinaryBuilder) createTarGz(binaryPath, tarGzPath, binaryName string) er
 func (b *BinaryBuilder) BuildAndPackageAll(ctx context.Context) ([]string, error) {
 	targets := b.GetBuildTargets()
 	var archives []string
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	errChan := make(chan error, len(targets))
 
 	for _, target := range targets {
-		binaryPath, err := b.BuildBinary(ctx, target)
-		if err != nil {
-			return nil, err
-		}
+		wg.Add(1)
+		go func(t BuildTarget) {
+			defer wg.Done()
 
-		archivePath, err := b.PackageBinary(binaryPath, target)
-		if err != nil {
-			return nil, err
-		}
+			select {
+			case <-ctx.Done():
+				errChan <- ctx.Err()
+				return
+			default:
+			}
 
-		archives = append(archives, archivePath)
-		_ = os.Remove(binaryPath)
+			binaryPath, err := b.BuildBinary(ctx, t)
+			if err != nil {
+				errChan <- err
+				return
+			}
+
+			defer func() {
+				if err := os.Remove(binaryPath); err != nil {
+					errChan <- err
+					return
+				}
+			}()
+
+			archivePath, err := b.PackageBinary(binaryPath, target)
+			if err != nil {
+				errChan <- err
+				return
+			}
+
+			mu.Lock()
+			archives = append(archives, archivePath)
+			mu.Unlock()
+		}(target)
+	}
+	wg.Wait()
+	close(errChan)
+
+	if len(errChan) > 0 {
+		return nil, <-errChan
 	}
 
 	return archives, nil
