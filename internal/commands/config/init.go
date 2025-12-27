@@ -35,7 +35,12 @@ func (c *ConfigCommandFactory) newInitCommand(t *i18n.Translations, cfg *config.
 			&cli.BoolFlag{
 				Name:    "local",
 				Aliases: []string{"l"},
-				Usage:   "Initialize config in current repository (.matecommit/config.json)",
+				Usage:   t.GetMessage("config_init_local_flag", 0, nil),
+			},
+			&cli.BoolFlag{
+				Name:    "global",
+				Aliases: []string{"g"},
+				Usage:   t.GetMessage("config_init_global_flag", 0, nil),
 			},
 		},
 		ShellComplete: completion_helper.DefaultFlagComplete,
@@ -45,9 +50,16 @@ func (c *ConfigCommandFactory) newInitCommand(t *i18n.Translations, cfg *config.
 
 func initConfigAction(cfg *config.Config, t *i18n.Translations) cli.ActionFunc {
 	return func(ctx context.Context, command *cli.Command) error {
-		isLocal := command.Bool("local")
+		isLocalExplicit := command.Bool("local")
+		isGlobalExplicit := command.Bool("global")
 
-		if isLocal {
+		useLocal := isLocalExplicit
+		if !isGlobalExplicit && !isLocalExplicit {
+			localPath := config.GetRepoConfigPath()
+			useLocal = localPath != ""
+		}
+
+		if useLocal {
 			localPath := config.GetRepoConfigPath()
 			if localPath == "" {
 				return errors.New(t.GetMessage("config_local.not_in_repo", 0, nil))

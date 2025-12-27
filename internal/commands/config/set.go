@@ -25,6 +25,11 @@ func (c *ConfigCommandFactory) newSetCommand(t *i18n.Translations, cfg *config.C
 				Aliases: []string{"l"},
 				Usage:   t.GetMessage("config_local.set_flag", 0, nil),
 			},
+			&cli.BoolFlag{
+				Name:    "global",
+				Aliases: []string{"g"},
+				Usage:   t.GetMessage("config_local.global_flag", 0, nil),
+			},
 		},
 		Action: func(ctx context.Context, command *cli.Command) error {
 			if command.Args().Len() < 2 {
@@ -34,10 +39,18 @@ func (c *ConfigCommandFactory) newSetCommand(t *i18n.Translations, cfg *config.C
 
 			key := strings.ToLower(command.Args().Get(0))
 			value := command.Args().Get(1)
-			isLocal := command.Bool("local")
+
+			isLocalExplicit := command.Bool("local")
+			isGlobalExplicit := command.Bool("global")
+
+			useLocal := isLocalExplicit
+			if !isGlobalExplicit && !isLocalExplicit {
+				localPath := config.GetRepoConfigPath()
+				useLocal = localPath != ""
+			}
 
 			targetCfg := cfg
-			if isLocal {
+			if useLocal {
 				localPath := config.GetRepoConfigPath()
 				if localPath == "" {
 					return errors.New(t.GetMessage("config_local.not_in_repo", 0, nil))
@@ -94,7 +107,7 @@ func (c *ConfigCommandFactory) newSetCommand(t *i18n.Translations, cfg *config.C
 			}
 
 			var err error
-			if isLocal {
+			if useLocal {
 				err = config.SaveLocalConfig(targetCfg)
 			} else {
 				err = config.SaveConfig(targetCfg)
@@ -106,7 +119,7 @@ func (c *ConfigCommandFactory) newSetCommand(t *i18n.Translations, cfg *config.C
 			}
 
 			scope := "global"
-			if isLocal {
+			if useLocal {
 				scope = "local"
 			}
 			ui.PrintSuccess(os.Stdout, t.GetMessage("config_set_success", 0, struct {

@@ -67,6 +67,12 @@ other = "Configuración rápida (solo lo esencial)"
 [config_init_full_flag]
 other = "Configuración completa (configurar todo)"
 
+[config_init_local_flag]
+other = "Inicializar configuración en el repositorio actual (.matecommit/config.json)"
+
+[config_init_global_flag]
+other = "Forzar configuración global (ignorar detección de repositorio)"
+
 [config_edit_usage]
 other = "✏️  Abrir archivo de configuración en el editor"
 
@@ -845,6 +851,22 @@ using_template = "📋 Usando template de PR: {{.Template}}"
 [config_local]
 not_in_repo = "No estás en un repositorio git. Usá --local solo dentro de un repositorio."
 set_flag = "Establecer valor en la configuración del repositorio en lugar de la global"
+global_flag = "Establecer valor en la configuración global (ignorar detección de repositorio)"
 saved_successfully = "✅ Configuración local guardada en .matecommit/config.json"
 global_config_header = "📋 Configuración Global"
 local_config_header = "📋 Configuración Local (Repositorio)"
+
+[issue_from_plan]
+usage = "Generar issues desde un archivo de plan de implementación"
+file_flag = "Ruta al archivo de plan de implementación"
+dry_run_flag = "Previsualizar issue sin crearlo"
+assign_me_flag = "Asignarte el issue creado"
+labels_flag = "Labels adicionales para agregar al issue"
+parsing_plan = "📄 Parseando plan de implementación..."
+creating_issues = "🔨 Creando issue..."
+preview_header = "📋 Vista previa - Issue a crear:"
+created_summary = "✅ {{.Count}} issue creado exitosamente"
+error_reading_file = "Error leyendo archivo de plan: {{.Error}}"
+error_empty_file = "El archivo de plan está vacío"
+error_parsing_plan = "Error parseando plan: {{.Error}}"
+error_creating_issue = "Error creando issue: {{.Error}}"

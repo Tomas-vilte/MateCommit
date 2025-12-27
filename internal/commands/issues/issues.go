@@ -63,6 +63,7 @@ func (f *IssuesCommandFactory) CreateCommand(t *i18n.Translations, cfg *config.C
 			f.newGenerateCommand(t, cfg),
 			f.newLinkCommand(t, cfg),
 			f.newTemplateCommand(t, cfg),
+			f.newFromPlanCommand(t, cfg),
 		},
 	}
 }

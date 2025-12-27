@@ -73,6 +73,12 @@ other = "Quick setup (only essential configuration)"
 [config_init_full_flag]
 other = "Full setup (configure everything)"
 
+[config_init_local_flag]
+other = "Initialize config in current repository (.matecommit/config.json)"
+
+[config_init_global_flag]
+other = "Force global config initialization (ignore repository detection)"
+
 [current_config]
 other = "📋 Current configuration"
 
@@ -823,6 +829,22 @@ using_template = "📋 Using PR template: {{.Template}}"
 [config_local]
 not_in_repo = "Not in a git repository. Use --local only inside a repository."
 set_flag = "Set value in repository config instead of global"
+global_flag = "Set value in global config (ignore repository detection)"
 saved_successfully = "✅ Local configuration saved to .matecommit/config.json"
 global_config_header = "📋 Global Configuration"
 local_config_header = "📋 Local Configuration (Repository)"
+
+[issue_from_plan]
+usage = "Generate issues from an implementation plan file"
+file_flag = "Path to implementation plan file"
+dry_run_flag = "Preview issues without creating them"
+assign_me_flag = "Assign created issue to yourself"
+labels_flag = "Additional labels to add to the issue"
+parsing_plan = "📄 Parsing implementation plan..."
+creating_issues = "🔨 Creating issue..."
+preview_header = "📋 Preview - Issue to be created:"
+created_summary = "✅ Created {{.Count}} issue successfully"
+error_reading_file = "Error reading plan file: {{.Error}}"
+error_empty_file = "Plan file is empty"
+error_parsing_plan = "Error parsing plan: {{.Error}}"
+error_creating_issue = "Error creating issue: {{.Error}}"
