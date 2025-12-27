@@ -14,7 +14,7 @@ func (c *ConfigCommandFactory) newShowCommand(t *i18n.Translations, cfg *config.
 		Name:  "show",
 		Usage: t.GetMessage("config_show_usage", 0, nil),
 		Action: func(ctx context.Context, command *cli.Command) error {
-			fmt.Println(t.GetMessage("current_config", 0, nil))
+			fmt.Println(t.GetMessage("config_local.global_config_header", 0, nil))
 			fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━\n")
 
 			fmt.Printf("%s\n", t.GetMessage("language_label", 0, struct{ Lang string }{cfg.Language}))
@@ -59,6 +59,19 @@ func (c *ConfigCommandFactory) newShowCommand(t *i18n.Translations, cfg *config.
 				}
 			} else {
 				fmt.Println(t.GetMessage("config_models.no_ai_models_configured", 0, nil))
+			}
+
+			localPath := config.GetRepoConfigPath()
+			if localPath != "" {
+				localCfg, err := config.LoadConfig(localPath)
+				if err == nil {
+					fmt.Println()
+					fmt.Println(t.GetMessage("config_local.local_config_header", 0, nil))
+					fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━\n")
+					fmt.Printf("%s\n", t.GetMessage("language_label", 0, struct{ Lang string }{localCfg.Language}))
+					fmt.Printf("%s\n", t.GetMessage("emojis_label", 0, struct{ Emoji bool }{localCfg.UseEmoji}))
+					fmt.Printf("%s\n", t.GetMessage("config_models.active_ai_label", 0, struct{ IA config.AI }{localCfg.AIConfig.ActiveAI}))
+				}
 			}
 
 			return nil

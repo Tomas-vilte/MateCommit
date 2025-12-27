@@ -279,7 +279,7 @@ func TestCreateDefaultConfig(t *testing.T) {
 		tmpDir := t.TempDir()
 		configPath := filepath.Join(tmpDir, "config.json")
 
-		config, err := createDefaultConfig(configPath)
+		config, err := CreateDefaultConfig(configPath)
 
 		if err != nil {
 			t.Errorf("createDefaultConfig() error = %v, want nil", err)
@@ -296,7 +296,7 @@ func TestCreateDefaultConfig(t *testing.T) {
 	t.Run("should handle error when creating directory", func(t *testing.T) {
 		invalidDir := filepath.Join(string([]byte{0}), "config.json")
 
-		_, err := createDefaultConfig(invalidDir)
+		_, err := CreateDefaultConfig(invalidDir)
 
 		if err == nil {
 			t.Error("expected an error when creating the directory, but none occurred")
@@ -314,7 +314,7 @@ func TestCreateDefaultConfig(t *testing.T) {
 
 		configPath := filepath.Join(tmpDir, "config.json")
 
-		_, err := createDefaultConfig(configPath)
+		_, err := CreateDefaultConfig(configPath)
 		if err == nil {
 			t.Error("expected an error when writing file")
 		}

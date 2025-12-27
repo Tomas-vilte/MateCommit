@@ -7,14 +7,18 @@ import (
 	"github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/git"
 	"github.com/thomas-vilte/matecommit/internal/github"
+	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/ports"
 )
 
 // NewVCSClient creates a VCSClient based on the configuration and automatic detection of the remote
+// Returns nil, nil when not in a git repository (this is not an error condition)
 func NewVCSClient(ctx context.Context, gitService *git.GitService, cfg *config.Config) (ports.VCSClient, error) {
 	owner, repo, provider, err := gitService.GetRepoInfo(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("error getting repo info: %w", err)
+		// Not in a git repository or no remote configured - this is OK
+		logger.Debug(ctx, "VCS client not available", "reason", "not in a git repository or no remote configured")
+		return nil, nil
 	}
 
 	vcsConfig, exists := cfg.VCSConfigs[provider]

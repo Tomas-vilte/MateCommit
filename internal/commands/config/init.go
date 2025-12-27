@@ -3,6 +3,7 @@ package config
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -31,6 +32,11 @@ func (c *ConfigCommandFactory) newInitCommand(t *i18n.Translations, cfg *config.
 				Name:  "full",
 				Usage: t.GetMessage("config_init_full_flag", 0, nil),
 			},
+			&cli.BoolFlag{
+				Name:    "local",
+				Aliases: []string{"l"},
+				Usage:   "Initialize config in current repository (.matecommit/config.json)",
+			},
 		},
 		ShellComplete: completion_helper.DefaultFlagComplete,
 		Action:        initConfigAction(cfg, t),
@@ -39,6 +45,44 @@ func (c *ConfigCommandFactory) newInitCommand(t *i18n.Translations, cfg *config.
 
 func initConfigAction(cfg *config.Config, t *i18n.Translations) cli.ActionFunc {
 	return func(ctx context.Context, command *cli.Command) error {
+		isLocal := command.Bool("local")
+
+		if isLocal {
+			localPath := config.GetRepoConfigPath()
+			if localPath == "" {
+				return errors.New(t.GetMessage("config_local.not_in_repo", 0, nil))
+			}
+
+			localCfg, err := config.CreateDefaultConfig(localPath)
+			if err != nil {
+				return fmt.Errorf("error creating local config: %w", err)
+			}
+
+			reader := bufio.NewReader(os.Stdin)
+
+			if command.Bool("quick") {
+				return runQuickSetupLocal(reader, localCfg, t)
+			}
+
+			if command.Bool("full") {
+				return runFullSetupLocal(ctx, command, reader, localCfg, t)
+			}
+
+			fmt.Println(t.GetMessage("setup_mode.choose_mode", 0, nil))
+			fmt.Println(t.GetMessage("setup_mode.quick_option", 0, nil))
+			fmt.Println(t.GetMessage("setup_mode.full_option", 0, nil))
+			fmt.Print(t.GetMessage("setup_mode.prompt_selection", 0, nil))
+
+			choice, _ := reader.ReadString('\n')
+			choice = strings.TrimSpace(choice)
+
+			if choice == "" || choice == "1" {
+				return runQuickSetupLocal(reader, localCfg, t)
+			}
+
+			return runFullSetupLocal(ctx, command, reader, localCfg, t)
+		}
+
 		reader := bufio.NewReader(os.Stdin)
 
 		if command.Bool("quick") {

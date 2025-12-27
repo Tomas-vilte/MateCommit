@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 type (
@@ -88,7 +90,7 @@ func LoadConfig(path string) (*Config, error) {
 	}
 
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return createDefaultConfig(configPath)
+		return CreateDefaultConfig(configPath)
 	}
 
 	data, err := os.ReadFile(configPath)
@@ -109,7 +111,118 @@ func LoadConfig(path string) (*Config, error) {
 	return &config, nil
 }
 
-func createDefaultConfig(path string) (*Config, error) {
+// GetRepoConfigPath returns the path to the repository-local config file
+// Returns empty string if not in a git repository
+func GetRepoConfigPath() string {
+	cmd := exec.Command("git", "rev-parse", "--show-toplevel")
+	output, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+
+	repoRoot := strings.TrimSpace(string(output))
+	return filepath.Join(repoRoot, ".matecommit", "config.json")
+}
+
+// LoadConfigWithHierarchy loads config with repository-local override support
+// Priority: local (.matecommit/config.json) > global (~/.config/matecommit/config.json)
+func LoadConfigWithHierarchy(globalPath string) (*Config, error) {
+	globalConfig, err := LoadConfig(globalPath)
+	if err != nil {
+		return nil, err
+	}
+
+	localPath := GetRepoConfigPath()
+	if localPath == "" {
+		return globalConfig, nil
+	}
+
+	if _, err := os.Stat(localPath); os.IsNotExist(err) {
+		return globalConfig, nil
+	}
+
+	data, err := os.ReadFile(localPath)
+	if err != nil {
+		return globalConfig, nil
+	}
+
+	var localConfig Config
+	if err := json.Unmarshal(data, &localConfig); err != nil {
+		return globalConfig, nil
+	}
+
+	merged := MergeConfigs(globalConfig, &localConfig)
+	merged.PathFile = globalConfig.PathFile
+
+	return merged, nil
+}
+
+// MergeConfigs merges local config over global config
+// Non-zero/non-empty values in local override global
+func MergeConfigs(global, local *Config) *Config {
+	result := *global
+
+	if local.Language != "" && local.Language != defaultLang {
+		result.Language = local.Language
+	}
+	if local.SuggestionsCount > 0 {
+		result.SuggestionsCount = local.SuggestionsCount
+	}
+	result.UseEmoji = local.UseEmoji
+
+	if local.ActiveTicketService != "" {
+		result.ActiveTicketService = local.ActiveTicketService
+	}
+	result.UseTicket = local.UseTicket
+
+	if local.ActiveVCSProvider != "" {
+		result.ActiveVCSProvider = local.ActiveVCSProvider
+	}
+	result.UpdateChangelog = local.UpdateChangelog
+
+	if local.VersionFile != "" {
+		result.VersionFile = local.VersionFile
+	}
+	if local.VersionPattern != "" {
+		result.VersionPattern = local.VersionPattern
+	}
+	result.AutoFetchTags = local.AutoFetchTags
+	if local.AIConfig.ActiveAI != "" && local.AIConfig.ActiveAI != AIGemini {
+		result.AIConfig.ActiveAI = local.AIConfig.ActiveAI
+	}
+	if len(local.AIConfig.Models) > 0 {
+		for k, v := range local.AIConfig.Models {
+			result.AIConfig.Models[k] = v
+		}
+	}
+	if local.AIConfig.BudgetDaily != nil {
+		result.AIConfig.BudgetDaily = local.AIConfig.BudgetDaily
+	}
+	if len(local.AIProviders) > 0 {
+		for k, v := range local.AIProviders {
+			result.AIProviders[k] = v
+		}
+	}
+	if len(local.TicketProviders) > 0 {
+		for k, v := range local.TicketProviders {
+			result.TicketProviders[k] = v
+		}
+	}
+	if len(local.VCSConfigs) > 0 {
+		for k, v := range local.VCSConfigs {
+			result.VCSConfigs[k] = v
+		}
+	}
+	if local.GitFallback.UserName != "" {
+		result.GitFallback.UserName = local.GitFallback.UserName
+	}
+	if local.GitFallback.UserEmail != "" {
+		result.GitFallback.UserEmail = local.GitFallback.UserEmail
+	}
+	return &result
+}
+
+func CreateDefaultConfig(path string) (*Config, error) {
 	config := &Config{
 		Language:         defaultLang,
 		UseEmoji:         defaultUseEmoji,
@@ -146,6 +259,34 @@ func createDefaultConfig(path string) (*Config, error) {
 	}
 
 	return config, nil
+}
+
+// SaveLocalConfig saves config to repository-local location
+func SaveLocalConfig(config *Config) error {
+	localPath := GetRepoConfigPath()
+	if localPath == "" {
+		return errors.New("not in a git repository")
+	}
+
+	if err := validateConfig(config); err != nil {
+		return fmt.Errorf("the configuration to save is invalid: %w", err)
+	}
+
+	dir := filepath.Dir(localPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("error creating .matecommit directory: %w", err)
+	}
+
+	data, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return fmt.Errorf("error encoding configuration: %w", err)
+	}
+
+	if err := os.WriteFile(localPath, data, 0644); err != nil {
+		return fmt.Errorf("error saving configuration: %w", err)
+	}
+
+	return nil
 }
 
 func SaveConfig(config *Config) error {

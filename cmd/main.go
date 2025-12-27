@@ -48,7 +48,7 @@ func initializeApp() (*cli.Command, error) {
 		return nil, fmt.Errorf("could not get user home directory: %w", err)
 	}
 
-	cfgApp, err := cfg.LoadConfig(homeDir)
+	cfgApp, err := cfg.LoadConfigWithHierarchy(homeDir)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +142,9 @@ func initVCSClient(ctx context.Context, gitService *git.GitService, cfgApp *cfg.
 	vcsClient, err := providers.NewVCSClient(ctx, gitService, cfgApp)
 	if err != nil && !isCompletion {
 		logger.Warn(ctx, "could not create VCS client", "error", err)
+		return nil
 	}
+	// vcsClient can be nil if not in a git repository - this is OK
 	return vcsClient
 }
 

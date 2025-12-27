@@ -819,3 +819,10 @@ verbose_flag = "Enable verbose logging (show info messages)"
 
 [pr]
 using_template = "📋 Using PR template: {{.Template}}"
+
+[config_local]
+not_in_repo = "Not in a git repository. Use --local only inside a repository."
+set_flag = "Set value in repository config instead of global"
+saved_successfully = "✅ Local configuration saved to .matecommit/config.json"
+global_config_header = "📋 Global Configuration"
+local_config_header = "📋 Local Configuration (Repository)"
