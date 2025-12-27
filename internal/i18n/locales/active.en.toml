@@ -847,4 +847,9 @@ created_summary = "✅ Created {{.Count}} issue successfully"
 error_reading_file = "Error reading plan file: {{.Error}}"
 error_empty_file = "Plan file is empty"
 error_parsing_plan = "Error parsing plan: {{.Error}}"
+
+[config_git]
+fallback_header = "Git Fallback Configuration:"
+fallback_name = "  Git Name: {{.Name}}"
+fallback_email = "  Git Email: {{.Email}}"
 error_creating_issue = "Error creating issue: {{.Error}}"

@@ -98,9 +98,9 @@ func (c *ConfigCommandFactory) newSetCommand(t *i18n.Translations, cfg *config.C
 				}
 			case "active-vcs", "active_vcs":
 				targetCfg.ActiveVCSProvider = value
-			case "git-name":
+			case "git.name", "git-name":
 				targetCfg.GitFallback.UserName = value
-			case "git-email":
+			case "git.email", "git-email":
 				targetCfg.GitFallback.UserEmail = value
 			default:
 				return fmt.Errorf("unknown configuration key: %s", key)

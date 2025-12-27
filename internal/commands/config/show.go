@@ -61,6 +61,17 @@ func (c *ConfigCommandFactory) newShowCommand(t *i18n.Translations, cfg *config.
 				fmt.Println(t.GetMessage("config_models.no_ai_models_configured", 0, nil))
 			}
 
+			if cfg.GitFallback.UserName != "" || cfg.GitFallback.UserEmail != "" {
+				fmt.Println()
+				fmt.Println(t.GetMessage("config_git.fallback_header", 0, nil))
+				if cfg.GitFallback.UserName != "" {
+					fmt.Printf("%s\n", t.GetMessage("config_git.fallback_name", 0, struct{ Name string }{cfg.GitFallback.UserName}))
+				}
+				if cfg.GitFallback.UserEmail != "" {
+					fmt.Printf("%s\n", t.GetMessage("config_git.fallback_email", 0, struct{ Email string }{cfg.GitFallback.UserEmail}))
+				}
+			}
+
 			localPath := config.GetRepoConfigPath()
 			if localPath != "" {
 				localCfg, err := config.LoadConfig(localPath)
@@ -71,6 +82,17 @@ func (c *ConfigCommandFactory) newShowCommand(t *i18n.Translations, cfg *config.
 					fmt.Printf("%s\n", t.GetMessage("language_label", 0, struct{ Lang string }{localCfg.Language}))
 					fmt.Printf("%s\n", t.GetMessage("emojis_label", 0, struct{ Emoji bool }{localCfg.UseEmoji}))
 					fmt.Printf("%s\n", t.GetMessage("config_models.active_ai_label", 0, struct{ IA config.AI }{localCfg.AIConfig.ActiveAI}))
+
+					if localCfg.GitFallback.UserName != "" || localCfg.GitFallback.UserEmail != "" {
+						fmt.Println()
+						fmt.Println(t.GetMessage("config_git.fallback_header", 0, nil))
+						if localCfg.GitFallback.UserName != "" {
+							fmt.Printf("%s\n", t.GetMessage("config_git.fallback_name", 0, struct{ Name string }{localCfg.GitFallback.UserName}))
+						}
+						if localCfg.GitFallback.UserEmail != "" {
+							fmt.Printf("%s\n", t.GetMessage("config_git.fallback_email", 0, struct{ Email string }{localCfg.GitFallback.UserEmail}))
+						}
+					}
 				}
 			}
 

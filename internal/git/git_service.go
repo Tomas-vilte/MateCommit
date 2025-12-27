@@ -447,13 +447,17 @@ func (s *GitService) ValidateGitConfig(ctx context.Context) error {
 		return errors.ErrNotInGitRepo
 	}
 
-	validate := func(key string, errType *errors.AppError) error {
+	validate := func(key string, errType *errors.AppError, fallback string) error {
 		cmd := exec.CommandContext(ctx, "git", "config", key)
 		cmd.Dir = repoRoot
 		output, err := cmd.Output()
 		val := strings.TrimSpace(string(output))
 
 		if err != nil || val == "" {
+			if fallback != "" {
+				log.Info("git config not set, using fallback", "key", key, "fallback", fallback)
+				return nil
+			}
 			log.Error("git config check failed",
 				"key", key,
 				"error", err,
@@ -465,19 +469,11 @@ func (s *GitService) ValidateGitConfig(ctx context.Context) error {
 		return nil
 	}
 
-	if err := validate("user.name", errors.ErrGitUserNotConfigured); err != nil {
-		if s.fallbackName != "" {
-			log.Info("using fallback git user.name", "name", s.fallbackName)
-		} else {
-			return err
-		}
+	if err := validate("user.name", errors.ErrGitUserNotConfigured, s.fallbackName); err != nil {
+		return err
 	}
-	if err := validate("user.email", errors.ErrGitEmailNotConfigured); err != nil {
-		if s.fallbackEmail != "" {
-			log.Info("using fallback git user.email", "email", s.fallbackEmail)
-		} else {
-			return err
-		}
+	if err := validate("user.email", errors.ErrGitEmailNotConfigured, s.fallbackEmail); err != nil {
+		return err
 	}
 
 	return nil

@@ -870,3 +870,8 @@ error_reading_file = "Error leyendo archivo de plan: {{.Error}}"
 error_empty_file = "El archivo de plan está vacío"
 error_parsing_plan = "Error parseando plan: {{.Error}}"
 error_creating_issue = "Error creando issue: {{.Error}}"
+
+[config_git]
+fallback_header = "Configuración Git Fallback:"
+fallback_name = "  Nombre Git: {{.Name}}"
+fallback_email = "  Email Git: {{.Email}}"
