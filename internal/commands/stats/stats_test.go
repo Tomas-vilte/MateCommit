@@ -189,7 +189,7 @@ func TestShowMonthlyStats_NoActivity(t *testing.T) {
 	os.Stdout = w
 
 	// Act
-	err := cmd.showMonthlyStats(manager, trans)
+	err := cmd.showMonthlyStats(manager, trans, false)
 
 	_ = w.Close()
 	os.Stdout = oldStdout
@@ -243,7 +243,7 @@ func TestShowMonthlyStats_WithActivity(t *testing.T) {
 	os.Stdout = w
 
 	// Act
-	err := cmd.showMonthlyStats(manager, trans)
+	err := cmd.showMonthlyStats(manager, trans, false)
 
 	_ = w.Close()
 	os.Stdout = oldStdout
@@ -290,7 +290,7 @@ func TestShowMonthlyStats_GroupsByDay(t *testing.T) {
 	os.Stdout = w
 
 	// Act
-	err := cmd.showMonthlyStats(manager, trans)
+	err := cmd.showMonthlyStats(manager, trans, false)
 
 	_ = w.Close()
 	os.Stdout = oldStdout
@@ -436,7 +436,7 @@ func TestStatsCommand_Integration(t *testing.T) {
 	r2, w2, _ := os.Pipe()
 	os.Stdout = w2
 
-	errMonthly := cmd.showMonthlyStats(manager, trans)
+	errMonthly := cmd.showMonthlyStats(manager, trans, false)
 
 	_ = w2.Close()
 	os.Stdout = oldStdout
@@ -479,7 +479,7 @@ func TestShowMonthlyStats_HandlesManagerErrors(t *testing.T) {
 	require.NoError(t, err)
 
 	// Act
-	err = cmd.showMonthlyStats(manager, trans)
+	err = cmd.showMonthlyStats(manager, trans, false)
 
 	// Assert
 	assert.Error(t, err, "should return an error when the history is corrupt")

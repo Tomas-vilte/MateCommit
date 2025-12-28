@@ -275,7 +275,6 @@ func TestGitHubClient_UpdatePR_ErrorCases(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "insufficient permissions")
-		assert.Contains(t, err.Error(), "required scopes")
 		mockPR.AssertExpectations(t)
 	})
 }
@@ -342,9 +341,10 @@ func TestGitHubClient_GetPR_ErrorCases(t *testing.T) {
 		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		mockPR.On("Get", mock.Anything, "test-owner", "test-repo", 123).
-			Return(&github.PullRequest{}, &github.Response{}, assert.AnError)
+			Return(&github.PullRequest{}, &github.Response{Response: &http.Response{StatusCode: http.StatusInternalServerError}}, assert.AnError)
 
 		_, err := client.GetPR(context.Background(), 123)
+		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to get PR #123")
 	})
 
@@ -454,7 +454,7 @@ func TestGitHubClient_CreateRelease(t *testing.T) {
 
 		err := client.CreateRelease(context.Background(), release, notes, false, true)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "release already exists for version v1.0.0")
+		assert.Contains(t, err.Error(), "failed to create release")
 	})
 
 	t.Run("should return error if repo or tag not found", func(t *testing.T) {
@@ -473,7 +473,7 @@ func TestGitHubClient_CreateRelease(t *testing.T) {
 
 		err := client.CreateRelease(context.Background(), release, notes, false, true)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "repository or tag not found for version v1.0.0")
+		assert.Contains(t, err.Error(), "repository not found")
 	})
 
 	t.Run("should return generic error for other failures", func(t *testing.T) {
@@ -541,7 +541,7 @@ func TestGitHubClient_GetRelease(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, release)
-		assert.Contains(t, err.Error(), "repository or tag not found for version v1.0.0")
+		assert.Contains(t, err.Error(), "repository not found")
 		mockRelease.AssertExpectations(t)
 	})
 
@@ -603,7 +603,7 @@ func TestGitHubClient_UpdateRelease(t *testing.T) {
 		err := client.UpdateRelease(context.Background(), "v1.0.0", "Updated body")
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "repository or tag not found for version v1.0.0")
+		assert.Contains(t, err.Error(), "repository not found")
 		mockRelease.AssertExpectations(t)
 	})
 
@@ -1400,7 +1400,7 @@ func TestGitHubClient_CreateIssue(t *testing.T) {
 		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
 
 		mockIssues.On("Create", mock.Anything, "test-owner", "test-repo", mock.Anything).
-			Return((*github.Issue)(nil), &github.Response{}, assert.AnError)
+			Return((*github.Issue)(nil), &github.Response{Response: &http.Response{StatusCode: http.StatusInternalServerError}}, assert.AnError)
 
 		_, err := client.CreateIssue(context.Background(), "Title", "Body", nil, nil)
 

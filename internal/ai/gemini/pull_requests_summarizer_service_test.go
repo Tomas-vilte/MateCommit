@@ -173,7 +173,7 @@ func TestGeneratePRSummary_HappyPath(t *testing.T) {
 		summary, err := summarizer.GeneratePRSummary(ctx, "content with empty title")
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "no PR title")
+		assert.Contains(t, err.Error(), "invalid AI output format")
 		assert.Empty(t, summary.Title)
 	})
 }

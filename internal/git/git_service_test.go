@@ -741,7 +741,7 @@ func TestGitService_ErrorHandling(t *testing.T) {
 		var appErr *domainErrors.AppError
 		assert.True(t, errors.As(err, &appErr))
 		assert.Equal(t, domainErrors.TypeGit, appErr.Type)
-		assert.Contains(t, err.Error(), "failed to get commit count")
+		assert.Contains(t, err.Error(), "Failed to get commit count")
 	})
 }
 
@@ -970,7 +970,7 @@ func TestGitService_Push(t *testing.T) {
 		var appErr *domainErrors.AppError
 		assert.True(t, errors.As(err, &appErr))
 		assert.Equal(t, domainErrors.TypeGit, appErr.Type)
-		assert.Contains(t, err.Error(), "failed to push to remote")
+		assert.Contains(t, err.Error(), "Failed to push to remote")
 	})
 }
 

@@ -43,6 +43,19 @@ func (m *MockGitService) ValidateGitConfig(ctx context.Context) error {
 	return args.Error(0)
 }
 
+func (m *MockGitService) GetChangedFiles(ctx context.Context) ([]string, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
+}
+
+func (m *MockGitService) GetDiff(ctx context.Context) (string, error) {
+	args := m.Called(ctx)
+	return args.String(0), args.Error(1)
+}
+
 func setupTestEnv(t *testing.T) (*config.Config, *i18n.Translations, func()) {
 	tmpDir, err := os.MkdirTemp("", "matecommit-test-*")
 	if err != nil {

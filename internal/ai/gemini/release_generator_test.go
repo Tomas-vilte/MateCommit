@@ -324,6 +324,6 @@ func TestGenerateNotes(t *testing.T) {
 
 		// Assert
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "empty response from AI")
+		assert.Contains(t, err.Error(), "invalid AI output format")
 	})
 }

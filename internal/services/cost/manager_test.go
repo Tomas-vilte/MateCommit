@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func setupTestManager(t *testing.T, budgetDaily float64) (*Manager, string) {
@@ -235,4 +238,261 @@ func TestManager_CheckBudgetAlerts(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetBreakdownByCommand(t *testing.T) {
+	t.Run("should return breakdown grouped by command", func(t *testing.T) {
+		// Arrange
+		tmpDir := t.TempDir()
+		manager, err := NewManager(0)
+		require.NoError(t, err)
+		manager.historyPath = tmpDir + "/history.json"
+
+		now := time.Now()
+		records := []ActivityRecord{
+			{
+				Timestamp:    now,
+				Command:      "suggest",
+				CostUSD:      0.0032,
+				TokensInput:  245,
+				TokensOutput: 156,
+				CacheHit:     false,
+			},
+			{
+				Timestamp:    now.Add(-1 * time.Hour),
+				Command:      "suggest",
+				CostUSD:      0.0028,
+				TokensInput:  230,
+				TokensOutput: 145,
+				CacheHit:     true,
+			},
+			{
+				Timestamp:    now.Add(-2 * time.Hour),
+				Command:      "summarize-pr",
+				CostUSD:      0.0156,
+				TokensInput:  1024,
+				TokensOutput: 512,
+				CacheHit:     false,
+			},
+		}
+
+		for _, r := range records {
+			err = manager.SaveActivity(r)
+			require.NoError(t, err)
+		}
+
+		// Act
+		breakdown, err := manager.GetBreakdownByCommand()
+
+		// Assert
+		require.NoError(t, err)
+		require.NotNil(t, breakdown)
+		assert.Equal(t, 3, breakdown.TotalCalls)
+		assert.Equal(t, 0.0032+0.0028+0.0156, breakdown.TotalCost)
+
+		var suggestStats *CommandStats
+		for i := range breakdown.ByCommand {
+			if breakdown.ByCommand[i].Command == "suggest" {
+				suggestStats = &breakdown.ByCommand[i]
+				break
+			}
+		}
+		require.NotNil(t, suggestStats)
+		assert.Equal(t, 2, suggestStats.CallCount)
+		assert.Equal(t, 0.0032+0.0028, suggestStats.TotalCost)
+		assert.Equal(t, 245+156+230+145, suggestStats.TotalTokens)
+		assert.InDelta(t, 50.0, suggestStats.CacheHitRate, 1.0)
+	})
+
+	t.Run("should handle empty history", func(t *testing.T) {
+		// Arrange
+		tmpDir := t.TempDir()
+		manager, err := NewManager(0)
+		require.NoError(t, err)
+		manager.historyPath = tmpDir + "/history.json"
+
+		// Act
+		breakdown, err := manager.GetBreakdownByCommand()
+
+		// Assert
+		require.NoError(t, err)
+		assert.Equal(t, 0, breakdown.TotalCalls)
+		assert.Equal(t, 0.0, breakdown.TotalCost)
+		assert.Empty(t, breakdown.ByCommand)
+	})
+
+	t.Run("should only include current month", func(t *testing.T) {
+		// Arrange
+		tmpDir := t.TempDir()
+		manager, err := NewManager(0)
+		require.NoError(t, err)
+		manager.historyPath = tmpDir + "/history.json"
+
+		now := time.Now()
+		lastMonth := now.AddDate(0, -1, 0)
+
+		records := []ActivityRecord{
+			{
+				Timestamp: now,
+				Command:   "suggest",
+				CostUSD:   0.0032,
+			},
+			{
+				Timestamp: lastMonth,
+				Command:   "suggest",
+				CostUSD:   0.0050,
+			},
+		}
+
+		for _, r := range records {
+			err = manager.SaveActivity(r)
+			require.NoError(t, err)
+		}
+
+		// Act
+		breakdown, err := manager.GetBreakdownByCommand()
+
+		// Assert
+		require.NoError(t, err)
+		assert.Equal(t, 1, breakdown.TotalCalls)
+		assert.Equal(t, 0.0032, breakdown.TotalCost)
+	})
+}
+
+func TestGetForecast(t *testing.T) {
+	t.Run("should calculate forecast correctly", func(t *testing.T) {
+		// Arrange
+		tmpDir := t.TempDir()
+		manager, err := NewManager(0)
+		require.NoError(t, err)
+		manager.historyPath = tmpDir + "/history.json"
+
+		now := time.Now()
+		daysInMonth := time.Date(now.Year(), now.Month()+1, 0, 0, 0, 0, 0, time.UTC).Day()
+		daysElapsed := now.Day()
+
+		totalSpent := 0.15
+		for i := 0; i < 5; i++ {
+			err := manager.SaveActivity(ActivityRecord{
+				Timestamp: now.AddDate(0, 0, -i),
+				Command:   "suggest",
+				CostUSD:   0.03,
+			})
+			require.NoError(t, err)
+		}
+
+		// Act
+		forecast, err := manager.GetForecast()
+
+		// Assert
+		require.NoError(t, err)
+		require.NotNil(t, forecast)
+		assert.Equal(t, daysInMonth, forecast.DaysInMonth)
+		assert.Equal(t, daysElapsed, forecast.DaysElapsed)
+		assert.Equal(t, totalSpent, forecast.MonthToDate)
+		assert.InDelta(t, totalSpent/float64(daysElapsed), forecast.DailyAverage, 0.001)
+		assert.InDelta(t, forecast.DailyAverage*float64(daysInMonth), forecast.ProjectedMonthEnd, 0.01)
+	})
+
+	t.Run("should handle no activity", func(t *testing.T) {
+		// Arrange
+		tmpDir := t.TempDir()
+		manager, err := NewManager(0)
+		require.NoError(t, err)
+		manager.historyPath = tmpDir + "/history.json"
+
+		// Act
+		forecast, err := manager.GetForecast()
+
+		// Assert
+		require.NoError(t, err)
+		assert.Equal(t, 0.0, forecast.MonthToDate)
+		assert.Equal(t, 0.0, forecast.DailyAverage)
+		assert.Equal(t, 0.0, forecast.ProjectedMonthEnd)
+	})
+}
+
+func TestGetCacheStats(t *testing.T) {
+	t.Run("should calculate cache hit rate correctly", func(t *testing.T) {
+		// Arrange
+		tmpDir := t.TempDir()
+		manager, err := NewManager(0)
+		require.NoError(t, err)
+		manager.historyPath = tmpDir + "/history.json"
+
+		now := time.Now()
+		records := []ActivityRecord{
+			{Timestamp: now, Command: "suggest", CostUSD: 0.003, CacheHit: false},
+			{Timestamp: now.Add(-1 * time.Hour), Command: "suggest", CostUSD: 0.002, CacheHit: true},
+			{Timestamp: now.Add(-2 * time.Hour), Command: "suggest", CostUSD: 0.002, CacheHit: true},
+			{Timestamp: now.Add(-3 * time.Hour), Command: "suggest", CostUSD: 0.003, CacheHit: false},
+		}
+
+		for _, r := range records {
+			err = manager.SaveActivity(r)
+			require.NoError(t, err)
+		}
+
+		// Act
+		hitRate, saved, err := manager.GetCacheStats()
+
+		// Assert
+		require.NoError(t, err)
+		assert.InDelta(t, 50.0, hitRate, 1.0)
+		assert.Equal(t, 0.004, saved)
+	})
+
+	t.Run("should handle no cache hits", func(t *testing.T) {
+		// Arrange
+		tmpDir := t.TempDir()
+		manager, err := NewManager(0)
+		require.NoError(t, err)
+		manager.historyPath = tmpDir + "/history.json"
+
+		now := time.Now()
+		err = manager.SaveActivity(ActivityRecord{
+			Timestamp: now,
+			Command:   "suggest",
+			CostUSD:   0.003,
+			CacheHit:  false,
+		})
+		require.NoError(t, err)
+
+		// Act
+		hitRate, saved, err := manager.GetCacheStats()
+
+		// Assert
+		require.NoError(t, err)
+		assert.Equal(t, 0.0, hitRate)
+		assert.Equal(t, 0.0, saved)
+	})
+
+	t.Run("should only count current month", func(t *testing.T) {
+		// Arrange
+		tmpDir := t.TempDir()
+		manager, err := NewManager(0)
+		require.NoError(t, err)
+		manager.historyPath = tmpDir + "/history.json"
+
+		now := time.Now()
+		lastMonth := now.AddDate(0, -1, 0)
+
+		records := []ActivityRecord{
+			{Timestamp: now, Command: "suggest", CostUSD: 0.002, CacheHit: true},
+			{Timestamp: lastMonth, Command: "suggest", CostUSD: 0.002, CacheHit: true}, // Should not count
+		}
+
+		for _, r := range records {
+			err = manager.SaveActivity(r)
+			require.NoError(t, err)
+		}
+
+		// Act
+		hitRate, saved, err := manager.GetCacheStats()
+
+		// Assert
+		require.NoError(t, err)
+		assert.Equal(t, 100.0, hitRate)
+		assert.Equal(t, 0.002, saved)
+	})
 }

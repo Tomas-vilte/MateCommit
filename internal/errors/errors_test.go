@@ -41,7 +41,7 @@ func TestAppError_Error_Format(t *testing.T) {
 			err:  ErrNoChanges,
 			contains: []string{
 				"GIT",
-				"no staged changes detected",
+				"No staged changes detected",
 			},
 		},
 		{
@@ -49,7 +49,7 @@ func TestAppError_Error_Format(t *testing.T) {
 			err:  ErrGetBranch.WithError(errors.New("exit status 1")),
 			contains: []string{
 				"GIT",
-				"failed to get current branch",
+				"Failed to get current branch",
 				"exit status 1",
 			},
 		},
@@ -60,7 +60,7 @@ func TestAppError_Error_Format(t *testing.T) {
 				WithContext("stderr", "did not match any files"),
 			contains: []string{
 				"GIT",
-				"failed to add file to staging",
+				"Failed to add file to staging",
 				"exit status 128",
 				"did not match any files",
 			},
@@ -72,7 +72,7 @@ func TestAppError_Error_Format(t *testing.T) {
 				WithContext("stderr", "repository not found"),
 			contains: []string{
 				"GIT",
-				"failed to get diff",
+				"Failed to get diff",
 				"command failed",
 				"repository not found",
 			},

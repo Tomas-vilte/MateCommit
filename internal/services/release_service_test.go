@@ -104,7 +104,7 @@ func TestReleaseService_AnalyzeNextRelease(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, release)
-		assert.Contains(t, err.Error(), "GIT: no staged changes detected")
+		assert.Contains(t, err.Error(), "GIT: No staged changes detected")
 
 		mockGit.AssertExpectations(t)
 	})
@@ -310,7 +310,7 @@ func TestReleaseService_PublishRelease(t *testing.T) {
 		err := service.PublishRelease(context.Background(), release, notes, false, true)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "CONFIGURATION: configuration is missing")
+		assert.Contains(t, err.Error(), "CONFIGURATION: Configuration is missing")
 	})
 
 	t.Run("should propagate VCS client error", func(t *testing.T) {
@@ -844,7 +844,7 @@ const Version = "1.2.3"
 		_, _, err = service.FindVersionFile(context.Background())
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "could not find version file")
+		assert.Contains(t, err.Error(), "Version file not found")
 	})
 }
 
@@ -1048,7 +1048,7 @@ const Version = "1.0.0"
 		err := service.CommitChangelog(context.Background(), "v1.1.0")
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "no staged changes detected")
+		assert.Contains(t, err.Error(), "No staged changes detected")
 		mockGit.AssertExpectations(t)
 	})
 
