@@ -8,10 +8,10 @@ import (
 
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/thomas-vilte/matecommit/internal/ports"
+	"github.com/thomas-vilte/matecommit/internal/vcs"
 )
 
-var _ ports.DependencyAnalyzer = (*PackageJsonAnalyzer)(nil)
+var _ vcs.DependencyAnalyzer = (*PackageJsonAnalyzer)(nil)
 
 type PackageJsonAnalyzer struct{}
 
@@ -19,12 +19,12 @@ func NewPackageJsonAnalyzer() *PackageJsonAnalyzer {
 	return &PackageJsonAnalyzer{}
 }
 
-func (p *PackageJsonAnalyzer) CanHandle(ctx context.Context, vcsClient ports.VCSClient, _, currentTag string) bool {
+func (p *PackageJsonAnalyzer) CanHandle(ctx context.Context, vcsClient vcs.VCSClient, _, currentTag string) bool {
 	content, err := p.getFileContent(ctx, vcsClient, currentTag, "package.json")
 	return err == nil && content != ""
 }
 
-func (p *PackageJsonAnalyzer) AnalyzeChanges(ctx context.Context, vcsClient ports.VCSClient, previousTag, currentTag string) ([]models.DependencyChange, error) {
+func (p *PackageJsonAnalyzer) AnalyzeChanges(ctx context.Context, vcsClient vcs.VCSClient, previousTag, currentTag string) ([]models.DependencyChange, error) {
 	oldContent, err := p.getFileContent(ctx, vcsClient, previousTag, "package.json")
 	if err != nil {
 		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, "failed to read old package.json", err)
@@ -52,7 +52,7 @@ func (p *PackageJsonAnalyzer) Name() string {
 	return "package.json"
 }
 
-func (p *PackageJsonAnalyzer) getFileContent(ctx context.Context, vcsClient ports.VCSClient, tag, filepath string) (string, error) {
+func (p *PackageJsonAnalyzer) getFileContent(ctx context.Context, vcsClient vcs.VCSClient, tag, filepath string) (string, error) {
 	if vcsClient == nil {
 		return "", domainErrors.NewAppError(domainErrors.TypeInternal, "vcsClient is nil", nil)
 	}

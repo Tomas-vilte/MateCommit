@@ -11,11 +11,10 @@ import (
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/thomas-vilte/matecommit/internal/ports"
 	"google.golang.org/genai"
 )
 
-var _ ports.PRSummarizer = (*GeminiPRSummarizer)(nil)
+var _ ai.PRSummarizer = (*GeminiPRSummarizer)(nil)
 
 type GeminiPRSummarizer struct {
 	*GeminiProvider

@@ -3,13 +3,13 @@ package gemini
 import (
 	"context"
 
-	"github.com/thomas-vilte/matecommit/internal/ports"
+	"github.com/thomas-vilte/matecommit/internal/ai"
 	"google.golang.org/genai"
 )
 
-var _ ports.CostAwareAIProvider = (*GeminiProvider)(nil)
+var _ ai.CostAwareAIProvider = (*GeminiProvider)(nil)
 
-// GeminiProvider is a shared base for all Gemini services that implements the ports.CostAwareAIProvider interface
+// GeminiProvider is a shared base for all Gemini services that implements the ai.CostAwareAIProvider interface
 type GeminiProvider struct {
 	Client *genai.Client
 	model  string
@@ -23,7 +23,7 @@ func NewGeminiProvider(client *genai.Client, model string) *GeminiProvider {
 	}
 }
 
-// CountTokens implements ports.CostAwareAIProvider
+// CountTokens implements ai.CostAwareAIProvider
 func (g *GeminiProvider) CountTokens(ctx context.Context, prompt string) (int, error) {
 	resp, err := g.Client.Models.CountTokens(ctx, g.model, genai.Text(prompt), nil)
 	if err != nil {
@@ -32,12 +32,12 @@ func (g *GeminiProvider) CountTokens(ctx context.Context, prompt string) (int, e
 	return int(resp.TotalTokens), nil
 }
 
-// GetModelName implements ports.CostAwareAIProvider
+// GetModelName implements ai.CostAwareAIProvider
 func (g *GeminiProvider) GetModelName() string {
 	return g.model
 }
 
-// GetProviderName implements ports.CostAwareAIProvider
+// GetProviderName implements ai.CostAwareAIProvider
 func (g *GeminiProvider) GetProviderName() string {
 	return "gemini"
 }

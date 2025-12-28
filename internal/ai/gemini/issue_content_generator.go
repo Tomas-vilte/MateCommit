@@ -11,7 +11,6 @@ import (
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/thomas-vilte/matecommit/internal/ports"
 	"google.golang.org/genai"
 )
 
@@ -22,7 +21,7 @@ type GeminiIssueContentGenerator struct {
 	config     *config.Config
 }
 
-var _ ports.IssueContentGenerator = (*GeminiIssueContentGenerator)(nil)
+var _ ai.IssueContentGenerator = (*GeminiIssueContentGenerator)(nil)
 
 func NewGeminiIssueContentGenerator(ctx context.Context, cfg *config.Config, onConfirmation ai.ConfirmationCallback) (*GeminiIssueContentGenerator, error) {
 	providerCfg, exists := cfg.AIProviders["gemini"]

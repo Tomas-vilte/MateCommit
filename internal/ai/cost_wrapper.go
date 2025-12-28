@@ -10,7 +10,6 @@ import (
 	"github.com/thomas-vilte/matecommit/internal/cache"
 	"github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/thomas-vilte/matecommit/internal/ports"
 	"github.com/thomas-vilte/matecommit/internal/services/cost"
 	"github.com/thomas-vilte/matecommit/internal/services/routing"
 )
@@ -29,7 +28,7 @@ type ConfirmationResult struct {
 }
 
 type CostAwareWrapper struct {
-	provider              ports.CostAwareAIProvider
+	provider              CostAwareAIProvider
 	calculator            *cost.Calculator
 	manager               *cost.Manager
 	cache                 *cache.Cache
@@ -40,7 +39,7 @@ type CostAwareWrapper struct {
 }
 
 type WrapperConfig struct {
-	Provider              ports.CostAwareAIProvider
+	Provider              CostAwareAIProvider
 	BudgetDaily           float64
 	EstimatedOutputTokens int
 	SkipConfirmation      bool

@@ -4,16 +4,16 @@ import (
 	"context"
 
 	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/thomas-vilte/matecommit/internal/ports"
+	"github.com/thomas-vilte/matecommit/internal/vcs"
 )
 
 type AnalyzerRegistry struct {
-	analyzers []ports.DependencyAnalyzer
+	analyzers []vcs.DependencyAnalyzer
 }
 
 func NewAnalyzerRegistry() *AnalyzerRegistry {
 	return &AnalyzerRegistry{
-		analyzers: []ports.DependencyAnalyzer{
+		analyzers: []vcs.DependencyAnalyzer{
 			NewGoModAnalyzer(),
 			NewPackageJsonAnalyzer(),
 		},
@@ -21,12 +21,12 @@ func NewAnalyzerRegistry() *AnalyzerRegistry {
 }
 
 // RegisterAnalyzer adds a custom analyzer
-func (r *AnalyzerRegistry) RegisterAnalyzer(analyzer ports.DependencyAnalyzer) {
+func (r *AnalyzerRegistry) RegisterAnalyzer(analyzer vcs.DependencyAnalyzer) {
 	r.analyzers = append(r.analyzers, analyzer)
 }
 
 // AnalyzeAll executes all applicable analyzers and combines the results
-func (r *AnalyzerRegistry) AnalyzeAll(ctx context.Context, vcsClient ports.VCSClient, previousTag, currentTag string) ([]models.DependencyChange, error) {
+func (r *AnalyzerRegistry) AnalyzeAll(ctx context.Context, vcsClient vcs.VCSClient, previousTag, currentTag string) ([]models.DependencyChange, error) {
 	var allChanges []models.DependencyChange
 
 	for _, analyzer := range r.analyzers {
@@ -42,7 +42,7 @@ func (r *AnalyzerRegistry) AnalyzeAll(ctx context.Context, vcsClient ports.VCSCl
 }
 
 // GetSupportedAnalyzers returns a list of detected analyzers
-func (r *AnalyzerRegistry) GetSupportedAnalyzers(ctx context.Context, vcsClient ports.VCSClient, previousTag, currentTag string) []string {
+func (r *AnalyzerRegistry) GetSupportedAnalyzers(ctx context.Context, vcsClient vcs.VCSClient, previousTag, currentTag string) []string {
 	var supported []string
 
 	for _, analyzer := range r.analyzers {

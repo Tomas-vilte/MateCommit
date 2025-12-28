@@ -11,8 +11,8 @@ import (
 	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/thomas-vilte/matecommit/internal/ports"
 	"github.com/thomas-vilte/matecommit/internal/ui"
+	"github.com/thomas-vilte/matecommit/internal/vcs"
 )
 
 // gitService is a minimal interface for testing purposes
@@ -28,11 +28,11 @@ type gitService interface {
 
 type SuggestionHandler struct {
 	gitService gitService
-	vcsClient  ports.VCSClient
+	vcsClient  vcs.VCSClient
 	t          *i18n.Translations
 }
 
-func NewSuggestionHandler(gitSvc gitService, vcs ports.VCSClient, t *i18n.Translations) *SuggestionHandler {
+func NewSuggestionHandler(gitSvc gitService, vcs vcs.VCSClient, t *i18n.Translations) *SuggestionHandler {
 	return &SuggestionHandler{
 		gitService: gitSvc,
 		vcsClient:  vcs,

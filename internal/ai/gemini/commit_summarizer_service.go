@@ -12,11 +12,10 @@ import (
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/thomas-vilte/matecommit/internal/ports"
 	"google.golang.org/genai"
 )
 
-var _ ports.CommitSummarizer = (*GeminiCommitSummarizer)(nil)
+var _ ai.CommitSummarizer = (*GeminiCommitSummarizer)(nil)
 
 type GeminiCommitSummarizer struct {
 	*GeminiProvider

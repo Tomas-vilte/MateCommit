@@ -13,8 +13,8 @@ import (
 	"github.com/thomas-vilte/matecommit/internal/ai/gemini"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
-	"github.com/thomas-vilte/matecommit/internal/github"
 	"github.com/thomas-vilte/matecommit/internal/models"
+	"github.com/thomas-vilte/matecommit/internal/vcs/github"
 )
 
 func TestPRService_SummarizePR_Success(t *testing.T) {

@@ -7,11 +7,11 @@ import (
 
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/thomas-vilte/matecommit/internal/ports"
 	"github.com/thomas-vilte/matecommit/internal/regex"
+	"github.com/thomas-vilte/matecommit/internal/vcs"
 )
 
-var _ ports.DependencyAnalyzer = (*GoModAnalyzer)(nil)
+var _ vcs.DependencyAnalyzer = (*GoModAnalyzer)(nil)
 
 type GoModAnalyzer struct{}
 
@@ -23,12 +23,12 @@ func (g *GoModAnalyzer) Name() string {
 	return "go.mod"
 }
 
-func (g *GoModAnalyzer) CanHandle(ctx context.Context, vcsClient ports.VCSClient, _, currentTag string) bool {
+func (g *GoModAnalyzer) CanHandle(ctx context.Context, vcsClient vcs.VCSClient, _, currentTag string) bool {
 	content, err := g.getFileContent(ctx, vcsClient, currentTag, "go.mod")
 	return err == nil && content != ""
 }
 
-func (g *GoModAnalyzer) AnalyzeChanges(ctx context.Context, vcsClient ports.VCSClient, previousTag, currentTag string) ([]models.DependencyChange, error) {
+func (g *GoModAnalyzer) AnalyzeChanges(ctx context.Context, vcsClient vcs.VCSClient, previousTag, currentTag string) ([]models.DependencyChange, error) {
 	oldContent, err := g.getFileContent(ctx, vcsClient, previousTag, "go.mod")
 	if err != nil {
 		return nil, domainErrors.NewAppError(domainErrors.TypeInternal, "failed to read old go.mod", err)
@@ -45,7 +45,7 @@ func (g *GoModAnalyzer) AnalyzeChanges(ctx context.Context, vcsClient ports.VCSC
 	return g.computeChanges(oldDeps, newDeps), nil
 }
 
-func (g *GoModAnalyzer) getFileContent(ctx context.Context, vcsClient ports.VCSClient, tag, filepath string) (string, error) {
+func (g *GoModAnalyzer) getFileContent(ctx context.Context, vcsClient vcs.VCSClient, tag, filepath string) (string, error) {
 	if vcsClient == nil {
 		return "", domainErrors.NewAppError(domainErrors.TypeInternal, "vcsClient is nil", nil)
 	}

@@ -9,13 +9,14 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/thomas-vilte/matecommit/internal/ai"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/dependency"
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/thomas-vilte/matecommit/internal/ports"
 	"github.com/thomas-vilte/matecommit/internal/regex"
+	"github.com/thomas-vilte/matecommit/internal/vcs"
 	"golang.org/x/mod/semver"
 )
 
@@ -59,8 +60,8 @@ type releaseGitService interface {
 
 type ReleaseService struct {
 	git         releaseGitService
-	vcsClient   ports.VCSClient
-	notesGen    ports.ReleaseNotesGenerator
+	vcsClient   vcs.VCSClient
+	notesGen    ai.ReleaseNotesGenerator
 	depAnalyzer *dependency.AnalyzerRegistry
 	config      *config.Config
 
@@ -73,13 +74,13 @@ type ReleaseService struct {
 
 type ReleaseOption func(*ReleaseService)
 
-func WithReleaseVCSClient(vcs ports.VCSClient) ReleaseOption {
+func WithReleaseVCSClient(vcs vcs.VCSClient) ReleaseOption {
 	return func(s *ReleaseService) {
 		s.vcsClient = vcs
 	}
 }
 
-func WithReleaseNotesGenerator(rng ports.ReleaseNotesGenerator) ReleaseOption {
+func WithReleaseNotesGenerator(rng ai.ReleaseNotesGenerator) ReleaseOption {
 	return func(s *ReleaseService) {
 		s.notesGen = rng
 	}

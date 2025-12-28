@@ -7,13 +7,15 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/thomas-vilte/matecommit/internal/ai"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
-	"github.com/thomas-vilte/matecommit/internal/github"
 	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/thomas-vilte/matecommit/internal/ports"
 	"github.com/thomas-vilte/matecommit/internal/regex"
+	"github.com/thomas-vilte/matecommit/internal/tickets"
+	"github.com/thomas-vilte/matecommit/internal/vcs"
+	"github.com/thomas-vilte/matecommit/internal/vcs/github"
 )
 
 // commitGitService defines only the methods needed by CommitService.
@@ -27,23 +29,23 @@ type commitGitService interface {
 
 type CommitService struct {
 	git           commitGitService
-	ai            ports.CommitSummarizer
-	ticketManager ports.TicketManager
-	vcsClient     ports.VCSClient
+	ai            ai.CommitSummarizer
+	ticketManager tickets.TicketManager
+	vcsClient     vcs.VCSClient
 	config        *config.Config
 }
 
 type Option func(*CommitService)
 
-func WithTicketManager(tm ports.TicketManager) Option {
+func WithTicketManager(tm tickets.TicketManager) Option {
 	return func(s *CommitService) {
 		s.ticketManager = tm
 	}
 }
 
-func WithVCSClient(vcs ports.VCSClient) Option {
+func WithVCSClient(vcsClient vcs.VCSClient) Option {
 	return func(s *CommitService) {
-		s.vcsClient = vcs
+		s.vcsClient = vcsClient
 	}
 }
 
@@ -53,10 +55,10 @@ func WithConfig(cfg *config.Config) Option {
 	}
 }
 
-func NewCommitService(gitSvc commitGitService, ai ports.CommitSummarizer, opts ...Option) *CommitService {
+func NewCommitService(gitSvc commitGitService, aiSvc ai.CommitSummarizer, opts ...Option) *CommitService {
 	s := &CommitService{
 		git: gitSvc,
-		ai:  ai,
+		ai:  aiSvc,
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -211,7 +213,7 @@ func (s *CommitService) buildCommitInfo(ctx context.Context, issueNumber int, pr
 	return commitInfo, nil
 }
 
-func (s *CommitService) getOrCreateVCSClient(ctx context.Context) (ports.VCSClient, error) {
+func (s *CommitService) getOrCreateVCSClient(ctx context.Context) (vcs.VCSClient, error) {
 	if s.vcsClient != nil {
 		return s.vcsClient, nil
 	}

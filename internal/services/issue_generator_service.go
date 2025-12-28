@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/thomas-vilte/matecommit/internal/ai"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/thomas-vilte/matecommit/internal/ports"
 	"github.com/thomas-vilte/matecommit/internal/regex"
+	"github.com/thomas-vilte/matecommit/internal/vcs"
 )
 
 // issueGitService defines only the methods needed by IssueGeneratorService.
@@ -28,15 +29,15 @@ type issueTemplateService interface {
 
 type IssueGeneratorService struct {
 	git             issueGitService
-	ai              ports.IssueContentGenerator
-	vcsClient       ports.VCSClient
+	ai              ai.IssueContentGenerator
+	vcsClient       vcs.VCSClient
 	templateService issueTemplateService
 	config          *config.Config
 }
 
 type IssueGeneratorOption func(*IssueGeneratorService)
 
-func WithIssueVCSClient(vcs ports.VCSClient) IssueGeneratorOption {
+func WithIssueVCSClient(vcs vcs.VCSClient) IssueGeneratorOption {
 	return func(s *IssueGeneratorService) {
 		s.vcsClient = vcs
 	}
@@ -56,7 +57,7 @@ func WithIssueConfig(cfg *config.Config) IssueGeneratorOption {
 
 func NewIssueGeneratorService(
 	gitSvc issueGitService,
-	ai ports.IssueContentGenerator,
+	ai ai.IssueContentGenerator,
 	opts ...IssueGeneratorOption,
 ) *IssueGeneratorService {
 	s := &IssueGeneratorService{

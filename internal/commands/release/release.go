@@ -4,14 +4,15 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/thomas-vilte/matecommit/internal/ai"
 	"github.com/thomas-vilte/matecommit/internal/ai/gemini"
 	cfg "github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/git"
-	"github.com/thomas-vilte/matecommit/internal/github"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/thomas-vilte/matecommit/internal/ports"
 	"github.com/thomas-vilte/matecommit/internal/services"
+	"github.com/thomas-vilte/matecommit/internal/vcs"
+	"github.com/thomas-vilte/matecommit/internal/vcs/github"
 	"github.com/urfave/cli/v3"
 )
 
@@ -83,7 +84,7 @@ func (r *ReleaseCommandFactory) CreateCommand(t *i18n.Translations, _ *cfg.Confi
 }
 
 func (r *ReleaseCommandFactory) createReleaseService(ctx context.Context, _ *i18n.Translations) (*services.ReleaseService, error) {
-	var vcsClient ports.VCSClient
+	var vcsClient vcs.VCSClient
 	if r.config.ActiveVCSProvider != "" {
 		if vcsConfig, ok := r.config.VCSConfigs[r.config.ActiveVCSProvider]; ok {
 			owner, repo, _, err := r.gitService.GetRepoInfo(ctx)
@@ -93,7 +94,7 @@ func (r *ReleaseCommandFactory) createReleaseService(ctx context.Context, _ *i18
 		}
 	}
 
-	var notesGen ports.ReleaseNotesGenerator
+	var notesGen ai.ReleaseNotesGenerator
 	if r.config.AIConfig.ActiveAI == "gemini" {
 		owner, repo, _, err := r.gitService.GetRepoInfo(ctx)
 		if err != nil {

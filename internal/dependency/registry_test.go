@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/thomas-vilte/matecommit/internal/ports"
+	"github.com/thomas-vilte/matecommit/internal/vcs"
 )
 
 // MockAnalyzer es un mock de DependencyAnalyzer
@@ -21,12 +21,12 @@ func (m *MockAnalyzer) Name() string {
 	return args.String(0)
 }
 
-func (m *MockAnalyzer) CanHandle(ctx context.Context, vcsClient ports.VCSClient, previousTag, currentTag string) bool {
+func (m *MockAnalyzer) CanHandle(ctx context.Context, vcsClient vcs.VCSClient, previousTag, currentTag string) bool {
 	args := m.Called(ctx, vcsClient, previousTag, currentTag)
 	return args.Bool(0)
 }
 
-func (m *MockAnalyzer) AnalyzeChanges(ctx context.Context, vcsClient ports.VCSClient, previousTag, currentTag string) ([]models.DependencyChange, error) {
+func (m *MockAnalyzer) AnalyzeChanges(ctx context.Context, vcsClient vcs.VCSClient, previousTag, currentTag string) ([]models.DependencyChange, error) {
 	args := m.Called(ctx, vcsClient, previousTag, currentTag)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
@@ -131,7 +131,7 @@ func TestAnalyzerRegistry_AnalyzeAll(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a registry with only mock analyzers
 			registry := &AnalyzerRegistry{
-				analyzers: []ports.DependencyAnalyzer{},
+				analyzers: []vcs.DependencyAnalyzer{},
 			}
 
 			mockVCS := new(MockVCSClient)
@@ -203,7 +203,7 @@ func TestAnalyzerRegistry_GetSupportedAnalyzers(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a registry with only mock analyzers
 			registry := &AnalyzerRegistry{
-				analyzers: []ports.DependencyAnalyzer{},
+				analyzers: []vcs.DependencyAnalyzer{},
 			}
 
 			mockVCS := new(MockVCSClient)

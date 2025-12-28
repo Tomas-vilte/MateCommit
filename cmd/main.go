@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"strings"
 
 	"github.com/fatih/color"
 	"github.com/thomas-vilte/matecommit/internal/ai"
+	"github.com/thomas-vilte/matecommit/internal/ai/gemini"
 	"github.com/thomas-vilte/matecommit/internal/commands/cache"
 	"github.com/thomas-vilte/matecommit/internal/commands/completion"
 	"github.com/thomas-vilte/matecommit/internal/commands/config"
@@ -20,13 +22,16 @@ import (
 	"github.com/thomas-vilte/matecommit/internal/commands/suggests_commits"
 	"github.com/thomas-vilte/matecommit/internal/commands/update"
 	cfg "github.com/thomas-vilte/matecommit/internal/config"
+	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/git"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/thomas-vilte/matecommit/internal/logger"
-	"github.com/thomas-vilte/matecommit/internal/ports"
-	"github.com/thomas-vilte/matecommit/internal/providers"
 	"github.com/thomas-vilte/matecommit/internal/services"
+	"github.com/thomas-vilte/matecommit/internal/tickets"
+	"github.com/thomas-vilte/matecommit/internal/tickets/jira"
 	"github.com/thomas-vilte/matecommit/internal/ui"
+	"github.com/thomas-vilte/matecommit/internal/vcs"
+	"github.com/thomas-vilte/matecommit/internal/vcs/github"
 	"github.com/thomas-vilte/matecommit/internal/version"
 	"github.com/urfave/cli/v3"
 )
@@ -113,49 +118,101 @@ func checkCompletion() bool {
 	return false
 }
 
-func initAIProviders(ctx context.Context, cfgApp *cfg.Config, t *i18n.Translations, isCompletion bool) (ports.CommitSummarizer, ports.PRSummarizer, ports.IssueContentGenerator) {
+func initAIProviders(ctx context.Context, cfgApp *cfg.Config, t *i18n.Translations, isCompletion bool) (ai.CommitSummarizer, ai.PRSummarizer, ai.IssueContentGenerator) {
 	if cfgApp.AIConfig.ActiveAI == "" {
 		return nil, nil, nil
 	}
 
 	onConfirmation := createConfirmationCallback(t)
-	commitAI, err := providers.NewCommitSummarizer(ctx, cfgApp, onConfirmation)
-	if err != nil && !isCompletion {
-		logger.Warn(ctx, "could not create CommitSummarizer", "error", err)
-		logger.Info(ctx, "AI is not configured. You can configure it with 'mate-commit config init'")
-	}
 
-	prAI, err := providers.NewPRSummarizer(ctx, cfgApp, onConfirmation)
-	if err != nil && !isCompletion {
-		logger.Debug(ctx, "could not create PRSummarizer", "error", err)
-	}
+	switch cfgApp.AIConfig.ActiveAI {
+	case "gemini":
+		commitAI, err := gemini.NewGeminiCommitSummarizer(ctx, cfgApp, onConfirmation)
+		if err != nil && !isCompletion {
+			logger.Warn(ctx, "could not create CommitSummarizer", "error", err)
+			logger.Info(ctx, "AI is not configured. You can configure it with 'mate-commit config init'")
+		}
 
-	issueAI, err := providers.NewIssueContentGenerator(ctx, cfgApp, onConfirmation)
-	if err != nil && !isCompletion {
-		logger.Debug(ctx, "could not create IssueContentGenerator", "error", err)
-	}
+		prAI, err := gemini.NewGeminiPRSummarizer(ctx, cfgApp, onConfirmation)
+		if err != nil && !isCompletion {
+			logger.Debug(ctx, "could not create PRSummarizer", "error", err)
+		}
 
-	return commitAI, prAI, issueAI
+		issueAI, err := gemini.NewGeminiIssueContentGenerator(ctx, cfgApp, onConfirmation)
+		if err != nil && !isCompletion {
+			logger.Debug(ctx, "could not create IssueContentGenerator", "error", err)
+		}
+
+		return commitAI, prAI, issueAI
+	default:
+		if !isCompletion {
+			logger.Warn(ctx, "unsupported AI provider", "provider", cfgApp.AIConfig.ActiveAI)
+		}
+		return nil, nil, nil
+	}
 }
 
-func initVCSClient(ctx context.Context, gitService *git.GitService, cfgApp *cfg.Config, isCompletion bool) ports.VCSClient {
-	vcsClient, err := providers.NewVCSClient(ctx, gitService, cfgApp)
-	if err != nil && !isCompletion {
-		logger.Debug(ctx, "could not create VCS client", "error", err)
+func initVCSClient(ctx context.Context, gitService *git.GitService, cfgApp *cfg.Config, isCompletion bool) vcs.VCSClient {
+	owner, repo, provider, err := gitService.GetRepoInfo(ctx)
+	if err != nil {
+		logger.Debug(ctx, "VCS client not available", "reason", "not in a git repository or no remote configured")
 		return nil
 	}
-	return vcsClient
-}
 
-func initTicketManager(ctx context.Context, cfgApp *cfg.Config, isCompletion bool) ports.TicketManager {
-	ticketMgr, err := providers.NewTicketManager(ctx, cfgApp)
-	if err != nil && !isCompletion {
-		logger.Debug(ctx, "could not create Ticket manager", "error", err)
+	vcsConfig, exists := cfgApp.VCSConfigs[provider]
+	if !exists {
+		vcsConfig, exists = cfgApp.VCSConfigs[cfgApp.ActiveVCSProvider]
+		if !exists {
+			if !isCompletion {
+				logger.Debug(ctx, "VCS provider not configured", "provider", provider)
+			}
+			return nil
+		}
+		provider = cfgApp.ActiveVCSProvider
 	}
-	return ticketMgr
+
+	switch provider {
+	case "github":
+		if vcsConfig.Token == "" {
+			if !isCompletion {
+				logger.Debug(ctx, "GitHub token is empty", "error", domainErrors.ErrTokenMissing)
+			}
+			return nil
+		}
+		return github.NewGitHubClient(owner, repo, vcsConfig.Token)
+	default:
+		if !isCompletion {
+			logger.Debug(ctx, "unsupported VCS provider", "provider", provider)
+		}
+		return nil
+	}
 }
 
-func initServices(cfgApp *cfg.Config, gitService *git.GitService, commitAI ports.CommitSummarizer, prAI ports.PRSummarizer, issueAI ports.IssueContentGenerator, vcsClient ports.VCSClient, ticketMgr ports.TicketManager) (*services.CommitService, *services.PRService, *services.IssueGeneratorService, *services.IssueTemplateService) {
+func initTicketManager(ctx context.Context, cfgApp *cfg.Config, isCompletion bool) tickets.TicketManager {
+	if cfgApp.ActiveTicketService == "" || !cfgApp.UseTicket {
+		return nil
+	}
+
+	ticketCfg, exists := cfgApp.TicketProviders[cfgApp.ActiveTicketService]
+	if !exists {
+		if !isCompletion {
+			logger.Debug(ctx, "ticket provider not configured", "provider", cfgApp.ActiveTicketService)
+		}
+		return nil
+	}
+
+	switch cfgApp.ActiveTicketService {
+	case "jira":
+		return jira.NewJiraService(ticketCfg.BaseURL, ticketCfg.APIKey, ticketCfg.Email, &http.Client{})
+	default:
+		if !isCompletion {
+			logger.Debug(ctx, "unsupported ticket provider", "provider", cfgApp.ActiveTicketService)
+		}
+		return nil
+	}
+}
+
+func initServices(cfgApp *cfg.Config, gitService *git.GitService, commitAI ai.CommitSummarizer, prAI ai.PRSummarizer, issueAI ai.IssueContentGenerator, vcsClient vcs.VCSClient, ticketMgr tickets.TicketManager) (*services.CommitService, *services.PRService, *services.IssueGeneratorService, *services.IssueTemplateService) {
 	commitService := services.NewCommitService(
 		gitService,
 		commitAI,
