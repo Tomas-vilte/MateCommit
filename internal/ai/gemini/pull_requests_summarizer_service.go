@@ -40,6 +40,13 @@ func NewGeminiPRSummarizer(ctx context.Context, cfg *config.Config, onConfirmati
 		Backend: genai.BackendGeminiAPI,
 	})
 	if err != nil {
+		errMsg := strings.ToLower(err.Error())
+		if strings.Contains(errMsg, "invalid") ||
+			strings.Contains(errMsg, "unauthorized") ||
+			strings.Contains(errMsg, "api key") ||
+			strings.Contains(errMsg, "authentication") {
+			return nil, domainErrors.ErrGeminiAPIKeyInvalid.WithError(err)
+		}
 		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error creating AI client", err)
 	}
 	modelName := string(cfg.AIConfig.Models[config.AIGemini])
@@ -72,10 +79,28 @@ func NewGeminiPRSummarizer(ctx context.Context, cfg *config.Config, onConfirmati
 
 func (gps *GeminiPRSummarizer) defaultGenerate(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
 	genConfig := GetGenerateConfig(mName, "application/json")
+	log := logger.FromContext(ctx)
 
 	resp, err := gps.Client.Models.GenerateContent(ctx, mName, genai.Text(p), genConfig)
 	if err != nil {
-		return nil, nil, err
+		log.Error("gemini API call failed",
+			"error", err,
+			"model", mName)
+
+		errMsg := strings.ToLower(err.Error())
+		if strings.Contains(errMsg, "quota") ||
+			strings.Contains(errMsg, "rate limit") ||
+			strings.Contains(errMsg, "resource exhausted") {
+			return nil, nil, domainErrors.ErrGeminiQuotaExceeded.WithError(err)
+		}
+
+		if strings.Contains(errMsg, "invalid") ||
+			strings.Contains(errMsg, "unauthorized") ||
+			strings.Contains(errMsg, "api key") {
+			return nil, nil, domainErrors.ErrGeminiAPIKeyInvalid.WithError(err)
+		}
+
+		return nil, nil, domainErrors.ErrAIGeneration.WithError(err)
 	}
 
 	usage := extractUsage(resp)
@@ -97,7 +122,7 @@ func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prContent 
 	if err != nil {
 		log.Error("failed to generate PR summary",
 			"error", err)
-		return models.PRSummary{}, domainErrors.NewAppError(domainErrors.TypeAI, "error generating PR summary", err)
+		return models.PRSummary{}, err
 	}
 
 	var responseText string
@@ -117,12 +142,24 @@ func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prContent 
 	}
 
 	if responseText == "" {
-		return models.PRSummary{}, domainErrors.NewAppError(domainErrors.TypeAI, "empty response from AI", nil)
+		return models.PRSummary{}, domainErrors.ErrInvalidAIOutput.
+			WithContext("reason", "empty response from AI").
+			WithContext("operation", "summarize PR")
 	}
+
 	responseText = ExtractJSON(responseText)
 	var jsonSummary PRSummaryJSON
 	if err := json.Unmarshal([]byte(responseText), &jsonSummary); err != nil {
-		return models.PRSummary{}, domainErrors.NewAppError(domainErrors.TypeAI, "error parsing AI JSON response", err)
+		respLen := len(responseText)
+		preview := responseText
+		if respLen > 500 {
+			preview = responseText[:500] + "..."
+		}
+		return models.PRSummary{}, domainErrors.ErrInvalidAIOutput.
+			WithContext("reason", "failed to parse JSON").
+			WithContext("response_length", respLen).
+			WithContext("preview", preview).
+			WithError(err)
 	}
 	if strings.TrimSpace(jsonSummary.Title) == "" {
 		respLen := len(responseText)
@@ -132,7 +169,10 @@ func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prContent 
 		}
 		log.Warn("AI generated no PR title",
 			"response_length", respLen)
-		return models.PRSummary{}, domainErrors.NewAppError(domainErrors.TypeAI, fmt.Sprintf("AI generated no PR title (length: %d): %s", respLen, preview), nil)
+		return models.PRSummary{}, domainErrors.ErrInvalidAIOutput.
+			WithContext("reason", "AI generated no PR title").
+			WithContext("response_length", respLen).
+			WithContext("preview", preview)
 	}
 
 	log.Info("PR summary generated successfully via gemini",

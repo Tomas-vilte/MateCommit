@@ -48,7 +48,7 @@ func pushReleaseAction(releaseSvc releaseService, trans *i18n.Translations) cli.
 
 		err := releaseSvc.PushTag(ctx, version)
 		if err != nil {
-			ui.HandleAppError(err, trans)
+			ui.HandleAppError(err)
 			return fmt.Errorf("%s", trans.GetMessage("release.error_pushing_tag", 0, struct{ Error string }{err.Error()}))
 		}
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/thomas-vilte/matecommit/internal/config"
+	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/git"
 	"github.com/thomas-vilte/matecommit/internal/github"
 	"github.com/thomas-vilte/matecommit/internal/logger"
@@ -32,6 +33,10 @@ func NewVCSClient(ctx context.Context, gitService *git.GitService, cfg *config.C
 
 	switch provider {
 	case "github":
+		// Validar que el token no esté vacío
+		if vcsConfig.Token == "" {
+			return nil, domainErrors.ErrTokenMissing
+		}
 		return github.NewGitHubClient(owner, repo, vcsConfig.Token), nil
 	default:
 		return nil, fmt.Errorf("VCS provider '%s' not supported", provider)

@@ -34,6 +34,13 @@ type UpdateCache struct {
 	LatestKnown string    `json:"latest_known"`
 }
 
+// UpdateInfo contains information about an available update
+type UpdateInfo struct {
+	CurrentVersion string
+	LatestVersion  string
+	IsAvailable    bool
+}
+
 type VersionOption func(*VersionUpdater)
 
 func WithCurrentVersion(version string) VersionOption {
@@ -103,6 +110,31 @@ func (v *VersionUpdater) UpdateCLI(ctx context.Context) error {
 	return nil
 }
 
+// GetUpdateInfo returns information about available updates without displaying anything
+// Returns nil if no update is available or if update checks are disabled
+func (v *VersionUpdater) GetUpdateInfo() (*UpdateInfo, error) {
+	if os.Getenv("MATECOMMIT_DISABLE_UPDATE_CHECK") != "" {
+		return nil, nil
+	}
+
+	cache, err := v.loadCache()
+	if err != nil || cache.LatestKnown == "" {
+		return nil, err
+	}
+
+	if !v.isUpdateAvailable(cache.LatestKnown) {
+		return nil, nil
+	}
+
+	return &UpdateInfo{
+		CurrentVersion: v.currentVersion,
+		LatestVersion:  cache.LatestKnown,
+		IsAvailable:    true,
+	}, nil
+}
+
+// NotifyUpdate displays an update notification to the user
+// Deprecated: Use GetUpdateInfo() and display the notification in the UI layer instead
 func (v *VersionUpdater) NotifyUpdate(trans *translations.Translations) {
 	if os.Getenv("MATECOMMIT_DISABLE_UPDATE_CHECK") != "" {
 		return

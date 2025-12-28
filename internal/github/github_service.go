@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/go-github/v80/github"
 	"github.com/thomas-vilte/matecommit/internal/builder"
+	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ports"
@@ -167,10 +168,29 @@ func (ghc *GitHubClient) UpdatePR(ctx context.Context, prNumber int, summary mod
 
 	_, resp, err := ghc.prService.Edit(ctx, ghc.owner, ghc.repo, prNumber, pr)
 	if err != nil {
-		// Detect 403 forbidden error due to insufficient permissions
-		if resp != nil && resp.StatusCode == http.StatusForbidden {
-			return fmt.Errorf("insufficient permissions to update PR #%d in %s/%s\n\nPlease ensure your token has the required scopes (repo, write:org)",
-				prNumber, ghc.owner, ghc.repo)
+		if resp != nil {
+			if resp.StatusCode == http.StatusTooManyRequests {
+				return domainErrors.ErrGitHubRateLimit.
+					WithContext("retry_after", resp.Header.Get("Retry-After")).
+					WithContext("operation", "update PR")
+			}
+			if resp.StatusCode == http.StatusForbidden {
+				return domainErrors.ErrGitHubInsufficientPerms.
+					WithContext("operation", "update PR").
+					WithContext("pr_number", prNumber).
+					WithContext("repo", fmt.Sprintf("%s/%s", ghc.owner, ghc.repo))
+			}
+			if resp.StatusCode == http.StatusForbidden {
+				return domainErrors.ErrGitHubInsufficientPerms.
+					WithContext("operation", "update PR").
+					WithContext("pr_number", prNumber).
+					WithContext("repo", fmt.Sprintf("%s/%s", ghc.owner, ghc.repo))
+			}
+			if resp.StatusCode == http.StatusNotFound {
+				return domainErrors.ErrRepositoryNotFound.
+					WithContext("operation", "update PR").
+					WithContext("repo", fmt.Sprintf("%s/%s", ghc.owner, ghc.repo))
+			}
 		}
 		return fmt.Errorf("failed to update PR #%d: %w", prNumber, err)
 	}
@@ -192,8 +212,21 @@ func (ghc *GitHubClient) GetPR(ctx context.Context, prNumber int) (models.PRData
 		"repo", ghc.repo,
 		"pr_number", prNumber)
 
-	pr, _, err := ghc.prService.Get(ctx, ghc.owner, ghc.repo, prNumber)
+	pr, resp, err := ghc.prService.Get(ctx, ghc.owner, ghc.repo, prNumber)
 	if err != nil {
+		if resp != nil {
+			if resp.StatusCode == http.StatusUnauthorized {
+				return models.PRData{}, domainErrors.ErrGitHubTokenInvalid.
+					WithContext("operation", "get PR").
+					WithContext("pr_number", prNumber)
+			}
+			if resp.StatusCode == http.StatusNotFound {
+				return models.PRData{}, domainErrors.ErrRepositoryNotFound.
+					WithContext("operation", "get PR").
+					WithContext("pr_number", prNumber).
+					WithContext("repo", fmt.Sprintf("%s/%s", ghc.owner, ghc.repo))
+			}
+		}
 		log.Error("failed to fetch github PR",
 			"error", err,
 			"owner", ghc.owner,
@@ -223,7 +256,9 @@ func (ghc *GitHubClient) GetPR(ctx context.Context, prNumber int) (models.PRData
 	if err != nil {
 		// If 406 error (diff too large), use fallback commit by commit
 		if resp != nil && resp.StatusCode == http.StatusNotAcceptable {
-			fmt.Printf("Warning: PR #%d is too large, fetching diffs commit by commit\n", prNumber)
+			log.Warn("PR diff too large, fetching diffs commit by commit",
+				"pr_number", prNumber,
+				"commits_count", len(commits))
 			diff, err = ghc.getDiffFromCommits(ctx, commits)
 			if err != nil {
 				return models.PRData{}, fmt.Errorf("failed to get diff from commits for PR #%d: %w", prNumber, err)
@@ -318,14 +353,29 @@ func (ghc *GitHubClient) CreateRelease(ctx context.Context, release *models.Rele
 	createdRelease, resp, err := ghc.releaseService.CreateRelease(ctx, ghc.owner, ghc.repo, releaseRequest)
 	if err != nil {
 		if resp != nil {
+			if resp.StatusCode == http.StatusUnauthorized {
+				return domainErrors.ErrGitHubTokenInvalid.
+					WithContext("operation", "create release").
+					WithContext("version", release.Version)
+			}
 			if resp.StatusCode == http.StatusUnprocessableEntity {
-				return fmt.Errorf("release already exists for version %s", release.Version)
+				return domainErrors.ErrCreateRelease.
+					WithContext("version", release.Version).
+					WithContext("reason", "release already exists")
 			}
 			if resp.StatusCode == http.StatusNotFound {
-				return fmt.Errorf("repository or tag not found for version %s", release.Version)
+				return domainErrors.ErrRepositoryNotFound.
+					WithContext("operation", "create release").
+					WithContext("version", release.Version).
+					WithContext("repo", fmt.Sprintf("%s/%s", ghc.owner, ghc.repo))
+			}
+			if resp.StatusCode == http.StatusForbidden {
+				return domainErrors.ErrGitHubInsufficientPerms.
+					WithContext("operation", "create release").
+					WithContext("version", release.Version)
 			}
 		}
-		return fmt.Errorf("failed to create release: %w", err)
+		return domainErrors.ErrCreateRelease.WithError(err).WithContext("version", release.Version)
 	}
 
 	if buildBinaries {
@@ -341,9 +391,22 @@ func (ghc *GitHubClient) GetRelease(ctx context.Context, version string) (*model
 	release, resp, err := ghc.releaseService.GetReleaseByTag(ctx, ghc.owner, ghc.repo, version)
 	if err != nil {
 		if resp != nil && resp.StatusCode == 404 {
-			return nil, fmt.Errorf("repository or tag not found for version %s", version)
+			if resp.StatusCode == http.StatusUnauthorized {
+				return nil, domainErrors.ErrGitHubTokenInvalid.
+					WithContext("operation", "get release").
+					WithContext("version", version)
+			}
+			if resp.StatusCode == http.StatusNotFound {
+				return nil, domainErrors.ErrRepositoryNotFound.
+					WithContext("operation", "get release").
+					WithContext("version", version).
+					WithContext("repo", fmt.Sprintf("%s/%s", ghc.owner, ghc.repo))
+			}
+			return nil, domainErrors.ErrGetRelease.
+				WithContext("version", version).
+				WithContext("status_code", resp.StatusCode)
 		}
-		return nil, err
+		return nil, domainErrors.ErrGetRelease.WithError(err).WithContext("version", version)
 	}
 
 	return &models.VCSRelease{
@@ -358,10 +421,24 @@ func (ghc *GitHubClient) GetRelease(ctx context.Context, version string) (*model
 func (ghc *GitHubClient) UpdateRelease(ctx context.Context, version, body string) error {
 	release, resp, err := ghc.releaseService.GetReleaseByTag(ctx, ghc.owner, ghc.repo, version)
 	if err != nil {
-		if resp != nil && resp.StatusCode == 404 {
-			return fmt.Errorf("repository or tag not found for version %s", version)
+		if resp != nil {
+			if resp.StatusCode == http.StatusUnauthorized {
+				return domainErrors.ErrGitHubTokenInvalid.
+					WithContext("operation", "update release").
+					WithContext("version", version)
+			}
+			if resp.StatusCode == http.StatusNotFound {
+				return domainErrors.ErrRepositoryNotFound.
+					WithContext("operation", "update release").
+					WithContext("version", version).
+					WithContext("version", version).
+					WithContext("repo", fmt.Sprintf("%s/%s", ghc.owner, ghc.repo))
+			}
+			return domainErrors.ErrUpdateRelease.
+				WithContext("version", version).
+				WithContext("status_code", resp.StatusCode)
 		}
-		return err
+		return domainErrors.ErrUpdateRelease.WithError(err).WithContext("version", version)
 	}
 
 	releaseUpdate := &github.RepositoryRelease{
@@ -370,7 +447,7 @@ func (ghc *GitHubClient) UpdateRelease(ctx context.Context, version, body string
 
 	_, _, err = ghc.releaseService.EditRelease(ctx, ghc.owner, ghc.repo, release.GetID(), releaseUpdate)
 	if err != nil {
-		return err
+		return domainErrors.ErrUpdateRelease.WithError(err).WithContext("version", version)
 	}
 	return nil
 }
@@ -618,8 +695,19 @@ func (ghc *GitHubClient) CreateIssue(ctx context.Context, title string, body str
 		Assignees: &assignees,
 	}
 
-	ghIssue, _, err := ghc.issuesService.Create(ctx, ghc.owner, ghc.repo, issueRequest)
+	ghIssue, resp, err := ghc.issuesService.Create(ctx, ghc.owner, ghc.repo, issueRequest)
 	if err != nil {
+		if resp != nil {
+			if resp.StatusCode == http.StatusUnauthorized {
+				return nil, domainErrors.ErrGitHubTokenInvalid.
+					WithContext("operation", "create issue")
+			}
+			if resp.StatusCode == http.StatusNotFound {
+				return nil, domainErrors.ErrRepositoryNotFound.
+					WithContext("operation", "create issue").
+					WithContext("repo", fmt.Sprintf("%s/%s", ghc.owner, ghc.repo))
+			}
+		}
 		log.Error("failed to create github issue",
 			"error", err,
 			"owner", ghc.owner,
@@ -652,8 +740,12 @@ func (ghc *GitHubClient) CreateIssue(ctx context.Context, title string, body str
 }
 
 func (ghc *GitHubClient) GetAuthenticatedUser(ctx context.Context) (string, error) {
-	user, _, err := ghc.usersService.Get(ctx, "")
+	user, resp, err := ghc.usersService.Get(ctx, "")
 	if err != nil {
+		if resp != nil && resp.StatusCode == http.StatusUnauthorized {
+			return "", domainErrors.ErrGitHubTokenInvalid.
+				WithContext("operation", "get authenticated user")
+		}
 		return "", fmt.Errorf("error obtaining authenticated user: %w", err)
 	}
 
@@ -842,6 +934,8 @@ func (ghc *GitHubClient) UpdateIssueChecklist(ctx context.Context, issueNumber i
 }
 
 func (ghc *GitHubClient) ensureLabelsExist(ctx context.Context, existingLabels []string, requiredLabels []string) error {
+	log := logger.FromContext(ctx)
+
 	for _, label := range requiredLabels {
 		if !ghc.labelExists(existingLabels, label) {
 			meta := allowedLabels[label]
@@ -851,7 +945,10 @@ func (ghc *GitHubClient) ensureLabelsExist(ctx context.Context, existingLabels [
 				if !strings.Contains(err.Error(), "already_exists") && !strings.Contains(err.Error(), "422") {
 					return fmt.Errorf("failed to create label '%s': %w", label, err)
 				}
-				fmt.Printf("Label '%s' already exists, continuing...\n", label)
+				log.Debug("label already exists, skipping creation",
+					"label", label,
+					"owner", ghc.owner,
+					"repo", ghc.repo)
 			}
 		}
 	}
@@ -860,13 +957,20 @@ func (ghc *GitHubClient) ensureLabelsExist(ctx context.Context, existingLabels [
 
 // getDiffFromCommits gets the combined diff of all commits when the total PR diff is too large
 func (ghc *GitHubClient) getDiffFromCommits(ctx context.Context, commits []*github.RepositoryCommit) (string, error) {
+	log := logger.FromContext(ctx)
 	var combinedDiff strings.Builder
 
-	fmt.Printf("Fetching diffs for %d commits...\n", len(commits))
+	log.Info("fetching diffs from commits",
+		"commits_count", len(commits),
+		"owner", ghc.owner,
+		"repo", ghc.repo)
 
 	for i, commit := range commits {
 		sha := commit.GetSHA()
-		fmt.Printf("Processing commit %d/%d (%s)\n", i+1, len(commits), sha[:8])
+		log.Debug("processing commit",
+			"current", i+1,
+			"total", len(commits),
+			"sha", sha[:8])
 		fullCommit, _, err := ghc.repoService.GetCommit(ctx, ghc.owner, ghc.repo, sha, nil)
 		if err != nil {
 			return "", fmt.Errorf("failed to get diff for commit %s: %w", sha[:8], err)
@@ -922,6 +1026,8 @@ func (ghc *GitHubClient) uploadBinaries(ctx context.Context, releaseID int64, ve
 	}
 	date := time.Now().Format(time.RFC3339)
 
+	log := logger.FromContext(ctx)
+
 	builderBinary := ghc.binaryBuilderFactory.NewBuilder(
 		ghc.mainPath,
 		"matecommit",
@@ -931,13 +1037,18 @@ func (ghc *GitHubClient) uploadBinaries(ctx context.Context, releaseID int64, ve
 		builder.WithBuildDir(tempDir),
 	)
 
-	fmt.Println("Compiling binaries...")
+	log.Info("compiling binaries for release",
+		"version", version,
+		"build_dir", tempDir)
 	archives, err := builderBinary.BuildAndPackageAll(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to build binaries: %w", err)
 	}
 
-	fmt.Printf("Uploading %d binaries to release...\n", len(archives))
+	log.Info("uploading binaries to release",
+		"archives_count", len(archives),
+		"release_id", releaseID,
+		"version", version)
 	for _, archivePath := range archives {
 		file, err := os.Open(archivePath)
 		if err != nil {
@@ -952,7 +1063,9 @@ func (ghc *GitHubClient) uploadBinaries(ctx context.Context, releaseID int64, ve
 		_, _, err = ghc.releaseService.UploadReleaseAsset(ctx, ghc.owner, ghc.repo, releaseID, uploadOpts, file)
 		_ = file.Close()
 		if err != nil {
-			return fmt.Errorf("failed to upload asset %s: %w", archivePath, err)
+			return domainErrors.ErrUploadAsset.WithError(err).
+				WithContext("asset_path", archivePath).
+				WithContext("release_id", releaseID)
 		}
 	}
 	return nil

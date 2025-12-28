@@ -35,6 +35,13 @@ func NewGeminiIssueContentGenerator(ctx context.Context, cfg *config.Config, onC
 		Backend: genai.BackendGeminiAPI,
 	})
 	if err != nil {
+		errMsg := strings.ToLower(err.Error())
+		if strings.Contains(errMsg, "invalid") ||
+			strings.Contains(errMsg, "unauthorized") ||
+			strings.Contains(errMsg, "api key") ||
+			strings.Contains(errMsg, "authentication") {
+			return nil, domainErrors.ErrGeminiAPIKeyInvalid.WithError(err)
+		}
 		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error creating AI client", err)
 	}
 
@@ -67,12 +74,29 @@ func NewGeminiIssueContentGenerator(ctx context.Context, cfg *config.Config, onC
 }
 
 func (s *GeminiIssueContentGenerator) defaultGenerate(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
-	// Don't force JSON mode - let the model return structured text
 	genConfig := GetGenerateConfig(mName, "")
+	log := logger.FromContext(ctx)
 
 	resp, err := s.Client.Models.GenerateContent(ctx, mName, genai.Text(p), genConfig)
 	if err != nil {
-		return nil, nil, err
+		log.Error("gemini API call failed",
+			"error", err,
+			"model", mName)
+
+		errMsg := strings.ToLower(err.Error())
+		if strings.Contains(errMsg, "quota") ||
+			strings.Contains(errMsg, "rate limit") ||
+			strings.Contains(errMsg, "resource exhausted") {
+			return nil, nil, domainErrors.ErrGeminiQuotaExceeded.WithError(err)
+		}
+
+		if strings.Contains(errMsg, "invalid") ||
+			strings.Contains(errMsg, "unauthorized") ||
+			strings.Contains(errMsg, "api key") {
+			return nil, nil, domainErrors.ErrGeminiAPIKeyInvalid.WithError(err)
+		}
+
+		return nil, nil, domainErrors.ErrAIGeneration.WithError(err)
 	}
 
 	usage := extractUsage(resp)

@@ -127,12 +127,12 @@ func initAIProviders(ctx context.Context, cfgApp *cfg.Config, t *i18n.Translatio
 
 	prAI, err := providers.NewPRSummarizer(ctx, cfgApp, onConfirmation)
 	if err != nil && !isCompletion {
-		logger.Warn(ctx, "could not create PRSummarizer", "error", err)
+		logger.Debug(ctx, "could not create PRSummarizer", "error", err)
 	}
 
 	issueAI, err := providers.NewIssueContentGenerator(ctx, cfgApp, onConfirmation)
 	if err != nil && !isCompletion {
-		logger.Warn(ctx, "could not create IssueContentGenerator", "error", err)
+		logger.Debug(ctx, "could not create IssueContentGenerator", "error", err)
 	}
 
 	return commitAI, prAI, issueAI
@@ -141,17 +141,16 @@ func initAIProviders(ctx context.Context, cfgApp *cfg.Config, t *i18n.Translatio
 func initVCSClient(ctx context.Context, gitService *git.GitService, cfgApp *cfg.Config, isCompletion bool) ports.VCSClient {
 	vcsClient, err := providers.NewVCSClient(ctx, gitService, cfgApp)
 	if err != nil && !isCompletion {
-		logger.Warn(ctx, "could not create VCS client", "error", err)
+		logger.Debug(ctx, "could not create VCS client", "error", err)
 		return nil
 	}
-	// vcsClient can be nil if not in a git repository - this is OK
 	return vcsClient
 }
 
 func initTicketManager(ctx context.Context, cfgApp *cfg.Config, isCompletion bool) ports.TicketManager {
 	ticketMgr, err := providers.NewTicketManager(ctx, cfgApp)
 	if err != nil && !isCompletion {
-		logger.Warn(ctx, "could not create Ticket manager", "error", err)
+		logger.Debug(ctx, "could not create Ticket manager", "error", err)
 	}
 	return ticketMgr
 }
@@ -236,7 +235,26 @@ func handleVersionNotification(t *i18n.Translations) {
 			checker := services.NewVersionUpdater(
 				services.WithCurrentVersion(version.FullVersion()),
 			)
-			checker.NotifyUpdate(t)
+
+			updateInfo, err := checker.GetUpdateInfo()
+			if err != nil || updateInfo == nil {
+				return
+			}
+
+			yellow := color.New(color.FgYellow, color.Bold)
+			cyan := color.New(color.FgCyan)
+
+			fmt.Println()
+			_, _ = cyan.Println(t.GetMessage("update.box_top", 0, nil))
+			_, _ = yellow.Println(t.GetMessage("update.available", 0, map[string]interface{}{
+				"Current": updateInfo.CurrentVersion,
+				"Latest":  updateInfo.LatestVersion,
+			}))
+			fmt.Println(t.GetMessage("update.command", 0, map[string]interface{}{
+				"Command": "matecommit update",
+			}))
+			_, _ = cyan.Println(t.GetMessage("update.box_bottom", 0, nil))
+			fmt.Println()
 		}
 	}
 }

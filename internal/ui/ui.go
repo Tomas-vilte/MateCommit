@@ -208,109 +208,52 @@ func PrintErrorWithSuggestion(errMsg, suggestion string) {
 }
 
 // HandleAppError handles an application error and displays it in a friendly way.
-func HandleAppError(err error, t *i18n.Translations) {
+// If translations is nil, it will use English defaults.
+func HandleAppError(err error, translations ...*i18n.Translations) {
 	if err == nil {
 		return
 	}
 
-	var appErr *domainErrors.AppError
-	ok := errors.As(err, &appErr)
-	if !ok {
-		PrintError(os.Stdout, err.Error())
-		return
+	var t *i18n.Translations
+	if len(translations) > 0 && translations[0] != nil {
+		t = translations[0]
 	}
 
-	var msg, suggestion string
+	var appErr *domainErrors.AppError
+	if errors.As(err, &appErr) {
+		errorColor := color.New(color.FgRed, color.Bold)
+		suggestionColor := color.New(color.FgCyan)
+		dimColor := color.New(color.FgHiBlack)
 
-	switch appErr.Type {
-	case domainErrors.TypeConfiguration:
-		if appErr.Err != nil && strings.Contains(appErr.Err.Error(), "API key") {
-			msg = t.GetMessage("ui_error.ai_api_key_missing_generic", 0, nil)
-		} else {
-			msg = t.GetMessage("ui_error.config_missing", 0, nil)
+		fmt.Println()
+		_, _ = errorColor.Printf("❌ %s: %s\n", appErr.Type, appErr.Message)
+
+		if appErr.Err != nil {
+			_, _ = dimColor.Printf("   Details: %v\n", appErr.Err)
 		}
-		suggestion = t.GetMessage("ui_error.run_config_init", 0, nil)
-	case domainErrors.TypeGit:
-		if errors.Is(appErr, domainErrors.ErrNoChanges) {
-			msg = t.GetMessage("ui_error.no_changes_detected", 0, nil)
-			suggestion = t.GetMessage("ui_error.ensure_modified_files", 0, nil)
-		} else if errors.Is(appErr, domainErrors.ErrNoDiff) {
-			msg = t.GetMessage("ui_error.no_changes_detected", 0, nil)
-			suggestion = t.GetMessage("ui_error.ensure_modified_files", 0, nil)
-		} else if errors.Is(appErr, domainErrors.ErrGitUserNotConfigured) {
-			msg = t.GetMessage("ui_error.git_user_not_configured", 0, nil)
-			suggestion = t.GetMessage("ui_error.git_config_user_suggestion", 0, nil)
-		} else if errors.Is(appErr, domainErrors.ErrGitEmailNotConfigured) {
-			msg = t.GetMessage("ui_error.git_email_not_configured", 0, nil)
-			suggestion = t.GetMessage("ui_error.git_config_email_suggestion", 0, nil)
-		} else if errors.Is(appErr, domainErrors.ErrNotInGitRepo) {
-			msg = t.GetMessage("ui_error.not_in_git_repo", 0, nil)
-			suggestion = t.GetMessage("ui_error.git_init_suggestion", 0, nil)
-		} else if errors.Is(appErr, domainErrors.ErrInvalidBranch) {
-			msg = appErr.Message
-			suggestion = "Switch to main or master branch to create releases"
-		} else if errors.Is(appErr, domainErrors.ErrTagNotFound) {
-			msg = appErr.Message
-			if tagCtx, ok := appErr.Context["tag"].(string); ok {
-				suggestion = fmt.Sprintf("Tag '%s' not found in repository. Check available tags with: git tag -l", tagCtx)
+
+		if appErr.Suggestion != "" {
+			fmt.Println()
+			tryPrefix := "💡 Try: "
+			if t != nil {
+				tryPrefix = t.GetMessage("ui_error.try_suggestion", 0, nil)
 			}
-		} else if errors.Is(appErr, domainErrors.ErrInvalidTagFormat) {
-			msg = appErr.Message
-			suggestion = "Tags must follow semantic versioning format (vX.Y.Z), e.g., v1.0.0"
-		} else {
-			msg = appErr.Message
-			if appErr.Err != nil {
-				suggestion = appErr.Err.Error()
-			}
-			if appErr.Context != nil {
-				if file, ok := appErr.Context["file"].(string); ok {
-					suggestion = fmt.Sprintf("File: %s - %s", file, suggestion)
+			_, _ = suggestionColor.Printf("%s", tryPrefix)
+			lines := strings.Split(appErr.Suggestion, "\n")
+			for i, line := range lines {
+				if i == 0 {
+					fmt.Println(line)
+				} else {
+					fmt.Printf("       %s\n", line)
 				}
 			}
 		}
-	case domainErrors.TypeAI:
-		if errors.Is(appErr, domainErrors.ErrGeminiAPIKeyInvalid) {
-			msg = t.GetMessage("ui_error.gemini_api_key_invalid", 0, nil)
-			suggestion = t.GetMessage("ui_error.gemini_api_key_suggestion", 0, nil)
-		} else if errors.Is(appErr, domainErrors.ErrGeminiQuotaExceeded) {
-			msg = t.GetMessage("ui_error.gemini_quota_exceeded", 0, nil)
-			suggestion = t.GetMessage("ui_error.gemini_quota_suggestion", 0, nil)
-		} else {
-			msg = t.GetMessage("ui.error_generating_suggestions", 0, nil)
-			if appErr.Err != nil {
-				suggestion = appErr.Err.Error()
-			}
-		}
-	case domainErrors.TypeVCS:
-		if errors.Is(appErr, domainErrors.ErrGitHubTokenInvalid) {
-			msg = t.GetMessage("ui_error.github_token_invalid", 0, nil)
-			suggestion = t.GetMessage("ui_error.github_token_suggestion", 0, nil)
-		} else if errors.Is(appErr, domainErrors.ErrGitHubInsufficientPerms) {
-			msg = t.GetMessage("ui_error.github_insufficient_perms", 0, nil)
-			suggestion = t.GetMessage("ui_error.github_perms_suggestion", 0, nil)
-		} else if errors.Is(appErr, domainErrors.ErrGitHubRateLimit) {
-			msg = t.GetMessage("ui_error.github_rate_limit", 0, nil)
-			suggestion = t.GetMessage("ui_error.github_rate_limit_suggestion", 0, nil)
-		} else {
-			msg = t.GetMessage("ui_error.vcs_error", 0, nil)
-			suggestion = t.GetMessage("ui_error.run_config_init", 0, nil)
-		}
-	case domainErrors.TypeUpdate:
-		msg = t.GetMessage("ui_error.update_failed", 0, nil)
-	case domainErrors.TypeInternal:
-		msg = t.GetMessage("ui_error.internal_error", 0, nil)
-		if appErr.Err != nil {
-			suggestion = appErr.Err.Error()
-		}
-	default:
-		msg = appErr.Error()
+		fmt.Println()
+
+		return
 	}
 
-	if msg == "" {
-		msg = appErr.Error()
-	}
-
-	PrintErrorWithSuggestion(msg, suggestion)
+	PrintError(os.Stdout, err.Error())
 }
 
 func PrintKeyValue(key, value string) {

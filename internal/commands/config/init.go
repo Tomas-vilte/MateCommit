@@ -3,13 +3,17 @@ package config
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/fatih/color"
+	"github.com/google/go-github/v80/github"
 	"github.com/thomas-vilte/matecommit/internal/ai/gemini"
 	"github.com/thomas-vilte/matecommit/internal/commands/completion_helper"
 	"github.com/thomas-vilte/matecommit/internal/config"
@@ -240,8 +244,19 @@ func configureVCS(reader *bufio.Reader, cfg *config.Config, t *i18n.Translations
 	vcsProvidersStr := strings.Join(vcsProviders, ", ")
 
 	printSection(t.GetMessage("init.section_vcs", 0, nil))
-	if ui.AskConfirmation(t.GetMessage("init.prompt_vcs_enable_blank_no", 0, struct{ Providers string }{vcsProvidersStr})) {
-		provider := "github"
+
+	if !ui.AskConfirmation(t.GetMessage("init.prompt_vcs_enable_blank_no", 0, struct{ Providers string }{vcsProvidersStr})) {
+		fmt.Println(t.GetMessage("init.info_vcs_skipped", 0, nil))
+		return nil
+	}
+
+	provider := "github"
+
+	for {
+		ui.PrintInfo(t.GetMessage("config.github_token_instructions", 0, nil))
+		ui.PrintInfo(t.GetMessage("config.get_token_at", 0, struct{ URL string }{"https://github.com/settings/tokens/new"}))
+		fmt.Println()
+
 		fmt.Print(t.GetMessage("init.prompt_github_token_blank_skip", 0, nil))
 		token, err := reader.ReadString('\n')
 		if err != nil {
@@ -249,18 +264,32 @@ func configureVCS(reader *bufio.Reader, cfg *config.Config, t *i18n.Translations
 		}
 		token = strings.TrimSpace(token)
 
-		if token != "" {
-			if cfg.VCSConfigs == nil {
-				cfg.VCSConfigs = make(map[string]config.VCSConfig)
-			}
-			cfg.VCSConfigs[provider] = config.VCSConfig{
-				Provider: provider,
-				Token:    token,
-			}
-			cfg.ActiveVCSProvider = provider
-		} else {
+		if token == "" {
 			fmt.Println(t.GetMessage("init.info_vcs_skipped", 0, nil))
+			return nil
 		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		isValid := validateGitHubToken(ctx, token, t)
+		cancel()
+
+		if !isValid {
+			ui.PrintWarning(t.GetMessage("config.token_saved_unverified", 0, nil))
+			if ui.AskConfirmation(t.GetMessage("config.retry_token", 0, nil)) {
+				continue
+			}
+		}
+
+		if cfg.VCSConfigs == nil {
+			cfg.VCSConfigs = make(map[string]config.VCSConfig)
+		}
+		cfg.VCSConfigs[provider] = config.VCSConfig{
+			Provider: provider,
+			Token:    token,
+		}
+		cfg.ActiveVCSProvider = provider
+
+		break
 	}
 
 	return nil
@@ -269,7 +298,9 @@ func configureVCS(reader *bufio.Reader, cfg *config.Config, t *i18n.Translations
 func configureTickets(reader *bufio.Reader, cfg *config.Config, t *i18n.Translations) error {
 	ticketProviders := config.SupportedTicketServices()
 	ticketProvidersStr := strings.Join(ticketProviders, ", ")
+
 	printSection(t.GetMessage("init.section_tickets", 0, nil))
+
 	if !ui.AskConfirmation(t.GetMessage("init.prompt_ticket_enable_blank_no", 0, struct{ Providers string }{ticketProvidersStr})) {
 		disableTickets(cfg)
 		return nil
@@ -278,61 +309,79 @@ func configureTickets(reader *bufio.Reader, cfg *config.Config, t *i18n.Translat
 	cfg.UseTicket = true
 	cfg.ActiveTicketService = "jira"
 
-	fmt.Print(t.GetMessage("init.prompt_jira_base_url_blank_cancel", 0, nil))
-	jiraURL, err := reader.ReadString('\n')
-	if err != nil {
-		return fmt.Errorf("error reading Jira URL: %w", err)
-	}
-	jiraURL = strings.TrimSpace(jiraURL)
+	for {
+		fmt.Print(t.GetMessage("init.prompt_jira_base_url_blank_cancel", 0, nil))
+		jiraURL, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("error reading Jira URL: %w", err)
+		}
+		jiraURL = strings.TrimSpace(jiraURL)
 
-	if jiraURL == "" {
-		fmt.Println(t.GetMessage("init.info_jira_canceled", 0, nil))
-		disableTickets(cfg)
-		return nil
-	}
+		if jiraURL == "" {
+			fmt.Println(t.GetMessage("init.info_jira_canceled", 0, nil))
+			disableTickets(cfg)
+			return nil
+		}
 
-	if !isValidURL(jiraURL) {
-		fmt.Println(t.GetMessage("init.warning_invalid_url", 0, nil))
-	}
+		if !isValidURL(jiraURL) {
+			ui.PrintWarning(t.GetMessage("init.warning_invalid_url", 0, nil))
+			if !ui.AskConfirmation(t.GetMessage("init.confirm_continue_anyway", 0, nil)) {
+				continue
+			}
+		}
 
-	fmt.Print(t.GetMessage("init.prompt_jira_email_blank_cancel", 0, nil))
-	jiraEmail, err := reader.ReadString('\n')
-	if err != nil {
-		return fmt.Errorf("error reading Jira email: %w", err)
-	}
-	jiraEmail = strings.TrimSpace(jiraEmail)
+		fmt.Print(t.GetMessage("init.prompt_jira_email_blank_cancel", 0, nil))
+		jiraEmail, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("error reading Jira email: %w", err)
+		}
+		jiraEmail = strings.TrimSpace(jiraEmail)
 
-	if jiraEmail == "" {
-		fmt.Println(t.GetMessage("init.info_jira_canceled", 0, nil))
-		disableTickets(cfg)
-		return nil
-	}
+		if jiraEmail == "" {
+			fmt.Println(t.GetMessage("init.info_jira_canceled", 0, nil))
+			disableTickets(cfg)
+			return nil
+		}
 
-	if !isValidEmail(jiraEmail) {
-		fmt.Println(t.GetMessage("init.warning_invalid_email", 0, nil))
-	}
+		if !isValidEmail(jiraEmail) {
+			ui.PrintWarning(t.GetMessage("init.warning_invalid_email", 0, nil))
+		}
 
-	fmt.Print(t.GetMessage("init.prompt_jira_api_token_blank_cancel", 0, nil))
-	jiraToken, err := reader.ReadString('\n')
-	if err != nil {
-		return fmt.Errorf("error reading Jira token: %w", err)
-	}
-	jiraToken = strings.TrimSpace(jiraToken)
+		fmt.Print(t.GetMessage("init.prompt_jira_api_token_blank_cancel", 0, nil))
+		jiraToken, err := reader.ReadString('\n')
+		if err != nil {
+			return fmt.Errorf("error reading Jira token: %w", err)
+		}
+		jiraToken = strings.TrimSpace(jiraToken)
 
-	if jiraToken == "" {
-		fmt.Println(t.GetMessage("init.info_jira_canceled", 0, nil))
-		disableTickets(cfg)
-		return nil
-	}
+		if jiraToken == "" {
+			fmt.Println(t.GetMessage("init.info_jira_canceled", 0, nil))
+			disableTickets(cfg)
+			return nil
+		}
 
-	if cfg.TicketProviders == nil {
-		cfg.TicketProviders = make(map[string]config.TicketProviderConfig)
-	}
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		isValid := validateJiraConnection(ctx, jiraURL, jiraEmail, jiraToken, t)
+		cancel()
 
-	cfg.TicketProviders["jira"] = config.TicketProviderConfig{
-		APIKey:  jiraToken,
-		BaseURL: jiraURL,
-		Email:   jiraEmail,
+		if !isValid {
+			ui.PrintWarning(t.GetMessage("config.jira_saved_unverified", 0, nil))
+			if ui.AskConfirmation(t.GetMessage("config.retry_jira", 0, nil)) {
+				continue
+			}
+		}
+
+		if cfg.TicketProviders == nil {
+			cfg.TicketProviders = make(map[string]config.TicketProviderConfig)
+		}
+
+		cfg.TicketProviders["jira"] = config.TicketProviderConfig{
+			APIKey:  jiraToken,
+			BaseURL: jiraURL,
+			Email:   jiraEmail,
+		}
+
+		break
 	}
 
 	return nil
@@ -424,6 +473,176 @@ func validateGeminiAPIKey(ctx context.Context, apiKey string, t *i18n.Translatio
 	}
 
 	spinner.Success(t.GetMessage("config.api_key_valid", 0, nil))
+	return true
+}
+
+func validateGitHubToken(ctx context.Context, token string, t *i18n.Translations) bool {
+	if token == "" {
+		return false
+	}
+
+	ui.PrintInfo(t.GetMessage("config.validating_github_token", 0, nil))
+	spinner := ui.NewSmartSpinner(t.GetMessage("config.testing_github_connection", 0, nil))
+	spinner.Start()
+
+	testCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	client := github.NewClient(nil).WithAuthToken(token)
+
+	user, resp, err := client.Users.Get(testCtx, "")
+	if err != nil {
+		spinner.Error(t.GetMessage("config.github_token_invalid", 0, nil))
+		ui.PrintError(os.Stdout, t.GetMessage("config.check_token_error", 0, struct{ Error string }{err.Error()}))
+		return false
+	}
+
+	if resp.StatusCode != 200 {
+		spinner.Error(t.GetMessage("config.github_token_invalid", 0, nil))
+		return false
+	}
+
+	spinner.Success(t.GetMessage("config.github_token_valid", 0, nil))
+
+	cyan := color.New(color.FgCyan)
+	dim := color.New(color.FgHiBlack)
+	green := color.New(color.FgGreen)
+
+	fmt.Println()
+	_, _ = cyan.Println(t.GetMessage("config.github_token_info", 0, nil))
+	if user.Login != nil {
+		_, _ = dim.Printf("   %s\n", t.GetMessage("config.github_authenticated_as", 0, struct{ Login string }{green.Sprint(*user.Login)}))
+	}
+	if user.Name != nil && *user.Name != "" {
+		_, _ = dim.Printf("   %s\n", t.GetMessage("config.github_name_label", 0, struct{ Name string }{*user.Name}))
+	}
+
+	scopes := resp.Header.Get("X-OAuth-Scopes")
+	if scopes != "" {
+		_, _ = dim.Printf("\n   %s\n", t.GetMessage("config.github_detected_permissions", 0, nil))
+
+		scopeList := strings.Split(scopes, ", ")
+		hasRepo := false
+		hasWorkflow := false
+
+		for _, scope := range scopeList {
+			scope = strings.TrimSpace(scope)
+			switch scope {
+			case "repo":
+				hasRepo = true
+				_, _ = green.Printf("   %s\n", t.GetMessage("config.github_scope_repo", 0, struct{ Scope string }{scope}))
+			case "workflow":
+				hasWorkflow = true
+				_, _ = green.Printf("   %s\n", t.GetMessage("config.github_scope_workflow", 0, struct{ Scope string }{scope}))
+			case "admin:org":
+				_, _ = green.Printf("   %s\n", t.GetMessage("config.github_scope_admin_org", 0, struct{ Scope string }{scope}))
+			case "user":
+				_, _ = green.Printf("   %s\n", t.GetMessage("config.github_scope_user", 0, struct{ Scope string }{scope}))
+			default:
+				_, _ = dim.Printf("   %s\n", t.GetMessage("config.github_scope_other", 0, struct{ Scope string }{scope}))
+			}
+		}
+
+		if !hasRepo {
+			yellow := color.New(color.FgYellow)
+			_, _ = yellow.Printf("\n   %s\n", t.GetMessage("config.github_missing_repo", 0, nil))
+		}
+		if !hasWorkflow {
+			yellow := color.New(color.FgYellow)
+			_, _ = yellow.Printf("   %s\n", t.GetMessage("config.github_missing_workflow", 0, nil))
+		}
+	}
+
+	fmt.Println()
+	return true
+}
+
+func validateJiraConnection(ctx context.Context, baseURL, email, token string, t *i18n.Translations) bool {
+	if baseURL == "" || email == "" || token == "" {
+		return false
+	}
+
+	ui.PrintInfo(t.GetMessage("config.validating_jira_connection", 0, nil))
+	spinner := ui.NewSmartSpinner(t.GetMessage("config.testing_jira_connection", 0, nil))
+	spinner.Start()
+
+	testCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
+	client := &http.Client{
+		Timeout: 15 * time.Second,
+	}
+
+	testURL := strings.TrimSuffix(baseURL, "/") + "/rest/api/3/myself"
+
+	req, err := http.NewRequestWithContext(testCtx, "GET", testURL, nil)
+	if err != nil {
+		spinner.Error(t.GetMessage("config.jira_connection_failed", 0, nil))
+		ui.PrintError(os.Stdout, t.GetMessage("config.jira_error_creating_request", 0, struct{ Error error }{err}))
+		return false
+	}
+
+	req.SetBasicAuth(email, token)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		spinner.Error(t.GetMessage("config.jira_connection_failed", 0, nil))
+		ui.PrintError(os.Stdout, t.GetMessage("config.check_jira_error", 0, struct{ Error string }{err.Error()}))
+		return false
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			return
+		}
+	}()
+
+	if resp.StatusCode != 200 {
+		spinner.Error(t.GetMessage("config.jira_connection_failed", 0, nil))
+		var errorMsg string
+		switch resp.StatusCode {
+		case 401:
+			errorMsg = t.GetMessage("config.jira_invalid_credentials", 0, nil)
+		case 403:
+			errorMsg = t.GetMessage("config.jira_access_denied", 0, nil)
+		default:
+			errorMsg = t.GetMessage("config.jira_http_error", 0, struct{ Code int }{resp.StatusCode})
+		}
+		ui.PrintError(os.Stdout, errorMsg)
+		return false
+	}
+
+	var userInfo struct {
+		AccountID    string `json:"accountId"`
+		EmailAddress string `json:"emailAddress"`
+		DisplayName  string `json:"displayName"`
+		Active       bool   `json:"active"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		spinner.Success(t.GetMessage("config.jira_connection_valid", 0, nil))
+		return true
+	}
+
+	spinner.Success(t.GetMessage("config.jira_connection_valid", 0, nil))
+
+	cyan := color.New(color.FgCyan)
+	dim := color.New(color.FgHiBlack)
+	green := color.New(color.FgGreen)
+
+	fmt.Println()
+	_, _ = cyan.Println(t.GetMessage("config.jira_connection_info", 0, nil))
+	if userInfo.DisplayName != "" {
+		_, _ = dim.Printf("   %s\n", t.GetMessage("config.jira_user_label", 0, struct{ User string }{green.Sprint(userInfo.DisplayName)}))
+	}
+	if userInfo.EmailAddress != "" {
+		_, _ = dim.Printf("   %s\n", t.GetMessage("config.jira_email_label", 0, struct{ Email string }{userInfo.EmailAddress}))
+	}
+	if userInfo.Active {
+		_, _ = green.Printf("   %s\n", t.GetMessage("config.jira_status_active", 0, nil))
+	}
+	fmt.Println()
+
 	return true
 }
 

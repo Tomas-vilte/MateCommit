@@ -870,7 +870,14 @@ func (s *ReleaseService) FindVersionFile(ctx context.Context) (string, string, e
 		return foundFile, foundPattern, nil
 	}
 
-	return "", "", fmt.Errorf("could not find version file for project type: %s", projectType)
+	if files, ok := versionFilesByLanguage[projectType]; ok {
+		return "", "", domainErrors.ErrVersionFileNotFound.
+			WithContext("project_type", projectType).
+			WithContext("searched_paths", files)
+	}
+
+	return "", "", domainErrors.ErrVersionFileNotFound.
+		WithContext("project_type", projectType)
 }
 
 func (s *ReleaseService) ValidateMainBranch(ctx context.Context) error {

@@ -134,7 +134,9 @@ func (b *BinaryBuilder) BuildBinary(ctx context.Context, target BuildTarget) (st
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", errors.NewAppError(errors.TypeInternal, fmt.Sprintf("failed to compile for %s/%s: %s", target.GOOS, target.GOARCH, string(output)), err)
+		return "", errors.ErrBuildFailed.WithError(err).
+			WithContext("platform", fmt.Sprintf("%s/%s", target.GOOS, target.GOARCH)).
+			WithContext("output", string(output))
 	}
 
 	return outputPath, nil

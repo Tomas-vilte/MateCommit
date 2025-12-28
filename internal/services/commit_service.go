@@ -247,6 +247,9 @@ func (s *CommitService) getOrCreateVCSClient(ctx context.Context) (ports.VCSClie
 
 	switch provider {
 	case "github":
+		if vcsConfig.Token == "" {
+			return nil, domainErrors.ErrTokenMissing
+		}
 		log.Debug("VCS client created successfully", "provider", "github")
 		return github.NewGitHubClient(owner, repo, vcsConfig.Token), nil
 	default:

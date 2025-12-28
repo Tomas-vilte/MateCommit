@@ -16,10 +16,11 @@ const (
 
 // AppError represents a domain-level error with a type and an underlying error
 type AppError struct {
-	Type    ErrorType
-	Message string
-	Context map[string]interface{}
-	Err     error
+	Type       ErrorType
+	Message    string
+	Context    map[string]interface{}
+	Err        error
+	Suggestion string
 }
 
 func (e *AppError) Error() string {
@@ -30,7 +31,6 @@ func (e *AppError) Error() string {
 		msg = fmt.Sprintf("%s: %s", e.Type, e.Message)
 	}
 
-	// Include stderr context if available for better error messages
 	if e.Context != nil {
 		if stderr, ok := e.Context["stderr"].(string); ok && stderr != "" {
 			msg += fmt.Sprintf(" - %s", stderr)
@@ -47,10 +47,11 @@ func (e *AppError) Unwrap() error {
 // WithError creates a new AppError with an underlying error
 func (e *AppError) WithError(err error) *AppError {
 	return &AppError{
-		Type:    e.Type,
-		Message: e.Message,
-		Context: e.Context,
-		Err:     err,
+		Type:       e.Type,
+		Message:    e.Message,
+		Context:    e.Context,
+		Err:        err,
+		Suggestion: e.Suggestion,
 	}
 }
 
@@ -62,10 +63,21 @@ func (e *AppError) WithContext(key string, value interface{}) *AppError {
 	}
 	ctx[key] = value
 	return &AppError{
-		Type:    e.Type,
-		Message: e.Message,
-		Context: ctx,
-		Err:     e.Err,
+		Type:       e.Type,
+		Message:    e.Message,
+		Context:    ctx,
+		Err:        e.Err,
+		Suggestion: e.Suggestion,
+	}
+}
+
+func (e *AppError) WithSuggestion(suggestion string) *AppError {
+	return &AppError{
+		Type:       e.Type,
+		Message:    e.Message,
+		Context:    e.Context,
+		Err:        e.Err,
+		Suggestion: suggestion,
 	}
 }
 
@@ -80,81 +92,163 @@ func NewAppError(t ErrorType, msg string, err error) *AppError {
 
 // Git errors
 var (
-	ErrNoChanges             = NewAppError(TypeGit, "no staged changes detected", nil)
-	ErrGetBranch             = NewAppError(TypeGit, "failed to get current branch", nil)
-	ErrNoBranch              = NewAppError(TypeGit, "no branch detected", nil)
-	ErrGetRepoRoot           = NewAppError(TypeGit, "failed to get repository root", nil)
-	ErrGetRepoURL            = NewAppError(TypeGit, "failed to get repository URL", nil)
-	ErrGetCommits            = NewAppError(TypeGit, "failed to get commits", nil)
-	ErrGetCommitCount        = NewAppError(TypeGit, "failed to get commit count", nil)
-	ErrGetRecentCommits      = NewAppError(TypeGit, "failed to get recent commit messages", nil)
-	ErrAddFile               = NewAppError(TypeGit, "failed to add file to staging", nil)
-	ErrExtractRepoInfo       = NewAppError(TypeGit, "failed to extract repository info", nil)
-	ErrCreateTag             = NewAppError(TypeGit, "failed to create tag", nil)
-	ErrPushTag               = NewAppError(TypeGit, "failed to push tag", nil)
-	ErrPush                  = NewAppError(TypeGit, "failed to push to remote", nil)
-	ErrFetchTags             = NewAppError(TypeGit, "failed to fetch tags from remote", nil)
-	ErrCreateCommit          = NewAppError(TypeGit, "failed to create commit", nil)
-	ErrGetDiff               = NewAppError(TypeGit, "failed to get diff", nil)
-	ErrNoDiff                = NewAppError(TypeGit, "no differences detected", nil)
-	ErrInvalidBranch         = NewAppError(TypeGit, "must be on main or master branch to create releases", nil)
-	ErrTagNotFound           = NewAppError(TypeGit, "tag not found in repository history", nil)
-	ErrInvalidTagFormat      = NewAppError(TypeGit, "tag does not match semver format (vX.Y.Z)", nil)
-	ErrValidateTag           = NewAppError(TypeGit, "failed to validate tag existence", nil)
-	ErrGetChangedFiles       = NewAppError(TypeGit, "failed to get changed files", nil)
-	ErrGetTagDate            = NewAppError(TypeGit, "failed to get tag date", nil)
-	ErrGetGitUser            = NewAppError(TypeGit, "failed to get git user configuration", nil)
-	ErrGitUserNotConfigured  = NewAppError(TypeGit, "git user.name not configured", nil)
-	ErrGitEmailNotConfigured = NewAppError(TypeGit, "git user.email not configured", nil)
-	ErrNotInGitRepo          = NewAppError(TypeGit, "not in a git repository", nil)
+	ErrNoChanges = NewAppError(TypeGit, "No staged changes detected", nil).
+			WithSuggestion("Stage your changes first with: git add <files>")
+
+	ErrGetBranch = NewAppError(TypeGit, "Failed to get current branch", nil).
+			WithSuggestion("Make sure you are in a git repository: git status")
+
+	ErrNoBranch = NewAppError(TypeGit, "No branch detected", nil).
+			WithSuggestion("Create a branch first: git checkout -b <branch-name>")
+
+	ErrGetRepoRoot = NewAppError(TypeGit, "Failed to get repository root", nil).
+			WithSuggestion("Make sure you are inside a git repository")
+
+	ErrGetRepoURL = NewAppError(TypeGit, "Failed to get repository URL", nil).
+			WithSuggestion("Add a remote: git remote add origin <url>")
+
+	ErrGetCommits = NewAppError(TypeGit, "Failed to get commits", nil).
+			WithSuggestion("Make sure you have commits in your repository: git log")
+
+	ErrGetCommitCount = NewAppError(TypeGit, "Failed to get commit count", nil)
+
+	ErrGetRecentCommits = NewAppError(TypeGit, "Failed to get recent commit messages", nil).
+				WithSuggestion("Verify repository has commits: git log --oneline")
+
+	ErrAddFile = NewAppError(TypeGit, "Failed to add file to staging", nil).
+			WithSuggestion("Check if the file exists and you have write permissions")
+
+	ErrExtractRepoInfo = NewAppError(TypeGit, "Failed to extract repository info", nil)
+
+	ErrCreateTag = NewAppError(TypeGit, "Failed to create tag", nil).
+			WithSuggestion("Make sure the tag doesn't already exist: git tag -l")
+
+	ErrPushTag = NewAppError(TypeGit, "Failed to push tag", nil).
+			WithSuggestion("Check your remote connection: git remote -v")
+
+	ErrPush = NewAppError(TypeGit, "Failed to push to remote", nil).
+		WithSuggestion("Verify remote is configured: git remote -v")
+
+	ErrFetchTags = NewAppError(TypeGit, "Failed to fetch tags from remote", nil).
+			WithSuggestion("Check your network connection and remote access")
+
+	ErrCreateCommit = NewAppError(TypeGit, "Failed to create commit", nil).
+			WithSuggestion("Ensure git user is configured:\n   git config --global user.name \"Your Name\"\n   git config --global user.email \"your@email.com\"")
+
+	ErrGetDiff = NewAppError(TypeGit, "Failed to get diff", nil).
+			WithSuggestion("Check if you have staged changes: git status")
+
+	ErrNoDiff = NewAppError(TypeGit, "No differences detected", nil).
+			WithSuggestion("Stage your changes first: git add <files>")
+
+	ErrInvalidBranch = NewAppError(TypeGit, "Must be on main or master branch to create releases", nil).
+				WithSuggestion("Switch to main branch: git checkout main")
+
+	ErrTagNotFound = NewAppError(TypeGit, "Tag not found in repository history", nil).
+			WithSuggestion("List available tags: git tag -l")
+
+	ErrInvalidTagFormat = NewAppError(TypeGit, "Tag does not match semver format (vX.Y.Z)", nil).
+				WithSuggestion("Use semantic versioning format: v1.0.0, v2.1.3, etc.")
+
+	ErrValidateTag = NewAppError(TypeGit, "Failed to validate tag existence", nil)
+
+	ErrGetChangedFiles = NewAppError(TypeGit, "Failed to get changed files", nil).
+				WithSuggestion("Verify you have staged changes: git status")
+
+	ErrGetTagDate = NewAppError(TypeGit, "Failed to get tag date", nil)
+
+	ErrGetGitUser = NewAppError(TypeGit, "Failed to get git user configuration", nil).
+			WithSuggestion("Configure git user:\n   git config --global user.name \"Your Name\"\n   git config --global user.email \"your@email.com\"")
+
+	ErrGitUserNotConfigured = NewAppError(TypeGit, "git user.name not configured", nil).
+				WithSuggestion("Set your git username: git config --global user.name \"Your Name\"")
+
+	ErrGitEmailNotConfigured = NewAppError(TypeGit, "git user.email not configured", nil).
+					WithSuggestion("Set your git email: git config --global user.email \"your@email.com\"")
+
+	ErrNotInGitRepo = NewAppError(TypeGit, "Not in a git repository", nil).
+			WithSuggestion("Initialize a git repository: git init")
 )
 
 // Configuration errors
 var (
-	ErrAPIKeyMissing = NewAppError(TypeConfiguration, "AI API key is missing", nil)
-	ErrTokenMissing  = NewAppError(TypeConfiguration, "VCS token is missing", nil)
-	ErrConfigMissing = NewAppError(TypeConfiguration, "configuration is missing", nil)
+	ErrAPIKeyMissing = NewAppError(TypeConfiguration, "AI API key is missing", nil).
+				WithSuggestion("Run: matecommit config init --quick")
+
+	ErrTokenMissing = NewAppError(TypeConfiguration, "VCS Token is missing", nil).
+			WithSuggestion("Configure GitHub token: matecommit config init --full")
+
+	ErrConfigMissing = NewAppError(TypeConfiguration, "Configuration is missing", nil).
+				WithSuggestion("Initialize configuration: matecommit config init")
 )
 
 // VCS errors
 var (
-	ErrRepositoryNotFound = NewAppError(TypeVCS, "repository not found", nil)
-	ErrVCSNotSupported    = NewAppError(TypeVCS, "VCS provider not supported", nil)
-	ErrCreateRelease      = NewAppError(TypeVCS, "failed to create release", nil)
-	ErrUpdateRelease      = NewAppError(TypeVCS, "failed to update release", nil)
-	ErrGetRelease         = NewAppError(TypeVCS, "failed to get release", nil)
-	ErrUploadAsset        = NewAppError(TypeVCS, "failed to upload release asset", nil)
+	ErrRepositoryNotFound = NewAppError(TypeVCS, "repository not found", nil).
+				WithSuggestion("Check repository URL and access permissions")
+
+	ErrVCSNotSupported = NewAppError(TypeVCS, "VCS provider not supported", nil).
+				WithSuggestion("Currently only GitHub is supported")
+
+	ErrCreateRelease = NewAppError(TypeVCS, "failed to create release", nil).
+				WithSuggestion("Check your GitHub token has 'repo' permissions")
+
+	ErrUpdateRelease = NewAppError(TypeVCS, "failed to update release", nil).
+				WithSuggestion("Verify the release exists: gh release list")
+
+	ErrGetRelease = NewAppError(TypeVCS, "failed to get release", nil).
+			WithSuggestion("List available releases: gh release list")
+
+	ErrUploadAsset = NewAppError(TypeVCS, "failed to upload release asset", nil).
+			WithSuggestion("Check file exists and is readable")
 )
 
 // GitHub/VCS specific errors
 var (
-	ErrGitHubTokenInvalid      = NewAppError(TypeVCS, "GitHub token is invalid or expired", nil)
-	ErrGitHubInsufficientPerms = NewAppError(TypeVCS, "GitHub token has insufficient permissions", nil)
-	ErrGitHubRateLimit         = NewAppError(TypeVCS, "GitHub API rate limit exceeded", nil)
+	ErrGitHubTokenInvalid = NewAppError(TypeVCS, "GitHub token is invalid or expired", nil).
+				WithSuggestion("Generate a new token at: https://github.com/settings/tokens\nThen run: matecommit config init --full")
+
+	ErrGitHubInsufficientPerms = NewAppError(TypeVCS, "GitHub token has insufficient permissions", nil).
+					WithSuggestion("Token needs 'repo' and 'workflow' scopes.\nRegenerate at: https://github.com/settings/tokens")
+
+	ErrGitHubRateLimit = NewAppError(TypeVCS, "GitHub API rate limit exceeded", nil).
+				WithSuggestion("Wait a few minutes or use a personal access token for higher limits")
 )
 
 // AI errors
 var (
-	ErrQuotaExceeded   = NewAppError(TypeAI, "AI quota exceeded or rate limited", nil)
-	ErrAIGeneration    = NewAppError(TypeAI, "AI generation failed", nil)
-	ErrInvalidAIOutput = NewAppError(TypeAI, "invalid AI output format", nil)
+	ErrQuotaExceeded = NewAppError(TypeAI, "AI quota exceeded or rate limited", nil).
+				WithSuggestion("Wait a few minutes and try again, or check your API quota")
+
+	ErrAIGeneration = NewAppError(TypeAI, "AI generation failed", nil).
+			WithSuggestion("Try again or check your API key configuration")
+
+	ErrInvalidAIOutput = NewAppError(TypeAI, "invalid AI output format", nil).
+				WithSuggestion("This is likely a temporary issue, please try again")
 )
 
 // Gemini/AI specific errors
 var (
-	ErrGeminiAPIKeyInvalid = NewAppError(TypeAI, "Gemini API key is invalid", nil)
-	ErrGeminiQuotaExceeded = NewAppError(TypeAI, "Gemini API quota exceeded", nil)
+	ErrGeminiAPIKeyInvalid = NewAppError(TypeAI, "Gemini API key is invalid", nil).
+				WithSuggestion("Get a valid API key at: https://makersuite.google.com/app/apikey\nThen run: matecommit config init --quick")
+
+	ErrGeminiQuotaExceeded = NewAppError(TypeAI, "Gemini API quota exceeded", nil).
+				WithSuggestion("Wait for quota to reset or upgrade your Gemini plan")
 )
 
 // Update errors
 var (
-	ErrUpdateFailed = NewAppError(TypeUpdate, "failed to update application", nil)
+	ErrUpdateFailed = NewAppError(TypeUpdate, "Failed to update application", nil).
+		WithSuggestion("Try manual update from: https://github.com/thomas-vilte/matecommit/releases")
 )
+
 var (
-	ErrBuildNoVersion      = NewAppError(TypeInternal, "build version not specified", nil)
-	ErrBuildNoCommit       = NewAppError(TypeInternal, "build commit not specified", nil)
-	ErrBuildNoBuildDir     = NewAppError(TypeInternal, "build directory not specified", nil)
-	ErrBuildNoDate         = NewAppError(TypeInternal, "build date not specified", nil)
-	ErrBuildFailed         = NewAppError(TypeInternal, "build operation failed", nil)
-	ErrVersionFileNotFound = NewAppError(TypeInternal, "version file not found", nil)
+	ErrBuildNoVersion  = NewAppError(TypeInternal, "Build version not specified", nil)
+	ErrBuildNoCommit   = NewAppError(TypeInternal, "Build commit not specified", nil)
+	ErrBuildNoBuildDir = NewAppError(TypeInternal, "Build directory not specified", nil)
+	ErrBuildNoDate     = NewAppError(TypeInternal, "Build date not specified", nil)
+	ErrBuildFailed     = NewAppError(TypeInternal, "Build operation failed", nil).
+				WithSuggestion("Check build logs for compilation errors or missing dependencies")
+	ErrVersionFileNotFound = NewAppError(TypeInternal, "Version file not found", nil).
+				WithSuggestion("Specify version file in config: matecommit config set version_file <path>")
 )

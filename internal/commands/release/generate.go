@@ -61,7 +61,7 @@ func generateReleaseAction(releaseSvc releaseService, trans *i18n.Translations) 
 			log.Error("failed to analyze next release",
 				"error", err,
 				"duration_ms", time.Since(start).Milliseconds())
-			ui.HandleAppError(err, trans)
+			ui.HandleAppError(err)
 			return fmt.Errorf("%s", trans.GetMessage("release.error_analyzing", 0, struct{ Error string }{err.Error()}))
 		}
 
@@ -78,7 +78,7 @@ func generateReleaseAction(releaseSvc releaseService, trans *i18n.Translations) 
 			log.Error("failed to generate release notes",
 				"error", err,
 				"duration_ms", time.Since(start).Milliseconds())
-			ui.HandleAppError(err, trans)
+			ui.HandleAppError(err)
 			return fmt.Errorf("%s", trans.GetMessage("release.error_generating_notes", 0, struct{ Error string }{err.Error()}))
 		}
 

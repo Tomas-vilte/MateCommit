@@ -58,6 +58,13 @@ func NewGeminiCommitSummarizer(ctx context.Context, cfg *config.Config, onConfir
 		Backend: genai.BackendGeminiAPI,
 	})
 	if err != nil {
+		errMsg := strings.ToLower(err.Error())
+		if strings.Contains(errMsg, "invalid") ||
+			strings.Contains(errMsg, "unauthorized") ||
+			strings.Contains(errMsg, "api key") ||
+			strings.Contains(errMsg, "authentication") {
+			return nil, domainErrors.ErrGeminiAPIKeyInvalid.WithError(err)
+		}
 		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error creating AI client", err)
 	}
 
@@ -102,8 +109,22 @@ func (s *GeminiCommitSummarizer) defaultGenerate(ctx context.Context, mName stri
 	if err != nil {
 		log.Error("gemini API call failed",
 			"error", err,
-			"model", mName)
-		return nil, nil, err
+			"model", mName,
+		)
+		errMsg := strings.ToLower(err.Error())
+		if strings.Contains(errMsg, "quota") ||
+			strings.Contains(errMsg, "rate limit") ||
+			strings.Contains(errMsg, "resource exhausted") {
+			return nil, nil, domainErrors.ErrGeminiQuotaExceeded.WithError(err)
+		}
+
+		if strings.Contains(errMsg, "invalid") ||
+			strings.Contains(errMsg, "unauthorized") ||
+			strings.Contains(errMsg, "api key") {
+			return nil, nil, domainErrors.ErrGeminiAPIKeyInvalid.WithError(err)
+		}
+
+		return nil, nil, domainErrors.ErrAIGeneration.WithError(err)
 	}
 
 	usage := extractUsage(resp)
@@ -143,7 +164,7 @@ func (s *GeminiCommitSummarizer) GenerateSuggestions(ctx context.Context, info m
 	if err != nil {
 		log.Error("failed to generate suggestions",
 			"error", err)
-		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error generating content", err)
+		return nil, err
 	}
 
 	var responseText string
@@ -154,7 +175,9 @@ func (s *GeminiCommitSummarizer) GenerateSuggestions(ctx context.Context, info m
 	}
 
 	if responseText == "" {
-		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "empty response from AI", nil)
+		return nil, domainErrors.ErrInvalidAIOutput.
+			WithContext("reason", "empty response from AI").
+			WithContext("operation", "generate commit suggestions")
 	}
 
 	suggestions, err := s.parseSuggestionsJSON(responseText)
@@ -164,11 +187,16 @@ func (s *GeminiCommitSummarizer) GenerateSuggestions(ctx context.Context, info m
 		if respLen > 500 {
 			preview = responseText[:500] + "..."
 		}
-		return nil, domainErrors.NewAppError(domainErrors.TypeAI, fmt.Sprintf("error parsing AI JSON response (length: %d): %s", respLen, preview), err)
+		return nil, domainErrors.ErrInvalidAIOutput.
+			WithContext("reason", "failed to parse JSON").
+			WithContext("response_length", respLen).
+			WithContext("preview", preview).
+			WithError(err)
 	}
 	if len(suggestions) == 0 {
 		log.Warn("AI generated no suggestions")
-		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "AI generated no suggestions", nil)
+		return nil, domainErrors.ErrInvalidAIOutput.
+			WithContext("reason", "AI generated no suggestions")
 	}
 	for i := range suggestions {
 		suggestions[i].Usage = usage

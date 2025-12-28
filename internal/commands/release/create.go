@@ -120,7 +120,7 @@ func createReleaseAction(releaseSvc releaseService, trans *i18n.Translations, re
 			log.Error("failed to generate release notes",
 				"error", err,
 				"duration_ms", time.Since(start).Milliseconds())
-			ui.HandleAppError(err, trans)
+			ui.HandleAppError(err)
 			return fmt.Errorf("%s", trans.GetMessage("release.error_generating_notes", 0, struct{ Error string }{err.Error()}))
 		}
 

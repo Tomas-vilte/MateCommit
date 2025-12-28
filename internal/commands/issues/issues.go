@@ -228,7 +228,7 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 				"from_diff", fromDiff,
 				"from_pr", fromPR,
 				"duration_ms", time.Since(start).Milliseconds())
-			ui.HandleAppError(err, t)
+			ui.HandleAppError(err)
 			return err
 		}
 
@@ -275,7 +275,7 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 			log.Error("failed to create issue",
 				"error", err,
 				"duration_ms", time.Since(start).Milliseconds())
-			ui.HandleAppError(err, t)
+			ui.HandleAppError(err)
 			return err
 		}
 
@@ -437,7 +437,7 @@ func (f *IssuesCommandFactory) createLinkAction(t *i18n.Translations, _ *config.
 			log.Error("failed to create issue service",
 				"error", err,
 				"duration_ms", time.Since(start).Milliseconds())
-			ui.HandleAppError(err, t)
+			ui.HandleAppError(err)
 			return err
 		}
 

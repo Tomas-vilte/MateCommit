@@ -45,6 +45,13 @@ func NewReleaseNotesGenerator(ctx context.Context, cfg *config.Config, onConfirm
 		Backend: genai.BackendGeminiAPI,
 	})
 	if err != nil {
+		errMsg := strings.ToLower(err.Error())
+		if strings.Contains(errMsg, "invalid") ||
+			strings.Contains(errMsg, "unauthorized") ||
+			strings.Contains(errMsg, "api key") ||
+			strings.Contains(errMsg, "authentication") {
+			return nil, domainErrors.ErrGeminiAPIKeyInvalid.WithError(err)
+		}
 		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error creating AI client", err)
 	}
 
@@ -80,10 +87,28 @@ func NewReleaseNotesGenerator(ctx context.Context, cfg *config.Config, onConfirm
 
 func (g *ReleaseNotesGenerator) defaultGenerate(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
 	genConfig := GetGenerateConfig(mName, "application/json")
+	log := logger.FromContext(ctx)
 
 	resp, err := g.Client.Models.GenerateContent(ctx, mName, genai.Text(p), genConfig)
 	if err != nil {
-		return nil, nil, err
+		log.Error("gemini API call failed",
+			"error", err,
+			"model", mName)
+
+		errMsg := strings.ToLower(err.Error())
+		if strings.Contains(errMsg, "quota") ||
+			strings.Contains(errMsg, "rate limit") ||
+			strings.Contains(errMsg, "resource exhausted") {
+			return nil, nil, domainErrors.ErrGeminiQuotaExceeded.WithError(err)
+		}
+
+		if strings.Contains(errMsg, "invalid") ||
+			strings.Contains(errMsg, "unauthorized") ||
+			strings.Contains(errMsg, "api key") {
+			return nil, nil, domainErrors.ErrGeminiAPIKeyInvalid.WithError(err)
+		}
+
+		return nil, nil, domainErrors.ErrAIGeneration.WithError(err)
 	}
 
 	usage := extractUsage(resp)
@@ -131,7 +156,9 @@ func (g *ReleaseNotesGenerator) GenerateNotes(ctx context.Context, release *mode
 
 	if responseText == "" {
 		log.Error("empty response from gemini AI")
-		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "empty response from AI", nil)
+		return nil, domainErrors.ErrInvalidAIOutput.
+			WithContext("reason", "empty response from AI").
+			WithContext("operation", "generate release notes")
 	}
 
 	log.Debug("gemini response received",

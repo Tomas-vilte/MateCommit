@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 )
 
@@ -35,6 +36,29 @@ type BudgetStatus struct {
 type Manager struct {
 	historyPath string
 	budgetDaily float64
+}
+
+type CommandStats struct {
+	Command      string
+	CallCount    int
+	TotalCost    float64
+	TotalTokens  int
+	AvgCost      float64
+	CacheHitRate float64
+}
+
+type StatsBreakdown struct {
+	ByCommand  []CommandStats
+	TotalCalls int
+	TotalCost  float64
+}
+
+type ForecastStats struct {
+	MonthToDate       float64
+	DaysInMonth       int
+	DaysElapsed       int
+	DailyAverage      float64
+	ProjectedMonthEnd float64
 }
 
 func NewManager(budgetDaily float64) (*Manager, error) {
@@ -183,6 +207,121 @@ func (m *Manager) GetMonthlyTotal() (float64, error) {
 // GetHistory gets all records
 func (m *Manager) GetHistory() ([]ActivityRecord, error) {
 	return m.loadHistory()
+}
+
+// GetBreakdownByCommand returns usage statistics grouped by command
+func (m *Manager) GetBreakdownByCommand() (*StatsBreakdown, error) {
+	records, err := m.GetHistory()
+	if err != nil {
+		return nil, err
+	}
+
+	currentMonth := time.Now().Format("2006-01")
+	commandMap := make(map[string]*CommandStats)
+	totalCalls := 0
+	totalCost := 0.0
+
+	for _, record := range records {
+		if record.Timestamp.Format("2006-01") != currentMonth {
+			continue
+		}
+
+		totalCalls++
+		totalCost += record.CostUSD
+
+		stats, exists := commandMap[record.Command]
+		if !exists {
+			stats = &CommandStats{
+				Command: record.Command,
+			}
+			commandMap[record.Command] = stats
+		}
+
+		stats.CallCount++
+		stats.TotalCost += record.CostUSD
+		stats.TotalTokens += record.TokensInput + record.TokensOutput
+
+		if record.CacheHit {
+			stats.CacheHitRate++
+		}
+	}
+
+	breakdown := &StatsBreakdown{
+		ByCommand:  make([]CommandStats, 0, len(commandMap)),
+		TotalCalls: totalCalls,
+		TotalCost:  totalCost,
+	}
+
+	for _, stats := range commandMap {
+		if stats.CallCount > 0 {
+			stats.AvgCost = stats.TotalCost / float64(stats.CallCount)
+			stats.CacheHitRate = (stats.CacheHitRate / float64(stats.CallCount)) * 100
+		}
+		breakdown.ByCommand = append(breakdown.ByCommand, *stats)
+	}
+
+	sort.Slice(breakdown.ByCommand, func(i, j int) bool {
+		return breakdown.ByCommand[i].TotalCost > breakdown.ByCommand[j].TotalCost
+	})
+	return breakdown, nil
+}
+
+// GetForecast calculates projected monthly spending
+func (m *Manager) GetForecast() (*ForecastStats, error) {
+	monthTotal, err := m.GetMonthlyTotal()
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now()
+	daysInMonth := time.Date(now.Year(), now.Month()+1, 0, 0, 0, 0, 0, time.UTC).Day()
+	daysElapsed := now.Day()
+
+	var dailyAvg float64
+	if daysElapsed > 0 {
+		dailyAvg = monthTotal / float64(daysElapsed)
+	}
+
+	projected := dailyAvg * float64(daysInMonth)
+
+	return &ForecastStats{
+		MonthToDate:       monthTotal,
+		DaysInMonth:       daysInMonth,
+		DaysElapsed:       daysElapsed,
+		DailyAverage:      dailyAvg,
+		ProjectedMonthEnd: projected,
+	}, nil
+}
+
+// GetCacheStats returns cache hit statistics
+func (m *Manager) GetCacheStats() (hitRate float64, totalSaved float64, err error) {
+	records, err := m.GetHistory()
+	if err != nil {
+		return 0, 0, err
+	}
+
+	currentMonth := time.Now().Format("2006-01")
+	totalCalls := 0
+	cacheHits := 0
+	var saved float64
+
+	for _, record := range records {
+		if record.Timestamp.Format("2006-01") != currentMonth {
+			continue
+		}
+
+		totalCalls++
+		if record.CacheHit {
+			cacheHits++
+			saved += record.CostUSD
+		}
+	}
+
+	if totalCalls > 0 {
+		hitRate = (float64(cacheHits) / float64(totalCalls)) * 100
+	}
+
+	return hitRate, saved, nil
 }
 
 func (m *Manager) loadHistory() ([]ActivityRecord, error) {
