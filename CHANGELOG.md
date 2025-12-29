@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.6.0]
+
+[v1.6.0]: https://github.com/thomas-vilte/matecommit/compare/v1.5.0...v1.6.0
+
+In this release, we focused on expanding the ecosystem with new integrations and providing better control over local project configurations. We also introduced advanced diagnostics and cost tracking to give you more transparency into your AI-powered commit workflow.
+
+### ✨ Highlights
+
+- Expanded Ecosystem: We introduced new modules for AI, Jira, and GitHub to streamline your development workflow.
+- Local Configuration Control: We added support for repository-local configurations and improved how settings like language and emojis are merged.
+- Enhanced Transparency: We implemented cost breakdowns, forecasts, and cache statistics so you can monitor your usage effectively.
+- Improved Diagnostics: We added a new 'doctor' command and dry-run mode to help troubleshoot and verify changes before they happen.
+- Refined UX: We overhauled documentation, updated i18n templates, and added version update notifications to keep you informed.
+
 ## [v1.5.0]
 
 [v1.5.0]: https://github.com/thomas-vilte/matecommit/compare/v1.4.0...v1.5.0
