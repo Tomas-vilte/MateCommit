@@ -162,7 +162,7 @@ func LoadConfigWithHierarchy(globalPath string) (*Config, error) {
 func MergeConfigs(global, local *Config) *Config {
 	result := *global
 
-	if local.Language != "" && local.Language != defaultLang {
+	if local.Language != "" {
 		result.Language = local.Language
 	}
 	if local.SuggestionsCount > 0 {

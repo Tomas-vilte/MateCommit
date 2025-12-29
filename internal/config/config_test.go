@@ -360,3 +360,69 @@ func TestValidateConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestMergeConfigs(t *testing.T) {
+	t.Run("should merge local language over global when local is non-default", func(t *testing.T) {
+		global := &Config{
+			Language: "en",
+			UseEmoji: true,
+		}
+		local := &Config{
+			Language: "es",
+		}
+
+		result := MergeConfigs(global, local)
+
+		if result.Language != "es" {
+			t.Errorf("Language = %v, want %v", result.Language, "es")
+		}
+	})
+
+	t.Run("should merge local language over global when local is default (en)", func(t *testing.T) {
+		global := &Config{
+			Language: "es",
+			UseEmoji: true,
+		}
+		local := &Config{
+			Language: "en",
+		}
+
+		result := MergeConfigs(global, local)
+
+		if result.Language != "en" {
+			t.Errorf("Language = %v, want %v (local 'en' should override global 'es')", result.Language, "en")
+		}
+	})
+
+	t.Run("should not override global language when local is empty", func(t *testing.T) {
+		global := &Config{
+			Language: "es",
+			UseEmoji: true,
+		}
+		local := &Config{
+			Language: "",
+		}
+
+		result := MergeConfigs(global, local)
+
+		if result.Language != "es" {
+			t.Errorf("Language = %v, want %v (empty local should not override)", result.Language, "es")
+		}
+	})
+
+	t.Run("should merge UseEmoji from local", func(t *testing.T) {
+		global := &Config{
+			Language: "en",
+			UseEmoji: true,
+		}
+		local := &Config{
+			UseEmoji: false,
+		}
+
+		result := MergeConfigs(global, local)
+
+		if result.UseEmoji != false {
+			t.Errorf("UseEmoji = %v, want %v", result.UseEmoji, false)
+		}
+	})
+}
