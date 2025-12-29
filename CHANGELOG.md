@@ -2,35 +2,6 @@
 
 All notable changes to this project will be documented in this file.
 
-## [v1.6.0]
-
-[v1.6.0]: https://github.com/thomas-vilte/matecommit/compare/v1.5.0...v1.6.0
-
-In this release, we focused on giving you more control over your environment with repository-local configurations and deeper integration with AI and project management tools. We also introduced comprehensive real-time feedback and cost monitoring to make your workflow more transparent and efficient.
-
-### ✨ Highlights
-
-- We introduced repository-local configurations and smarter Git fallbacks, allowing you to tailor settings like language and emoji usage specifically for each project.
-- We added real-time build progress and a new 'doctor' diagnostic tool to help you troubleshoot environment issues instantly.
-- We expanded our ecosystem with new AI, Jira, and GitHub modules, streamlining how you interact with external platforms directly from the CLI.
-- We implemented a comprehensive stats dashboard, including cost breakdowns, forecasts, and cache usage, so you can monitor your resource consumption at a glance.
-- We improved safety and DX with a new dry-run mode, enhanced error handling, and automatic version update notifications.
-- We overhauled our documentation and internationalization templates to provide a more consistent experience across different languages (#67).
-
-## [v1.6.0]
-
-[v1.6.0]: https://github.com/thomas-vilte/matecommit/compare/v1.5.0...v1.6.0
-
-In this release, we focused on expanding the ecosystem with new integrations and providing better control over local project configurations. We also introduced advanced diagnostics and cost tracking to give you more transparency into your AI-powered commit workflow.
-
-### ✨ Highlights
-
-- Expanded Ecosystem: We introduced new modules for AI, Jira, and GitHub to streamline your development workflow.
-- Local Configuration Control: We added support for repository-local configurations and improved how settings like language and emojis are merged.
-- Enhanced Transparency: We implemented cost breakdowns, forecasts, and cache statistics so you can monitor your usage effectively.
-- Improved Diagnostics: We added a new 'doctor' command and dry-run mode to help troubleshoot and verify changes before they happen.
-- Refined UX: We overhauled documentation, updated i18n templates, and added version update notifications to keep you informed.
-
 ## [v1.5.0]
 
 [v1.5.0]: https://github.com/thomas-vilte/matecommit/compare/v1.4.0...v1.5.0
