@@ -31,7 +31,7 @@ It handles the boring parts of the workflow:
 ## Demo
 
 <div style="text-align:center">
-  <img src="./assets/demo.gif" alt="MateCommit Demo" width="1843">
+  <img src="./assets/demo_commits.gif" alt="MateCommit Demo" width="1843">
 </div>
 
 <details>
