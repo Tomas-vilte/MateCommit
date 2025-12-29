@@ -723,6 +723,13 @@ error = "Error updating MateCommit"
 [build]
 compiling_binaries = "Compiling binaries for multiple platforms..."
 uploading_binaries = "Uploading {{.Count}} binaries to release..."
+preparing_binaries = "📦 Preparing release binaries..."
+building_platform = "⚙️  Compiling {{.Platform}}..."
+platform_ready = "✅ {{.Platform}} ready ({{.Current}}/{{.Total}})"
+all_binaries_ready = "🎉 All {{.Count}} binaries built successfully"
+build_failed = "❌ Build failed: {{.Error}}"
+uploading_asset = "📤 Uploading {{.Asset}} ({{.Current}}/{{.Total}})..."
+upload_complete = "✅ All {{.Count}} binaries uploaded successfully"
 
 [issue]
 command_usage = "Manage and generate issues"

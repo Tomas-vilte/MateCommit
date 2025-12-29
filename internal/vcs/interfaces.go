@@ -20,7 +20,8 @@ type VCSClient interface {
 	AddLabelsToPR(ctx context.Context, prNumber int, labels []string) error
 	// CreateRelease creates a new release in the repository
 	// buildBinaries indicates whether binaries should be compiled and uploaded (optional, only some providers support it)
-	CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool) error
+	// progressCh is an optional channel to receive build/upload progress events
+	CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool, progressCh chan<- models.BuildProgress) error
 	// GetRelease gets the release from the repository
 	GetRelease(ctx context.Context, version string) (*models.VCSRelease, error)
 	// UpdateRelease updates a release from the repository

@@ -186,7 +186,7 @@ func TestCreateCommand_WithPublish(t *testing.T) {
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
 	mockService.On("CreateTag", mock.Anything, "v1.0.0", mock.Anything).Return(nil)
 
-	mockService.On("PublishRelease", mock.Anything, release, notes, false, true).Return(nil)
+	mockService.On("PublishRelease", mock.Anything, release, notes, false, true, mock.Anything).Return(nil)
 
 	err := runCreateTest(t, "y\n", []string{"--publish"}, mockService)
 	assert.NoError(t, err)
@@ -205,7 +205,7 @@ func TestCreateCommand_WithPublishDraft(t *testing.T) {
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
 	mockService.On("CreateTag", mock.Anything, "v1.0.0", mock.Anything).Return(nil)
 
-	mockService.On("PublishRelease", mock.Anything, release, notes, true, true).Return(nil)
+	mockService.On("PublishRelease", mock.Anything, release, notes, true, true, mock.Anything).Return(nil)
 
 	err := runCreateTest(t, "y\n", []string{"--publish", "--draft"}, mockService)
 	assert.NoError(t, err)
@@ -224,7 +224,7 @@ func TestCreateCommand_PublishError(t *testing.T) {
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
 	mockService.On("CreateTag", mock.Anything, "v1.0.0", mock.Anything).Return(nil)
 
-	mockService.On("PublishRelease", mock.Anything, release, notes, false, true).Return(errors.New("publish error"))
+	mockService.On("PublishRelease", mock.Anything, release, notes, false, true, mock.Anything).Return(errors.New("publish error"))
 
 	err := runCreateTest(t, "y\n", []string{"--publish"}, mockService)
 	assert.Error(t, err)

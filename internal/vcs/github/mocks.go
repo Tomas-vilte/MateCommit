@@ -7,6 +7,7 @@ import (
 	"github.com/google/go-github/v80/github"
 	"github.com/stretchr/testify/mock"
 	"github.com/thomas-vilte/matecommit/internal/builder"
+	"github.com/thomas-vilte/matecommit/internal/models"
 )
 
 type MockPRService struct {
@@ -127,8 +128,8 @@ type MockBinaryPackager struct {
 	mock.Mock
 }
 
-func (m *MockBinaryPackager) BuildAndPackageAll(ctx context.Context) ([]string, error) {
-	args := m.Called(ctx)
+func (m *MockBinaryPackager) BuildAndPackageAll(ctx context.Context, progressCh chan<- models.BuildProgress) ([]string, error) {
+	args := m.Called(ctx, progressCh)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -140,8 +141,6 @@ type MockBinaryBuilderFactory struct {
 }
 
 func (m *MockBinaryBuilderFactory) NewBuilder(mainPath, binaryName string, opts ...builder.Option) binaryBuilder {
-	// Variadic arguments in mock.Called need careful handling.
-	// We'll pass them as a single argument for simplicity in this mock.
 	args := m.Called(mainPath, binaryName, opts)
 	if args.Get(0) == nil {
 		return nil

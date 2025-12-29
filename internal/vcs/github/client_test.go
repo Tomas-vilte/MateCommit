@@ -420,7 +420,7 @@ func TestGitHubClient_CreateRelease(t *testing.T) {
 			}
 		}()
 
-		mockPackager.On("BuildAndPackageAll", mock.Anything).
+		mockPackager.On("BuildAndPackageAll", mock.Anything, mock.Anything).
 			Return([]string{tmpFile.Name()}, nil)
 
 		mockRelease.On("UploadReleaseAsset", mock.Anything, "test-owner", "test-repo", int64(123), mock.Anything, mock.Anything).
@@ -433,7 +433,7 @@ func TestGitHubClient_CreateRelease(t *testing.T) {
 		repo.On("GetCommit", mock.Anything, "test-owner", "test-repo", "HEAD", mock.Anything).
 			Return(&github.RepositoryCommit{SHA: github.Ptr("sha123"), Commit: &github.Commit{Committer: &github.CommitAuthor{Date: &github.Timestamp{Time: time.Now()}}}}, &github.Response{}, nil)
 
-		err = client.CreateRelease(context.Background(), release, notes, false, true)
+		err = client.CreateRelease(context.Background(), release, notes, false, true, nil)
 		assert.NoError(t, err)
 		mockRelease.AssertExpectations(t)
 	})
@@ -452,7 +452,7 @@ func TestGitHubClient_CreateRelease(t *testing.T) {
 		mockRelease.On("CreateRelease", mock.Anything, "test-owner", "test-repo", mock.Anything).
 			Return(&github.RepositoryRelease{}, resp, assert.AnError)
 
-		err := client.CreateRelease(context.Background(), release, notes, false, true)
+		err := client.CreateRelease(context.Background(), release, notes, false, true, nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to create release")
 	})
@@ -471,7 +471,7 @@ func TestGitHubClient_CreateRelease(t *testing.T) {
 		mockRelease.On("CreateRelease", mock.Anything, "test-owner", "test-repo", mock.Anything).
 			Return(&github.RepositoryRelease{}, resp, assert.AnError)
 
-		err := client.CreateRelease(context.Background(), release, notes, false, true)
+		err := client.CreateRelease(context.Background(), release, notes, false, true, nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "repository not found")
 	})
@@ -489,7 +489,7 @@ func TestGitHubClient_CreateRelease(t *testing.T) {
 		mockRelease.On("CreateRelease", mock.Anything, "test-owner", "test-repo", mock.Anything).
 			Return(&github.RepositoryRelease{}, &github.Response{Response: &http.Response{StatusCode: http.StatusInternalServerError}}, assert.AnError)
 
-		err := client.CreateRelease(context.Background(), release, notes, false, true)
+		err := client.CreateRelease(context.Background(), release, notes, false, true, nil)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to create release")
 	})

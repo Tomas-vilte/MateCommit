@@ -61,7 +61,7 @@ type UsersService interface {
 
 // binaryBuilder is a minimal interface for testing purposes
 type binaryBuilder interface {
-	BuildAndPackageAll(ctx context.Context) ([]string, error)
+	BuildAndPackageAll(ctx context.Context, progressCh chan<- models.BuildProgress) ([]string, error)
 }
 
 // binaryBuilderFactory is a minimal interface for testing purposes
@@ -329,7 +329,7 @@ func (ghc *GitHubClient) CreateLabel(ctx context.Context, name, color, descripti
 	return err
 }
 
-func (ghc *GitHubClient) CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool) error {
+func (ghc *GitHubClient) CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool, progressCh chan<- models.BuildProgress) error {
 	body := notes.Changelog
 	if body == "" {
 		body = fmt.Sprintf("# %s\n\n%s\n\n", notes.Title, notes.Summary)
@@ -379,7 +379,7 @@ func (ghc *GitHubClient) CreateRelease(ctx context.Context, release *models.Rele
 	}
 
 	if buildBinaries {
-		if err := ghc.uploadBinaries(ctx, createdRelease.GetID(), release.Version); err != nil {
+		if err := ghc.uploadBinaries(ctx, createdRelease.GetID(), release.Version, progressCh); err != nil {
 			return fmt.Errorf("failed to upload binaries: %w", err)
 		}
 	}
@@ -1009,7 +1009,7 @@ func (ghc *GitHubClient) isAllowedLabel(label string) bool {
 	return exists
 }
 
-func (ghc *GitHubClient) uploadBinaries(ctx context.Context, releaseID int64, version string) error {
+func (ghc *GitHubClient) uploadBinaries(ctx context.Context, releaseID int64, version string, progressCh chan<- models.BuildProgress) error {
 	tempDir, err := os.MkdirTemp("", "matecommit-build-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temporary directory for build: %w", err)
@@ -1040,7 +1040,9 @@ func (ghc *GitHubClient) uploadBinaries(ctx context.Context, releaseID int64, ve
 	log.Info("compiling binaries for release",
 		"version", version,
 		"build_dir", tempDir)
-	archives, err := builderBinary.BuildAndPackageAll(ctx)
+
+	// Compilar binarios (el builder enviará eventos de progreso)
+	archives, err := builderBinary.BuildAndPackageAll(ctx, progressCh)
 	if err != nil {
 		return fmt.Errorf("failed to build binaries: %w", err)
 	}
@@ -1049,15 +1051,38 @@ func (ghc *GitHubClient) uploadBinaries(ctx context.Context, releaseID int64, ve
 		"archives_count", len(archives),
 		"release_id", releaseID,
 		"version", version)
-	for _, archivePath := range archives {
+
+	if progressCh != nil {
+		progressCh <- models.BuildProgress{
+			Type:  models.UploadProgressStart,
+			Total: len(archives),
+		}
+	}
+
+	for i, archivePath := range archives {
+		archiveName := filepath.Base(archivePath)
+
+		if progressCh != nil {
+			progressCh <- models.BuildProgress{
+				Type:    models.UploadProgressAsset,
+				Asset:   archiveName,
+				Current: i + 1,
+				Total:   len(archives),
+			}
+		}
+
+		log.Info("uploading asset",
+			"asset", archiveName,
+			"progress", fmt.Sprintf("%d/%d", i+1, len(archives)))
+
 		file, err := os.Open(archivePath)
 		if err != nil {
 			return fmt.Errorf("failed to open archive %s: %w", archivePath, err)
 		}
 
 		uploadOpts := &github.UploadOptions{
-			Name:  filepath.Base(archivePath),
-			Label: filepath.Base(archivePath),
+			Name:  archiveName,
+			Label: archiveName,
 		}
 
 		_, _, err = ghc.releaseService.UploadReleaseAsset(ctx, ghc.owner, ghc.repo, releaseID, uploadOpts, file)
@@ -1067,7 +1092,19 @@ func (ghc *GitHubClient) uploadBinaries(ctx context.Context, releaseID int64, ve
 				WithContext("asset_path", archivePath).
 				WithContext("release_id", releaseID)
 		}
+
+		log.Info("asset uploaded successfully",
+			"asset", archiveName,
+			"progress", fmt.Sprintf("%d/%d", i+1, len(archives)))
 	}
+
+	if progressCh != nil {
+		progressCh <- models.BuildProgress{
+			Type:  models.UploadProgressComplete,
+			Total: len(archives),
+		}
+	}
+
 	return nil
 }
 

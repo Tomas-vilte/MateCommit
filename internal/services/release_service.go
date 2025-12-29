@@ -192,7 +192,7 @@ func (s *ReleaseService) GenerateReleaseNotes(ctx context.Context, release *mode
 	return s.notesGen.GenerateNotes(ctx, release)
 }
 
-func (s *ReleaseService) PublishRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool) error {
+func (s *ReleaseService) PublishRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool, progressCh chan<- models.BuildProgress) error {
 	log := logger.FromContext(ctx)
 
 	log.Info("publishing release",
@@ -205,7 +205,7 @@ func (s *ReleaseService) PublishRelease(ctx context.Context, release *models.Rel
 		return domainErrors.ErrConfigMissing
 	}
 
-	if err := s.vcsClient.CreateRelease(ctx, release, notes, draft, buildBinaries); err != nil {
+	if err := s.vcsClient.CreateRelease(ctx, release, notes, draft, buildBinaries, progressCh); err != nil {
 		log.Error("failed to publish release",
 			"error", err,
 			"version", release.Version)

@@ -63,10 +63,6 @@ func initializeApp() (*cli.Command, error) {
 		log.Fatalf("Error loading translations: %v", err)
 	}
 
-	if err = cfg.SaveConfig(cfgApp); err != nil {
-		return nil, err
-	}
-
 	ctx := context.Background()
 	gitService := git.NewGitService()
 	gitService.SetFallback(cfgApp.GitFallback.UserName, cfgApp.GitFallback.UserEmail)

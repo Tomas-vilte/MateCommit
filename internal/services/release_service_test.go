@@ -293,9 +293,9 @@ func TestReleaseService_PublishRelease(t *testing.T) {
 		release := &models.Release{Version: "v1.0.0"}
 		notes := &models.ReleaseNotes{Title: "Release v1.0.0"}
 
-		mockVCS.On("CreateRelease", mock.Anything, release, notes, false).Return(nil)
+		mockVCS.On("CreateRelease", mock.Anything, release, notes, false, true, mock.Anything).Return(nil)
 
-		err := service.PublishRelease(context.Background(), release, notes, false, true)
+		err := service.PublishRelease(context.Background(), release, notes, false, true, nil)
 
 		assert.NoError(t, err)
 		mockVCS.AssertExpectations(t)
@@ -307,7 +307,7 @@ func TestReleaseService_PublishRelease(t *testing.T) {
 		release := &models.Release{Version: "v1.0.0"}
 		notes := &models.ReleaseNotes{}
 
-		err := service.PublishRelease(context.Background(), release, notes, false, true)
+		err := service.PublishRelease(context.Background(), release, notes, false, true, nil)
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "CONFIGURATION: Configuration is missing")
@@ -320,9 +320,9 @@ func TestReleaseService_PublishRelease(t *testing.T) {
 		release := &models.Release{Version: "v1.0.0"}
 		notes := &models.ReleaseNotes{}
 
-		mockVCS.On("CreateRelease", mock.Anything, release, notes, true).Return(errors.New("publish failed"))
+		mockVCS.On("CreateRelease", mock.Anything, release, notes, true, true, mock.Anything).Return(errors.New("publish failed"))
 
-		err := service.PublishRelease(context.Background(), release, notes, true, true)
+		err := service.PublishRelease(context.Background(), release, notes, true, true, nil)
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "publish failed")

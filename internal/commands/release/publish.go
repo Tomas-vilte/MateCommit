@@ -110,7 +110,7 @@ func publishReleaseAction(releaseSvc releaseService,
 			Draft   string
 		}{release.Version, draftText}))
 
-		err = releaseSvc.PublishRelease(ctx, release, notes, draft, buildBinaries)
+		err = releaseSvc.PublishRelease(ctx, release, notes, draft, buildBinaries, nil)
 		if err != nil {
 			log.Error("failed to publish release",
 				"error", err,

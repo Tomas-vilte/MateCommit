@@ -748,6 +748,13 @@ error = "Error al actualizar MateCommit"
 [build]
 compiling_binaries = "Compilando binarios para múltiples plataformas..."
 uploading_binaries = "Subiendo {{.Count}} binarios al release..."
+preparing_binaries = "📦 Preparando binarios del release..."
+building_platform = "⚙️  Compilando {{.Platform}}..."
+platform_ready = "✅ {{.Platform}} listo ({{.Current}}/{{.Total}})"
+all_binaries_ready = "🎉 Todos los {{.Count}} binarios compilados exitosamente"
+build_failed = "❌ Falló la compilación: {{.Error}}"
+uploading_asset = "📤 Subiendo {{.Asset}} ({{.Current}}/{{.Total}})..."
+upload_complete = "✅ Todos los {{.Count}} binarios subidos exitosamente"
 
 [issue]
 command_usage = "Gestionar y generar issues"

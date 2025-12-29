@@ -20,7 +20,7 @@ import (
 type releaseService interface {
 	AnalyzeNextRelease(ctx context.Context) (*models.Release, error)
 	GenerateReleaseNotes(ctx context.Context, release *models.Release) (*models.ReleaseNotes, error)
-	PublishRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool) error
+	PublishRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool, progressCh chan<- models.BuildProgress) error
 	CreateTag(ctx context.Context, version, message string) error
 	PushTag(ctx context.Context, version string) error
 	GetRelease(ctx context.Context, version string) (*models.VCSRelease, error)

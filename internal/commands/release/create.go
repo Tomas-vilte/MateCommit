@@ -12,6 +12,7 @@ import (
 	cfg "github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/thomas-vilte/matecommit/internal/logger"
+	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ui"
 	"github.com/urfave/cli/v3"
 )
@@ -215,14 +216,91 @@ func createReleaseAction(releaseSvc releaseService, trans *i18n.Translations, re
 
 			fmt.Println(trans.GetMessage("release.publishing_release", 0, nil))
 			buildBinaries := cmd.Bool("build-binaries")
-			err := releaseSvc.PublishRelease(ctx, release, notes, cmd.Bool("draft"), buildBinaries)
-			if err != nil {
-				log.Error("failed to publish release",
-					"error", err,
-					"version", release.Version,
-					"duration_ms", time.Since(start).Milliseconds())
-				return fmt.Errorf("%s", trans.GetMessage("release.error_publishing_release", 0, struct{ Error string }{err.Error()}))
+
+			if buildBinaries {
+				progressCh := make(chan models.BuildProgress, 10)
+
+				var publishErr error
+				done := make(chan struct{})
+
+				go func() {
+					defer close(done)
+					var buildSpinner, uploadSpinner *ui.SmartSpinner
+
+					for progress := range progressCh {
+						switch progress.Type {
+						case models.BuildProgressStart:
+							buildSpinner = ui.NewSmartSpinner(trans.GetMessage("build.compiling_binaries", 0, nil))
+							buildSpinner.Start()
+
+						case models.BuildProgressPlatform:
+							if progress.Current > 0 && buildSpinner != nil {
+								buildSpinner.UpdateMessage(trans.GetMessage("build.platform_ready", 0, struct {
+									Platform string
+									Current  int
+									Total    int
+								}{progress.Platform, progress.Current, progress.Total}))
+							}
+
+						case models.BuildProgressComplete:
+							if buildSpinner != nil {
+								buildSpinner.Success(trans.GetMessage("build.all_binaries_ready", 0, struct{ Count int }{progress.Total}))
+								fmt.Println()
+							}
+
+						case models.UploadProgressStart:
+							uploadSpinner = ui.NewSmartSpinner(trans.GetMessage("build.uploading_binaries", 0, struct{ Count int }{progress.Total}))
+							uploadSpinner.Start()
+
+						case models.UploadProgressAsset:
+							if uploadSpinner != nil {
+								uploadSpinner.UpdateMessage(trans.GetMessage("build.uploading_asset", 0, struct {
+									Asset   string
+									Current int
+									Total   int
+								}{progress.Asset, progress.Current, progress.Total}))
+							}
+
+						case models.UploadProgressComplete:
+							if uploadSpinner != nil {
+								uploadSpinner.Success(trans.GetMessage("build.upload_complete", 0, struct{ Count int }{progress.Total}))
+								fmt.Println()
+							}
+
+						case models.BuildProgressError:
+							if buildSpinner != nil {
+								buildSpinner.Error(trans.GetMessage("build.build_failed", 0, struct{ Error string }{progress.Error.Error()}))
+							}
+							if uploadSpinner != nil {
+								uploadSpinner.Error(trans.GetMessage("build.build_failed", 0, struct{ Error string }{progress.Error.Error()}))
+							}
+						}
+					}
+				}()
+
+				publishErr = releaseSvc.PublishRelease(ctx, release, notes, cmd.Bool("draft"), buildBinaries, progressCh)
+				close(progressCh)
+
+				<-done
+
+				if publishErr != nil {
+					log.Error("failed to publish release",
+						"error", publishErr,
+						"version", release.Version,
+						"duration_ms", time.Since(start).Milliseconds())
+					return fmt.Errorf("%s", trans.GetMessage("release.error_publishing_release", 0, struct{ Error string }{publishErr.Error()}))
+				}
+			} else {
+				err := releaseSvc.PublishRelease(ctx, release, notes, cmd.Bool("draft"), false, nil)
+				if err != nil {
+					log.Error("failed to publish release",
+						"error", err,
+						"version", release.Version,
+						"duration_ms", time.Since(start).Milliseconds())
+					return fmt.Errorf("%s", trans.GetMessage("release.error_publishing_release", 0, struct{ Error string }{err.Error()}))
+				}
 			}
+
 			log.Info("release published successfully",
 				"version", release.Version,
 				"draft", cmd.Bool("draft"))
