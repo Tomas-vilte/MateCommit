@@ -73,7 +73,7 @@ func NewGeminiIssueContentGenerator(ctx context.Context, cfg *config.Config, onC
 }
 
 func (s *GeminiIssueContentGenerator) defaultGenerate(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
-	genConfig := GetGenerateConfig(mName, "")
+	genConfig := GetGenerateConfig(mName, "", nil)
 	log := logger.FromContext(ctx)
 
 	resp, err := s.Client.Models.GenerateContent(ctx, mName, genai.Text(p), genConfig)
@@ -277,8 +277,6 @@ func (s *GeminiIssueContentGenerator) parseIssueResponse(content string) (*model
 		}
 		logger.Debug(context.Background(), "parsing Gemini response", "content_length", len(content), "content_preview", preview)
 	}
-
-	content = ExtractJSON(content)
 
 	logger.Debug(context.Background(), "extracted JSON content",
 		"content_length", len(content),

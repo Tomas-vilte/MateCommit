@@ -278,6 +278,7 @@ config_vcs_updated = "Configuración del proveedor VCS '{{.Provider}}' actualiza
 config_set_active_vcs_usage = "Establecer el proveedor VCS activo"
 config_set_active_vcs_provider_usage = "Nombre del proveedor VCS a establecer como activo"
 config_active_vcs_updated = "Proveedor VCS activo establecido a '{{.Provider}}'"
+test_plan_generated = "✅ Plan de pruebas generado exitosamente"
 
 [pr_service]
 error_get_pr = "Error al obtener el PR: {{.Error}}"

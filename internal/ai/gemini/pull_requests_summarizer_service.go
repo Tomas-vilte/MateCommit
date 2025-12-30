@@ -29,6 +29,30 @@ type PRSummaryJSON struct {
 	Labels []string `json:"labels"`
 }
 
+func getPRSummarySchema() *genai.Schema {
+	return &genai.Schema{
+		Type:     genai.TypeObject,
+		Required: []string{"title", "body", "labels"},
+		Properties: map[string]*genai.Schema{
+			"title": {
+				Type:        genai.TypeString,
+				Description: "PR title (max 80 chars)",
+			},
+			"body": {
+				Type:        genai.TypeString,
+				Description: "Detailed markdown body with overview, key changes, and technical impact",
+			},
+			"labels": {
+				Type: genai.TypeArray,
+				Items: &genai.Schema{
+					Type: genai.TypeString,
+				},
+				Description: "Array of label strings (feature, fix, refactor, docs, infra, test, breaking-change)",
+			},
+		},
+	}
+}
+
 func NewGeminiPRSummarizer(ctx context.Context, cfg *config.Config, onConfirmation ai.ConfirmationCallback) (*GeminiPRSummarizer, error) {
 	providerCfg, exists := cfg.AIProviders["gemini"]
 	if !exists || providerCfg.APIKey == "" {
@@ -77,31 +101,27 @@ func NewGeminiPRSummarizer(ctx context.Context, cfg *config.Config, onConfirmati
 }
 
 func (gps *GeminiPRSummarizer) defaultGenerate(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
-	genConfig := GetGenerateConfig(mName, "application/json")
+	schema := getPRSummarySchema()
+	genConfig := GetGenerateConfig(mName, "application/json", schema)
 	log := logger.FromContext(ctx)
-
 	resp, err := gps.Client.Models.GenerateContent(ctx, mName, genai.Text(p), genConfig)
 	if err != nil {
 		log.Error("gemini API call failed",
 			"error", err,
 			"model", mName)
-
 		errMsg := strings.ToLower(err.Error())
 		if strings.Contains(errMsg, "quota") ||
 			strings.Contains(errMsg, "rate limit") ||
 			strings.Contains(errMsg, "resource exhausted") {
 			return nil, nil, domainErrors.ErrGeminiQuotaExceeded.WithError(err)
 		}
-
 		if strings.Contains(errMsg, "invalid") ||
 			strings.Contains(errMsg, "unauthorized") ||
 			strings.Contains(errMsg, "api key") {
 			return nil, nil, domainErrors.ErrGeminiAPIKeyInvalid.WithError(err)
 		}
-
 		return nil, nil, domainErrors.ErrAIGeneration.WithError(err)
 	}
-
 	usage := extractUsage(resp)
 	return resp, usage, nil
 }
@@ -146,7 +166,6 @@ func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prContent 
 			WithContext("operation", "summarize PR")
 	}
 
-	responseText = ExtractJSON(responseText)
 	var jsonSummary PRSummaryJSON
 	if err := json.Unmarshal([]byte(responseText), &jsonSummary); err != nil {
 		respLen := len(responseText)

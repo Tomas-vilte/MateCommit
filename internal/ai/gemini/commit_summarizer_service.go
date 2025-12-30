@@ -46,6 +46,71 @@ type (
 	}
 )
 
+// getCommitSuggestionSchema returns the JSON schema for commit suggestions
+func getCommitSuggestionSchema() *genai.Schema {
+	return &genai.Schema{
+		Type: genai.TypeArray,
+		Items: &genai.Schema{
+			Type:     genai.TypeObject,
+			Required: []string{"title", "desc", "files"},
+			Properties: map[string]*genai.Schema{
+				"title": {
+					Type:        genai.TypeString,
+					Description: "Commit title (type(scope): message)",
+				},
+				"desc": {
+					Type:        genai.TypeString,
+					Description: "Detailed explanation in first person",
+				},
+				"files": {
+					Type: genai.TypeArray,
+					Items: &genai.Schema{
+						Type: genai.TypeString,
+					},
+					Description: "Array of file paths as strings",
+				},
+				"analysis": {
+					Type:     genai.TypeObject,
+					Required: []string{"overview", "purpose", "impact"},
+					Properties: map[string]*genai.Schema{
+						"overview": {Type: genai.TypeString},
+						"purpose":  {Type: genai.TypeString},
+						"impact":   {Type: genai.TypeString},
+					},
+				},
+				"requirements": {
+					Type:     genai.TypeObject,
+					Required: []string{"status", "missing", "completed_indices", "suggestions"},
+					Properties: map[string]*genai.Schema{
+						"status": {
+							Type: genai.TypeString,
+							Enum: []string{"full_met", "partially_met", "not_met"},
+						},
+						"missing": {
+							Type: genai.TypeArray,
+							Items: &genai.Schema{
+								Type: genai.TypeString,
+							},
+						},
+						"completed_indices": {
+							Type: genai.TypeArray,
+							Items: &genai.Schema{
+								Type: genai.TypeInteger,
+							},
+						},
+						"suggestions": {
+							Type: genai.TypeArray,
+							Items: &genai.Schema{
+								Type: genai.TypeString,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func NewGeminiCommitSummarizer(ctx context.Context, cfg *config.Config, onConfirmation ai.ConfirmationCallback) (*GeminiCommitSummarizer, error) {
 	providerCfg, exists := cfg.AIProviders["gemini"]
 	if !exists || providerCfg.APIKey == "" {
@@ -97,13 +162,11 @@ func NewGeminiCommitSummarizer(ctx context.Context, cfg *config.Config, onConfir
 
 func (s *GeminiCommitSummarizer) defaultGenerate(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
 	log := logger.FromContext(ctx)
-
 	log.Debug("calling gemini API",
 		"model", mName,
 		"prompt_length", len(p))
-
-	genConfig := GetGenerateConfig(mName, "application/json")
-
+	schema := getCommitSuggestionSchema()
+	genConfig := GetGenerateConfig(mName, "application/json", schema)
 	resp, err := s.Client.Models.GenerateContent(ctx, mName, genai.Text(p), genConfig)
 	if err != nil {
 		log.Error("gemini API call failed",
@@ -116,23 +179,24 @@ func (s *GeminiCommitSummarizer) defaultGenerate(ctx context.Context, mName stri
 			strings.Contains(errMsg, "resource exhausted") {
 			return nil, nil, domainErrors.ErrGeminiQuotaExceeded.WithError(err)
 		}
-
 		if strings.Contains(errMsg, "invalid") ||
 			strings.Contains(errMsg, "unauthorized") ||
 			strings.Contains(errMsg, "api key") {
 			return nil, nil, domainErrors.ErrGeminiAPIKeyInvalid.WithError(err)
 		}
-
 		return nil, nil, domainErrors.ErrAIGeneration.WithError(err)
 	}
-
 	usage := extractUsage(resp)
-
-	log.Debug("gemini API response received",
-		"input_tokens", usage.InputTokens,
-		"output_tokens", usage.OutputTokens,
-		"candidates", len(resp.Candidates))
-
+	if usage != nil {
+		log.Debug("gemini API response received",
+			"input_tokens", usage.InputTokens,
+			"output_tokens", usage.OutputTokens,
+			"candidates", len(resp.Candidates))
+	} else {
+		log.Debug("gemini API response received",
+			"candidates", len(resp.Candidates),
+			"usage", "nil")
+	}
 	return resp, usage, nil
 }
 
@@ -216,15 +280,10 @@ func (s *GeminiCommitSummarizer) parseSuggestionsJSON(responseText string) ([]mo
 	if responseText == "" {
 		return nil, fmt.Errorf("empty response text from AI")
 	}
-
-	responseText = ExtractJSON(responseText)
-
 	var jsonSuggestions []CommitSuggestionJSON
 	if err := json.Unmarshal([]byte(responseText), &jsonSuggestions); err != nil {
-		// Log at default level (no context available here)
 		return nil, fmt.Errorf("error parsing JSON: %w", err)
 	}
-
 	suggestions := make([]models.CommitSuggestion, 0, len(jsonSuggestions))
 	for _, js := range jsonSuggestions {
 		suggestion := models.CommitSuggestion{
@@ -232,7 +291,6 @@ func (s *GeminiCommitSummarizer) parseSuggestionsJSON(responseText string) ([]mo
 			Explanation: js.Desc,
 			Files:       js.Files,
 		}
-
 		if js.Analysis != nil {
 			suggestion.CodeAnalysis = models.CodeAnalysis{
 				ChangesOverview: js.Analysis.OverView,
@@ -240,7 +298,6 @@ func (s *GeminiCommitSummarizer) parseSuggestionsJSON(responseText string) ([]mo
 				TechnicalImpact: js.Analysis.Impact,
 			}
 		}
-
 		if js.Requirements != nil {
 			suggestion.RequirementsAnalysis = models.RequirementsAnalysis{
 				CriteriaStatus:         models.CriteriaStatus(js.Requirements.Status),
@@ -248,10 +305,8 @@ func (s *GeminiCommitSummarizer) parseSuggestionsJSON(responseText string) ([]mo
 				ImprovementSuggestions: js.Requirements.Suggestions,
 			}
 		}
-
 		suggestions = append(suggestions, suggestion)
 	}
-
 	return suggestions, nil
 }
 

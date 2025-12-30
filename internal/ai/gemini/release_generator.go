@@ -33,6 +33,42 @@ type ReleaseNotesJSON struct {
 	Contributors    string   `json:"contributors"`
 }
 
+// getReleaseNotesSchema returns the JSON schema for release notes
+func getReleaseNotesSchema() *genai.Schema {
+	return &genai.Schema{
+		Type:     genai.TypeObject,
+		Required: []string{"title", "summary", "highlights", "breaking_changes", "contributors"},
+		Properties: map[string]*genai.Schema{
+			"title": {
+				Type:        genai.TypeString,
+				Description: "Concise and descriptive title",
+			},
+			"summary": {
+				Type:        genai.TypeString,
+				Description: "2-3 sentences explaining the release focus in first person plural",
+			},
+			"highlights": {
+				Type: genai.TypeArray,
+				Items: &genai.Schema{
+					Type: genai.TypeString,
+				},
+				Description: "Array of highlights as strings",
+			},
+			"breaking_changes": {
+				Type: genai.TypeArray,
+				Items: &genai.Schema{
+					Type: genai.TypeString,
+				},
+				Description: "Array of breaking changes as strings (or [] if none)",
+			},
+			"contributors": {
+				Type:        genai.TypeString,
+				Description: "Text with contributors (e.g., 'Thanks to @user1, @user2') or 'N/A'",
+			},
+		},
+	}
+}
+
 func NewReleaseNotesGenerator(ctx context.Context, cfg *config.Config, onConfirmation ai.ConfirmationCallback, owner, repo string) (*ReleaseNotesGenerator, error) {
 	providerCfg, exists := cfg.AIProviders["gemini"]
 	if !exists || providerCfg.APIKey == "" {
@@ -85,31 +121,27 @@ func NewReleaseNotesGenerator(ctx context.Context, cfg *config.Config, onConfirm
 }
 
 func (g *ReleaseNotesGenerator) defaultGenerate(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
-	genConfig := GetGenerateConfig(mName, "application/json")
+	schema := getReleaseNotesSchema()
+	genConfig := GetGenerateConfig(mName, "application/json", schema)
 	log := logger.FromContext(ctx)
-
 	resp, err := g.Client.Models.GenerateContent(ctx, mName, genai.Text(p), genConfig)
 	if err != nil {
 		log.Error("gemini API call failed",
 			"error", err,
 			"model", mName)
-
 		errMsg := strings.ToLower(err.Error())
 		if strings.Contains(errMsg, "quota") ||
 			strings.Contains(errMsg, "rate limit") ||
 			strings.Contains(errMsg, "resource exhausted") {
 			return nil, nil, domainErrors.ErrGeminiQuotaExceeded.WithError(err)
 		}
-
 		if strings.Contains(errMsg, "invalid") ||
 			strings.Contains(errMsg, "unauthorized") ||
 			strings.Contains(errMsg, "api key") {
 			return nil, nil, domainErrors.ErrGeminiAPIKeyInvalid.WithError(err)
 		}
-
 		return nil, nil, domainErrors.ErrAIGeneration.WithError(err)
 	}
-
 	usage := extractUsage(resp)
 	return resp, usage, nil
 }
@@ -305,8 +337,6 @@ func (g *ReleaseNotesGenerator) formatChangesForPrompt(release *models.Release) 
 }
 
 func (g *ReleaseNotesGenerator) parseJSONResponse(content string, release *models.Release) (*models.ReleaseNotes, error) {
-	content = ExtractJSON(content)
-
 	var jsonNotes ReleaseNotesJSON
 	if err := json.Unmarshal([]byte(content), &jsonNotes); err != nil {
 		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error parsing AI JSON response", err)

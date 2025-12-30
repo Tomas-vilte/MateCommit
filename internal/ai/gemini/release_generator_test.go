@@ -223,25 +223,6 @@ func TestParseJSONResponse(t *testing.T) {
 		assert.Contains(t, err.Error(), "error parsing AI JSON response")
 	})
 
-	t.Run("handles JSON with code fences", func(t *testing.T) {
-		// Arrange
-		content := "```json\n" + `{
-			"title": "Test",
-			"summary": "Summary",
-			"highlights": [],
-			"breaking_changes": [],
-			"contributors": ""
-		}` + "\n```"
-
-		// Act
-		notes, err := generator.parseJSONResponse(content, release)
-
-		// Assert
-		assert.NoError(t, err)
-		assert.Equal(t, "Test", notes.Title)
-		assert.Equal(t, "Summary", notes.Summary)
-	})
-
 	t.Run("handles N/A contributors", func(t *testing.T) {
 		content := `{"title": "T", "summary": "S", "highlights": [], "breaking_changes": [], "contributors": "N/A"}`
 		notes, err := generator.parseJSONResponse(content, release)

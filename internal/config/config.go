@@ -165,37 +165,26 @@ func GetRepoConfigPath() string {
 	return filepath.Join(repoRoot, ".matecommit", "config.json")
 }
 
-// LoadConfigWithHierarchy loads config with repository-local override support
-// Priority: local (.matecommit/config.json) > global (~/.config/matecommit/config.json)
+// LoadConfigWithHierarchy loads config with repository-local priority
+// If in a git repo, uses ONLY local config (.matecommit/config.json)
+// If not in a repo, falls back to global config (~/.config/matecommit/config.json)
 func LoadConfigWithHierarchy(globalPath string) (*Config, error) {
-	globalConfig, err := LoadConfig(globalPath)
-	if err != nil {
-		return nil, err
-	}
-
+	// If in a git repo, use local config ONLY
 	localPath := GetRepoConfigPath()
-	if localPath == "" {
-		return globalConfig, nil
+	if localPath != "" {
+		cfg, err := LoadConfig(localPath)
+		if err != nil {
+			// If local config doesn't exist, create it
+			if os.IsNotExist(err) {
+				return CreateDefaultConfig(localPath)
+			}
+			return nil, err
+		}
+		return cfg, nil
 	}
 
-	if _, err := os.Stat(localPath); os.IsNotExist(err) {
-		return globalConfig, nil
-	}
-
-	data, err := os.ReadFile(localPath)
-	if err != nil {
-		return globalConfig, nil
-	}
-
-	var localConfig Config
-	if err := json.Unmarshal(data, &localConfig); err != nil {
-		return globalConfig, nil
-	}
-
-	merged := MergeConfigs(globalConfig, &localConfig)
-	merged.PathFile = globalConfig.PathFile
-
-	return merged, nil
+	// Fallback to global only if not in a repo
+	return LoadConfig(globalPath)
 }
 
 // MergeConfigs merges local config over global config

@@ -35,7 +35,7 @@ func TestExtractUsage(t *testing.T) {
 
 func TestGetGenerateConfig(t *testing.T) {
 	t.Run("default config", func(t *testing.T) {
-		cfg := GetGenerateConfig("gemini-1.5-flash", "")
+		cfg := GetGenerateConfig("gemini-1.5-flash", "", nil)
 		assert.NotNil(t, cfg)
 		assert.Equal(t, float32(0.3), *cfg.Temperature)
 		assert.Empty(t, cfg.ResponseMIMEType)
@@ -43,77 +43,14 @@ func TestGetGenerateConfig(t *testing.T) {
 	})
 
 	t.Run("json response type", func(t *testing.T) {
-		cfg := GetGenerateConfig("gemini-1.5-flash", "application/json")
+		cfg := GetGenerateConfig("gemini-1.5-flash", "application/json", nil)
 		assert.Equal(t, "application/json", cfg.ResponseMIMEType)
 	})
 
 	t.Run("Thinking Mode for gemini-3", func(t *testing.T) {
-		cfg := GetGenerateConfig("gemini-3-flash-preview", "")
+		cfg := GetGenerateConfig("gemini-3-flash-preview", "", nil)
 		assert.NotNil(t, cfg.ThinkingConfig)
 		assert.True(t, cfg.ThinkingConfig.IncludeThoughts)
 		assert.Equal(t, genai.ThinkingLevelHigh, cfg.ThinkingConfig.ThinkingLevel)
 	})
-}
-
-func TestExtractJSON(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "pure JSON object",
-			input:    `{"key": "value"}`,
-			expected: `{"key": "value"}`,
-		},
-		{
-			name:     "pure JSON array",
-			input:    `[{"key": "value"}]`,
-			expected: `[{"key": "value"}]`,
-		},
-		{
-			name:     "markdown code block with json tag",
-			input:    "Sure, here is the JSON:\n```json\n{\"key\": \"value\"}\n```\nHope it helps!",
-			expected: `{"key": "value"}`,
-		},
-		{
-			name:     "markdown code block without tag",
-			input:    "```\n[1, 2, 3]\n```",
-			expected: `[1, 2, 3]`,
-		},
-		{
-			name:     "text before and after JSON object",
-			input:    "Some thinking content... {\"title\": \"fix bug\"} more text",
-			expected: `{"title": "fix bug"}`,
-		},
-		{
-			name:     "text before and after JSON array",
-			input:    "Reasoning: ... [{\"title\": \"feat\"}] end",
-			expected: `[{"title": "feat"}]`,
-		},
-		{
-			name:     "balanced matching with stray brackets in prose",
-			input:    "Thoughts [about stuff]: {\"key\": \"value\"} More text [end]",
-			expected: `{"key": "value"}`,
-		},
-		{
-			name: "unescaped newlines in JSON string",
-			input: `{"desc": "This is a
-multi-line
-description"}`,
-			expected: `{"desc": "This is a\nmulti-line\ndescription"}`,
-		},
-		{
-			name:     "empty input",
-			input:    "",
-			expected: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := ExtractJSON(tt.input)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
 }
