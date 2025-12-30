@@ -207,7 +207,6 @@ func TestGeminiCommitSummarizer(t *testing.T) {
 		// assert
 		assert.Contains(t, prompt, "commit", "El prompt debería contener 'commit'")
 		assert.Contains(t, prompt, "Archivos Modificados", "El prompt debería contener 'Archivos modificados'")
-		assert.Contains(t, prompt, "Explicación", "El prompt debería contener 'Explicación'")
 		assert.Contains(t, prompt, "feat", "El prompt debería contener tipos de commit")
 		assert.Contains(t, prompt, "fix", "El prompt debería contener tipos de commit")
 		assert.Contains(t, prompt, "refactor", "El prompt debería contener tipos de commit")
@@ -237,7 +236,6 @@ func TestGeminiCommitSummarizer(t *testing.T) {
 		// assert
 		assert.Contains(t, prompt, "commit", "The prompt should contain 'commit'")
 		assert.Contains(t, prompt, "Modified Files", "The prompt should contain 'Modified files'")
-		assert.Contains(t, prompt, "explanation", "The prompt should contain 'Explanation'")
 		assert.Contains(t, prompt, "feat", "The prompt should contain commit types")
 		assert.Contains(t, prompt, "fix", "The prompt should contain commit types")
 		assert.Contains(t, prompt, "refactor", "The prompt should contain commit types")

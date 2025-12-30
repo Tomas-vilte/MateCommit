@@ -69,9 +69,16 @@ func initConfigAction(cfg *config.Config, t *i18n.Translations) cli.ActionFunc {
 				return errors.New(t.GetMessage("config_local.not_in_repo", 0, nil))
 			}
 
-			localCfg, err := config.CreateDefaultConfig(localPath)
+			localCfg, err := config.LoadConfig(localPath)
 			if err != nil {
-				return fmt.Errorf("error creating local config: %w", err)
+				if os.IsNotExist(err) {
+					localCfg, err = config.CreateDefaultConfig(localPath)
+					if err != nil {
+						return fmt.Errorf("error creating local config: %w", err)
+					}
+				} else {
+					return fmt.Errorf("error loading local config: %w", err)
+				}
 			}
 
 			reader := bufio.NewReader(os.Stdin)

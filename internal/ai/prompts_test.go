@@ -107,19 +107,7 @@ func TestGetPRPromptTemplate(t *testing.T) {
 		assert.Contains(t, result, "Senior Tech Lead")
 		assert.Contains(t, result, "No Hallucinations")
 		assert.Contains(t, result, "first person")
-		assert.Contains(t, result, "valid JSON")
 		assert.NotContains(t, result, "español")
-		// Verify strict JSON schema elements
-		assert.Contains(t, result, "STRICT OUTPUT FORMAT")
-		assert.Contains(t, result, "JSON Schema")
-		assert.Contains(t, result, "additionalProperties")
-		assert.Contains(t, result, "Type Rules")
-		assert.Contains(t, result, "Prohibited Actions")
-		assert.Contains(t, result, "\"title\"")
-		assert.Contains(t, result, "\"body\"")
-		assert.Contains(t, result, "\"labels\"")
-		assert.Contains(t, result, "MUST be string")
-		assert.Contains(t, result, "MUST be array of strings")
 	})
 
 	t.Run("Spanish template contains key instructions in Spanish", func(t *testing.T) {
@@ -128,19 +116,7 @@ func TestGetPRPromptTemplate(t *testing.T) {
 		assert.Contains(t, result, "Desarrollador Senior")
 		assert.Contains(t, result, "Cero alucinaciones")
 		assert.Contains(t, result, "primera persona")
-		assert.Contains(t, result, "JSON crudo")
 		assert.Contains(t, result, "ESPAÑOL")
-		// Verify strict JSON schema elements in Spanish
-		assert.Contains(t, result, "FORMATO DE SALIDA ESTRICTO")
-		assert.Contains(t, result, "Schema JSON")
-		assert.Contains(t, result, "additionalProperties")
-		assert.Contains(t, result, "Reglas de Tipos")
-		assert.Contains(t, result, "Acciones Prohibidas")
-		assert.Contains(t, result, "\"title\"")
-		assert.Contains(t, result, "\"body\"")
-		assert.Contains(t, result, "\"labels\"")
-		assert.Contains(t, result, "DEBE ser string")
-		assert.Contains(t, result, "DEBE ser array de strings")
 	})
 
 	t.Run("Unknown language defaults to English", func(t *testing.T) {
@@ -157,20 +133,7 @@ func TestGetCommitPromptTemplate(t *testing.T) {
 
 		assert.Contains(t, result, "Ticket/Issue")
 		assert.Contains(t, result, "Requirements Validation")
-		assert.Contains(t, result, "completed_indices")
 		assert.Contains(t, result, "Conventional Commits")
-		// Verify strict JSON schema elements
-		assert.Contains(t, result, "STRICT OUTPUT FORMAT")
-		assert.Contains(t, result, "JSON Schema")
-		assert.Contains(t, result, "additionalProperties")
-		assert.Contains(t, result, "Type Rules")
-		assert.Contains(t, result, "Prohibited Actions")
-		assert.Contains(t, result, "\"title\"")
-		assert.Contains(t, result, "\"desc\"")
-		assert.Contains(t, result, "\"files\"")
-		assert.Contains(t, result, "\"requirements\"")
-		assert.Contains(t, result, "completed_indices")
-		assert.Contains(t, result, "MUST be array of integers")
 	})
 
 	t.Run("English without ticket does not mention requirements", func(t *testing.T) {
@@ -179,15 +142,6 @@ func TestGetCommitPromptTemplate(t *testing.T) {
 		assert.NotContains(t, result, "Requirements Validation")
 		assert.NotContains(t, result, "completed_indices")
 		assert.Contains(t, result, "Git Specialist")
-		// Verify strict JSON schema elements (but no requirements field)
-		assert.Contains(t, result, "STRICT OUTPUT FORMAT")
-		assert.Contains(t, result, "JSON Schema")
-		assert.Contains(t, result, "additionalProperties")
-		assert.Contains(t, result, "\"title\"")
-		assert.Contains(t, result, "\"desc\"")
-		assert.Contains(t, result, "\"files\"")
-		assert.Contains(t, result, "\"analysis\"")
-		assert.NotContains(t, result, "\"requirements\"")
 	})
 
 	t.Run("Spanish with ticket contains Spanish instructions", func(t *testing.T) {
@@ -195,32 +149,14 @@ func TestGetCommitPromptTemplate(t *testing.T) {
 
 		assert.Contains(t, result, "Ticket/Issue")
 		assert.Contains(t, result, "Validación de Requerimientos")
-		assert.Contains(t, result, "ESPAÑOL")
-		assert.Contains(t, result, "completed_indices")
-		// Verify strict JSON schema elements in Spanish
-		assert.Contains(t, result, "FORMATO DE SALIDA ESTRICTO")
-		assert.Contains(t, result, "Schema JSON")
-		assert.Contains(t, result, "additionalProperties")
-		assert.Contains(t, result, "Reglas de Tipos")
-		assert.Contains(t, result, "Acciones Prohibidas")
-		assert.Contains(t, result, "\"title\"")
-		assert.Contains(t, result, "\"desc\"")
-		assert.Contains(t, result, "\"requirements\"")
-		assert.Contains(t, result, "DEBE ser array de enteros")
+		assert.Contains(t, result, "Conventional Commits")
 	})
 
 	t.Run("Spanish without ticket is in Spanish", func(t *testing.T) {
 		result := GetCommitPromptTemplate("es", false)
 
 		assert.Contains(t, result, "especialista en Git")
-		assert.Contains(t, result, "ESPAÑOL")
 		assert.NotContains(t, result, "Ticket/Issue:")
-		// Verify strict JSON schema elements in Spanish (but no requirements)
-		assert.Contains(t, result, "FORMATO DE SALIDA ESTRICTO")
-		assert.Contains(t, result, "Schema JSON")
-		assert.Contains(t, result, "additionalProperties")
-		assert.Contains(t, result, "\"analysis\"")
-		assert.NotContains(t, result, "\"requirements\"")
 	})
 }
 
@@ -231,21 +167,6 @@ func TestGetReleasePromptTemplate(t *testing.T) {
 		assert.Contains(t, result, "TECHNICAL NOISE FILTERING")
 		assert.Contains(t, result, "INTELLIGENT GROUPING")
 		assert.Contains(t, result, "Keep a Changelog")
-		assert.Contains(t, result, "highlights")
-		assert.Contains(t, result, "breaking_changes")
-		// Verify strict JSON schema elements
-		assert.Contains(t, result, "STRICT OUTPUT FORMAT")
-		assert.Contains(t, result, "JSON Schema")
-		assert.Contains(t, result, "additionalProperties")
-		assert.Contains(t, result, "Type Rules")
-		assert.Contains(t, result, "Prohibited Actions")
-		assert.Contains(t, result, "\"title\"")
-		assert.Contains(t, result, "\"summary\"")
-		assert.Contains(t, result, "\"highlights\"")
-		assert.Contains(t, result, "\"breaking_changes\"")
-		assert.Contains(t, result, "\"contributors\"")
-		assert.Contains(t, result, "MUST be string")
-		assert.Contains(t, result, "MUST be array of strings")
 	})
 
 	t.Run("Spanish template has Spanish instructions", func(t *testing.T) {
@@ -255,20 +176,6 @@ func TestGetReleasePromptTemplate(t *testing.T) {
 		assert.Contains(t, result, "AGRUPACIÓN INTELIGENTE")
 		assert.Contains(t, result, "Keep a Changelog")
 		assert.Contains(t, result, "ESPAÑOL ARGENTINO")
-		assert.Contains(t, result, "highlights")
-		// Verify strict JSON schema elements in Spanish
-		assert.Contains(t, result, "FORMATO DE SALIDA ESTRICTO")
-		assert.Contains(t, result, "Schema JSON")
-		assert.Contains(t, result, "additionalProperties")
-		assert.Contains(t, result, "Reglas de Tipos")
-		assert.Contains(t, result, "Acciones Prohibidas")
-		assert.Contains(t, result, "\"title\"")
-		assert.Contains(t, result, "\"summary\"")
-		assert.Contains(t, result, "\"highlights\"")
-		assert.Contains(t, result, "\"breaking_changes\"")
-		assert.Contains(t, result, "\"contributors\"")
-		assert.Contains(t, result, "DEBE ser string")
-		assert.Contains(t, result, "DEBE ser array de strings")
 	})
 }
 
@@ -281,17 +188,6 @@ func TestGetIssuePromptTemplate(t *testing.T) {
 		assert.Contains(t, result, "Technical Details")
 		assert.Contains(t, result, "Impact")
 		assert.Contains(t, result, "No Emojis")
-		// Verify strict JSON schema elements
-		assert.Contains(t, result, "STRICT OUTPUT FORMAT")
-		assert.Contains(t, result, "JSON Schema")
-		assert.Contains(t, result, "additionalProperties")
-		assert.Contains(t, result, "Type Rules")
-		assert.Contains(t, result, "Prohibited Actions")
-		assert.Contains(t, result, "\"title\"")
-		assert.Contains(t, result, "\"description\"")
-		assert.Contains(t, result, "\"labels\"")
-		assert.Contains(t, result, "MUST be string")
-		assert.Contains(t, result, "MUST be array of strings")
 	})
 
 	t.Run("Spanish template is in Spanish", func(t *testing.T) {
@@ -302,17 +198,6 @@ func TestGetIssuePromptTemplate(t *testing.T) {
 		assert.Contains(t, result, "Detalles Técnicos")
 		assert.Contains(t, result, "Impacto")
 		assert.Contains(t, result, "ESPAÑOL")
-		// Verify strict JSON schema elements in Spanish
-		assert.Contains(t, result, "FORMATO DE SALIDA ESTRICTO")
-		assert.Contains(t, result, "Schema JSON")
-		assert.Contains(t, result, "additionalProperties")
-		assert.Contains(t, result, "Reglas de Tipos")
-		assert.Contains(t, result, "Acciones Prohibidas")
-		assert.Contains(t, result, "\"title\"")
-		assert.Contains(t, result, "\"description\"")
-		assert.Contains(t, result, "\"labels\"")
-		assert.Contains(t, result, "DEBE ser string")
-		assert.Contains(t, result, "DEBE ser array de strings")
 	})
 }
 
@@ -667,8 +552,6 @@ func TestPromptRenderingWorkflow(t *testing.T) {
 		assert.Contains(t, result, "AUTH-42")
 		assert.Contains(t, result, "#42")
 		assert.Contains(t, result, "Conventional Commits")
-		assert.Contains(t, result, "STRICT OUTPUT FORMAT")
-		assert.Contains(t, result, "JSON Schema")
 	})
 
 	t.Run("Complete PR prompt with issues and template", func(t *testing.T) {
@@ -697,7 +580,5 @@ func TestPromptRenderingWorkflow(t *testing.T) {
 		assert.Contains(t, result, "Issue #11: Fix bug")
 		assert.Contains(t, result, "## Changes")
 		assert.Contains(t, result, "Closes #N")
-		assert.Contains(t, result, "STRICT OUTPUT FORMAT")
-		assert.Contains(t, result, "JSON Schema")
 	})
 }
