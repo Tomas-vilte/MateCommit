@@ -267,6 +267,7 @@ config_vcs_updated = "VCS provider '{{.Provider}}' configuration updated success
 config_set_active_vcs_usage = "Set the active VCS provider"
 config_set_active_vcs_provider_usage = "Name of the VCS provider to set as active"
 config_active_vcs_updated = "Active VCS provider set to '{{.Provider}}'"
+test_plan_generated = "✅ Test plan generated successfully"
 
 [pr_service]
 error_get_pr = "Error getting the PR: {{.Error}}"
