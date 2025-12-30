@@ -73,6 +73,47 @@ const (
 	defaultSuggestionsCount = 3
 )
 
+// atomicWriteFile writes data to a file atomically by writing to a temp file
+// and then renaming it. This prevents corruption if the process is interrupted.
+func atomicWriteFile(filename string, data []byte, perm os.FileMode) error {
+	dir := filepath.Dir(filename)
+	tmpFile, err := os.CreateTemp(dir, ".config-*.tmp")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %w", err)
+	}
+	tmpName := tmpFile.Name()
+
+	defer func() {
+		if tmpFile != nil {
+			_ = tmpFile.Close()
+			_ = os.Remove(tmpName)
+		}
+	}()
+
+	if _, err := tmpFile.Write(data); err != nil {
+		return fmt.Errorf("failed to write to temp file: %w", err)
+	}
+
+	if err := tmpFile.Sync(); err != nil {
+		return fmt.Errorf("failed to sync temp file: %w", err)
+	}
+
+	if err := tmpFile.Close(); err != nil {
+		return fmt.Errorf("failed to close temp file: %w", err)
+	}
+	tmpFile = nil
+
+	if err := os.Chmod(tmpName, perm); err != nil {
+		return fmt.Errorf("failed to set permissions: %w", err)
+	}
+
+	if err := os.Rename(tmpName, filename); err != nil {
+		return fmt.Errorf("failed to rename temp file: %w", err)
+	}
+
+	return nil
+}
+
 func LoadConfig(path string) (*Config, error) {
 	var configPath string
 
@@ -191,6 +232,9 @@ func MergeConfigs(global, local *Config) *Config {
 		result.AIConfig.ActiveAI = local.AIConfig.ActiveAI
 	}
 	if len(local.AIConfig.Models) > 0 {
+		if result.AIConfig.Models == nil {
+			result.AIConfig.Models = make(map[AI]Model)
+		}
 		for k, v := range local.AIConfig.Models {
 			result.AIConfig.Models[k] = v
 		}
@@ -199,16 +243,25 @@ func MergeConfigs(global, local *Config) *Config {
 		result.AIConfig.BudgetDaily = local.AIConfig.BudgetDaily
 	}
 	if len(local.AIProviders) > 0 {
+		if result.AIProviders == nil {
+			result.AIProviders = make(map[string]AIProviderConfig)
+		}
 		for k, v := range local.AIProviders {
 			result.AIProviders[k] = v
 		}
 	}
 	if len(local.TicketProviders) > 0 {
+		if result.TicketProviders == nil {
+			result.TicketProviders = make(map[string]TicketProviderConfig)
+		}
 		for k, v := range local.TicketProviders {
 			result.TicketProviders[k] = v
 		}
 	}
 	if len(local.VCSConfigs) > 0 {
+		if result.VCSConfigs == nil {
+			result.VCSConfigs = make(map[string]VCSConfig)
+		}
 		for k, v := range local.VCSConfigs {
 			result.VCSConfigs[k] = v
 		}
@@ -254,7 +307,7 @@ func CreateDefaultConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("error encoding default configuration: %w", err)
 	}
 
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := atomicWriteFile(path, data, 0644); err != nil {
 		return nil, fmt.Errorf("error saving default configuration: %w", err)
 	}
 
@@ -282,7 +335,7 @@ func SaveLocalConfig(config *Config) error {
 		return fmt.Errorf("error encoding configuration: %w", err)
 	}
 
-	if err := os.WriteFile(localPath, data, 0644); err != nil {
+	if err := atomicWriteFile(localPath, data, 0644); err != nil {
 		return fmt.Errorf("error saving configuration: %w", err)
 	}
 
@@ -303,7 +356,7 @@ func SaveConfig(config *Config) error {
 		return fmt.Errorf("error encoding configuration: %w", err)
 	}
 
-	if err := os.WriteFile(config.PathFile, data, 0644); err != nil {
+	if err := atomicWriteFile(config.PathFile, data, 0644); err != nil {
 		return fmt.Errorf("error saving configuration: %w", err)
 	}
 

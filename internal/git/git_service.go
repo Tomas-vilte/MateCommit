@@ -217,7 +217,7 @@ func (s *GitService) GetRepoInfo(ctx context.Context) (string, string, string, e
 	cmd := exec.CommandContext(ctx, "git", "remote", "get-url", "origin")
 	output, err := cmd.Output()
 	if err != nil {
-		log.Error("failed to get remote URL",
+		log.Debug("failed to get remote URL",
 			"error", err)
 		return "", "", "", errors.ErrGetRepoURL.WithError(err)
 	}

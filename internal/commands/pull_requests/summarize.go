@@ -16,7 +16,7 @@ import (
 
 // PRService is a minimal interface for testing purposes
 type PRService interface {
-	SummarizePR(ctx context.Context, prNumber int, progress func(models.ProgressEvent)) (models.PRSummary, error)
+	SummarizePR(ctx context.Context, prNumber int, hint string, progress func(models.ProgressEvent)) (models.PRSummary, error)
 }
 
 // PRServiceProvider is a function that returns a PRService on demand
@@ -44,6 +44,11 @@ func (c *SummarizeCommand) CreateCommand(t *i18n.Translations, _ *cfg.Config) *c
 				Usage:    t.GetMessage("vcs_summary.pr_number_usage", 0, nil),
 				Required: true,
 			},
+			&cli.StringFlag{
+				Name:    "hint",
+				Aliases: []string{"H"},
+				Usage:   t.GetMessage("vcs_summary.hint_usage", 0, nil),
+			},
 		},
 		ShellComplete: completion_helper.DefaultFlagComplete,
 		Action: func(ctx context.Context, cmd *cli.Command) error {
@@ -51,9 +56,11 @@ func (c *SummarizeCommand) CreateCommand(t *i18n.Translations, _ *cfg.Config) *c
 			start := time.Now()
 
 			prNumber := cmd.Int("pr-number")
+			hint := cmd.String("hint")
 
 			log.Info("executing summarize-pr command",
-				"pr_number", prNumber)
+				"pr_number", prNumber,
+				"has_hint", hint != "")
 
 			prService, err := c.prProvider(ctx)
 			if err != nil {
@@ -72,7 +79,7 @@ func (c *SummarizeCommand) CreateCommand(t *i18n.Translations, _ *cfg.Config) *c
 			spinner := ui.NewSmartSpinner(t.GetMessage("ui.fetching_pr_info", 0, struct{ Number int }{prNumber}))
 			spinner.Start()
 
-			summary, err := prService.SummarizePR(ctx, prNumber, func(event models.ProgressEvent) {
+			summary, err := prService.SummarizePR(ctx, prNumber, hint, func(event models.ProgressEvent) {
 				msg := ""
 				switch event.Type {
 				case models.ProgressIssuesDetected:

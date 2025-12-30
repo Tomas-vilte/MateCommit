@@ -58,9 +58,13 @@ func (c *ConfigCommandFactory) newSetCommand(t *i18n.Translations, cfg *config.C
 
 				localCfg, err := config.LoadConfig(localPath)
 				if err != nil {
-					localCfg, err = config.CreateDefaultConfig(localPath)
-					if err != nil {
-						return fmt.Errorf("error creating local config: %w", err)
+					if os.IsNotExist(err) || errors.Is(err, os.ErrNotExist) {
+						localCfg, err = config.CreateDefaultConfig(localPath)
+						if err != nil {
+							return fmt.Errorf("error creating local config: %w", err)
+						}
+					} else {
+						return fmt.Errorf("error loading local config: %w. Fix the file manually or delete it", err)
 					}
 				}
 				targetCfg = localCfg

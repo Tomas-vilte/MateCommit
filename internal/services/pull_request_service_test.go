@@ -45,7 +45,9 @@ func TestPRService_SummarizePR_Success(t *testing.T) {
 	mockVCS.On("GetPR", ctx, prNumber).Return(prData, nil)
 	mockVCS.On("GetPRIssues", ctx, mock.Anything, mock.Anything, mock.Anything).Return([]models.Issue(nil), nil)
 	mockAI.On("GeneratePRSummary", ctx, mock.AnythingOfType("string")).Return(expectedSummary, nil)
-	mockVCS.On("UpdatePR", ctx, prNumber, expectedSummary).Return(nil)
+	mockVCS.On("UpdatePR", ctx, prNumber, mock.MatchedBy(func(s models.PRSummary) bool {
+		return strings.Contains(s.Body, expectedSummary.Body) && strings.Contains(s.Body, "Test Plan")
+	})).Return(nil)
 
 	service := NewPRService(
 		WithPRVCSClient(mockVCS),
@@ -54,11 +56,13 @@ func TestPRService_SummarizePR_Success(t *testing.T) {
 	)
 
 	// Act
-	result, err := service.SummarizePR(ctx, prNumber, func(e models.ProgressEvent) {})
+	result, err := service.SummarizePR(ctx, prNumber, "", func(e models.ProgressEvent) {})
 
 	// Assert
 	assert.NoError(t, err)
-	assert.Equal(t, expectedSummary, result)
+	assert.Equal(t, expectedSummary.Title, result.Title)
+	assert.Contains(t, result.Body, expectedSummary.Body)
+	assert.Contains(t, result.Body, "Test Plan & Evidence")
 	mockVCS.AssertExpectations(t)
 	mockAI.AssertExpectations(t)
 }
@@ -82,7 +86,7 @@ func TestPRService_SummarizePR_GetPRError(t *testing.T) {
 	)
 
 	// act
-	_, err := service.SummarizePR(ctx, prNumber, func(e models.ProgressEvent) {})
+	_, err := service.SummarizePR(ctx, prNumber, "", func(e models.ProgressEvent) {})
 
 	// assert
 	assert.Error(t, err)
@@ -119,7 +123,7 @@ func TestPRService_SummarizePR_GenerateError(t *testing.T) {
 	)
 
 	// Act
-	_, err := service.SummarizePR(ctx, prNumber, func(e models.ProgressEvent) {})
+	_, err := service.SummarizePR(ctx, prNumber, "", func(e models.ProgressEvent) {})
 
 	// Assert
 	assert.Error(t, err)
@@ -154,7 +158,9 @@ func TestPRService_SummarizePR_UpdateError(t *testing.T) {
 	mockVCS.On("GetPR", ctx, prNumber).Return(prData, nil)
 	mockVCS.On("GetPRIssues", ctx, mock.Anything, mock.Anything, mock.Anything).Return([]models.Issue(nil), nil)
 	mockAI.On("GeneratePRSummary", ctx, mock.Anything).Return(summary, nil)
-	mockVCS.On("UpdatePR", ctx, prNumber, summary).Return(expectedError)
+	mockVCS.On("UpdatePR", ctx, prNumber, mock.MatchedBy(func(s models.PRSummary) bool {
+		return strings.Contains(s.Body, summary.Body) && strings.Contains(s.Body, "Test Plan")
+	})).Return(expectedError)
 
 	service := NewPRService(
 		WithPRVCSClient(mockVCS),
@@ -162,7 +168,7 @@ func TestPRService_SummarizePR_UpdateError(t *testing.T) {
 		WithPRConfig(cfg),
 	)
 
-	_, err := service.SummarizePR(ctx, prNumber, func(e models.ProgressEvent) {})
+	_, err := service.SummarizePR(ctx, prNumber, "", func(e models.ProgressEvent) {})
 
 	assert.ErrorContains(t, err, "VCS: error updating PR")
 	mockVCS.AssertExpectations(t)
@@ -176,7 +182,7 @@ func TestPRService_SummarizePR_NilAIService(t *testing.T) {
 		WithPRConfig(cfg),
 	)
 
-	summary, err := service.SummarizePR(context.Background(), 1, func(e models.ProgressEvent) {})
+	summary, err := service.SummarizePR(context.Background(), 1, "", func(e models.ProgressEvent) {})
 
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, domainErrors.ErrAPIKeyMissing)
@@ -219,7 +225,7 @@ func TestPRService_SummarizePR_WithRelatedIssues(t *testing.T) {
 	})).Return(expectedSummary, nil)
 
 	mockVCS.On("UpdatePR", ctx, prNumber, mock.MatchedBy(func(s models.PRSummary) bool {
-		return contextContains(s.Body, "Summary content", "Fixes #123", "Fixes #456", "Fixes #789", "## Test Plan")
+		return contextContains(s.Body, "Summary content", "Fixes #123", "Fixes #456", "Fixes #789", "Test Plan & Evidence")
 	})).Return(nil)
 
 	service := NewPRService(
@@ -228,7 +234,7 @@ func TestPRService_SummarizePR_WithRelatedIssues(t *testing.T) {
 		WithPRConfig(cfg),
 	)
 
-	_, err := service.SummarizePR(ctx, prNumber, func(e models.ProgressEvent) {})
+	_, err := service.SummarizePR(ctx, prNumber, "", func(e models.ProgressEvent) {})
 
 	assert.NoError(t, err)
 	mockVCS.AssertExpectations(t)
@@ -258,7 +264,7 @@ func TestPRService_SummarizePR_BreakingChanges(t *testing.T) {
 	})).Return(expectedSummary, nil)
 
 	mockVCS.On("UpdatePR", ctx, prNumber, mock.MatchedBy(func(s models.PRSummary) bool {
-		return contextContains(s.Body, "Breaking Changes", "feat!: breaking change here")
+		return contextContains(s.Body, "Breaking Changes", "feat!: breaking change here", "Test Plan & Evidence")
 	})).Return(nil)
 
 	service := NewPRService(
@@ -267,7 +273,7 @@ func TestPRService_SummarizePR_BreakingChanges(t *testing.T) {
 		WithPRConfig(cfg),
 	)
 
-	_, err := service.SummarizePR(ctx, prNumber, func(e models.ProgressEvent) {})
+	_, err := service.SummarizePR(ctx, prNumber, "", func(e models.ProgressEvent) {})
 
 	assert.NoError(t, err)
 	mockVCS.AssertExpectations(t)
@@ -298,7 +304,7 @@ func TestBuildPRPrompt(t *testing.T) {
 	service := PRService{}
 
 	// Act
-	prompt := service.buildPRPrompt(prData, nil)
+	prompt := service.buildPRPrompt(prData, nil, "")
 
 	// Assert
 	expected := `PR #456 by dev123
@@ -336,7 +342,7 @@ func TestBuildPRPrompt_WithTemplate(t *testing.T) {
 	service := PRService{config: &config.Config{}}
 
 	// Act
-	prompt := service.buildPRPrompt(prData, template)
+	prompt := service.buildPRPrompt(prData, template, "")
 
 	// Assert
 	assert.Contains(t, prompt, "## TODO")
@@ -422,7 +428,7 @@ func TestPRService_SummarizePR_Integration(t *testing.T) {
 
 	t.Run("should successfully summarize a real PR", func(t *testing.T) {
 		ctx := context.Background()
-		summary, err := prService.SummarizePR(ctx, testConfig.PRNumber, func(e models.ProgressEvent) {
+		summary, err := prService.SummarizePR(ctx, testConfig.PRNumber, "", func(e models.ProgressEvent) {
 			t.Logf("Progress: %v", e)
 		})
 
@@ -492,7 +498,9 @@ func TestPRService_SummarizePR_WithTemplate(t *testing.T) {
 		return strings.Contains(prompt, "## Checklist") && strings.Contains(prompt, "- [ ] Done")
 	})).Return(expectedSummary, nil)
 
-	mockVCS.On("UpdatePR", ctx, prNumber, expectedSummary).Return(nil)
+	mockVCS.On("UpdatePR", ctx, prNumber, mock.MatchedBy(func(s models.PRSummary) bool {
+		return strings.Contains(s.Body, expectedSummary.Body) && strings.Contains(s.Body, "Test Plan")
+	})).Return(nil)
 
 	service := NewPRService(
 		WithPRVCSClient(mockVCS),
@@ -501,7 +509,7 @@ func TestPRService_SummarizePR_WithTemplate(t *testing.T) {
 		WithPRTemplateService(mockTemplate),
 	)
 
-	_, err := service.SummarizePR(ctx, prNumber, func(e models.ProgressEvent) {})
+	_, err := service.SummarizePR(ctx, prNumber, "", func(e models.ProgressEvent) {})
 
 	assert.NoError(t, err)
 	mockVCS.AssertExpectations(t)
@@ -533,7 +541,9 @@ func TestPRService_SummarizePR_WithTemplateError(t *testing.T) {
 
 	mockAI.On("GeneratePRSummary", ctx, mock.Anything).Return(expectedSummary, nil)
 
-	mockVCS.On("UpdatePR", ctx, prNumber, expectedSummary).Return(nil)
+	mockVCS.On("UpdatePR", ctx, prNumber, mock.MatchedBy(func(s models.PRSummary) bool {
+		return strings.Contains(s.Body, expectedSummary.Body) && strings.Contains(s.Body, "Test Plan")
+	})).Return(nil)
 
 	service := NewPRService(
 		WithPRVCSClient(mockVCS),
@@ -542,7 +552,7 @@ func TestPRService_SummarizePR_WithTemplateError(t *testing.T) {
 		WithPRTemplateService(mockTemplate),
 	)
 
-	_, err := service.SummarizePR(ctx, prNumber, func(e models.ProgressEvent) {})
+	_, err := service.SummarizePR(ctx, prNumber, "", func(e models.ProgressEvent) {})
 
 	assert.NoError(t, err)
 	mockVCS.AssertExpectations(t)

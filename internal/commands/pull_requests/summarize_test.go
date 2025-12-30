@@ -17,8 +17,8 @@ type MockPRService struct {
 	mock.Mock
 }
 
-func (m *MockPRService) SummarizePR(ctx context.Context, prNumber int, progress func(models.ProgressEvent)) (models.PRSummary, error) {
-	args := m.Called(ctx, prNumber, progress)
+func (m *MockPRService) SummarizePR(ctx context.Context, prNumber int, hint string, progress func(models.ProgressEvent)) (models.PRSummary, error) {
+	args := m.Called(ctx, prNumber, hint, progress)
 	return args.Get(0).(models.PRSummary), args.Error(1)
 }
 
@@ -43,7 +43,7 @@ func TestSummarizeCommand(t *testing.T) {
 			Title: "Test PR",
 		}
 
-		mockPRService.On("SummarizePR", mock.Anything, prNumber, mock.Anything).Return(summary, nil)
+		mockPRService.On("SummarizePR", mock.Anything, prNumber, mock.Anything, mock.Anything).Return(summary, nil)
 
 		prProvider := func(ctx context.Context) (PRService, error) {
 			return mockPRService, nil
@@ -87,7 +87,7 @@ func TestSummarizeCommand(t *testing.T) {
 		prNumber := 123
 		mockError := fmt.Errorf("service error")
 
-		mockPRService.On("SummarizePR", mock.Anything, prNumber, mock.Anything).Return(models.PRSummary{}, mockError)
+		mockPRService.On("SummarizePR", mock.Anything, prNumber, mock.Anything, mock.Anything).Return(models.PRSummary{}, mockError)
 
 		prProvider := func(ctx context.Context) (PRService, error) {
 			return mockPRService, nil

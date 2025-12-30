@@ -131,11 +131,6 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 			_ = t.SetLanguage("en")
 		}
 
-		if err := config.SaveConfig(cfg); err != nil {
-			ui.PrintError(os.Stdout, t.GetMessage("ui_error.error_saving_config", 0, nil))
-			return fmt.Errorf("error saving configuration: %w", err)
-		}
-
 		if dryRun {
 			return f.handleDryRun(ctx, t)
 		}

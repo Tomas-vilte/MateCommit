@@ -71,7 +71,7 @@ func NewPRService(opts ...PROption) *PRService {
 	return s
 }
 
-func (s *PRService) SummarizePR(ctx context.Context, prNumber int, progress func(models.ProgressEvent)) (models.PRSummary, error) {
+func (s *PRService) SummarizePR(ctx context.Context, prNumber int, hint string, progress func(models.ProgressEvent)) (models.PRSummary, error) {
 	log := logger.FromContext(ctx)
 
 	log.Info("summarizing PR",
@@ -141,7 +141,7 @@ func (s *PRService) SummarizePR(ctx context.Context, prNumber int, progress func
 		}
 	}
 
-	prompt := s.buildPRPrompt(prData, prTemplate)
+	prompt := s.buildPRPrompt(prData, prTemplate, hint)
 
 	log.Debug("calling AI for PR summary generation",
 		"pr_number", prNumber)
@@ -207,7 +207,7 @@ func (s *PRService) SummarizePR(ctx context.Context, prNumber int, progress func
 	return summary, nil
 }
 
-func (s *PRService) buildPRPrompt(prData models.PRData, template *models.IssueTemplate) string {
+func (s *PRService) buildPRPrompt(prData models.PRData, template *models.IssueTemplate, hint string) string {
 	var prompt string
 
 	prompt += fmt.Sprintf("PR #%d by %s\n", prData.ID, prData.Creator)
@@ -219,6 +219,10 @@ func (s *PRService) buildPRPrompt(prData models.PRData, template *models.IssueTe
 			lang = "en"
 		}
 		prompt += ai.FormatTemplateForPrompt(template, lang, "pr")
+	}
+
+	if hint != "" {
+		prompt += fmt.Sprintf("User Hint/Context: %s\n\n", hint)
 	}
 
 	commitCount := len(prData.Commits)
@@ -324,19 +328,49 @@ func (s *PRService) detectBreakingChanges(commits []models.Commit) []string {
 }
 
 func (s *PRService) generateTestPlan(prData models.PRData) string {
-	if len(prData.RelatedIssues) == 0 {
-		return ""
-	}
-
 	var testPlan strings.Builder
-	testPlan.WriteString("\n\n## Test Plan\n\n")
+	testPlan.WriteString("\n\n## 🧪 Test Plan & Evidence\n\n")
 
-	for _, issue := range prData.RelatedIssues {
-		testPlan.WriteString(fmt.Sprintf("- [ ] Verify #%d is resolved\n", issue.Number))
+	hasUI := false
+	hasAPI := false
+	hasLogic := false
+	lines := strings.Split(prData.Diff, "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "diff --git") {
+			lineLower := strings.ToLower(line)
+			if strings.Contains(lineLower, ".html") || strings.Contains(lineLower, ".css") || strings.Contains(lineLower, ".js") || strings.Contains(lineLower, ".tsx") || strings.Contains(lineLower, ".jsx") {
+				hasUI = true
+			}
+			if strings.Contains(lineLower, "api") || strings.Contains(lineLower, "service") || strings.Contains(lineLower, "controller") {
+				hasAPI = true
+			}
+			if strings.HasSuffix(lineLower, ".go") && !strings.Contains(lineLower, "_test.go") {
+				hasLogic = true
+			}
+		}
 	}
 
-	testPlan.WriteString("- [ ] Run existing tests\n")
-	testPlan.WriteString("- [ ] Verify no regressions\n")
+	if len(prData.RelatedIssues) > 0 {
+		testPlan.WriteString("### Associated Issues\n")
+		for _, issue := range prData.RelatedIssues {
+			testPlan.WriteString(fmt.Sprintf("- [ ] Verify #%d is fully resolved\n", issue.Number))
+		}
+		testPlan.WriteString("\n")
+	}
+
+	testPlan.WriteString("### Suggested Manual Verification\n")
+	if hasUI {
+		testPlan.WriteString("- [ ] **UI/UX**: Attach screenshot or video showing the visual changes\n")
+		testPlan.WriteString("- [ ] **Cross-browser**: Verify the change on at least two different browsers\n")
+	}
+	if hasAPI {
+		testPlan.WriteString("- [ ] **API/Backend**: Attach JSON response or logs as evidence of correct behavior\n")
+		testPlan.WriteString("- [ ] **Performance**: Ensure no significant latency increase\n")
+	}
+	if hasLogic {
+		testPlan.WriteString("- [ ] **Unit Tests**: Run `go test ./...` and ensure all tests pass\n")
+	}
+	testPlan.WriteString("- [ ] **No Regressions**: Verify that related features still work as expected\n")
 
 	return testPlan.String()
 }
