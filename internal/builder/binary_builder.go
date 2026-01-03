@@ -140,7 +140,7 @@ func (b *BinaryBuilder) BuildBinary(ctx context.Context, target BuildTarget) (st
 	if err != nil {
 		return "", errors.ErrBuildFailed.WithError(err).
 			WithContext("platform", fmt.Sprintf("%s/%s", target.GOOS, target.GOARCH)).
-			WithContext("output", string(output))
+			WithContext("stderr", string(output))
 	}
 
 	return outputPath, nil
@@ -264,32 +264,25 @@ func (b *BinaryBuilder) createTarGz(binaryPath, tarGzPath, binaryName string) er
 func (b *BinaryBuilder) BuildAndPackageAll(ctx context.Context, progressCh chan<- models.BuildProgress) ([]string, error) {
 	log := logger.FromContext(ctx)
 	targets := b.GetBuildTargets()
-
 	var archives []string
 	var mu sync.Mutex
-
 	g, ctx := errgroup.WithContext(ctx)
 
-	// Enviar evento de inicio
+	g.SetLimit(2)
+
 	if progressCh != nil {
 		progressCh <- models.BuildProgress{
 			Type:  models.BuildProgressStart,
 			Total: len(targets),
 		}
 	}
-
 	log.Info("building binaries for all platforms",
 		"platforms", len(targets))
-
-	// Contador atómico para el progreso
 	var completed int32
-
 	for _, target := range targets {
 		target := target
 		g.Go(func() error {
 			platform := fmt.Sprintf("%s/%s", target.GOOS, target.GOARCH)
-
-			// Enviar evento de inicio de compilación de plataforma
 			if progressCh != nil {
 				progressCh <- models.BuildProgress{
 					Type:     models.BuildProgressPlatform,
@@ -298,10 +291,8 @@ func (b *BinaryBuilder) BuildAndPackageAll(ctx context.Context, progressCh chan<
 					Total:    len(targets),
 				}
 			}
-
 			log.Info("compiling binary",
 				"platform", platform)
-
 			binaryPath, err := b.BuildBinary(ctx, target)
 			if err != nil {
 				log.Error("build failed",
@@ -309,13 +300,11 @@ func (b *BinaryBuilder) BuildAndPackageAll(ctx context.Context, progressCh chan<
 					"error", err)
 				return err
 			}
-
 			defer func() {
 				if err := os.Remove(binaryPath); err != nil {
 					return
 				}
 			}()
-
 			archivePath, err := b.PackageBinary(binaryPath, target)
 			if err != nil {
 				log.Error("packaging failed",
@@ -323,25 +312,18 @@ func (b *BinaryBuilder) BuildAndPackageAll(ctx context.Context, progressCh chan<
 					"error", err)
 				return err
 			}
-
 			mu.Lock()
 			archives = append(archives, archivePath)
 			mu.Unlock()
-
-			// Incrementar contador
 			current := atomic.AddInt32(&completed, 1)
-
 			log.Info("binary ready",
 				"platform", platform,
 				"current", current,
 				"total", len(targets),
 				"archive", filepath.Base(archivePath))
-
 			return nil
 		})
 	}
-
-	// Wait retorna el primer error encontrado (si hay alguno)
 	if err := g.Wait(); err != nil {
 		if progressCh != nil {
 			progressCh <- models.BuildProgress{
@@ -351,18 +333,14 @@ func (b *BinaryBuilder) BuildAndPackageAll(ctx context.Context, progressCh chan<
 		}
 		return nil, err
 	}
-
 	log.Info("all binaries built successfully",
 		"total", len(archives))
-
-	// Enviar evento de compilación completa
 	if progressCh != nil {
 		progressCh <- models.BuildProgress{
 			Type:  models.BuildProgressComplete,
 			Total: len(archives),
 		}
 	}
-
 	return archives, nil
 }
 

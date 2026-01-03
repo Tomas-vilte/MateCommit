@@ -34,10 +34,14 @@ func (r *ReleaseCommandFactory) newPublishCommand(trans *i18n.Translations) *cli
 				Usage:   trans.GetMessage("release.build_binaries_flag", 0, nil),
 				Value:   true,
 			},
+			&cli.StringFlag{
+				Name:  "main-path",
+				Usage: trans.GetMessage("release.main_path_flag", 0, nil),
+			},
 		},
 		ShellComplete: completion_helper.DefaultFlagComplete,
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			service, err := r.createReleaseService(ctx, trans)
+			service, err := r.createReleaseService(ctx, cmd.String("main-path"))
 			if err != nil {
 				return err
 			}

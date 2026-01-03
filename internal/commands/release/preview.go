@@ -19,7 +19,7 @@ func (r *ReleaseCommandFactory) newPreviewCommand(trans *i18n.Translations) *cli
 		Usage:         trans.GetMessage("release.preview_usage", 0, nil),
 		ShellComplete: completion_helper.DefaultFlagComplete,
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			service, err := r.createReleaseService(ctx, trans)
+			service, err := r.createReleaseService(ctx, "")
 			if err != nil {
 				return err
 			}

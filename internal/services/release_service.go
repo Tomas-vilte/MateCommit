@@ -120,21 +120,29 @@ func (s *ReleaseService) AnalyzeNextRelease(ctx context.Context) (*models.Releas
 		return nil, domainErrors.NewAppError(domainErrors.TypeGit, "error getting last tag", err)
 	}
 
+	var queryTag string
+	var previousVersion string
+
 	if lastTag == "" {
 		count, _ := s.git.GetCommitCount(ctx)
 		if count == 0 {
 			return nil, domainErrors.NewAppError(domainErrors.TypeGit, "no commits found in repository", nil)
 		}
-		lastTag = "v0.0.0"
+
+		queryTag = ""
+		previousVersion = "v0.0.0"
 		log.Info("no previous tag found, using v0.0.0 as baseline")
+
 	} else {
 		if !regex.SemVer.MatchString(lastTag) {
 			log.Warn("last tag does not match semver format", "tag", lastTag)
 			return nil, fmt.Errorf("%w: tag '%s'", domainErrors.ErrInvalidTagFormat, lastTag)
 		}
+		queryTag = lastTag
+		previousVersion = lastTag
 	}
 
-	commits, err := s.git.GetCommitsSinceTag(ctx, lastTag)
+	commits, err := s.git.GetCommitsSinceTag(ctx, queryTag)
 	if err != nil {
 		return nil, domainErrors.NewAppError(domainErrors.TypeGit, "error getting commits", err)
 	}
@@ -150,17 +158,17 @@ func (s *ReleaseService) AnalyzeNextRelease(ctx context.Context) (*models.Releas
 	}
 
 	release := &models.Release{
-		PreviousVersion: lastTag,
+		PreviousVersion: previousVersion,
 		AllCommits:      commits,
 	}
 
 	s.categorizeCommits(release)
 
-	newVersion, bump := s.calculateVersion(lastTag, release)
+	newVersion, bump := s.calculateVersion(previousVersion, release)
 	release.Version = newVersion
 	release.VersionBump = bump
 
-	if err := s.validateVersionIncrement(lastTag, newVersion); err != nil {
+	if err := s.validateVersionIncrement(previousVersion, newVersion); err != nil {
 		log.Warn("version increment validation failed", "error", err)
 	}
 

@@ -51,10 +51,14 @@ func (r *ReleaseCommandFactory) newCreateCommand(t *i18n.Translations) *cli.Comm
 				Usage:   t.GetMessage("release.build_binaries_flag", 0, nil),
 				Value:   true,
 			},
+			&cli.StringFlag{
+				Name:  "main-path",
+				Usage: t.GetMessage("release.main_path_flag", 0, nil),
+			},
 		},
 		ShellComplete: completion_helper.DefaultFlagComplete,
 		Action: func(ctx context.Context, cmd *cli.Command) error {
-			service, err := r.createReleaseService(ctx, t)
+			service, err := r.createReleaseService(ctx, cmd.String("main-path"))
 			if err != nil {
 				return err
 			}

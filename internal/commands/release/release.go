@@ -3,6 +3,7 @@ package release
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/thomas-vilte/matecommit/internal/ai"
 	"github.com/thomas-vilte/matecommit/internal/ai/gemini"
@@ -83,13 +84,31 @@ func (r *ReleaseCommandFactory) CreateCommand(t *i18n.Translations, _ *cfg.Confi
 	}
 }
 
-func (r *ReleaseCommandFactory) createReleaseService(ctx context.Context, _ *i18n.Translations) (*services.ReleaseService, error) {
+func (r *ReleaseCommandFactory) createReleaseService(ctx context.Context, mainPathOverride string) (*services.ReleaseService, error) {
 	var vcsClient vcs.VCSClient
 	if r.config.ActiveVCSProvider != "" {
 		if vcsConfig, ok := r.config.VCSConfigs[r.config.ActiveVCSProvider]; ok {
 			owner, repo, _, err := r.gitService.GetRepoInfo(ctx)
 			if err == nil && vcsConfig.Token != "" {
-				vcsClient = github.NewGitHubClient(owner, repo, vcsConfig.Token)
+				ghClient := github.NewGitHubClient(owner, repo, vcsConfig.Token)
+				mainPath := "./cmd/main.go"
+
+				if mainPathOverride != "" {
+					mainPath = mainPathOverride
+				} else if r.config.MainPath != "" {
+					mainPath = r.config.MainPath
+				} else {
+					if _, err := os.Stat("./cmd/main.go"); os.IsNotExist(err) {
+						repoPath := fmt.Sprintf("./cmd/%s/main.go", repo)
+						if _, err := os.Stat(repoPath); err == nil {
+							mainPath = repoPath
+						} else if _, err := os.Stat("./main.go"); err == nil {
+							mainPath = "./main.go"
+						}
+					}
+				}
+				ghClient.SetMainPath(mainPath)
+				vcsClient = ghClient
 			}
 		}
 	}

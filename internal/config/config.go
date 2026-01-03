@@ -30,6 +30,7 @@ type (
 		VersionFile       string               `json:"version_file,omitempty"`
 		VersionPattern    string               `json:"version_pattern,omitempty"`
 		AutoFetchTags     bool                 `json:"auto_fetch_tags"`
+		MainPath          string               `json:"main_path,omitempty"`
 		GitFallback       GitConfig            `json:"git_fallback,omitempty"`
 	}
 
@@ -215,6 +216,9 @@ func MergeConfigs(global, local *Config) *Config {
 	}
 	if local.VersionPattern != "" {
 		result.VersionPattern = local.VersionPattern
+	}
+	if local.MainPath != "" {
+		result.MainPath = local.MainPath
 	}
 	result.AutoFetchTags = local.AutoFetchTags
 	if local.AIConfig.ActiveAI != "" && local.AIConfig.ActiveAI != AIGemini {

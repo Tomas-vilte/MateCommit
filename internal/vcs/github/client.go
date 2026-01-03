@@ -160,6 +160,12 @@ func NewGitHubClientWithServices(
 	}
 }
 
+func (ghc *GitHubClient) SetMainPath(path string) {
+	if path != "" {
+		ghc.mainPath = path
+	}
+}
+
 func (ghc *GitHubClient) UpdatePR(ctx context.Context, prNumber int, summary models.PRSummary) error {
 	pr := &github.PullRequest{
 		Title: github.Ptr(summary.Title),

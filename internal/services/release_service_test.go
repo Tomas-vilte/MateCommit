@@ -65,7 +65,7 @@ func TestReleaseService_AnalyzeNextRelease(t *testing.T) {
 
 		mockGit.On("GetLastTag", mock.Anything).Return("", nil)
 		mockGit.On("GetCommitCount", mock.Anything).Return(1, nil)
-		mockGit.On("GetCommitsSinceTag", mock.Anything, "v0.0.0").Return([]models.Commit{
+		mockGit.On("GetCommitsSinceTag", mock.Anything, "").Return([]models.Commit{
 			{Message: "feat: initial commit"},
 		}, nil)
 
