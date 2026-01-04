@@ -26,9 +26,13 @@ type ReleaseNotesGenerator struct {
 }
 
 type ReleaseNotesJSON struct {
-	Title           string   `json:"title"`
-	Summary         string   `json:"summary"`
-	Highlights      []string `json:"highlights"`
+	Title      string   `json:"title"`
+	Summary    string   `json:"summary"`
+	Highlights []string `json:"highlights"`
+	Sections   []struct {
+		Title string   `json:"title"`
+		Items []string `json:"items"`
+	} `json:"sections"`
 	BreakingChanges []string `json:"breaking_changes"`
 	Contributors    string   `json:"contributors"`
 }
@@ -47,12 +51,33 @@ func getReleaseNotesSchema() *genai.Schema {
 				Type:        genai.TypeString,
 				Description: "2-3 sentences explaining the release focus in first person plural",
 			},
+			"sections": {
+				Type: genai.TypeArray,
+				Items: &genai.Schema{
+					Type: genai.TypeObject,
+					Properties: map[string]*genai.Schema{
+						"title": {
+							Type:        genai.TypeString,
+							Description: "Section title (e.g. '🎨 UI/UX Improvements')",
+						},
+						"items": {
+							Type: genai.TypeArray,
+							Items: &genai.Schema{
+								Type: genai.TypeString,
+							},
+							Description: "List of items in this section",
+						},
+					},
+					Required: []string{"title", "items"},
+				},
+				Description: "Categorized sections of the release notes",
+			},
 			"highlights": {
 				Type: genai.TypeArray,
 				Items: &genai.Schema{
 					Type: genai.TypeString,
 				},
-				Description: "Array of highlights as strings",
+				Description: "Legacy flat list of highlights (keep empty if sections are used)",
 			},
 			"breaking_changes": {
 				Type: genai.TypeArray,
@@ -349,6 +374,16 @@ func (g *ReleaseNotesGenerator) parseJSONResponse(content string, release *model
 		BreakingChanges: jsonNotes.BreakingChanges,
 		Recommended:     release.VersionBump,
 		Links:           make(map[string]string),
+	}
+
+	if len(jsonNotes.Sections) > 0 {
+		notes.Sections = make([]models.ReleaseNotesSection, len(jsonNotes.Sections))
+		for i, s := range jsonNotes.Sections {
+			notes.Sections[i] = models.ReleaseNotesSection{
+				Title: s.Title,
+				Items: s.Items,
+			}
+		}
 	}
 
 	if jsonNotes.Contributors != "" && jsonNotes.Contributors != "N/A" {

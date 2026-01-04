@@ -21,7 +21,15 @@ func FormatReleaseMarkdown(release *models.Release, notes *models.ReleaseNotes, 
 
 	content += fmt.Sprintf("## %s\n\n%s\n\n", trans.GetMessage("release.md_summary", 0, nil), notes.Summary)
 
-	if len(notes.Highlights) > 0 {
+	if len(notes.Sections) > 0 {
+		for _, section := range notes.Sections {
+			content += fmt.Sprintf("## %s\n\n", section.Title)
+			for _, item := range section.Items {
+				content += fmt.Sprintf("- %s\n", item)
+			}
+			content += "\n"
+		}
+	} else if len(notes.Highlights) > 0 {
 		content += fmt.Sprintf("## %s\n\n", trans.GetMessage("release.md_highlights", 0, nil))
 		for _, h := range notes.Highlights {
 			content += fmt.Sprintf("- %s\n", h)

@@ -210,6 +210,37 @@ func TestParseJSONResponse(t *testing.T) {
 		assert.Equal(t, "https://github.com/test/repo/graphs/contributors", notes.Links["Contributors"])
 	})
 
+	t.Run("parses JSON with semantic sections", func(t *testing.T) {
+		// Arrange
+		content := `{
+			"title": "Release v3.0.0",
+			"summary": "Semantic release",
+			"sections": [
+				{
+					"title": "🎨 UI Improvements",
+					"items": ["Dark Mode", "New Icons"]
+				},
+				{
+					"title": "🐛 Fixes",
+					"items": ["Crash on login"]
+				}
+			],
+			"highlights": [],
+			"breaking_changes": []
+		}`
+
+		// Act
+		notes, err := generator.parseJSONResponse(content, release)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Len(t, notes.Sections, 2)
+		assert.Equal(t, "🎨 UI Improvements", notes.Sections[0].Title)
+		assert.Equal(t, []string{"Dark Mode", "New Icons"}, notes.Sections[0].Items)
+		assert.Equal(t, "🐛 Fixes", notes.Sections[1].Title)
+		assert.Equal(t, []string{"Crash on login"}, notes.Sections[1].Items)
+	})
+
 	t.Run("handles invalid JSON", func(t *testing.T) {
 		// Arrange
 		content := `invalid json`
