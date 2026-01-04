@@ -17,11 +17,12 @@ type prVCSClient interface {
 	GetPR(ctx context.Context, prNumber int) (models.PRData, error)
 	GetPRIssues(ctx context.Context, branchName string, commitMessages []string, description string) ([]models.Issue, error)
 	UpdatePR(ctx context.Context, prNumber int, summary models.PRSummary) error
+	GetRepoLabels(ctx context.Context) ([]string, error)
 }
 
 // prAIProvider defines the methods needed by PRService from an AI provider.
 type prAIProvider interface {
-	GeneratePRSummary(ctx context.Context, prompt string) (models.PRSummary, error)
+	GeneratePRSummary(ctx context.Context, prompt string, availableLabels []string) (models.PRSummary, error)
 }
 
 // prTemplateService defines the methods needed by PRService for template management.
@@ -146,7 +147,16 @@ func (s *PRService) SummarizePR(ctx context.Context, prNumber int, hint string, 
 	log.Debug("calling AI for PR summary generation",
 		"pr_number", prNumber)
 
-	summary, err := s.aiService.GeneratePRSummary(ctx, prompt)
+	var availableLabels []string
+	if s.vcsClient != nil {
+		var err error
+		availableLabels, err = s.vcsClient.GetRepoLabels(ctx)
+		if err != nil {
+			log.Warn("failed to fetch repo labels, proceeding without them", "error", err)
+		}
+	}
+
+	summary, err := s.aiService.GeneratePRSummary(ctx, prompt, availableLabels)
 	if err != nil {
 		log.Error("failed to generate PR summary",
 			"error", err,

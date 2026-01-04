@@ -339,6 +339,7 @@ index 0000000..1234567
 +};`,
 		}
 		mockVCS.On("GetPR", ctx, 42).Return(prData, nil)
+		mockVCS.On("GetRepoLabels", ctx).Return([]string(nil), nil)
 
 		expectedResult := &models.IssueGenerationResult{
 			Title:       "Implement user profile page",
@@ -372,6 +373,7 @@ index 0000000..1234567
 			Diff: "diff --git a/cache/service.go b/cache/service.go\n...",
 		}
 		mockVCS.On("GetPR", ctx, 123).Return(prData, nil)
+		mockVCS.On("GetRepoLabels", ctx).Return([]string(nil), nil)
 
 		expectedResult := &models.IssueGenerationResult{
 			Title:       "Memory leak in cache service",

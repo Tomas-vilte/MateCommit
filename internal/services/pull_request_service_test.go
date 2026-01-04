@@ -44,7 +44,8 @@ func TestPRService_SummarizePR_Success(t *testing.T) {
 
 	mockVCS.On("GetPR", ctx, prNumber).Return(prData, nil)
 	mockVCS.On("GetPRIssues", ctx, mock.Anything, mock.Anything, mock.Anything).Return([]models.Issue(nil), nil)
-	mockAI.On("GeneratePRSummary", ctx, mock.AnythingOfType("string")).Return(expectedSummary, nil)
+	mockVCS.On("GetRepoLabels", ctx).Return([]string{"enhancement"}, nil)
+	mockAI.On("GeneratePRSummary", ctx, mock.AnythingOfType("string"), []string{"enhancement"}).Return(expectedSummary, nil)
 	mockVCS.On("UpdatePR", ctx, prNumber, mock.MatchedBy(func(s models.PRSummary) bool {
 		return strings.Contains(s.Body, expectedSummary.Body) && strings.Contains(s.Body, "Test Plan")
 	})).Return(nil)
@@ -114,7 +115,8 @@ func TestPRService_SummarizePR_GenerateError(t *testing.T) {
 
 	mockVCS.On("GetPR", ctx, prNumber).Return(prData, nil)
 	mockVCS.On("GetPRIssues", ctx, mock.Anything, mock.Anything, mock.Anything).Return([]models.Issue(nil), nil)
-	mockAI.On("GeneratePRSummary", ctx, mock.Anything).Return(models.PRSummary{}, expectedError)
+	mockVCS.On("GetRepoLabels", ctx).Return([]string(nil), nil)
+	mockAI.On("GeneratePRSummary", ctx, mock.Anything, []string(nil)).Return(models.PRSummary{}, expectedError)
 
 	service := NewPRService(
 		WithPRVCSClient(mockVCS),
@@ -157,7 +159,8 @@ func TestPRService_SummarizePR_UpdateError(t *testing.T) {
 
 	mockVCS.On("GetPR", ctx, prNumber).Return(prData, nil)
 	mockVCS.On("GetPRIssues", ctx, mock.Anything, mock.Anything, mock.Anything).Return([]models.Issue(nil), nil)
-	mockAI.On("GeneratePRSummary", ctx, mock.Anything).Return(summary, nil)
+	mockVCS.On("GetRepoLabels", ctx).Return([]string{"bug"}, nil)
+	mockAI.On("GeneratePRSummary", ctx, mock.Anything, []string{"bug"}).Return(summary, nil)
 	mockVCS.On("UpdatePR", ctx, prNumber, mock.MatchedBy(func(s models.PRSummary) bool {
 		return strings.Contains(s.Body, summary.Body) && strings.Contains(s.Body, "Test Plan")
 	})).Return(expectedError)
@@ -219,10 +222,11 @@ func TestPRService_SummarizePR_WithRelatedIssues(t *testing.T) {
 	mockVCS.On("GetPR", ctx, prNumber).Return(prData, nil)
 	mockVCS.On("GetPRIssues", ctx, prData.BranchName, []string{"Fix #789"}, prData.Description).
 		Return(relatedIssues, nil)
+	mockVCS.On("GetRepoLabels", ctx).Return([]string(nil), nil)
 
 	mockAI.On("GeneratePRSummary", ctx, mock.MatchedBy(func(prompt string) bool {
 		return contextContains(prompt, "Bug 1", "Bug 2", "Bug 3")
-	})).Return(expectedSummary, nil)
+	}), []string(nil)).Return(expectedSummary, nil)
 
 	mockVCS.On("UpdatePR", ctx, prNumber, mock.MatchedBy(func(s models.PRSummary) bool {
 		return contextContains(s.Body, "Summary content", "Fixes #123", "Fixes #456", "Fixes #789", "Test Plan & Evidence")
@@ -258,10 +262,11 @@ func TestPRService_SummarizePR_BreakingChanges(t *testing.T) {
 
 	mockVCS.On("GetPR", ctx, prNumber).Return(prData, nil)
 	mockVCS.On("GetPRIssues", ctx, mock.Anything, mock.Anything, mock.Anything).Return([]models.Issue(nil), nil)
+	mockVCS.On("GetRepoLabels", ctx).Return([]string(nil), nil)
 
 	mockAI.On("GeneratePRSummary", ctx, mock.MatchedBy(func(prompt string) bool {
 		return contextContains(prompt, "⚠️ Breaking Changes:", "feat!: breaking change here")
-	})).Return(expectedSummary, nil)
+	}), []string(nil)).Return(expectedSummary, nil)
 
 	mockVCS.On("UpdatePR", ctx, prNumber, mock.MatchedBy(func(s models.PRSummary) bool {
 		return contextContains(s.Body, "Breaking Changes", "feat!: breaking change here", "Test Plan & Evidence")
@@ -493,10 +498,11 @@ func TestPRService_SummarizePR_WithTemplate(t *testing.T) {
 		BodyContent: "## Checklist\n- [ ] Done",
 	}
 	mockTemplate.On("GetPRTemplate", ctx, "PULL_REQUEST_TEMPLATE.md").Return(templateContent, nil)
+	mockVCS.On("GetRepoLabels", ctx).Return([]string(nil), nil)
 
 	mockAI.On("GeneratePRSummary", ctx, mock.MatchedBy(func(prompt string) bool {
 		return strings.Contains(prompt, "## Checklist") && strings.Contains(prompt, "- [ ] Done")
-	})).Return(expectedSummary, nil)
+	}), []string(nil)).Return(expectedSummary, nil)
 
 	mockVCS.On("UpdatePR", ctx, prNumber, mock.MatchedBy(func(s models.PRSummary) bool {
 		return strings.Contains(s.Body, expectedSummary.Body) && strings.Contains(s.Body, "Test Plan")
@@ -538,8 +544,9 @@ func TestPRService_SummarizePR_WithTemplateError(t *testing.T) {
 	mockVCS.On("GetPRIssues", ctx, mock.Anything, mock.Anything, mock.Anything).Return([]models.Issue(nil), nil)
 
 	mockTemplate.On("ListPRTemplates", ctx).Return([]models.TemplateMetadata(nil), errors.New("io error"))
+	mockVCS.On("GetRepoLabels", ctx).Return([]string(nil), nil)
 
-	mockAI.On("GeneratePRSummary", ctx, mock.Anything).Return(expectedSummary, nil)
+	mockAI.On("GeneratePRSummary", ctx, mock.Anything, []string(nil)).Return(expectedSummary, nil)
 
 	mockVCS.On("UpdatePR", ctx, prNumber, mock.MatchedBy(func(s models.PRSummary) bool {
 		return strings.Contains(s.Body, expectedSummary.Body) && strings.Contains(s.Body, "Test Plan")

@@ -20,6 +20,9 @@ type IssueGenerationRequest struct {
 
 	// Template is the project's issue template to guide generation (optional)
 	Template *IssueTemplate
+
+	// AvailableLabels is the list of labels available in the repository (optional)
+	AvailableLabels []string
 }
 
 // IssueGenerationResult contains the result of an issue's content generation.

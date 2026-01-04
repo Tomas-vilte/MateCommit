@@ -72,8 +72,33 @@ func NewGeminiIssueContentGenerator(ctx context.Context, cfg *config.Config, onC
 	return service, nil
 }
 
+func getIssueSchema() *genai.Schema {
+	return &genai.Schema{
+		Type:     genai.TypeObject,
+		Required: []string{"title", "description", "labels"},
+		Properties: map[string]*genai.Schema{
+			"title": {
+				Type:        genai.TypeString,
+				Description: "The title of the issue",
+			},
+			"description": {
+				Type:        genai.TypeString,
+				Description: "The body of the issue in markdown format",
+			},
+			"labels": {
+				Type: genai.TypeArray,
+				Items: &genai.Schema{
+					Type: genai.TypeString,
+				},
+				Description: "List of labels (e.g. bug, feature, refactor, good first issue)",
+			},
+		},
+	}
+}
+
 func (s *GeminiIssueContentGenerator) defaultGenerate(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
-	genConfig := GetGenerateConfig(mName, "", nil)
+	schema := getIssueSchema()
+	genConfig := GetGenerateConfig(mName, "application/json", schema)
 	log := logger.FromContext(ctx)
 
 	resp, err := s.Client.Models.GenerateContent(ctx, mName, genai.Text(p), genConfig)
@@ -167,6 +192,7 @@ func (s *GeminiIssueContentGenerator) GenerateIssueContent(ctx context.Context, 
 		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error parsing AI response", err)
 	}
 
+	result.Labels = CleanLabels(result.Labels, request.AvailableLabels)
 	result.Usage = usage
 
 	log.Info("issue content generated successfully via gemini",
@@ -179,7 +205,7 @@ func (s *GeminiIssueContentGenerator) GenerateIssueContent(ctx context.Context, 
 // buildIssuePrompt builds the prompt to generate issue content.
 func (s *GeminiIssueContentGenerator) buildIssuePrompt(request models.IssueGenerationRequest) string {
 	if request.Description != "" && request.Diff == "" && request.Hint == "" &&
-		request.Template == nil && len(request.ChangedFiles) == 0 {
+		request.Template == nil && len(request.ChangedFiles) == 0 && len(request.AvailableLabels) == 0 {
 		return request.Description
 	}
 
@@ -227,37 +253,8 @@ func (s *GeminiIssueContentGenerator) buildIssuePrompt(request models.IssueGener
 		return ""
 	}
 
-	if request.Template != nil {
-		rendered += `
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🚨 FINAL REMINDER - CRITICAL OUTPUT REQUIREMENT 🚨
-
-YOU MUST OUTPUT **ONLY** VALID JSON.
-
-The template structure above should be used to FILL the "description" field with markdown content.
-
-BUT your actual response MUST be a JSON object like this:
-{
-  "title": "string here",
-  "description": "markdown content following the template structure",
-  "labels": ["array", "of", "strings"]
-}
-
-❌ DO NOT output prose like "Here is a high-quality GitHub issue..."
-❌ DO NOT output markdown text directly
-❌ DO NOT output explanations
-
-✅ ONLY output the JSON object
-✅ Use the template to structure the markdown in the "description" field
-✅ Return valid parseable JSON
-
-BEGIN YOUR JSON OUTPUT NOW:`
-
-		logger.Debug(context.Background(), "full prompt with template and final JSON reminder",
-			"prompt_length", len(rendered),
-			"prompt", rendered)
+	if len(request.AvailableLabels) > 0 {
+		rendered += fmt.Sprintf("\n\nAvailable Labels (Select ONLY from this list):\n%s", strings.Join(request.AvailableLabels, ", "))
 	}
 
 	return rendered
@@ -269,6 +266,8 @@ func (s *GeminiIssueContentGenerator) parseIssueResponse(content string) (*model
 		logger.Error(context.Background(), "received empty response from Gemini AI", nil)
 		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "empty response from AI", nil)
 	}
+
+	content = strings.TrimSpace(content)
 
 	if len(content) > 0 {
 		preview := content
@@ -307,40 +306,12 @@ func (s *GeminiIssueContentGenerator) parseIssueResponse(content string) (*model
 	result := &models.IssueGenerationResult{
 		Title:       strings.TrimSpace(jsonResult.Title),
 		Description: strings.TrimSpace(jsonResult.Description),
-		Labels:      s.cleanLabels(jsonResult.Labels),
+		Labels:      jsonResult.Labels,
 	}
 
 	if result.Title == "" {
 		result.Title = "Generated Issue"
 	}
-	if result.Description == "" {
-		result.Description = content
-	}
 
 	return result, nil
-}
-
-// cleanLabels cleans and validates labels, keeping only the allowed ones.
-func (s *GeminiIssueContentGenerator) cleanLabels(labels []string) []string {
-	allowedLabels := map[string]bool{
-		"feature":  true,
-		"fix":      true,
-		"refactor": true,
-		"docs":     true,
-		"test":     true,
-		"infra":    true,
-	}
-
-	cleaned := make([]string, 0)
-	seen := make(map[string]bool)
-
-	for _, label := range labels {
-		trimmed := strings.TrimSpace(strings.ToLower(label))
-		if trimmed != "" && allowedLabels[trimmed] && !seen[trimmed] {
-			cleaned = append(cleaned, trimmed)
-			seen[trimmed] = true
-		}
-	}
-
-	return cleaned
 }

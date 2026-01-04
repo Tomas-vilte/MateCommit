@@ -241,8 +241,8 @@ func (m *MockVCSClient) GetAuthenticatedUser(ctx context.Context) (string, error
 	return args.String(0), args.Error(1)
 }
 
-func (m *MockPRSummarizer) GeneratePRSummary(ctx context.Context, prompt string) (models.PRSummary, error) {
-	args := m.Called(ctx, prompt)
+func (m *MockPRSummarizer) GeneratePRSummary(ctx context.Context, prompt string, availableLabels []string) (models.PRSummary, error) {
+	args := m.Called(ctx, prompt, availableLabels)
 	return args.Get(0).(models.PRSummary), args.Error(1)
 }
 
