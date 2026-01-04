@@ -165,17 +165,16 @@ func TestGetReleasePromptTemplate(t *testing.T) {
 		result := GetReleasePromptTemplate("en")
 
 		assert.Contains(t, result, "TECHNICAL NOISE FILTERING")
-		assert.Contains(t, result, "INTELLIGENT GROUPING")
-		assert.Contains(t, result, "Keep a Changelog")
+		assert.Contains(t, result, "SEMANTIC GROUPING")
+		assert.Contains(t, result, "QUALITY EXAMPLES")
 	})
 
 	t.Run("Spanish template has Spanish instructions", func(t *testing.T) {
 		result := GetReleasePromptTemplate("es")
 
 		assert.Contains(t, result, "FILTRADO DE RUIDO TÉCNICO")
-		assert.Contains(t, result, "AGRUPACIÓN INTELIGENTE")
-		assert.Contains(t, result, "Keep a Changelog")
-		assert.Contains(t, result, "ESPAÑOL ARGENTINO")
+		assert.Contains(t, result, "AGRUPACIÓN SEMÁNTICA")
+		assert.Contains(t, result, "EJEMPLOS DE CALIDAD")
 	})
 }
 

@@ -207,47 +207,20 @@ Generá release notes profesionales para un CHANGELOG.md siguiendo el estándar 
 {{.Changelog}}
 # Instrucciones Críticas
 ## 1. FILTRADO DE RUIDO TÉCNICO
-**IGNORAR completamente** estos tipos de commits (no incluirlos en ninguna sección):
-- Cambios en mocks o tests internos (ej: "Implementa GetIssue en MockVCSClient")
-- Refactors internos que no afectan funcionalidad (ej: "Refactor: extract helper function")
-- Updates menores de dependencias (ej: "chore: update go.mod")
-- Cambios de documentación interna o comentarios
-- Fixes de typos en código o variables internas
-**SÍ INCLUIR** solo cambios que impactan al usuario final:
-- Nuevas features visibles
-- Mejoras de performance o UX
-- Correcciones de bugs que afectaban funcionalidad
-- Breaking changes
-- Updates importantes de dependencias (cambios de versión mayor)
-## 2. AGRUPACIÓN INTELIGENTE
-**AGRUPAR** commits relacionados bajo un concepto unificador:
-❌ **MAL** (lista cruda de commits):
-- "feat: agregar spinners"
-- "feat: agregar colores"
-- "feat: mejorar feedback visual"
-✅ **BIEN** (agrupado con valor):
-- "UX Renovada: Agregamos spinners, colores y feedback visual en todas las operaciones largas para que no sientas que la terminal se colgó"
-**Reglas de agrupación:**
-- Si 3+ commits tocan el mismo módulo/feature → agrupar en un solo highlight
-- Priorizar el VALOR para el usuario, no los detalles técnicos
-- Máximo 5-7 highlights por release (no listar 15+ ítems)
-## 3. IDIOMA Y TONO
-**ESPAÑOL ARGENTINO PROFESIONAL:**
-- Tono: Conversacional pero técnico, como un email entre devs
-- Primera persona plural: "Agregamos", "Mejoramos", "Implementamos"
-- Evitar spanglish completamente (nada de "fixeamos" o "pusheamos")
-- Evitar jerga forzada, mantener profesionalismo
-**Ejemplos de tono correcto:**
-- ✅ "Automatizamos la generación del CHANGELOG.md"
-- ✅ "Mejoramos la detección automática de issues"
-- ❌ "Se implementó la feature de changelog" (muy formal/pasivo)
-- ❌ "Agregamos un fix re-copado" (muy informal)
-## 4. ESTRUCTURA Y NARRATIVA
-Cada release debe contar una historia:
-- **Summary:** Explicar el foco principal del release (ej: "En esta versión nos enfocamos en mejorar la UX y automatizar el proceso de releases")
-- **Highlights:** Agrupar por tema (UX, Automatización, Performance, etc.)
-- Cada highlight debe responder: "¿Qué ganó el usuario con esto?"
-Generá las release notes ahora siguiendo estas instrucciones al pie de la letra.`
+**IGNORAR** commits de mantenimiento interno, typos, docs internos.
+**INCLUIR** features, mejoras de UX/Performance, bug fixes y breaking changes.
+## 2. AGRUPACIÓN SEMÁNTICA (SECCIONES)
+**AGRUPA** los cambios en secciones temáticas con títulos atractivos. Usa el campo "sections" del esquema.
+Ejemplos: "🎨 Mejoras Visuales", "🚀 Performance", "🔒 Seguridad".
+## 3. ESTILO Y NARRATIVA (IMPORTANTE)
+- **Voz:** Usá "Agregamos/Mejoramos" (1ra persona plural). Evita "Se ha implementado".
+- **Foco:** Centrate en el BENEFICIO para el usuario, no en la implementación técnica.
+## 4. EJEMPLOS DE CALIDAD (GOLD STANDARD)
+❌ MAL: "feat: update user schema" (Técnico, aburrido)
+✅ BIEN: "Mejoramos el perfil de usuario para soportar múltiples direcciones."
+❌ MAL: "fix: fix crash in login" (Vago)
+✅ BIEN: "Solucionamos un cierre inesperado al iniciar sesión con Google."
+Generá las release notes ahora.`
 
 	releasePromptTemplateEN = `# Task
 Generate professional release notes for a CHANGELOG.md following the "Keep a Changelog" standard.
@@ -258,46 +231,20 @@ Generate professional release notes for a CHANGELOG.md following the "Keep a Cha
 {{.Changelog}}
 # Critical Instructions
 ## 1. TECHNICAL NOISE FILTERING
-**COMPLETELY IGNORE** these types of commits (do not include them in any section):
-- Changes to mocks or internal tests (e.g., "Implement GetIssue in MockVCSClient")
-- Internal refactors that don't affect functionality (e.g., "Refactor: extract helper function")
-- Minor dependency updates (e.g., "chore: update go.mod")
-- Internal documentation or comment changes
-- Typo fixes in code or internal variables
-**DO INCLUDE** only changes that impact the end user:
-- New visible features
-- Performance or UX improvements
-- Bug fixes affecting functionality
-- Breaking changes
-- Important dependency updates (major version changes)
-## 2. INTELLIGENT GROUPING
-**GROUP** related commits under a unifying concept:
-❌ **BAD** (raw commit list):
-- "feat: add spinners"
-- "feat: add colors"
-- "feat: improve visual feedback"
-✅ **GOOD** (grouped with value):
-- "Revamped UX: Added spinners, colors, and visual feedback across all long-running operations so you never feel like the terminal froze"
-**Grouping rules:**
-- If 3+ commits touch the same module/feature → group into a single highlight
-- Prioritize USER VALUE, not technical details
-- Maximum 5-7 highlights per release (don't list 15+ items)
-## 3. LANGUAGE AND TONE
-**PROFESSIONAL ENGLISH:**
-- Tone: Conversational yet technical, like an email between developers
-- First person plural: "We added", "We improved", "We implemented"
-- Maintain professionalism, avoid forced slang
-**Examples of correct tone:**
-- ✅ "We automated CHANGELOG.md generation"
-- ✅ "We improved automatic issue detection"
-- ❌ "The changelog feature was implemented" (too formal/passive)
-- ❌ "We added a super cool fix" (too informal)
-## 4. STRUCTURE AND NARRATIVE
-Each release should tell a story:
-- **Summary:** Explain the main focus of the release (e.g., "In this release, we focused on improving UX and automating the release process")
-- **Highlights:** Group by theme (UX, Automation, Performance, etc.)
-- Each highlight should answer: "What did the user gain from this?"
-Generate the release notes now following these instructions to the letter.`
+**IGNORE** internal maintenance, typos, internal docs.
+**INCLUDE** features, UX/Performance improvements, bug fixes, and breaking changes.
+## 2. SEMANTIC GROUPING (SECTIONS)
+**GROUP** changes into thematic sections with engaging titles. Use the "sections" field in the schema.
+Examples: "🎨 Visual Improvements", "🚀 Performance", "🔒 Security".
+## 3. STYLE AND NARRATIVE (IMPORTANT)
+- **Voice:** Use "We added/We improved" (1st person plural). Avoid passive voice.
+- **Focus:** Focus on USER BENEFIT, not technical implementation.
+## 4. QUALITY EXAMPLES (GOLD STANDARD)
+❌ BAD: "feat: update user schema" (Too technical)
+✅ GOOD: "Enhanced user profile to support multiple addresses."
+❌ BAD: "fix: fix crash in login" (Vague)
+✅ GOOD: "Fixed a crash when logging in via Google."
+Generate the release notes now.`
 )
 
 // GetPRPromptTemplate returns the appropriate template based on the language
@@ -347,20 +294,12 @@ func GetIssueReferenceInstructions(lang string) string {
 
 const (
 	templateInstructionsES = `## Template del Proyecto
-
-El proyecto tiene un template específico. DEBES seguir su estructura y formato al generar el contenido.
-
-IMPORTANTE: Generá el contenido siguiendo la estructura y formato mostrado en el template arriba. Completá cada sección basándote en los cambios de código y el contexto proporcionado.
-
-⚠️ CRÍTICO: A pesar del template arriba, tu respuesta DEBE SER JSON válido siguiendo el schema exacto definido en este prompt. El contenido del template debe incorporarse en el campo "description" como texto markdown, pero la respuesta general DEBE ser un objeto JSON con los campos "title", "description" y "labels". NO generes markdown o prosa - SOLO genera JSON válido.`
+ 
+ El proyecto tiene un template específico. DEBES seguir su estructura y formato al generar el contenido.`
 
 	templateInstructionsEN = `## Project Template
-
-The project has a specific template. You MUST follow its structure and format when generating the content.
-
-IMPORTANT: Generate the content following the structure and format shown in the template above. Fill in each section based on the code changes and context provided.
-
-⚠️ CRITICAL: Despite the template above, your response MUST STILL be valid JSON following the exact schema defined in this prompt. The template content should be incorporated into the "description" field as markdown text, but the overall response MUST be a JSON object with "title", "description", and "labels" fields. Do NOT output markdown or prose - ONLY output valid JSON.`
+ 
+ The project has a specific template. You MUST follow its structure and format when generating the content.`
 
 	prTemplateInstructionsES = `## Template de PR del Proyecto
 
@@ -627,56 +566,7 @@ func GetReleaseNotesSectionHeaders(locale string) map[string]string {
 }
 
 const (
-	issuePromptTemplateEN = `# STRICT OUTPUT FORMAT
-  ⚠️ CRITICAL: You MUST return ONLY valid JSON. No markdown blocks, no explanations, no text before/after.
-  ⚠️ ALL field types are STRICTLY enforced. DO NOT change types or add extra fields.
-  ⚠️ DO NOT RETURN AN ARRAY. You MUST return a JSON OBJECT with exactly these fields: title, description, labels.
-
-  ## JSON Schema (MANDATORY):
-  {
-    "type": "object",
-    "required": ["title", "description", "labels"],
-    "properties": {
-      "title": {
-        "type": "string",
-        "description": "Concise and descriptive title"
-      },
-      "description": {
-        "type": "string",
-        "description": "Markdown body following the structure: Context, Technical Details, Impact"
-      },
-      "labels": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        },
-        "description": "Array of label strings (feature, fix, refactor, docs, test, infra)"
-      }
-    },
-    "additionalProperties": false
-  }
-
-  ## Type Rules (STRICT):
-  - "title": MUST be string (never number, never null, never empty)
-  - "description": MUST be string (never number, never null, can contain markdown)
-  - "labels": MUST be array of strings (never array of numbers, never null, use [] if empty)
-
-  ## Prohibited Actions:
-  ❌ DO NOT return an array like []
-  ❌ DO NOT add any fields not listed in the schema
-  ❌ DO NOT change field types (e.g., title to number)
-  ❌ DO NOT wrap JSON in markdown code blocks
-  ❌ DO NOT add explanatory text before/after JSON
-  ❌ DO NOT use null values for required fields
-
-  ## Valid Example:
-  {
-    "title": "feat: implement user authentication",
-    "description": "### Context\nWe need user authentication to secure the application.\n\n### Technical Details\n- Added auth models\n- Implemented JWT tokens\n\n### Impact\nUsers can now securely access the application.",
-    "labels": ["feature", "auth"]
-  }
-
-  # Task
+	issuePromptTemplateEN = `# Task
   Act as a Senior Tech Lead and generate a high-quality GitHub issue based on the provided inputs.
 
   # Inputs
@@ -688,7 +578,6 @@ const (
   3. **Accurate Categorization:** Always choose at least one primary category: 'feature', 'fix', or 'refactor'. Use 'fix' ONLY for bug corrections. Use 'refactor' for code improvements without logic changes. Use 'feature' for new functionality.
   4. **No Emojis:** Do not use emojis in the title or description. Keep it purely textual and professional.
   5. **Balanced Labeling:** Aim for 2-4 relevant labels. Ensure you include the primary category plus any relevant file-based labels like 'test', 'docs', or 'infra' if applicable.
-  6. **Format:** Raw JSON only. Do not wrap in markdown blocks.
 
   # Description Structure
   The 'description' field must follow this Markdown structure:
@@ -696,59 +585,9 @@ const (
   - ### Technical Details (Architectural changes, new models, etc.)
   - ### Impact (Benefits)
 
-  Generate the issue now. Return ONLY the JSON object (NOT an array), nothing else.`
+  Generate the issue now.`
 
-	issuePromptTemplateES = `# FORMATO DE SALIDA ESTRICTO
-  ⚠️ CRÍTICO: DEBES devolver SOLO JSON válido. Sin bloques de markdown, sin explicaciones, sin texto antes/después.
-  ⚠️ TODOS los tipos de campos están ESTRICTAMENTE definidos. NO cambies tipos ni agregues campos extra.
-  ⚠️ NO DEVUELVAS UN ARRAY. DEBES devolver un OBJETO JSON con exactamente estos campos: title, description, labels.
-  IMPORTANTE: Responde en ESPAÑOL. Todo el contenido del JSON debe estar en español.
-
-  ## Schema JSON (OBLIGATORIO):
-  {
-    "type": "object",
-    "required": ["title", "description", "labels"],
-    "properties": {
-      "title": {
-        "type": "string",
-        "description": "Título descriptivo y con gancho"
-      },
-      "description": {
-        "type": "string",
-        "description": "Cuerpo en markdown siguiendo la estructura: Contexto, Detalles Técnicos, Impacto"
-      },
-      "labels": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        },
-        "description": "Array de etiquetas como strings (feature, fix, refactor, docs, test, infra)"
-      }
-    },
-    "additionalProperties": false
-  }
-
-  ## Reglas de Tipos (ESTRICTAS):
-  - "title": DEBE ser string (nunca número, nunca null, nunca vacío)
-  - "description": DEBE ser string (nunca número, nunca null, puede contener markdown)
-  - "labels": DEBE ser array de strings (nunca array de números, nunca null, usar [] si está vacío)
-
-  ## Acciones Prohibidas:
-  ❌ NO devuelvas un array como []
-  ❌ NO agregues campos que no estén en el schema
-  ❌ NO cambies tipos de campos (ej: title a número)
-  ❌ NO envuelvas el JSON en bloques de markdown
-  ❌ NO agregues texto explicativo antes/después del JSON
-  ❌ NO uses null para campos requeridos
-
-  ## Ejemplo Válido:
-  {
-    "title": "feat: implementar autenticación de usuarios",
-    "description": "### Contexto\nNecesitamos autenticación de usuarios para asegurar la aplicación.\n\n### Detalles Técnicos\n- Agregué modelos de auth\n- Implementé tokens JWT\n\n### Impacto\nLos usuarios ahora pueden acceder de forma segura a la aplicación.",
-    "labels": ["feature", "auth"]
-  }
-
-  # Tarea
+	issuePromptTemplateES = `# Tarea
   Actuá como un Tech Lead y generá un issue de GitHub profesional basado en los inputs.
 
   # Entradas (Inputs)
@@ -760,7 +599,6 @@ const (
   3. **Categorización Precisa:** Elegí siempre al menos una categoría principal: 'feature', 'fix', o 'refactor'. Solo usá 'fix' si ves una corrección de un bug. Usá 'refactor' para mejoras de código sin cambios lógicos. Usá 'feature' para funcionalidades nuevas.
   4. **Cero Emojis:** No uses emojis ni en el título ni en el cuerpo del issue. Mantené un estilo sobrio y técnico.
   5. **Etiquetado Equilibrado:** Buscá entre 2 y 4 etiquetas relevantes. Asegurate de incluir la categoría principal más cualquier etiqueta de tipo de archivo como 'test', 'docs', o 'infra' si corresponde.
-  6. **Formato:** JSON crudo. No incluyas bloques de markdown (como ` + "" + `).
 
   # Estructura de la Descripción
   El campo "description" tiene que ser Markdown y seguir esta estructura estricta:
@@ -768,7 +606,7 @@ const (
   - ### Detalles Técnicos (Lista de cambios importantes, modelos nuevos, refactors)
   - ### Impacto (¿Qué gana el usuario o el desarrollador con esto?)
 
-  Generá el issue ahora. Devuelve SOLO el objeto JSON (NO un array), nada más.`
+  Generá el issue ahora. Responde en ESPAÑOL.`
 )
 
 // GetIssuePromptTemplate returns the appropriate issue generation template based on language

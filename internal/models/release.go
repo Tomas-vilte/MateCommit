@@ -81,6 +81,7 @@ type (
 		Title           string
 		Summary         string
 		Highlights      []string
+		Sections        []ReleaseNotesSection
 		Changelog       string
 		Recommended     VersionBump
 		QuickStart      string
@@ -89,6 +90,11 @@ type (
 		Comparisons     []Comparison
 		Links           map[string]string
 		Usage           *TokenUsage
+	}
+
+	ReleaseNotesSection struct {
+		Title string
+		Items []string
 	}
 
 	// CodeExample represents a code example with description

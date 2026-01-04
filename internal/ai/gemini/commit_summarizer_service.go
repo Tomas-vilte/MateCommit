@@ -232,9 +232,29 @@ func (s *GeminiCommitSummarizer) GenerateSuggestions(ctx context.Context, info m
 
 	var responseText string
 	if geminiResp, ok := resp.(*genai.GenerateContentResponse); ok {
+		log.Debug("formatResponse received GenerateContentResponse",
+			"candidates_count", len(geminiResp.Candidates))
 		responseText = formatResponse(geminiResp)
-	} else if s, ok := resp.(string); ok {
-		responseText = s
+		if len(responseText) > 0 {
+			preview := responseText
+			if len(responseText) > 100 {
+				preview = responseText[:100]
+			}
+			log.Debug("formatResponse result",
+				"response_length", len(responseText),
+				"response_preview", preview)
+		} else {
+			log.Debug("formatResponse result empty")
+		}
+	} else if str, ok := resp.(string); ok {
+		responseText = str
+		log.Debug("received string response", "length", len(str))
+	} else if respMap, ok := resp.(map[string]interface{}); ok {
+		log.Debug("received map response from cache, extracting text")
+		responseText = extractTextFromMap(respMap)
+		log.Debug("extracted text from map", "length", len(responseText))
+	} else {
+		log.Warn("unexpected response type", "type", fmt.Sprintf("%T", resp))
 	}
 
 	if responseText == "" {

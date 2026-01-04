@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/thomas-vilte/matecommit/internal/cache"
@@ -118,6 +119,24 @@ func (w *CostAwareWrapper) WrapGenerate(
 	tokens, err := w.provider.CountTokens(ctx, prompt)
 	if err == nil {
 		inputTokens = tokens
+	} else {
+		inputTokens = len(prompt) / 4
+
+		msg := "failed to count tokens via API, using local estimation"
+		errStr := err.Error()
+
+		if strings.Contains(errStr, "not supported") || strings.Contains(errStr, "not found") {
+			slog.Debug(msg,
+				"provider", w.provider.GetProviderName(),
+				"model", w.provider.GetModelName(),
+				"reason", "model_not_supported_or_found")
+		} else {
+			slog.Warn(msg,
+				"provider", w.provider.GetProviderName(),
+				"model", w.provider.GetModelName(),
+				"estimated_tokens", inputTokens,
+				"error", err)
+		}
 	}
 
 	suggestedModel := w.modelSelector.SelectBestModel(command, inputTokens)
