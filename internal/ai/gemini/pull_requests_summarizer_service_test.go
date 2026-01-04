@@ -44,7 +44,7 @@ func TestGeminiPRSummarizer(t *testing.T) {
 		assert.NoError(t, err, "Error creando summarizer")
 
 		// Act
-		summary, err := summarizer.GeneratePRSummary(ctx, "")
+		summary, err := summarizer.GeneratePRSummary(ctx, "", nil)
 
 		// Assert
 		assert.Equal(t, models.PRSummary{}, summary, "No deberían generarse resúmenes con prompt vacío")
@@ -65,7 +65,7 @@ func TestGeminiPRSummarizer(t *testing.T) {
 		prContent := "Some PR content to summarize"
 
 		// Act
-		prompt := summarizer.generatePRPrompt(prContent)
+		prompt := summarizer.generatePRPrompt(prContent, nil)
 
 		// Assert
 		assert.Contains(t, prompt, "Some PR content to summarize", "El prompt debe contener el contenido del PR")
@@ -152,7 +152,7 @@ func TestGeneratePRSummary_HappyPath(t *testing.T) {
 			}, &models.TokenUsage{TotalTokens: 50}, nil
 		}
 
-		summary, err := summarizer.GeneratePRSummary(ctx, "successful content")
+		summary, err := summarizer.GeneratePRSummary(ctx, "successful content", nil)
 
 		assert.NoError(t, err)
 		assert.Equal(t, "Awesome Feature", summary.Title)
@@ -170,7 +170,7 @@ func TestGeneratePRSummary_HappyPath(t *testing.T) {
 			}, &models.TokenUsage{}, nil
 		}
 
-		summary, err := summarizer.GeneratePRSummary(ctx, "content with empty title")
+		summary, err := summarizer.GeneratePRSummary(ctx, "content with empty title", nil)
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid AI output format")

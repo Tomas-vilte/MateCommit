@@ -126,13 +126,14 @@ func (gps *GeminiPRSummarizer) defaultGenerate(ctx context.Context, mName string
 	return resp, usage, nil
 }
 
-func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prContent string) (models.PRSummary, error) {
+func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prContent string, availableLabels []string) (models.PRSummary, error) {
 	log := logger.FromContext(ctx)
 
 	log.Info("generating PR summary via gemini",
-		"content_length", len(prContent))
+		"content_length", len(prContent),
+		"available_labels_count", len(availableLabels))
 
-	prompt := gps.generatePRPrompt(prContent)
+	prompt := gps.generatePRPrompt(prContent, availableLabels)
 
 	log.Debug("calling gemini API for PR summary",
 		"prompt_length", len(prompt))
@@ -199,12 +200,12 @@ func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prContent 
 	return models.PRSummary{
 		Title:  jsonSummary.Title,
 		Body:   jsonSummary.Body,
-		Labels: jsonSummary.Labels,
+		Labels: CleanLabels(jsonSummary.Labels, availableLabels),
 		Usage:  usage,
 	}, nil
 }
 
-func (gps *GeminiPRSummarizer) generatePRPrompt(prContent string) string {
+func (gps *GeminiPRSummarizer) generatePRPrompt(prContent string, availableLabels []string) string {
 	templateStr := ai.GetPRPromptTemplate(gps.config.Language)
 	data := ai.PromptData{
 		PRContent: prContent,
@@ -213,6 +214,10 @@ func (gps *GeminiPRSummarizer) generatePRPrompt(prContent string) string {
 	rendered, err := ai.RenderPrompt("prPrompt", templateStr, data)
 	if err != nil {
 		return ""
+	}
+
+	if len(availableLabels) > 0 {
+		rendered += fmt.Sprintf("\n\nAvailable Labels (Select ONLY from this list):\n%s", strings.Join(availableLabels, ", "))
 	}
 
 	return rendered

@@ -694,6 +694,13 @@ func (ghc *GitHubClient) CreateIssue(ctx context.Context, title string, body str
 		"labels_count", len(labels),
 		"assignees_count", len(assignees))
 
+	if labels == nil {
+		labels = []string{}
+	}
+	if assignees == nil {
+		assignees = []string{}
+	}
+
 	issueRequest := &github.IssueRequest{
 		Title:     github.Ptr(title),
 		Body:      github.Ptr(body),

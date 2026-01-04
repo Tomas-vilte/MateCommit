@@ -15,7 +15,7 @@ type CommitSummarizer interface {
 // PRSummarizer defines the interface for services that summarize Pull Requests.
 type PRSummarizer interface {
 	// GeneratePRSummary generates a summary of a Pull Request given a prompt.
-	GeneratePRSummary(ctx context.Context, prompt string) (models.PRSummary, error)
+	GeneratePRSummary(ctx context.Context, prompt string, availableLabels []string) (models.PRSummary, error)
 }
 
 // ReleaseNotesGenerator defines the interface to generate release notes.

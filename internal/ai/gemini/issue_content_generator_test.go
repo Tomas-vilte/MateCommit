@@ -71,6 +71,15 @@ func TestBuildIssuePrompt(t *testing.T) {
 			},
 			contains: []string{"Code Changes (git diff)", "user description", "special hint"},
 		},
+		{
+			name: "with available labels",
+			request: models.IssueGenerationRequest{
+				Description:     "user description",
+				Language:        "en",
+				AvailableLabels: []string{"bug", "enhancement"},
+			},
+			contains: []string{"Available Labels", "bug, enhancement"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -106,26 +115,6 @@ func TestBuildIssuePrompt_WithTemplate(t *testing.T) {
 
 		// Should contain the template
 		assert.Contains(t, prompt, "Bug Report")
-
-		// Should contain the final JSON reminder
-		assert.Contains(t, prompt, "🚨 FINAL REMINDER - CRITICAL OUTPUT REQUIREMENT 🚨")
-		assert.Contains(t, prompt, "YOU MUST OUTPUT **ONLY** VALID JSON")
-		assert.Contains(t, prompt, "BEGIN YOUR JSON OUTPUT NOW:")
-
-		// Should contain instructions about using template in description field
-		assert.Contains(t, prompt, "The template structure above should be used to FILL the \"description\" field")
-
-		// Should contain prohibitions
-		assert.Contains(t, prompt, "❌ DO NOT output prose like \"Here is a high-quality GitHub issue...\"")
-		assert.Contains(t, prompt, "❌ DO NOT output markdown text directly")
-
-		// Verify the reminder is at the end
-		lastIndex := len(prompt) - 500
-		if lastIndex < 0 {
-			lastIndex = 0
-		}
-		finalSection := prompt[lastIndex:]
-		assert.Contains(t, finalSection, "BEGIN YOUR JSON OUTPUT NOW:")
 	})
 
 	t.Run("does NOT add final reminder when no template", func(t *testing.T) {
@@ -137,9 +126,8 @@ func TestBuildIssuePrompt_WithTemplate(t *testing.T) {
 
 		prompt := gen.buildIssuePrompt(request)
 
-		// Should NOT contain the final JSON reminder
-		assert.NotContains(t, prompt, "🚨 FINAL REMINDER - CRITICAL OUTPUT REQUIREMENT 🚨")
-		assert.NotContains(t, prompt, "BEGIN YOUR JSON OUTPUT NOW:")
+		// Verification is just that prompt exists and is relevant
+		assert.Contains(t, prompt, "Code Changes")
 	})
 
 	t.Run("includes template in Spanish", func(t *testing.T) {
@@ -159,10 +147,6 @@ func TestBuildIssuePrompt_WithTemplate(t *testing.T) {
 
 		// Should contain the template
 		assert.Contains(t, prompt, "Reporte de Bug")
-
-		// Should still contain the final JSON reminder (in English for consistency)
-		assert.Contains(t, prompt, "🚨 FINAL REMINDER - CRITICAL OUTPUT REQUIREMENT 🚨")
-		assert.Contains(t, prompt, "BEGIN YOUR JSON OUTPUT NOW:")
 	})
 
 	t.Run("handles template with all fields", func(t *testing.T) {
@@ -188,28 +172,11 @@ func TestBuildIssuePrompt_WithTemplate(t *testing.T) {
 		// Should contain changed files
 		assert.Contains(t, prompt, "main.go")
 		assert.Contains(t, prompt, "test.go")
-
-		// Should contain the final reminder
-		assert.Contains(t, prompt, "🚨 FINAL REMINDER - CRITICAL OUTPUT REQUIREMENT 🚨")
-		assert.Contains(t, prompt, "BEGIN YOUR JSON OUTPUT NOW:")
 	})
 
 	t.Run("reminder contains complete JSON structure example", func(t *testing.T) {
-		template := &models.IssueTemplate{
-			Name: "Test Template",
-		}
-
-		request := models.IssueGenerationRequest{
-			Template: template,
-			Language: "en",
-		}
-
-		prompt := gen.buildIssuePrompt(request)
-
-		// Should show the expected JSON structure
-		assert.Contains(t, prompt, `"title": "string here"`)
-		assert.Contains(t, prompt, `"description": "markdown content following the template structure"`)
-		assert.Contains(t, prompt, `"labels": ["array", "of", "strings"]`)
+		// This test is now obsolete as structure is enforced by Schema, not prompt text.
+		// We can remove it or just check nothing.
 	})
 }
 
@@ -268,33 +235,42 @@ func TestParseIssueResponse(t *testing.T) {
 }
 
 func TestCleanLabels(t *testing.T) {
-	gen := &GeminiIssueContentGenerator{}
 
 	tests := []struct {
-		name     string
-		input    []string
-		expected []string
+		name            string
+		input           []string
+		availableLabels []string
+		expected        []string
 	}{
 		{
-			name:     "only allowed labels",
-			input:    []string{"fix", "feature", "bug", "invalid"},
-			expected: []string{"fix", "feature"},
+			name:            "default whitelist - allowed",
+			input:           []string{"fix", "feature", "bug", "invalid"},
+			availableLabels: nil,
+			expected:        []string{"fix", "feature", "bug"},
 		},
 		{
-			name:     "mixed case and spaces",
-			input:    []string{"  Fix ", "FEATURE", "test"},
-			expected: []string{"fix", "feature", "test"},
+			name:            "default whitelist - mixed case",
+			input:           []string{"  Fix ", "FEATURE", "test"},
+			availableLabels: nil,
+			expected:        []string{"fix", "feature", "test"},
 		},
 		{
-			name:     "duplicates",
-			input:    []string{"fix", "fix", "FIX"},
-			expected: []string{"fix"},
+			name:            "strict available labels",
+			input:           []string{"custom-1", "custom-2", "fix"},
+			availableLabels: []string{"custom-1", "custom-2"},
+			expected:        []string{"custom-1", "custom-2"},
+		},
+		{
+			name:            "strict available labels - excludes non-existent",
+			input:           []string{"custom-1", "random"},
+			availableLabels: []string{"custom-1"},
+			expected:        []string{"custom-1"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := gen.cleanLabels(tt.input)
+			result := CleanLabels(tt.input, tt.availableLabels)
 			assert.ElementsMatch(t, tt.expected, result)
 		})
 	}

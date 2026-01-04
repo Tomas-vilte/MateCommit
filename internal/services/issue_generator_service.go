@@ -108,16 +108,26 @@ func (s *IssueGeneratorService) GenerateFromDiff(ctx context.Context, hint strin
 		template, _ = s.SelectTemplateWithAI(ctx, "", hint, changedFiles, nil)
 	}
 
+	var availableLabels []string
+	if s.vcsClient != nil {
+		availableLabels, err = s.fetchAvailableLabels(ctx)
+		if err != nil {
+			logger.Warn(ctx, "failed to fetch repo labels, proceeding without them", err)
+		}
+	}
+
 	request := models.IssueGenerationRequest{
-		Diff:         diff,
-		ChangedFiles: changedFiles,
-		Hint:         hint,
-		Language:     s.config.Language,
-		Template:     template,
+		Diff:            diff,
+		ChangedFiles:    changedFiles,
+		Hint:            hint,
+		Language:        s.config.Language,
+		Template:        template,
+		AvailableLabels: availableLabels,
 	}
 
 	logger.Debug(ctx, "calling AI for issue generation from diff",
-		"has_template", template != nil)
+		"has_template", template != nil,
+		"available_labels_count", len(availableLabels))
 
 	result, err := s.ai.GenerateIssueContent(ctx, request)
 	if err != nil {
@@ -142,6 +152,13 @@ func (s *IssueGeneratorService) GenerateFromDiff(ctx context.Context, hint strin
 		"title", result.Title)
 
 	return result, nil
+}
+
+func (s *IssueGeneratorService) fetchAvailableLabels(ctx context.Context) ([]string, error) {
+	if s.vcsClient == nil {
+		return nil, nil
+	}
+	return s.vcsClient.GetRepoLabels(ctx)
 }
 
 // GenerateFromDescription generates issue content based on a manual description.
@@ -170,16 +187,27 @@ func (s *IssueGeneratorService) GenerateFromDescription(ctx context.Context, des
 		}
 	}
 
+	var availableLabels []string
+	if s.vcsClient != nil {
+		var err error
+		availableLabels, err = s.fetchAvailableLabels(ctx)
+		if err != nil {
+			logger.Warn(ctx, "failed to fetch repo labels, proceeding without them", err)
+		}
+	}
+
 	request := models.IssueGenerationRequest{
-		Description: description,
-		Template:    template,
+		Description:     description,
+		Template:        template,
+		AvailableLabels: availableLabels,
 	}
 	if s.config != nil {
 		request.Language = s.config.Language
 	}
 
 	logger.Debug(ctx, "calling AI for issue generation from description",
-		"has_template", template != nil)
+		"has_template", template != nil,
+		"available_labels_count", len(availableLabels))
 
 	result, err := s.ai.GenerateIssueContent(ctx, request)
 	if err != nil {
@@ -254,13 +282,23 @@ func (s *IssueGeneratorService) GenerateFromPR(ctx context.Context, prNumber int
 		template, _ = s.SelectTemplateWithAI(ctx, prData.Title, prData.Description, changedFiles, prData.Labels)
 	}
 
+	var availableLabels []string
+	if s.vcsClient != nil {
+		var err error
+		availableLabels, err = s.fetchAvailableLabels(ctx)
+		if err != nil {
+			logger.Warn(ctx, "failed to fetch repo labels, proceeding without them", err)
+		}
+	}
+
 	request := models.IssueGenerationRequest{
-		Description:  contextBuilder.String(),
-		Diff:         prData.Diff,
-		ChangedFiles: changedFiles,
-		Hint:         hint,
-		Language:     s.config.Language,
-		Template:     template,
+		Description:     contextBuilder.String(),
+		Diff:            prData.Diff,
+		ChangedFiles:    changedFiles,
+		Hint:            hint,
+		Language:        s.config.Language,
+		Template:        template,
+		AvailableLabels: availableLabels,
 	}
 
 	logger.Debug(ctx, "calling AI for issue generation from PR",
