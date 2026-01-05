@@ -12,9 +12,9 @@ type IssueTemplate struct {
 
 	// Template content
 	// For .md: Markdown string
-	// For .yml (GitHub Issue Forms): array of form fields
-	Body        interface{} `yaml:"body,omitempty"`
-	BodyContent string      `yaml:"-"` // For backward compatibility with .md
+	// For .yml (GitHub Issue Forms): strict typed list of form items
+	Body        []IssueFormItem `yaml:"body,omitempty"`
+	BodyContent string          `yaml:"-"` // For backward compatibility with .md
 
 	// Path to the template file
 	FilePath string `yaml:"-"`

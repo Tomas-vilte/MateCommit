@@ -72,10 +72,11 @@ func NewIssueGeneratorService(
 
 // GenerateFromDiff generates issue content based on the current git diff.
 // It analyzes local changes (staged and unstaged) to create an appropriate title, description, and labels.
-func (s *IssueGeneratorService) GenerateFromDiff(ctx context.Context, hint string, skipLabels bool, autoTemplate bool) (*models.IssueGenerationResult, error) {
+func (s *IssueGeneratorService) GenerateFromDiff(ctx context.Context, hint string, skipLabels bool, autoTemplate bool, explicitTemplate *models.IssueTemplate) (*models.IssueGenerationResult, error) {
 	logger.Info(ctx, "generating issue from diff",
 		"has_hint", hint != "",
-		"skip_labels", skipLabels)
+		"skip_labels", skipLabels,
+		"has_explicit_template", explicitTemplate != nil)
 
 	if s.ai == nil {
 		logger.Error(ctx, "AI service not configured", nil)
@@ -103,8 +104,8 @@ func (s *IssueGeneratorService) GenerateFromDiff(ctx context.Context, hint strin
 		"diff_size", len(diff),
 		"files_count", len(changedFiles))
 
-	var template *models.IssueTemplate
-	if autoTemplate {
+	var template = explicitTemplate
+	if template == nil && autoTemplate {
 		template, _ = s.SelectTemplateWithAI(ctx, "", hint, changedFiles, nil)
 	}
 
@@ -163,10 +164,11 @@ func (s *IssueGeneratorService) fetchAvailableLabels(ctx context.Context) ([]str
 
 // GenerateFromDescription generates issue content based on a manual description.
 // Useful when the user wants to create an issue without having local changes.
-func (s *IssueGeneratorService) GenerateFromDescription(ctx context.Context, description string, skipLabels bool, autoTemplate bool) (*models.IssueGenerationResult, error) {
+func (s *IssueGeneratorService) GenerateFromDescription(ctx context.Context, description string, skipLabels bool, autoTemplate bool, explicitTemplate *models.IssueTemplate) (*models.IssueGenerationResult, error) {
 	logger.Info(ctx, "generating issue from description",
 		"description_length", len(description),
-		"skip_labels", skipLabels)
+		"skip_labels", skipLabels,
+		"has_explicit_template", explicitTemplate != nil)
 
 	if s.ai == nil {
 		logger.Error(ctx, "AI service not configured", nil)
@@ -178,8 +180,8 @@ func (s *IssueGeneratorService) GenerateFromDescription(ctx context.Context, des
 		return nil, domainErrors.NewAppError(domainErrors.TypeConfiguration, "description is required", nil)
 	}
 
-	var template *models.IssueTemplate
-	if autoTemplate {
+	var template = explicitTemplate
+	if template == nil && autoTemplate {
 		var err error
 		template, err = s.SelectTemplateWithAI(ctx, "", description, nil, nil)
 		if err != nil {
@@ -231,11 +233,12 @@ func (s *IssueGeneratorService) GenerateFromDescription(ctx context.Context, des
 	return result, nil
 }
 
-func (s *IssueGeneratorService) GenerateFromPR(ctx context.Context, prNumber int, hint string, skipLabels bool, autoTemplate bool) (*models.IssueGenerationResult, error) {
+func (s *IssueGeneratorService) GenerateFromPR(ctx context.Context, prNumber int, hint string, skipLabels bool, autoTemplate bool, explicitTemplate *models.IssueTemplate) (*models.IssueGenerationResult, error) {
 	logger.Info(ctx, "generating issue from PR",
 		"pr_number", prNumber,
 		"has_hint", hint != "",
-		"skip_labels", skipLabels)
+		"skip_labels", skipLabels,
+		"has_explicit_template", explicitTemplate != nil)
 
 	if s.ai == nil {
 		logger.Error(ctx, "AI service not configured", nil)
@@ -277,8 +280,8 @@ func (s *IssueGeneratorService) GenerateFromPR(ctx context.Context, prNumber int
 
 	changedFiles := s.extractFilesFromDiff(prData.Diff)
 
-	var template *models.IssueTemplate
-	if autoTemplate {
+	var template = explicitTemplate
+	if template == nil && autoTemplate {
 		template, _ = s.SelectTemplateWithAI(ctx, prData.Title, prData.Description, changedFiles, prData.Labels)
 	}
 
@@ -341,9 +344,9 @@ func (s *IssueGeneratorService) GenerateWithTemplate(ctx context.Context, templa
 
 	var baseResult *models.IssueGenerationResult
 	if fromDiff {
-		baseResult, err = s.GenerateFromDiff(ctx, hint, skipLabels, false)
+		baseResult, err = s.GenerateFromDiff(ctx, hint, skipLabels, false, template)
 	} else if description != "" {
-		baseResult, err = s.GenerateFromDescription(ctx, description, skipLabels, false)
+		baseResult, err = s.GenerateFromDescription(ctx, description, skipLabels, false, template)
 	} else {
 		return nil, domainErrors.NewAppError(domainErrors.TypeConfiguration, "no input provided", nil)
 	}
@@ -351,7 +354,7 @@ func (s *IssueGeneratorService) GenerateWithTemplate(ctx context.Context, templa
 		return nil, err
 	}
 
-	result := s.templateService.MergeWithGeneratedContent(template, baseResult)
+	result := baseResult
 
 	if len(template.Assignees) > 0 {
 		result.Assignees = s.mergeAssignees(result.Assignees, template.Assignees)

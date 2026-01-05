@@ -67,7 +67,7 @@ func runInitCommandTest(t *testing.T, userInput string, fullMode bool) (output s
 		Commands: []*cli.Command{cmd},
 	}
 
-	args := []string{"test", "init"}
+	args := []string{"test", "init", "--global"}
 	if fullMode {
 		args = append(args, "--full")
 	}

@@ -396,22 +396,41 @@ func FormatTemplateForPrompt(template *models.IssueTemplate, lang string, templa
 			sb.WriteString(GetPRTemplateInstructions(lang))
 		}
 		sb.WriteString("\n\n")
-	} else if template.Body != nil {
+	} else if len(template.Body) > 0 {
 		if lang == "es" {
 			if isIssue {
 				sb.WriteString("\nTipo de Template: GitHub Issue Form (YAML)\n")
 			} else {
 				sb.WriteString("\nTipo de Template: GitHub PR Template (YAML/Markdown)\n")
 			}
-			sb.WriteString("El template define campos específicos. Generá contenido que coincida con la estructura esperada.\n\n")
+			sb.WriteString("El template define campos específicos. A continuación la estructura que DEBES completar:\n\n")
 		} else {
 			if isIssue {
 				sb.WriteString("\nTemplate Type: GitHub Issue Form (YAML)\n")
 			} else {
 				sb.WriteString("\nTemplate Type: GitHub PR Template (YAML/Markdown)\n")
 			}
-			sb.WriteString("The template defines specific fields. Generate content that matches the expected structure.\n\n")
+			sb.WriteString("The template defines specific fields. Below is the structure you MUST complete:\n\n")
 		}
+
+		for _, item := range template.Body {
+			if item.Type == "markdown" {
+				continue
+			}
+
+			if item.Attributes.Label != "" {
+				sb.WriteString(fmt.Sprintf("### %s\n", item.Attributes.Label))
+				if item.Attributes.Description != "" {
+					sb.WriteString(fmt.Sprintf("Context: %s\n", item.Attributes.Description))
+				}
+				if item.Attributes.Placeholder != "" {
+					sb.WriteString(fmt.Sprintf("Example: %s\n", item.Attributes.Placeholder))
+				}
+				sb.WriteString("\n")
+			}
+		}
+
+		sb.WriteString("\n")
 	}
 
 	return sb.String()
@@ -579,12 +598,6 @@ const (
   4. **No Emojis:** Do not use emojis in the title or description. Keep it purely textual and professional.
   5. **Balanced Labeling:** Aim for 2-4 relevant labels. Ensure you include the primary category plus any relevant file-based labels like 'test', 'docs', or 'infra' if applicable.
 
-  # Description Structure
-  The 'description' field must follow this Markdown structure:
-  - ### Context (Motivation)
-  - ### Technical Details (Architectural changes, new models, etc.)
-  - ### Impact (Benefits)
-
   Generate the issue now.`
 
 	issuePromptTemplateES = `# Tarea
@@ -600,13 +613,23 @@ const (
   4. **Cero Emojis:** No uses emojis ni en el título ni en el cuerpo del issue. Mantené un estilo sobrio y técnico.
   5. **Etiquetado Equilibrado:** Buscá entre 2 y 4 etiquetas relevantes. Asegurate de incluir la categoría principal más cualquier etiqueta de tipo de archivo como 'test', 'docs', o 'infra' si corresponde.
 
+  Generá el issue ahora. Responde en ESPAÑOL.`
+
+	issueDefaultStructureEN = `
+  # Description Structure
+  The 'description' field must follow this Markdown structure:
+  - ### Context (Motivation)
+  - ### Technical Details (Architectural changes, new models, etc.)
+  - ### Impact (Benefits)
+`
+
+	issueDefaultStructureES = `
   # Estructura de la Descripción
   El campo "description" tiene que ser Markdown y seguir esta estructura estricta:
   - ### Contexto (¿Cuál es la motivación o el dolor que resuelve esto?)
   - ### Detalles Técnicos (Lista de cambios importantes, modelos nuevos, refactors)
   - ### Impacto (¿Qué gana el usuario o el desarrollador con esto?)
-
-  Generá el issue ahora. Responde en ESPAÑOL.`
+`
 )
 
 // GetIssuePromptTemplate returns the appropriate issue generation template based on language
@@ -616,5 +639,15 @@ func GetIssuePromptTemplate(lang string) string {
 		return issuePromptTemplateES
 	default:
 		return issuePromptTemplateEN
+	}
+}
+
+// GetIssueDefaultStructure returns the default structure for issues when no template is provided
+func GetIssueDefaultStructure(lang string) string {
+	switch lang {
+	case "es":
+		return issueDefaultStructureES
+	default:
+		return issueDefaultStructureEN
 	}
 }
