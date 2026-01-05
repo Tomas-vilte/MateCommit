@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.7.0]
+
+[v1.7.0]: https://github.com/thomas-vilte/matecommit/compare/v1.6.0...v1.7.0
+
+In this release, we focused on making AI-generated content more structured, reliable, and context-aware. We introduced semantic sections for release notes and implemented dynamic prompt injection to give you greater control over your development workflow.
+
 ## [v1.6.0]
 
 [v1.6.0]: https://github.com/thomas-vilte/matecommit/compare/v1.5.0...v1.6.0
