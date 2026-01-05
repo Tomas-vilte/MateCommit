@@ -380,6 +380,13 @@ func (s *ReleaseService) UpdateLocalChangelog(release *models.Release, notes *mo
 		log.Warn("failed to ensure Unreleased section", "error", err)
 	}
 
+	if warnings, err := s.ValidateChangelog(changelogFile); err == nil && len(warnings) > 0 {
+		log.Warn("CHANGELOG validation warnings detected", "count", len(warnings))
+		for _, warning := range warnings {
+			log.Warn("CHANGELOG warning", "type", warning.Type, "message", warning.Message)
+		}
+	}
+
 	log.Info("changelog updated successfully",
 		"file", changelogFile,
 		"version", release.Version)
@@ -592,6 +599,85 @@ func (s *ReleaseService) MoveUnreleasedToVersion(filename string, release *model
 	}
 
 	return s.EnsureUnreleasedSection(filename)
+}
+
+// ChangelogWarning represents a validation warning
+type ChangelogWarning struct {
+	Type    string
+	Message string
+}
+
+// validateChangelogEntry validates a CHANGELOG entry and returns warnings
+func (s *ReleaseService) validateChangelogEntry(content string, version string) []ChangelogWarning {
+	var warnings []ChangelogWarning
+
+	datePattern := regexp.MustCompile(`## \[` + regexp.QuoteMeta(version) + `\] - \d{4}-\d{2}-\d{2}`)
+	if !datePattern.MatchString(content) {
+		warnings = append(warnings, ChangelogWarning{
+			Type:    "missing_date",
+			Message: fmt.Sprintf("Version %s is missing a date or date is not in ISO 8601 format (YYYY-MM-DD)", version),
+		})
+	}
+
+	linkPattern := regexp.MustCompile(`\[` + regexp.QuoteMeta(version) + `\]:\s*https?://`)
+	if !linkPattern.MatchString(content) {
+		warnings = append(warnings, ChangelogWarning{
+			Type:    "missing_link",
+			Message: fmt.Sprintf("Version %s is missing a comparison link", version),
+		})
+	}
+
+	if !strings.Contains(content, "###") {
+		warnings = append(warnings, ChangelogWarning{
+			Type:    "no_sections",
+			Message: fmt.Sprintf("Version %s has no sections (###). Consider organizing changes into sections.", version),
+		})
+	}
+
+	versionHeaderPattern := regexp.MustCompile(`(?s)## \[` + regexp.QuoteMeta(version) + `\].*?\n\n(.*?)(?:## \[|$)`)
+	matches := versionHeaderPattern.FindStringSubmatch(content)
+	if len(matches) > 1 {
+		actualContent := strings.TrimSpace(matches[1])
+		actualContent = regexp.MustCompile(`(?m)^\[.*?]:.*$`).ReplaceAllString(actualContent, "")
+		actualContent = strings.TrimSpace(actualContent)
+
+		if len(actualContent) < 50 {
+			warnings = append(warnings, ChangelogWarning{
+				Type:    "short_content",
+				Message: fmt.Sprintf("Version %s has very little content. Consider adding more details.", version),
+			})
+		}
+	}
+
+	return warnings
+}
+
+// ValidateChangelog validates the entire CHANGELOG file
+func (s *ReleaseService) ValidateChangelog(filename string) ([]ChangelogWarning, error) {
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	var allWarnings []ChangelogWarning
+	current := string(content)
+
+	versionPattern := regexp.MustCompile(`## \[([^]]+)]`)
+	matches := versionPattern.FindAllStringSubmatch(current, -1)
+
+	for _, match := range matches {
+		if len(match) > 1 {
+			version := match[1]
+			if version == "Unreleased" {
+				continue
+			}
+
+			warnings := s.validateChangelogEntry(current, version)
+			allWarnings = append(allWarnings, warnings...)
+		}
+	}
+
+	return allWarnings, nil
 }
 
 func (s *ReleaseService) analyzeDependencyChanges(ctx context.Context, release *models.Release) ([]models.DependencyChange, error) {
