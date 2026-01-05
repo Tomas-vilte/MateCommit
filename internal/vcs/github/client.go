@@ -1043,7 +1043,7 @@ func (ghc *GitHubClient) uploadBinaries(ctx context.Context, releaseID int64, ve
 
 	builderBinary := ghc.binaryBuilderFactory.NewBuilder(
 		ghc.mainPath,
-		"matecommit",
+		ghc.repo,
 		builder.WithVersion(version),
 		builder.WithCommit(commit),
 		builder.WithDate(date),
@@ -1054,7 +1054,6 @@ func (ghc *GitHubClient) uploadBinaries(ctx context.Context, releaseID int64, ve
 		"version", version,
 		"build_dir", tempDir)
 
-	// Compilar binarios (el builder enviará eventos de progreso)
 	archives, err := builderBinary.BuildAndPackageAll(ctx, progressCh)
 	if err != nil {
 		return fmt.Errorf("failed to build binaries: %w", err)

@@ -1,15 +1,34 @@
 SHELL := /bin/bash
 
 BINARY_NAME=matecommit
+VERSION_PKG=github.com/thomas-vilte/matecommit/internal/version
 
-.PHONY: all build test test-race test-grep clean lint help
+# Build variables
+GIT_COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null || echo "dev")
+BUILD_DATE=$(shell date +%F)
+
+# LDFLAGS to inject version information
+LDFLAGS=-ldflags "\
+	-X $(VERSION_PKG).GitCommit=$(GIT_COMMIT) \
+	-X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
+
+.PHONY: all build build-release test test-race test-grep clean lint help
 
 all: build
 
 build:
 	@echo "Building $(BINARY_NAME)..."
-	@go build -o $(BINARY_NAME) cmd/main.go
+	@echo "  Git Commit: $(GIT_COMMIT)"
+	@echo "  Build Date: $(BUILD_DATE)"
+	@go build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/matecommit/main.go
 	@echo "Build complete: $(BINARY_NAME)"
+
+build-release:
+	@echo "Building $(BINARY_NAME) for release..."
+	@echo "  Git Commit: $(GIT_COMMIT)"
+	@echo "  Build Date: $(BUILD_DATE)"
+	@go build $(LDFLAGS) -trimpath -o $(BINARY_NAME) ./cmd/matecommit/main.go
+	@echo "Release build complete: $(BINARY_NAME)"
 
 test:
 	@echo "Running tests..."
@@ -35,7 +54,8 @@ lint:
 
 help:
 	@echo "Available commands:"
-	@echo "  make build       - Build the binary"
+	@echo "  make build       - Build the binary with version info"
+	@echo "  make build-release - Build optimized binary for release"
 	@echo "  make test        - Run standard tests"
 	@echo "  make test-race   - Run tests with race detection (filtered output)"
 	@echo "  make test-grep   - Run tests and grep for failures"

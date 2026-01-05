@@ -27,12 +27,13 @@ type BuildTarget struct {
 }
 
 type BinaryBuilder struct {
-	mainPath   string
-	binaryName string
-	version    string
-	commit     string
-	date       string
-	buildDir   string
+	mainPath       string
+	binaryName     string
+	version        string
+	commit         string
+	date           string
+	buildDir       string
+	versionPackage string
 }
 
 type Option func(*BinaryBuilder)
@@ -58,6 +59,12 @@ func WithBuildDir(dir string) Option {
 func WithDate(date string) Option {
 	return func(b *BinaryBuilder) {
 		b.date = date
+	}
+}
+
+func WithVersionPackage(pkg string) Option {
+	return func(b *BinaryBuilder) {
+		b.versionPackage = pkg
 	}
 }
 
@@ -116,12 +123,23 @@ func (b *BinaryBuilder) BuildBinary(ctx context.Context, target BuildTarget) (st
 		outputPath += ".exe"
 	}
 
-	ldflags := fmt.Sprintf(
-		"-s -w -X main.version=%s -X main.commit=%s -X main.date=%s",
-		b.version,
-		b.commit,
-		b.date,
-	)
+	var ldflags string
+	if b.versionPackage != "" {
+		ldflags = fmt.Sprintf(
+			"-s -w -X %s.GitCommit=%s -X %s.BuildDate=%s",
+			b.versionPackage,
+			b.commit,
+			b.versionPackage,
+			b.date,
+		)
+	} else {
+		ldflags = fmt.Sprintf(
+			"-s -w -X main.version=%s -X main.commit=%s -X main.date=%s",
+			b.version,
+			b.commit,
+			b.date,
+		)
+	}
 
 	cmd := exec.CommandContext(ctx, "go", "build",
 		"-o", outputPath,

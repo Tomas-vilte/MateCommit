@@ -32,8 +32,14 @@ import (
 	"github.com/thomas-vilte/matecommit/internal/ui"
 	"github.com/thomas-vilte/matecommit/internal/vcs"
 	"github.com/thomas-vilte/matecommit/internal/vcs/github"
-	"github.com/thomas-vilte/matecommit/internal/version"
+	versionpkg "github.com/thomas-vilte/matecommit/internal/version"
 	"github.com/urfave/cli/v3"
+)
+
+var (
+	version = versionpkg.Version
+	commit  = &versionpkg.GitCommit
+	date    = &versionpkg.BuildDate
 )
 
 func main() {
@@ -82,7 +88,7 @@ func initializeApp() (*cli.Command, error) {
 	return &cli.Command{
 		Name:                  "mate-commit",
 		Usage:                 translations.GetMessage("app_usage", 0, nil),
-		Version:               version.Version,
+		Version:               versionpkg.Info(),
 		Description:           translations.GetMessage("app_description", 0, nil),
 		Commands:              commands,
 		EnableShellCompletion: true,
@@ -274,7 +280,7 @@ func setupCommands(t *i18n.Translations, cfgApp *cfg.Config, gitService *git.Git
 func startBackgroundVersionCheck() {
 	go func() {
 		checker := services.NewVersionUpdater(
-			services.WithCurrentVersion(version.FullVersion()),
+			services.WithCurrentVersion(versionpkg.FullVersion()),
 		)
 		_, _ = checker.CheckForUpdates(context.Background())
 	}()
@@ -286,7 +292,7 @@ func handleVersionNotification(t *i18n.Translations) {
 		cmdName := args[1]
 		if cmdName != "update" && cmdName != "completion" {
 			checker := services.NewVersionUpdater(
-				services.WithCurrentVersion(version.FullVersion()),
+				services.WithCurrentVersion(versionpkg.FullVersion()),
 			)
 
 			updateInfo, err := checker.GetUpdateInfo()

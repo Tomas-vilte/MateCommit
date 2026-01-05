@@ -409,7 +409,7 @@ func TestGitHubClient_CreateRelease(t *testing.T) {
 		)
 		client.binaryBuilderFactory = mockFactory
 
-		mockFactory.On("NewBuilder", mock.Anything, "matecommit", mock.Anything).
+		mockFactory.On("NewBuilder", mock.Anything, mock.Anything, mock.Anything).
 			Return(mockPackager)
 
 		tmpFile, err := os.CreateTemp("", "dummy-archive-*.tar.gz")
