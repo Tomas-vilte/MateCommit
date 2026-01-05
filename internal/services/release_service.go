@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/thomas-vilte/matecommit/internal/ai"
 	"github.com/thomas-vilte/matecommit/internal/config"
@@ -381,6 +382,49 @@ func (s *ReleaseService) prependToChangelog(filename, newContent string) error {
 	}
 
 	current := string(content)
+
+	versionRegex := regexp.MustCompile(`## \[([^]]+)]`)
+	matches := versionRegex.FindStringSubmatch(newContent)
+	if len(matches) < 2 {
+		// If we can't extract version, fallback to old behavior
+		return s.prependToChangelogLegacy(filename, current, newContent)
+	}
+
+	newVersion := matches[1]
+
+	existingVersionPattern := regexp.MustCompile(`(?m)^## \[` + regexp.QuoteMeta(newVersion) + `\].*?(?:^## \[|$)`)
+	if existingVersionPattern.MatchString(current) {
+		log := logger.FromContext(context.Background())
+		log.Debug("version already exists in changelog, replacing",
+			"version", newVersion)
+
+		loc := existingVersionPattern.FindStringIndex(current)
+		if loc != nil {
+			before := current[:loc[0]]
+			after := current[loc[1]:]
+
+			before = strings.TrimRight(before, "\n")
+
+			var sb strings.Builder
+			sb.WriteString(before)
+			sb.WriteString("\n\n")
+			sb.WriteString(strings.TrimSpace(newContent))
+			sb.WriteString("\n\n")
+			sb.WriteString(strings.TrimLeft(after, "\n"))
+
+			result := sb.String()
+
+			result = s.consolidateLinkDefinitions(result)
+
+			return os.WriteFile(filename, []byte(result), 0644)
+		}
+	}
+
+	return s.prependToChangelogLegacy(filename, current, newContent)
+}
+
+// prependToChangelogLegacy is the original prepend logic
+func (s *ReleaseService) prependToChangelogLegacy(filename, current, newContent string) error {
 	var sb strings.Builder
 
 	idx := strings.Index(current, "\n## ")
@@ -407,7 +451,43 @@ func (s *ReleaseService) prependToChangelog(filename, newContent string) error {
 		}
 	}
 
-	return os.WriteFile(filename, []byte(sb.String()), 0644)
+	result := sb.String()
+
+	result = s.consolidateLinkDefinitions(result)
+
+	return os.WriteFile(filename, []byte(result), 0644)
+}
+
+// consolidateLinkDefinitions removes duplicate link reference definitions
+func (s *ReleaseService) consolidateLinkDefinitions(content string) string {
+	linkDefPattern := regexp.MustCompile(`(?m)^\[([^]]+)]:\s*(.+)$`)
+
+	lines := strings.Split(content, "\n")
+	seen := make(map[string]string)
+	var result []string
+
+	for _, line := range lines {
+		matches := linkDefPattern.FindStringSubmatch(line)
+		if len(matches) == 3 {
+			version := matches[1]
+			url := matches[2]
+
+			if existingURL, exists := seen[version]; exists {
+				if existingURL != url {
+					log := logger.FromContext(context.Background())
+					log.Warn("duplicate link definition with different URL",
+						"version", version,
+						"existing_url", existingURL,
+						"new_url", url)
+				}
+				continue
+			}
+			seen[version] = url
+		}
+		result = append(result, line)
+	}
+
+	return strings.Join(result, "\n")
 }
 
 func (s *ReleaseService) analyzeDependencyChanges(ctx context.Context, release *models.Release) ([]models.DependencyChange, error) {
@@ -533,21 +613,18 @@ func (s *ReleaseService) generateBasicNotes(release *models.Release) *models.Rel
 	}
 }
 
-// buildChangelogFromNotes formats the changelog using AI-generated highlights
+// buildChangelogFromNotes formats the changelog using AI-generated highlights and semantic sections
 func (s *ReleaseService) buildChangelogFromNotes(ctx context.Context, release *models.Release, notes *models.ReleaseNotes) string {
 	var sb strings.Builder
 
 	tagDate, err := s.git.GetTagDate(ctx, release.Version)
-	if err != nil {
-		tagDate = ""
+	if err != nil || tagDate == "" {
+		tagDate = time.Now().Format("2006-01-02")
 	}
 
 	owner, repo, provider, _ := s.git.GetRepoInfo(ctx)
 
-	versionHeader := fmt.Sprintf("## [%s]", release.Version)
-	if tagDate != "" {
-		versionHeader += fmt.Sprintf(" - %s", tagDate)
-	}
+	versionHeader := fmt.Sprintf("## [%s] - %s", release.Version, tagDate)
 
 	if provider == "github" && owner != "" && repo != "" {
 		compareURL := ""
@@ -565,7 +642,17 @@ func (s *ReleaseService) buildChangelogFromNotes(ctx context.Context, release *m
 		sb.WriteString(fmt.Sprintf("%s\n\n", notes.Summary))
 	}
 
-	if len(notes.Highlights) > 0 {
+	if len(notes.Sections) > 0 {
+		for _, section := range notes.Sections {
+			if section.Title != "" && len(section.Items) > 0 {
+				sb.WriteString(fmt.Sprintf("### %s\n\n", section.Title))
+				for _, item := range section.Items {
+					sb.WriteString(fmt.Sprintf("- %s\n", item))
+				}
+				sb.WriteString("\n")
+			}
+		}
+	} else if len(notes.Highlights) > 0 {
 		sb.WriteString("### ✨ Highlights\n\n")
 		for _, highlight := range notes.Highlights {
 			sb.WriteString(fmt.Sprintf("- %s\n", highlight))

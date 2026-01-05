@@ -209,18 +209,39 @@ Generá release notes profesionales para un CHANGELOG.md siguiendo el estándar 
 ## 1. FILTRADO DE RUIDO TÉCNICO
 **IGNORAR** commits de mantenimiento interno, typos, docs internos.
 **INCLUIR** features, mejoras de UX/Performance, bug fixes y breaking changes.
-## 2. AGRUPACIÓN SEMÁNTICA (SECCIONES)
-**AGRUPA** los cambios en secciones temáticas con títulos atractivos. Usa el campo "sections" del esquema.
-Ejemplos: "🎨 Mejoras Visuales", "🚀 Performance", "🔒 Seguridad".
+## 2. AGRUPACIÓN SEMÁNTICA (SECCIONES) - MUY IMPORTANTE
+**DEBES** agrupar los cambios en secciones temáticas usando el campo "sections" del esquema JSON.
+**Cada sección** debe tener:
+- Un título descriptivo y atractivo (puede incluir emoji)
+- Una lista de items relacionados
+
+**Ejemplos de buenos títulos de sección:**
+- "✨ AI & Generation Improvements" - para mejoras en generación de IA
+- "🛠️ Templates & Configuration" - para cambios en templates y config
+- "🛡️ Stability & Performance" - para mejoras de estabilidad
+- "🎨 User Interface" - para cambios visuales
+- "🚀 Performance" - para optimizaciones
+- "🔒 Security" - para fixes de seguridad
+- "📚 Documentation" - para cambios en docs
+- "🔧 Developer Experience" - para mejoras de DX
+
+**Cuándo usar cada tipo:**
+- Agrupa cambios relacionados por área funcional (ej: AI, Templates, CLI)
+- Si hay muchos cambios pequeños de un tipo, agrúpalos (ej: "Bug Fixes")
+- Usa máximo 5-6 secciones para mantener claridad
+
 ## 3. ESTILO Y NARRATIVA (IMPORTANTE)
 - **Voz:** Usá "Agregamos/Mejoramos" (1ra persona plural). Evita "Se ha implementado".
 - **Foco:** Centrate en el BENEFICIO para el usuario, no en la implementación técnica.
+- **Formato de items:** Cada item debe ser una oración completa y descriptiva.
+
 ## 4. EJEMPLOS DE CALIDAD (GOLD STANDARD)
 ❌ MAL: "feat: update user schema" (Técnico, aburrido)
 ✅ BIEN: "Mejoramos el perfil de usuario para soportar múltiples direcciones."
 ❌ MAL: "fix: fix crash in login" (Vago)
 ✅ BIEN: "Solucionamos un cierre inesperado al iniciar sesión con Google."
-Generá las release notes ahora.`
+
+Generá las release notes ahora usando el esquema JSON con secciones semánticas.`
 
 	releasePromptTemplateEN = `# Task
 Generate professional release notes for a CHANGELOG.md following the "Keep a Changelog" standard.
@@ -233,18 +254,39 @@ Generate professional release notes for a CHANGELOG.md following the "Keep a Cha
 ## 1. TECHNICAL NOISE FILTERING
 **IGNORE** internal maintenance, typos, internal docs.
 **INCLUDE** features, UX/Performance improvements, bug fixes, and breaking changes.
-## 2. SEMANTIC GROUPING (SECTIONS)
-**GROUP** changes into thematic sections with engaging titles. Use the "sections" field in the schema.
-Examples: "🎨 Visual Improvements", "🚀 Performance", "🔒 Security".
+## 2. SEMANTIC GROUPING (SECTIONS) - VERY IMPORTANT
+You MUST group changes into thematic sections using the "sections" field in the JSON schema.
+**Each section** must have:
+- A descriptive and engaging title (can include emoji)
+- A list of related items
+
+**Examples of good section titles:**
+- "✨ AI & Generation Improvements" - for AI generation enhancements
+- "🛠️ Templates & Configuration" - for template and config changes
+- "🛡️ Stability & Performance" - for stability improvements
+- "🎨 User Interface" - for visual changes
+- "🚀 Performance" - for optimizations
+- "🔒 Security" - for security fixes
+- "📚 Documentation" - for documentation changes
+- "🔧 Developer Experience" - for DX improvements
+
+**When to use each type:**
+- Group related changes by functional area (e.g., AI, Templates, CLI)
+- If there are many small changes of one type, group them (e.g., "Bug Fixes")
+- Use maximum 5-6 sections to maintain clarity
+
 ## 3. STYLE AND NARRATIVE (IMPORTANT)
 - **Voice:** Use "We added/We improved" (1st person plural). Avoid passive voice.
 - **Focus:** Focus on USER BENEFIT, not technical implementation.
+- **Item format:** Each item should be a complete, descriptive sentence.
+
 ## 4. QUALITY EXAMPLES (GOLD STANDARD)
 ❌ BAD: "feat: update user schema" (Too technical)
 ✅ GOOD: "Enhanced user profile to support multiple addresses."
 ❌ BAD: "fix: fix crash in login" (Vague)
 ✅ GOOD: "Fixed a crash when logging in via Google."
-Generate the release notes now.`
+
+Generate the release notes now using the JSON schema with semantic sections.`
 )
 
 // GetPRPromptTemplate returns the appropriate template based on the language

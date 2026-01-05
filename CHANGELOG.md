@@ -2,27 +2,6 @@
 
 All notable changes to this project will be documented in this file.
 
-## [v1.7.0]
-
-[v1.7.0]: https://github.com/thomas-vilte/matecommit/compare/v1.6.0...v1.7.0
-
-In this release, we focused on making AI-generated content more structured, reliable, and context-aware. We introduced semantic sections for release notes and implemented dynamic prompt injection to give you greater control over your development workflow.
-
-## [v1.6.0]
-
-[v1.6.0]: https://github.com/thomas-vilte/matecommit/compare/v1.5.0...v1.6.0
-
-In this release, we focused on giving you more control over your environment with repository-local configurations and deeper integration with AI and project management tools. We also introduced comprehensive real-time feedback and cost monitoring to make your workflow more transparent and efficient.
-
-### ✨ Highlights
-
-- We introduced repository-local configurations and smarter Git fallbacks, allowing you to tailor settings like language and emoji usage specifically for each project.
-- We added real-time build progress and a new 'doctor' diagnostic tool to help you troubleshoot environment issues instantly.
-- We expanded our ecosystem with new AI, Jira, and GitHub modules, streamlining how you interact with external platforms directly from the CLI.
-- We implemented a comprehensive stats dashboard, including cost breakdowns, forecasts, and cache usage, so you can monitor your resource consumption at a glance.
-- We improved safety and DX with a new dry-run mode, enhanced error handling, and automatic version update notifications.
-- We overhauled our documentation and internationalization templates to provide a more consistent experience across different languages (#67).
-
 ## [v1.6.0] - 2025-12-29
 
 [v1.6.0]: https://github.com/thomas-vilte/matecommit/compare/v1.5.0...v1.6.0
@@ -38,7 +17,7 @@ In this release, we focused on giving you more control over your environment wit
 - We improved safety and DX with a new dry-run mode, enhanced error handling, and automatic version update notifications.
 - We overhauled our documentation and internationalization templates to provide a more consistent experience across different languages (#67).
 
-## [v1.5.0]
+## [v1.5.0] - 2025-12-20
 
 [v1.5.0]: https://github.com/thomas-vilte/matecommit/compare/v1.4.0...v1.5.0
 
@@ -54,13 +33,13 @@ In this release, we focused on significantly enhancing the AI-driven workflow, i
 - **Enhanced Stability and Error Handling**: We've implemented structured logging with context propagation and improved error handling for Git and AI operations, leading to a more stable and debuggable application.
 - **Bug Fix**: We addressed an issue in the PR command to ensure it correctly utilizes the dependency injection container.
 
-## [v1.4.0]
+## [v1.4.0] - 2025-12-16
 
 [v1.4.0]: https://github.com/Tomas-vilte/MateCommit/compare/v1.3.0...v1.4.0
 
 In this release, we focused on transforming your interaction with the tool by drastically improving the user experience with real-time visual feedback and optimizing release process automation. Additionally, we've enhanced the AI for deeper and more contextualized analysis.
 
-### Highlights
+### ✨ Highlights
 
 - **Renovated User Experience:** Implemented spinners, colors, and change previews (diff) for real-time visual feedback. Added a `doctor` command to validate your Gemini API key and improved commit previews, allowing message editing before confirmation.
 - **Comprehensive Release Automation:** Simplified and automated release note generation for `CHANGELOG.md`, version updates, and automatic changelog commits. You can now also edit existing releases, streamlining your workflow.
@@ -75,7 +54,7 @@ In this release, we focused on transforming your interaction with the tool by dr
 
 In this release, we focused on further simplifying and automating your workflows, from release management to Pull Request interaction. We also improved the configuration experience and general application stability.
 
-### Highlights
+### ✨ Highlights
 
 - **Simplified Release Management:** You can now generate and publish new versions more smoothly with dedicated commands and a prompt assistant using a natural first-person tone.
 - **Renewed CLI Configuration & Assistance:** Introduced `config init` to guide you through initial setup, an `edit` command to easily adjust parameters, and a `help` command. Optimized VCS configuration guides and added a 'performance' tag for AI.
@@ -90,7 +69,7 @@ In this release, we focused on further simplifying and automating your workflows
 
 In this version of MateCommit, we're excited to introduce a time-saving feature: Pull Request Summarization. We've also strengthened the application by improving error handling and adaptability.
 
-### Highlights
+### ✨ Highlights
 
 - **Pull Request Summary:** Added the `summarize-pr` command to get concise PR summaries directly from the terminal. Implemented a robust GitHub client for smoother repository interaction.
 - **Improved Stability & Adaptability:** Significantly optimized error handling and expanded internationalization for a more adaptable and reliable experience.
@@ -101,7 +80,7 @@ In this version of MateCommit, we're excited to introduce a time-saving feature:
 
 Focused on strengthening application robustness with key error handling improvements for more stable operations and precise feedback.
 
-### Highlights
+### ✨ Highlights
 
 - **Enhanced Error Handling:** Reinforced error management when staging files, providing clearer information if issues arise.
 
@@ -111,7 +90,7 @@ Focused on strengthening application robustness with key error handling improvem
 
 Expanded CLI capabilities, allowing users to configure AI settings directly from the terminal for greater personalization and control.
 
-### Highlights
+### ✨ Highlights
 
 - **AI Configuration via CLI:** New functionality to configure AI settings directly from the command line, offering an integrated experience for advanced users.
 
@@ -121,7 +100,7 @@ Expanded CLI capabilities, allowing users to configure AI settings directly from
 
 The first version of MateCommit focuses on boosting your workflow with AI integration. Generating descriptive and professional commit messages is now easier than ever.
 
-### Highlights
+### ✨ Highlights
 
 - **AI-Powered Commit Suggestions:** Integration with AI models (like Gemini) to offer intelligent and relevant commit message suggestions.
 - **Improved CLI Welcome:** Added a greeting message to make the user experience friendlier from the start.
