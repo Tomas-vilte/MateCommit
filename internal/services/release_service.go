@@ -671,6 +671,11 @@ func (s *ReleaseService) buildChangelogFromNotes(ctx context.Context, release *m
 	return sb.String()
 }
 
+// BuildChangelogPreview generates a preview of how the CHANGELOG entry will look
+func (s *ReleaseService) BuildChangelogPreview(ctx context.Context, release *models.Release, notes *models.ReleaseNotes) string {
+	return s.buildChangelogFromNotes(ctx, release, notes)
+}
+
 // buildChangelog formats the changelog from raw commits (fallback when AI is not available)
 func (s *ReleaseService) buildChangelog(release *models.Release) string {
 	var sb strings.Builder

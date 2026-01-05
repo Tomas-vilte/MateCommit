@@ -32,6 +32,7 @@ type releaseService interface {
 	PushChanges(ctx context.Context) error
 	UpdateAppVersion(ctx context.Context, version string) error
 	ValidateMainBranch(ctx context.Context) error
+	BuildChangelogPreview(ctx context.Context, release *models.Release, notes *models.ReleaseNotes) string
 }
 
 // gitService is a minimal interface for testing purposes
