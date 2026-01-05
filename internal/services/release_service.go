@@ -355,13 +355,43 @@ func (s *ReleaseService) UpdateLocalChangelog(release *models.Release, notes *mo
 		"version", release.Version,
 		"file", changelogFile)
 
+	if _, err := os.Stat(changelogFile); err == nil {
+		content, readErr := os.ReadFile(changelogFile)
+		if readErr == nil && strings.Contains(string(content), "## [Unreleased]") {
+			if err := s.MoveUnreleasedToVersion(changelogFile, release, notes); err != nil {
+				log.Warn("failed to move Unreleased section", "error", err)
+			} else {
+				log.Info("moved Unreleased section to new version", "version", release.Version)
+				return nil
+			}
+		}
+	}
+
 	newContent := s.buildChangelogFromNotes(context.Background(), release, notes)
 
 	if err := s.prependToChangelog(changelogFile, newContent); err != nil {
 		log.Error("failed to update changelog",
 			"error", err,
 			"file", changelogFile)
-		return err
+		return domainErrors.NewAppError(
+			domainErrors.TypeInternal,
+			"Failed to update CHANGELOG.md",
+			err,
+		).WithSuggestion(
+			"Make sure CHANGELOG.md is writable and not locked by another process.\n" +
+				"Try: chmod +w CHANGELOG.md",
+		)
+	}
+
+	if err := s.EnsureUnreleasedSection(changelogFile); err != nil {
+		log.Warn("failed to ensure Unreleased section", "error", err)
+	}
+
+	if warnings, err := s.ValidateChangelog(changelogFile); err == nil && len(warnings) > 0 {
+		log.Warn("CHANGELOG validation warnings detected", "count", len(warnings))
+		for _, warning := range warnings {
+			log.Warn("CHANGELOG warning", "type", warning.Type, "message", warning.Message)
+		}
 	}
 
 	log.Info("changelog updated successfully",
@@ -378,7 +408,14 @@ func (s *ReleaseService) prependToChangelog(filename, newContent string) error {
 		return os.WriteFile(filename, []byte(header+newContent), 0644)
 	}
 	if err != nil {
-		return err
+		return domainErrors.NewAppError(
+			domainErrors.TypeInternal,
+			"Failed to read CHANGELOG.md",
+			err,
+		).WithSuggestion(
+			"Ensure CHANGELOG.md exists and is readable.\n" +
+				"Try: ls -la CHANGELOG.md",
+		)
 	}
 
 	current := string(content)
@@ -488,6 +525,200 @@ func (s *ReleaseService) consolidateLinkDefinitions(content string) string {
 	}
 
 	return strings.Join(result, "\n")
+}
+
+// EnsureUnreleasedSection ensures an Unreleased section exists in the CHANGELOG
+func (s *ReleaseService) EnsureUnreleasedSection(filename string) error {
+	content, err := os.ReadFile(filename)
+	if os.IsNotExist(err) {
+		header := `# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+`
+		return os.WriteFile(filename, []byte(header), 0644)
+	}
+	if err != nil {
+		return domainErrors.NewAppError(
+			domainErrors.TypeInternal,
+			"Failed to read CHANGELOG.md for Unreleased section",
+			err,
+		).WithSuggestion(
+			"Check if CHANGELOG.md is readable and not corrupted.\n" +
+				"Try: cat CHANGELOG.md",
+		)
+	}
+
+	current := string(content)
+
+	if strings.Contains(current, "## [Unreleased]") {
+		return nil
+	}
+
+	idx := strings.Index(current, "\n## ")
+	if idx == -1 {
+		current = strings.TrimSpace(current) + "\n\n## [Unreleased]\n\n"
+	} else {
+		pre := current[:idx]
+		post := current[idx:]
+		current = strings.TrimSpace(pre) + "\n\n## [Unreleased]\n\n" + post
+	}
+
+	return os.WriteFile(filename, []byte(current), 0644)
+}
+
+// parseUnreleasedSection extracts the Unreleased section content
+func (s *ReleaseService) parseUnreleasedSection(content string) string {
+	unreleasedPattern := regexp.MustCompile(`(?s)## \[Unreleased]\s*\n(.*?)(?:## \[|$)`)
+	matches := unreleasedPattern.FindStringSubmatch(content)
+
+	if len(matches) < 2 {
+		return ""
+	}
+
+	return strings.TrimSpace(matches[1])
+}
+
+// MoveUnreleasedToVersion moves Unreleased section content to a new version
+func (s *ReleaseService) MoveUnreleasedToVersion(filename string, release *models.Release, notes *models.ReleaseNotes) error {
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		return domainErrors.NewAppError(
+			domainErrors.TypeInternal,
+			"Failed to read CHANGELOG.md for Unreleased migration",
+			err,
+		).WithSuggestion(
+			"Ensure CHANGELOG.md exists and is readable.",
+		)
+	}
+
+	current := string(content)
+
+	unreleasedContent := s.parseUnreleasedSection(current)
+
+	if unreleasedContent == "" {
+		return nil
+	}
+
+	log := logger.FromContext(context.Background())
+	log.Info("moving Unreleased section to new version",
+		"version", release.Version,
+		"unreleased_content_length", len(unreleasedContent))
+
+	versionEntry := s.buildChangelogFromNotes(context.Background(), release, notes)
+
+	versionEntry = strings.TrimSpace(versionEntry) + "\n\n" + unreleasedContent + "\n"
+
+	unreleasedPattern := regexp.MustCompile(`(?s)## \[Unreleased]\s*\n.*?(\n## \[|$)`)
+	current = unreleasedPattern.ReplaceAllString(current, "$1")
+
+	if err := os.WriteFile(filename, []byte(current), 0644); err != nil {
+		return domainErrors.NewAppError(
+			domainErrors.TypeInternal,
+			"Failed to write CHANGELOG.md during Unreleased migration",
+			err,
+		).WithSuggestion(
+			"Check file permissions and disk space.\n" +
+				"Try: df -h . && chmod +w CHANGELOG.md",
+		)
+	}
+
+	if err := s.prependToChangelog(filename, versionEntry); err != nil {
+		return domainErrors.NewAppError(
+			domainErrors.TypeInternal,
+			"Failed to prepend new version during Unreleased migration",
+			err,
+		).WithSuggestion(
+			"The Unreleased section was removed but the new version couldn't be added.\n" +
+				"You may need to manually restore CHANGELOG.md from git.",
+		)
+	}
+
+	return s.EnsureUnreleasedSection(filename)
+}
+
+// ChangelogWarning represents a validation warning
+type ChangelogWarning struct {
+	Type    string
+	Message string
+}
+
+// validateChangelogEntry validates a CHANGELOG entry and returns warnings
+func (s *ReleaseService) validateChangelogEntry(content string, version string) []ChangelogWarning {
+	var warnings []ChangelogWarning
+
+	datePattern := regexp.MustCompile(`## \[` + regexp.QuoteMeta(version) + `\] - \d{4}-\d{2}-\d{2}`)
+	if !datePattern.MatchString(content) {
+		warnings = append(warnings, ChangelogWarning{
+			Type:    "missing_date",
+			Message: fmt.Sprintf("Version %s is missing a date or date is not in ISO 8601 format (YYYY-MM-DD)", version),
+		})
+	}
+
+	linkPattern := regexp.MustCompile(`\[` + regexp.QuoteMeta(version) + `\]:\s*https?://`)
+	if !linkPattern.MatchString(content) {
+		warnings = append(warnings, ChangelogWarning{
+			Type:    "missing_link",
+			Message: fmt.Sprintf("Version %s is missing a comparison link", version),
+		})
+	}
+
+	if !strings.Contains(content, "###") {
+		warnings = append(warnings, ChangelogWarning{
+			Type:    "no_sections",
+			Message: fmt.Sprintf("Version %s has no sections (###). Consider organizing changes into sections.", version),
+		})
+	}
+
+	versionHeaderPattern := regexp.MustCompile(`(?s)## \[` + regexp.QuoteMeta(version) + `\].*?\n\n(.*?)(?:## \[|$)`)
+	matches := versionHeaderPattern.FindStringSubmatch(content)
+	if len(matches) > 1 {
+		actualContent := strings.TrimSpace(matches[1])
+		actualContent = regexp.MustCompile(`(?m)^\[.*?]:.*$`).ReplaceAllString(actualContent, "")
+		actualContent = strings.TrimSpace(actualContent)
+
+		if len(actualContent) < 50 {
+			warnings = append(warnings, ChangelogWarning{
+				Type:    "short_content",
+				Message: fmt.Sprintf("Version %s has very little content. Consider adding more details.", version),
+			})
+		}
+	}
+
+	return warnings
+}
+
+// ValidateChangelog validates the entire CHANGELOG file
+func (s *ReleaseService) ValidateChangelog(filename string) ([]ChangelogWarning, error) {
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	var allWarnings []ChangelogWarning
+	current := string(content)
+
+	versionPattern := regexp.MustCompile(`## \[([^]]+)]`)
+	matches := versionPattern.FindAllStringSubmatch(current, -1)
+
+	for _, match := range matches {
+		if len(match) > 1 {
+			version := match[1]
+			if version == "Unreleased" {
+				continue
+			}
+
+			warnings := s.validateChangelogEntry(current, version)
+			allWarnings = append(allWarnings, warnings...)
+		}
+	}
+
+	return allWarnings, nil
 }
 
 func (s *ReleaseService) analyzeDependencyChanges(ctx context.Context, release *models.Release) ([]models.DependencyChange, error) {
@@ -669,6 +900,11 @@ func (s *ReleaseService) buildChangelogFromNotes(ctx context.Context, release *m
 	}
 
 	return sb.String()
+}
+
+// BuildChangelogPreview generates a preview of how the CHANGELOG entry will look
+func (s *ReleaseService) BuildChangelogPreview(ctx context.Context, release *models.Release, notes *models.ReleaseNotes) string {
+	return s.buildChangelogFromNotes(ctx, release, notes)
 }
 
 // buildChangelog formats the changelog from raw commits (fallback when AI is not available)

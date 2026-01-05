@@ -54,6 +54,7 @@ func TestPreviewCommand_Success(t *testing.T) {
 	mockService.On("AnalyzeNextRelease", mock.Anything).Return(release, nil)
 	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
+	mockService.On("BuildChangelogPreview", mock.Anything, mock.Anything, mock.Anything).Return("## [v1.0.0] - 2026-01-05\n\nTest changelog")
 
 	err := runPreviewTest(t, []string{}, mockService)
 	assert.NoError(t, err)

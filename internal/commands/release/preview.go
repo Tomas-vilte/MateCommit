@@ -59,6 +59,7 @@ func previewReleaseAction(releaseSvc releaseService, trans *i18n.Translations) c
 			"bugfixes_count", len(release.BugFixes),
 			"breaking_count", len(release.Breaking))
 
+		ui.PrintSectionHeader("📊 Release Summary")
 		fmt.Println(trans.GetMessage("release.previous_version", 0, struct{ Version string }{release.PreviousVersion}))
 		fmt.Println(trans.GetMessage("release.next_version", 0, struct {
 			Version string
@@ -93,25 +94,22 @@ func previewReleaseAction(releaseSvc releaseService, trans *i18n.Translations) c
 
 		log.Debug("release notes generated",
 			"title", notes.Title,
-			"highlights_count", len(notes.Highlights))
+			"highlights_count", len(notes.Highlights),
+			"sections_count", len(notes.Sections))
 
-		fmt.Println(trans.GetMessage("release.separator", 0, nil))
-		fmt.Printf("## %s\n\n", notes.Title)
-		fmt.Printf("%s\n\n", notes.Summary)
+		ui.PrintSectionHeader("📝 CHANGELOG.md Preview")
+		changelogContent := releaseSvc.BuildChangelogPreview(ctx, release, notes)
+		fmt.Println(changelogContent)
+		fmt.Println()
 
-		if len(notes.Highlights) > 0 {
-			fmt.Println(trans.GetMessage("release.highlights_section", 0, nil))
-			for _, h := range notes.Highlights {
-				fmt.Printf("- %s\n", h)
-			}
-			fmt.Println()
-		}
+		ui.PrintSectionHeader("🚀 GitHub Release Notes Preview")
+		githubContent := FormatReleaseMarkdown(release, notes, trans)
+		fmt.Println(githubContent)
 
-		fmt.Println(notes.Changelog)
 		fmt.Println(trans.GetMessage("release.separator", 0, nil))
 		fmt.Println()
 
-		fmt.Println(trans.GetMessage("release.next_steps", 0, nil))
+		ui.PrintSectionHeader("📋 Next Steps")
 		fmt.Println(trans.GetMessage("release.next_steps_cmd", 0, nil))
 		fmt.Println()
 

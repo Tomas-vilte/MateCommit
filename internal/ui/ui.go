@@ -583,3 +583,9 @@ func parseInt(s string) int {
 	_, _ = fmt.Sscanf(s, "%d", &result)
 	return result
 }
+
+// PrintSectionHeader prints a visually distinct section header
+func PrintSectionHeader(title string) {
+	separator := strings.Repeat("─", 60)
+	fmt.Printf("\n%s\n%s\n%s\n\n", separator, title, separator)
+}

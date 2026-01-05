@@ -175,6 +175,11 @@ func (m *MockReleaseService) ValidateMainBranch(ctx context.Context) error {
 	return args.Error(0)
 }
 
+func (m *MockReleaseService) BuildChangelogPreview(ctx context.Context, release *models.Release, notes *models.ReleaseNotes) string {
+	args := m.Called(ctx, release, notes)
+	return args.String(0)
+}
+
 func (m *MockGitService) FetchTags(ctx context.Context) error {
 	args := m.Called(ctx)
 	return args.Error(0)
