@@ -128,6 +128,28 @@ func TestBuildIssuePrompt_WithTemplate(t *testing.T) {
 
 		// Verification is just that prompt exists and is relevant
 		assert.Contains(t, prompt, "Code Changes")
+		// Should contain default structure because no template is provided
+		assert.Contains(t, prompt, "Context (Motivation)")
+	})
+
+	t.Run("does NOT include default structure when template is present", func(t *testing.T) {
+		template := &models.IssueTemplate{
+			Name:        "Bug Report",
+			Title:       "Bug: {{title}}",
+			BodyContent: "## My Custom Structure\n{{description}}",
+		}
+
+		request := models.IssueGenerationRequest{
+			Diff:     "test diff",
+			Template: template,
+			Language: "en",
+		}
+
+		prompt := gen.buildIssuePrompt(request)
+
+		assert.Contains(t, prompt, "My Custom Structure")
+		// Should NOT contain default structure
+		assert.NotContains(t, prompt, "Context (Motivation)")
 	})
 
 	t.Run("includes template in Spanish", func(t *testing.T) {

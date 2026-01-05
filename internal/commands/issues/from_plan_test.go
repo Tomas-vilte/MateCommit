@@ -75,7 +75,7 @@ Add user authentication feature
 			Labels:      []string{"feature"},
 		}
 
-		mockGen.On("GenerateFromDescription", mock.Anything, planContent, false, false).
+		mockGen.On("GenerateFromDescription", mock.Anything, planContent, false, false, (*models.IssueTemplate)(nil)).
 			Return(expectedResult, nil)
 		mockGen.On("CreateIssue", mock.Anything, expectedResult, []string(nil)).
 			Return(&models.Issue{Number: 42, URL: "http://github.com/test/issues/42"}, nil)
@@ -106,7 +106,7 @@ Add user authentication feature
 			Labels:      []string{"bug"},
 		}
 
-		mockGen.On("GenerateFromDescription", mock.Anything, planContent, false, false).
+		mockGen.On("GenerateFromDescription", mock.Anything, planContent, false, false, (*models.IssueTemplate)(nil)).
 			Return(expectedResult, nil)
 
 		app := &cli.Command{Name: "test", Commands: []*cli.Command{cmd}}
@@ -136,7 +136,7 @@ Add user authentication feature
 			Labels:      []string{"feature"},
 		}
 
-		mockGen.On("GenerateFromDescription", mock.Anything, planContent, false, false).
+		mockGen.On("GenerateFromDescription", mock.Anything, planContent, false, false, (*models.IssueTemplate)(nil)).
 			Return(expectedResult, nil)
 		mockGen.On("GetAuthenticatedUser", mock.Anything).
 			Return("johndoe", nil)
@@ -169,7 +169,7 @@ Add user authentication feature
 			Labels:      []string{"security"},
 		}
 
-		mockGen.On("GenerateFromDescription", mock.Anything, planContent, false, false).
+		mockGen.On("GenerateFromDescription", mock.Anything, planContent, false, false, (*models.IssueTemplate)(nil)).
 			Return(expectedResult, nil)
 
 		mockGen.On("CreateIssue", mock.Anything, mock.MatchedBy(func(r *models.IssueGenerationResult) bool {
@@ -214,7 +214,7 @@ Agregar funcionalidad de autenticación con JWT`
 			Labels:      []string{"feature"},
 		}
 
-		mockGen.On("GenerateFromDescription", mock.Anything, planContent, false, false).
+		mockGen.On("GenerateFromDescription", mock.Anything, planContent, false, false, (*models.IssueTemplate)(nil)).
 			Return(expectedResult, nil)
 		mockGen.On("CreateIssue", mock.Anything, expectedResult, []string(nil)).
 			Return(&models.Issue{Number: 1, URL: "http://test.com"}, nil)

@@ -339,7 +339,7 @@ index 1234567..abcdefg 100644
 			WithIssueConfig(cfg),
 			WithIssueTemplateService(mockTemplateSvc))
 
-		result, err := service.GenerateFromDiff(ctx, "fix panic", false, true)
+		result, err := service.GenerateFromDiff(ctx, "fix panic", false, true, nil)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -379,7 +379,7 @@ index 1234567..abcdefg 100644
 		service := NewIssueGeneratorService(mockGit, mockAI,
 			WithIssueConfig(cfg))
 
-		result, err := service.GenerateFromDiff(ctx, "", false, false)
+		result, err := service.GenerateFromDiff(ctx, "", false, false, nil)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -415,7 +415,7 @@ index 1234567..abcdefg 100644
 			WithIssueConfig(cfg),
 			WithIssueTemplateService(mockTemplateSvc))
 
-		result, err := service.GenerateFromDiff(ctx, "", false, true)
+		result, err := service.GenerateFromDiff(ctx, "", false, true, nil)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
@@ -461,7 +461,7 @@ index 1234567..abcdefg 100644
 			WithIssueConfig(cfg),
 			WithIssueTemplateService(mockTemplateSvc))
 
-		result, err := service.GenerateFromDiff(ctx, "", false, true)
+		result, err := service.GenerateFromDiff(ctx, "", false, true, nil)
 
 		assert.NoError(t, err)
 		assert.NotNil(t, result)

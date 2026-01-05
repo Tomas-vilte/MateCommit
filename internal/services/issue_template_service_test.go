@@ -208,11 +208,11 @@ func TestIssueTemplateService_MergeWithGeneratedContent(t *testing.T) {
 		template := &models.IssueTemplate{
 			Title:  "[BUG] ",
 			Labels: []string{"bug"},
-			Body: []interface{}{
-				map[string]interface{}{
-					"type": "markdown",
-					"attributes": map[string]interface{}{
-						"value": "Thanks for reporting!",
+			Body: []models.IssueFormItem{
+				{
+					Type: "markdown",
+					Attributes: models.FormAttributes{
+						Value: "Thanks for reporting!",
 					},
 				},
 			},
@@ -265,12 +265,12 @@ func TestIssueTemplateService_MergeWithGeneratedContent_Realistic(t *testing.T) 
 	service := NewIssueTemplateService(WithTemplateConfig(cfg))
 	template := &models.IssueTemplate{
 		Title: "[BUG] ",
-		Body: []interface{}{
-			map[string]interface{}{
-				"type": "textarea",
-				"id":   "repro",
-				"attributes": map[string]interface{}{
-					"label": "Steps to reproduce",
+		Body: []models.IssueFormItem{
+			{
+				Type: "textarea",
+				ID:   "repro",
+				Attributes: models.FormAttributes{
+					Label: "Steps to reproduce",
 				},
 			},
 		},

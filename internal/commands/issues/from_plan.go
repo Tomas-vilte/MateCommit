@@ -80,7 +80,7 @@ func (f *IssuesCommandFactory) createFromPlanAction(t *i18n.Translations, cfg *c
 
 		ui.PrintInfo(t.GetMessage("issue_from_plan.parsing_plan", 0, nil))
 
-		result, err := issueService.GenerateFromDescription(ctx, string(content), false, false)
+		result, err := issueService.GenerateFromDescription(ctx, string(content), false, false, nil)
 		if err != nil {
 			errMsg := t.GetMessage("issue_from_plan.error_parsing_plan", 0,
 				struct{ Error string }{err.Error()})

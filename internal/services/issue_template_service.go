@@ -167,15 +167,16 @@ func (s *IssueTemplateService) InitializeTemplates(ctx context.Context, force bo
 	}
 
 	templates := map[string]string{
-		"bug_report.yml":      s.buildTemplateContent("bug_report"),
-		"feature_request.yml": s.buildTemplateContent("feature_request"),
-		"custom.yml":          s.buildTemplateContent("custom"),
-		"performance.yml":     s.buildPerformanceTemplate(),
-		"documentation.yml":   s.buildDocumentationTemplate(),
-		"security.yml":        s.buildSecurityTemplate(),
-		"tech_debt.yml":       s.buildTechDebtTemplate(),
-		"question.yml":        s.buildQuestionTemplate(),
-		"dependency.yml":      s.buildDependencyTemplate(),
+		"bug_report.yml":           s.buildTemplateContent("bug_report"),
+		"feature_request.yml":      s.buildTemplateContent("feature_request"),
+		"custom.yml":               s.buildTemplateContent("custom"),
+		"performance.yml":          s.buildPerformanceTemplate(),
+		"documentation.yml":        s.buildDocumentationTemplate(),
+		"security.yml":             s.buildSecurityTemplate(),
+		"tech_debt.yml":            s.buildTechDebtTemplate(),
+		"question.yml":             s.buildQuestionTemplate(),
+		"dependency.yml":           s.buildDependencyTemplate(),
+		"PULL_REQUEST_TEMPLATE.md": s.buildDefaultPRTemplate(),
 	}
 
 	created := 0
@@ -183,6 +184,9 @@ func (s *IssueTemplateService) InitializeTemplates(ctx context.Context, force bo
 
 	for filename, content := range templates {
 		filePath := filepath.Join(templatesDir, filename)
+		if filename == "PULL_REQUEST_TEMPLATE.md" && strings.HasSuffix(templatesDir, "ISSUE_TEMPLATE") {
+			filePath = filepath.Join(filepath.Dir(templatesDir), filename)
+		}
 
 		if _, err := os.Stat(filePath); err == nil && !force {
 			logger.Debug(ctx, "template already exists, skipping", "path", filePath)
@@ -381,225 +385,208 @@ func (s *IssueTemplateService) buildTemplateContent(templateType string) string 
 }
 
 func (s *IssueTemplateService) buildBugReportTemplate() string {
-	template := map[string]interface{}{
-		"name":        "Bug report",
-		"description": "Create a report to help us improve",
-		"title":       "[BUG] ",
-		"labels":      []string{"bug"},
-		"body": []map[string]interface{}{
+	template := models.IssueTemplate{
+		Name:        "Bug report",
+		Description: "Create a report to help us improve",
+		Title:       "[BUG] ",
+		Labels:      []string{"bug"},
+		Body: []models.IssueFormItem{
 			{
-				"type": "markdown",
-				"attributes": map[string]string{
-					"value": "Thank you for reporting a bug!",
+				Type: "markdown",
+				Attributes: models.FormAttributes{
+					Value: "Thank you for reporting a bug!",
 				},
 			},
 			{
-				"type": "textarea",
-				"id":   "description",
-				"attributes": map[string]interface{}{
-					"label":       "Description",
-					"description": "A clear and concise description of what the bug is.",
-					"placeholder": "Enter bug description",
+				Type: "textarea",
+				ID:   "description",
+				Attributes: models.FormAttributes{
+					Label:       "Description",
+					Description: "A clear and concise description of what the bug is.",
+					Placeholder: "Enter bug description",
 				},
-				"validations": map[string]bool{
-					"required": true,
+				Validations: models.FormValidations{Required: true},
+			},
+			{
+				Type: "textarea",
+				ID:   "steps",
+				Attributes: models.FormAttributes{
+					Label:       "Steps to reproduce",
+					Description: "Explain how you encountered the bug.",
+					Placeholder: "1. \n2. \n3. ",
+				},
+				Validations: models.FormValidations{Required: true},
+			},
+			{
+				Type: "textarea",
+				ID:   "expected",
+				Attributes: models.FormAttributes{
+					Label:       "Expected behavior",
+					Placeholder: "What did you expect to happen?",
+				},
+				Validations: models.FormValidations{Required: true},
+			},
+			{
+				Type: "textarea",
+				ID:   "actual",
+				Attributes: models.FormAttributes{
+					Label:       "Actual behavior",
+					Placeholder: "What actually happened?",
+				},
+				Validations: models.FormValidations{Required: true},
+			},
+			{
+				Type: "input",
+				ID:   "version",
+				Attributes: models.FormAttributes{
+					Label:       "Version",
+					Placeholder: "v1.0.0",
 				},
 			},
 			{
-				"type": "textarea",
-				"id":   "steps",
-				"attributes": map[string]interface{}{
-					"label":       "Steps to reproduce",
-					"description": "Explain how you encountered the bug.",
-					"placeholder": "1. \n2. \n3. ",
-				},
-				"validations": map[string]bool{
-					"required": true,
-				},
-			},
-			{
-				"type": "textarea",
-				"id":   "expected",
-				"attributes": map[string]interface{}{
-					"label":       "Expected behavior",
-					"placeholder": "What did you expect to happen?",
-				},
-				"validations": map[string]bool{
-					"required": true,
-				},
-			},
-			{
-				"type": "textarea",
-				"id":   "actual",
-				"attributes": map[string]interface{}{
-					"label":       "Actual behavior",
-					"placeholder": "What actually happened?",
-				},
-				"validations": map[string]bool{
-					"required": true,
-				},
-			},
-			{
-				"type": "input",
-				"id":   "version",
-				"attributes": map[string]interface{}{
-					"label":       "Version",
-					"placeholder": "v1.0.0",
-				},
-			},
-			{
-				"type": "textarea",
-				"id":   "additional",
-				"attributes": map[string]interface{}{
-					"label":       "Additional information",
-					"description": "Add any other context about the problem here.",
+				Type: "textarea",
+				ID:   "additional",
+				Attributes: models.FormAttributes{
+					Label:       "Additional information",
+					Description: "Add any other context about the problem here.",
 				},
 			},
 		},
 	}
-
 	content, _ := yaml.Marshal(template)
 	return string(content)
 }
 
 func (s *IssueTemplateService) buildFeatureRequestTemplate() string {
-	template := map[string]interface{}{
-		"name":        "Feature request",
-		"description": "Suggest an idea for this project",
-		"title":       "[FEATURE] ",
-		"labels":      []string{"enhancement"},
-		"body": []map[string]interface{}{
+	template := models.IssueTemplate{
+		Name:        "Feature request",
+		Description: "Suggest an idea for this project",
+		Title:       "[FEATURE] ",
+		Labels:      []string{"enhancement"},
+		Body: []models.IssueFormItem{
 			{
-				"type": "markdown",
-				"attributes": map[string]string{
-					"value": "Thank you for suggesting a feature!",
+				Type: "markdown",
+				Attributes: models.FormAttributes{
+					Value: "Thank you for suggesting a feature!",
 				},
 			},
 			{
-				"type": "textarea",
-				"id":   "problem",
-				"attributes": map[string]interface{}{
-					"label":       "Problem description",
-					"description": "A clear and concise description of what the problem is.",
-					"placeholder": "I'm always frustrated when...",
+				Type: "textarea",
+				ID:   "problem",
+				Attributes: models.FormAttributes{
+					Label:       "Problem description",
+					Description: "A clear and concise description of what the problem is.",
+					Placeholder: "I'm always frustrated when...",
 				},
-				"validations": map[string]bool{
-					"required": true,
+				Validations: models.FormValidations{Required: true},
+			},
+			{
+				Type: "textarea",
+				ID:   "solution",
+				Attributes: models.FormAttributes{
+					Label:       "Proposed solution",
+					Description: "A clear and concise description of what you want to happen.",
+					Placeholder: "I would like to see...",
+				},
+				Validations: models.FormValidations{Required: true},
+			},
+			{
+				Type: "textarea",
+				ID:   "alternatives",
+				Attributes: models.FormAttributes{
+					Label:       "Alternatives considered",
+					Description: "A clear and concise description of any alternative solutions.",
 				},
 			},
 			{
-				"type": "textarea",
-				"id":   "solution",
-				"attributes": map[string]interface{}{
-					"label":       "Proposed solution",
-					"description": "A clear and concise description of what you want to happen.",
-					"placeholder": "I would like to see...",
-				},
-				"validations": map[string]bool{
-					"required": true,
-				},
-			},
-			{
-				"type": "textarea",
-				"id":   "alternatives",
-				"attributes": map[string]interface{}{
-					"label":       "Alternatives considered",
-					"description": "A clear and concise description of any alternative solutions.",
-				},
-			},
-			{
-				"type": "textarea",
-				"id":   "additional",
-				"attributes": map[string]interface{}{
-					"label":       "Additional information",
-					"description": "Add any other context or screenshots about the feature request here.",
+				Type: "textarea",
+				ID:   "additional",
+				Attributes: models.FormAttributes{
+					Label:       "Additional information",
+					Description: "Add any other context or screenshots about the feature request here.",
 				},
 			},
 		},
 	}
-
 	content, _ := yaml.Marshal(template)
 	return string(content)
 }
 
 func (s *IssueTemplateService) buildCustomTemplate() string {
-	template := map[string]interface{}{
-		"name":        "Custom issue",
-		"description": "File a custom issue",
-		"title":       "[ISSUE] ",
-		"labels":      []string{},
-		"body": []map[string]interface{}{
+	template := models.IssueTemplate{
+		Name:        "Custom issue",
+		Description: "File a custom issue",
+		Title:       "[ISSUE] ",
+		Labels:      []string{},
+		Body: []models.IssueFormItem{
 			{
-				"type": "markdown",
-				"attributes": map[string]string{
-					"value": "Open a custom issue.",
+				Type: "markdown",
+				Attributes: models.FormAttributes{
+					Value: "Open a custom issue.",
 				},
 			},
 			{
-				"type": "textarea",
-				"id":   "description",
-				"attributes": map[string]interface{}{
-					"label":       "Description",
-					"description": "Enter the issue description.",
-					"placeholder": "Describe your issue here",
+				Type: "textarea",
+				ID:   "description",
+				Attributes: models.FormAttributes{
+					Label:       "Description",
+					Description: "Enter the issue description.",
+					Placeholder: "Describe your issue here",
 				},
-				"validations": map[string]bool{
-					"required": true,
-				},
+				Validations: models.FormValidations{Required: true},
 			},
 			{
-				"type": "textarea",
-				"id":   "additional",
-				"attributes": map[string]interface{}{
-					"label":       "Additional information",
-					"description": "Any additional context.",
+				Type: "textarea",
+				ID:   "additional",
+				Attributes: models.FormAttributes{
+					Label:       "Additional information",
+					Description: "Any additional context.",
 				},
 			},
 		},
 	}
-
 	content, _ := yaml.Marshal(template)
 	return string(content)
 }
 
 func (s *IssueTemplateService) buildPerformanceTemplate() string {
-	template := map[string]interface{}{
-		"name":        "Performance Issue",
-		"description": "Report a performance issue or inefficiency",
-		"title":       "[PERF] ",
-		"labels":      []string{"performance", "optimization"},
-		"body": []map[string]interface{}{
+	template := models.IssueTemplate{
+		Name:        "Performance Issue",
+		Description: "Report a performance issue or inefficiency",
+		Title:       "[PERF] ",
+		Labels:      []string{"performance", "optimization"},
+		Body: []models.IssueFormItem{
 			{
-				"type": "markdown",
-				"attributes": map[string]string{
-					"value": "Thanks for helping us make things faster! Please describe the performance issue in detail.",
+				Type: "markdown",
+				Attributes: models.FormAttributes{
+					Value: "Thanks for helping us make things faster! Please describe the performance issue in detail.",
 				},
 			},
 			{
-				"type": "textarea",
-				"id":   "description",
-				"attributes": map[string]interface{}{
-					"label":       "Description",
-					"description": "What is slow or inefficient?",
-					"placeholder": "The dashboard takes 5 seconds to load...",
+				Type: "textarea",
+				ID:   "description",
+				Attributes: models.FormAttributes{
+					Label:       "Description",
+					Description: "What is slow or inefficient?",
+					Placeholder: "The dashboard takes 5 seconds to load...",
 				},
-				"validations": map[string]bool{"required": true},
+				Validations: models.FormValidations{Required: true},
 			},
 			{
-				"type": "input",
-				"id":   "metric",
-				"attributes": map[string]interface{}{
-					"label":       "Metric (optional)",
-					"description": "e.g., Response time, CPU usage, Memory",
-					"placeholder": "500ms -> 2s",
+				Type: "input",
+				ID:   "metric",
+				Attributes: models.FormAttributes{
+					Label:       "Metric (optional)",
+					Description: "e.g., Response time, CPU usage, Memory",
+					Placeholder: "500ms -> 2s",
 				},
 			},
 			{
-				"type": "textarea",
-				"id":   "repro",
-				"attributes": map[string]interface{}{
-					"label":       "Steps to reproduce",
-					"description": "How can we observe this?",
+				Type: "textarea",
+				ID:   "repro",
+				Attributes: models.FormAttributes{
+					Label:       "Steps to reproduce",
+					Description: "How can we observe this?",
 				},
 			},
 		},
@@ -608,27 +595,27 @@ func (s *IssueTemplateService) buildPerformanceTemplate() string {
 	return string(content)
 }
 func (s *IssueTemplateService) buildDocumentationTemplate() string {
-	template := map[string]interface{}{
-		"name":        "Documentation",
-		"description": "Improvements or additions to documentation",
-		"title":       "[DOCS] ",
-		"labels":      []string{"documentation"},
-		"body": []map[string]interface{}{
+	template := models.IssueTemplate{
+		Name:        "Documentation",
+		Description: "Improvements or additions to documentation",
+		Title:       "[DOCS] ",
+		Labels:      []string{"documentation"},
+		Body: []models.IssueFormItem{
 			{
-				"type": "textarea",
-				"id":   "description",
-				"attributes": map[string]interface{}{
-					"label":       "Description",
-					"description": "What needs to be documented or improved?",
+				Type: "textarea",
+				ID:   "description",
+				Attributes: models.FormAttributes{
+					Label:       "Description",
+					Description: "What needs to be documented or improved?",
 				},
-				"validations": map[string]bool{"required": true},
+				Validations: models.FormValidations{Required: true},
 			},
 			{
-				"type": "textarea",
-				"id":   "location",
-				"attributes": map[string]interface{}{
-					"label":       "Relevant files/sections",
-					"description": "Where should this check go?",
+				Type: "textarea",
+				ID:   "location",
+				Attributes: models.FormAttributes{
+					Label:       "Relevant files/sections",
+					Description: "Where should this check go?",
 				},
 			},
 		},
@@ -637,33 +624,33 @@ func (s *IssueTemplateService) buildDocumentationTemplate() string {
 	return string(content)
 }
 func (s *IssueTemplateService) buildSecurityTemplate() string {
-	template := map[string]interface{}{
-		"name":        "Security Vulnerability",
-		"description": "Report a security vulnerability",
-		"title":       "[SECURITY] ",
-		"labels":      []string{"security", "critical"},
-		"body": []map[string]interface{}{
+	template := models.IssueTemplate{
+		Name:        "Security Vulnerability",
+		Description: "Report a security vulnerability",
+		Title:       "[SECURITY] ",
+		Labels:      []string{"security", "critical"},
+		Body: []models.IssueFormItem{
 			{
-				"type": "markdown",
-				"attributes": map[string]string{
-					"value": "**IMPORTANT:** Please do not disclose security vulnerabilities publicly until they have been addressed.",
+				Type: "markdown",
+				Attributes: models.FormAttributes{
+					Value: "**IMPORTANT:** Please do not disclose security vulnerabilities publicly until they have been addressed.",
 				},
 			},
 			{
-				"type": "textarea",
-				"id":   "description",
-				"attributes": map[string]interface{}{
-					"label":       "Vulnerability Description",
-					"description": "Describe the security issue.",
+				Type: "textarea",
+				ID:   "description",
+				Attributes: models.FormAttributes{
+					Label:       "Vulnerability Description",
+					Description: "Describe the security issue.",
 				},
-				"validations": map[string]bool{"required": true},
+				Validations: models.FormValidations{Required: true},
 			},
 			{
-				"type": "textarea",
-				"id":   "impact",
-				"attributes": map[string]interface{}{
-					"label":       "Impact",
-					"description": "What is the potential impact of this vulnerability?",
+				Type: "textarea",
+				ID:   "impact",
+				Attributes: models.FormAttributes{
+					Label:       "Impact",
+					Description: "What is the potential impact of this vulnerability?",
 				},
 			},
 		},
@@ -672,27 +659,27 @@ func (s *IssueTemplateService) buildSecurityTemplate() string {
 	return string(content)
 }
 func (s *IssueTemplateService) buildTechDebtTemplate() string {
-	template := map[string]interface{}{
-		"name":        "Tech Debt / Refactor",
-		"description": "Propose a refactoring or technical improvement",
-		"title":       "[REFACTOR] ",
-		"labels":      []string{"refactor", "tech-debt"},
-		"body": []map[string]interface{}{
+	template := models.IssueTemplate{
+		Name:        "Tech Debt / Refactor",
+		Description: "Propose a refactoring or technical improvement",
+		Title:       "[REFACTOR] ",
+		Labels:      []string{"refactor", "tech-debt"},
+		Body: []models.IssueFormItem{
 			{
-				"type": "textarea",
-				"id":   "description",
-				"attributes": map[string]interface{}{
-					"label":       "Description",
-					"description": "What code needs refactoring?",
+				Type: "textarea",
+				ID:   "description",
+				Attributes: models.FormAttributes{
+					Label:       "Description",
+					Description: "What code needs refactoring?",
 				},
-				"validations": map[string]bool{"required": true},
+				Validations: models.FormValidations{Required: true},
 			},
 			{
-				"type": "textarea",
-				"id":   "reason",
-				"attributes": map[string]interface{}{
-					"label":       "Reason",
-					"description": "Why should we do this? (e.g. readability, maintainability)",
+				Type: "textarea",
+				ID:   "reason",
+				Attributes: models.FormAttributes{
+					Label:       "Reason",
+					Description: "Why should we do this? (e.g. readability, maintainability)",
 				},
 			},
 		},
@@ -701,20 +688,20 @@ func (s *IssueTemplateService) buildTechDebtTemplate() string {
 	return string(content)
 }
 func (s *IssueTemplateService) buildQuestionTemplate() string {
-	template := map[string]interface{}{
-		"name":        "Question",
-		"description": "Ask a question about the project",
-		"title":       "[QUESTION] ",
-		"labels":      []string{"question"},
-		"body": []map[string]interface{}{
+	template := models.IssueTemplate{
+		Name:        "Question",
+		Description: "Ask a question about the project",
+		Title:       "[QUESTION] ",
+		Labels:      []string{"question"},
+		Body: []models.IssueFormItem{
 			{
-				"type": "textarea",
-				"id":   "question",
-				"attributes": map[string]interface{}{
-					"label":       "Question",
-					"description": "What would you like to know?",
+				Type: "textarea",
+				ID:   "question",
+				Attributes: models.FormAttributes{
+					Label:       "Question",
+					Description: "What would you like to know?",
 				},
-				"validations": map[string]bool{"required": true},
+				Validations: models.FormValidations{Required: true},
 			},
 		},
 	}
@@ -722,26 +709,26 @@ func (s *IssueTemplateService) buildQuestionTemplate() string {
 	return string(content)
 }
 func (s *IssueTemplateService) buildDependencyTemplate() string {
-	template := map[string]interface{}{
-		"name":        "Dependency Update",
-		"description": "Update a project dependency",
-		"title":       "[DEPENDENCY] ",
-		"labels":      []string{"dependencies"},
-		"body": []map[string]interface{}{
+	template := models.IssueTemplate{
+		Name:        "Dependency Update",
+		Description: "Update a project dependency",
+		Title:       "[DEPENDENCY] ",
+		Labels:      []string{"dependencies"},
+		Body: []models.IssueFormItem{
 			{
-				"type": "input",
-				"id":   "package",
-				"attributes": map[string]interface{}{
-					"label": "Package Name",
+				Type: "input",
+				ID:   "package",
+				Attributes: models.FormAttributes{
+					Label: "Package Name",
 				},
-				"validations": map[string]bool{"required": true},
+				Validations: models.FormValidations{Required: true},
 			},
 			{
-				"type": "textarea",
-				"id":   "reason",
-				"attributes": map[string]interface{}{
-					"label":       "Reason for update",
-					"description": "Security fix, new features, etc.",
+				Type: "textarea",
+				ID:   "reason",
+				Attributes: models.FormAttributes{
+					Label:       "Reason for update",
+					Description: "Security fix, new features, etc.",
 				},
 			},
 		},
@@ -818,4 +805,25 @@ func (s *IssueTemplateService) MergeWithGeneratedContent(template *models.IssueT
 	}
 
 	return result
+}
+
+func (s *IssueTemplateService) buildDefaultPRTemplate() string {
+	return `## Description
+<!-- Describe your changes in detail here. code reference, etc -->
+## Related Issues
+<!-- Closes #1, Fixes #2 -->
+## Type of Change
+<!-- Check the relevant option -->
+- [ ] 🐛 Bug fix (non-breaking change which fixes an issue)
+- [ ] ✨ New feature (non-breaking change which adds functionality)
+- [ ] 💥 Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] 📝 Documentation update
+- [ ] 🎨 Style/Refactor (non-breaking change which improves code quality)
+## Checklist
+- [ ] My code follows the style guidelines of this project
+- [ ] I have performed a self-review of my code
+- [ ] I have commented my code, particularly in hard-to-understand areas
+- [ ] I have made corresponding changes to the documentation
+- [ ] My changes generate no new warnings
+`
 }

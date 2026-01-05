@@ -179,24 +179,42 @@ func TestGetReleasePromptTemplate(t *testing.T) {
 }
 
 func TestGetIssuePromptTemplate(t *testing.T) {
-	t.Run("English template has proper structure", func(t *testing.T) {
+	t.Run("English template DOES NOT have structure", func(t *testing.T) {
 		result := GetIssuePromptTemplate("en")
 
 		assert.Contains(t, result, "Senior Tech Lead")
-		assert.Contains(t, result, "Context (Motivation)")
-		assert.Contains(t, result, "Technical Details")
-		assert.Contains(t, result, "Impact")
 		assert.Contains(t, result, "No Emojis")
+		// Structure should be removed from the base template
+		assert.NotContains(t, result, "### Context (Motivation)")
+		assert.NotContains(t, result, "### Technical Details")
+		assert.NotContains(t, result, "### Impact")
 	})
 
 	t.Run("Spanish template is in Spanish", func(t *testing.T) {
 		result := GetIssuePromptTemplate("es")
 
 		assert.Contains(t, result, "Tech Lead")
+		assert.Contains(t, result, "ESPAÑOL")
+		// Structure should be removed from the base template
+		assert.NotContains(t, result, "### Contexto")
+		assert.NotContains(t, result, "### Detalles Técnicos")
+		assert.NotContains(t, result, "### Impacto")
+	})
+}
+
+func TestGetIssueDefaultStructure(t *testing.T) {
+	t.Run("English default structure is correct", func(t *testing.T) {
+		result := GetIssueDefaultStructure("en")
+		assert.Contains(t, result, "Context (Motivation)")
+		assert.Contains(t, result, "Technical Details")
+		assert.Contains(t, result, "Impact")
+	})
+
+	t.Run("Spanish default structure is correct", func(t *testing.T) {
+		result := GetIssueDefaultStructure("es")
 		assert.Contains(t, result, "Contexto")
 		assert.Contains(t, result, "Detalles Técnicos")
 		assert.Contains(t, result, "Impacto")
-		assert.Contains(t, result, "ESPAÑOL")
 	})
 }
 
@@ -298,7 +316,11 @@ func TestFormatTemplateForPrompt(t *testing.T) {
 		template := &models.IssueTemplate{
 			Name:  "yaml_template",
 			About: "YAML based template",
-			Body:  map[string]interface{}{"type": "markdown"},
+			Body: []models.IssueFormItem{
+				{
+					Type: "markdown",
+				},
+			},
 		}
 
 		result := FormatTemplateForPrompt(template, "en", "issue")

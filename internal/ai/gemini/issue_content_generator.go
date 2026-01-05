@@ -241,6 +241,8 @@ func (s *GeminiIssueContentGenerator) buildIssuePrompt(request models.IssueGener
 			lang = "en"
 		}
 		sb.WriteString(ai.FormatTemplateForPrompt(request.Template, lang, "issue"))
+	} else {
+		sb.WriteString(ai.GetIssueDefaultStructure(request.Language))
 	}
 
 	templateStr := ai.GetIssuePromptTemplate(request.Language)

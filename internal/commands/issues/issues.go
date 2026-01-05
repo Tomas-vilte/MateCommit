@@ -20,9 +20,9 @@ import (
 
 // IssueGeneratorService is a minimal interface for testing purposes
 type IssueGeneratorService interface {
-	GenerateFromDiff(ctx context.Context, hint string, skipLabels bool, autoTemplate bool) (*models.IssueGenerationResult, error)
-	GenerateFromDescription(ctx context.Context, description string, skipLabels bool, autoTemplate bool) (*models.IssueGenerationResult, error)
-	GenerateFromPR(ctx context.Context, prNumber int, hint string, skipLabels bool, autoTemplate bool) (*models.IssueGenerationResult, error)
+	GenerateFromDiff(ctx context.Context, hint string, skipLabels bool, autoTemplate bool, explicitTemplate *models.IssueTemplate) (*models.IssueGenerationResult, error)
+	GenerateFromDescription(ctx context.Context, description string, skipLabels bool, autoTemplate bool, explicitTemplate *models.IssueTemplate) (*models.IssueGenerationResult, error)
+	GenerateFromPR(ctx context.Context, prNumber int, hint string, skipLabels bool, autoTemplate bool, explicitTemplate *models.IssueTemplate) (*models.IssueGenerationResult, error)
 	GenerateWithTemplate(ctx context.Context, templateName string, hint string, fromDiff bool, description string, skipLabels bool) (*models.IssueGenerationResult, error)
 	CreateIssue(ctx context.Context, result *models.IssueGenerationResult, assignees []string) (*models.Issue, error)
 	GetAuthenticatedUser(ctx context.Context) (string, error)
@@ -213,11 +213,11 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 		if templateName != "" {
 			result, err = issueService.GenerateWithTemplate(ctx, templateName, hint, fromDiff, description, noLabels)
 		} else if fromDiff {
-			result, err = issueService.GenerateFromDiff(ctx, hint, noLabels, autoTemplate)
+			result, err = issueService.GenerateFromDiff(ctx, hint, noLabels, autoTemplate, nil)
 		} else if fromPR > 0 {
-			result, err = issueService.GenerateFromPR(ctx, fromPR, hint, noLabels, autoTemplate)
+			result, err = issueService.GenerateFromPR(ctx, fromPR, hint, noLabels, autoTemplate, nil)
 		} else {
-			result, err = issueService.GenerateFromDescription(ctx, description, noLabels, autoTemplate)
+			result, err = issueService.GenerateFromDescription(ctx, description, noLabels, autoTemplate, nil)
 		}
 
 		spinner.Stop()
