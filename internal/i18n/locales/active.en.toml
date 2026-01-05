@@ -5,9 +5,9 @@ other = "🧉 Intelligent assistant for generating commit messages"
 other = """
 MateCommit helps you generate meaningful commit messages using AI.
 Examples:
-   mate-commit suggest                   # Generates 3 suggestions in the default language
-   mate-commit s -n 5 -l es              # Generates 5 suggestions in Spanish
-   mate-commit config show               # Shows the current configuration
+   matecommit suggest                   # Generates 3 suggestions in the default language
+   matecommit s -n 5 -l es              # Generates 5 suggestions in Spanish
+   matecommit config show               # Shows the current configuration
 """
 
 [suggest_command_usage]
@@ -97,10 +97,10 @@ other = "Invalid selection: must be between 1 and {{.Max}}"
 [api]
 invalid_key = "❌ Invalid API Key. Please check the format."
 key_configured = "✅ API Key successfully configured."
-key_configuration_help = "💡 Now you can use 'mate-commit suggest' to generate suggestions."
+key_configuration_help = "💡 Now you can use 'matecommit suggest' to generate suggestions."
 key_not_set = "🔑 API Key: ❌ Not configured"
 key_tip = "\n💡 Tip: Set your API key with:"
-key_config_command = "mate-commit config set-api-key --key <your_api_key>"
+key_config_command = "matecommit config set-api-key --key <your_api_key>"
 key_set = "🔑 API Key: ✅ Configured"
 
 [commands]
@@ -412,7 +412,7 @@ no_breaking_changes = "No breaking changes"
 comparison_title = "Before/After Comparison"
 resources_title = "Resources"
 template_changes = "Changes"
-template_tip = "Tip: You can regenerate notes with 'mate-commit release generate'"
+template_tip = "Tip: You can regenerate notes with 'matecommit release generate'"
 template_warning = "This release has no description in GitHub"
 preview_title = "Release Preview"
 

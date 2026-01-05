@@ -263,7 +263,7 @@ func TestParseJSONResponse(t *testing.T) {
 }
 
 func TestGenerateNotes(t *testing.T) {
-	tmpHome, err := os.MkdirTemp("", "mate-commit-test-gen-notes-*")
+	tmpHome, err := os.MkdirTemp("", "matecommit-test-gen-notes-*")
 	assert.NoError(t, err)
 	defer func() {
 		if err := os.RemoveAll(tmpHome); err != nil {

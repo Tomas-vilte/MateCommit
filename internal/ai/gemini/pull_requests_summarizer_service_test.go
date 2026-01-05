@@ -119,7 +119,7 @@ func TestGeminiPRSummarizer(t *testing.T) {
 }
 
 func TestGeneratePRSummary_HappyPath(t *testing.T) {
-	tmpHome, err := os.MkdirTemp("", "mate-commit-test-pr-*")
+	tmpHome, err := os.MkdirTemp("", "matecommit-test-pr-*")
 	assert.NoError(t, err)
 	defer func() {
 		if err := os.RemoveAll(tmpHome); err != nil {

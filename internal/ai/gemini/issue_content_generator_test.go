@@ -402,7 +402,7 @@ func TestExtractTextFromMap(t *testing.T) {
 
 func TestGenerateIssueContent_HappyPath(t *testing.T) {
 	// Setup temp home
-	tmpHome, err := os.MkdirTemp("", "mate-commit-test-issue-*")
+	tmpHome, err := os.MkdirTemp("", "matecommit-test-issue-*")
 	assert.NoError(t, err)
 	defer func() {
 		if err := os.RemoveAll(tmpHome); err != nil {

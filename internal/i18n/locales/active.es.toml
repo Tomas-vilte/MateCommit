@@ -5,9 +5,9 @@ other = "🧉 Asistente inteligente para generar mensajes de commit"
 other = """
 MateCommit te ayuda a generar mensajes de commit claros y significativos usando IA.
 Ejemplos:
-   mate-commit suggest                   # Genera 3 sugerencias en el idioma por defecto
-   mate-commit s -n 5 -l es              # Genera 5 sugerencias en español
-   mate-commit config show               # Muestra la configuración actual
+   matecommit suggest                   # Genera 3 sugerencias en el idioma por defecto
+   matecommit s -n 5 -l es              # Genera 5 sugerencias en español
+   matecommit config show               # Muestra la configuración actual
 """
 
 [suggest_command_usage]
@@ -106,10 +106,10 @@ other = "Selección inválida: tiene que estar entre 1 y {{.Max}}"
 [api]
 invalid_key = "❌ Clave API inválida. Revisá el formato."
 key_configured = "✅ Clave API configurada con éxito."
-key_configuration_help = "💡 Ahora podés usar 'mate-commit suggest' para generar sugerencias."
+key_configuration_help = "💡 Ahora podés usar 'matecommit suggest' para generar sugerencias."
 key_not_set = "🔑 Clave API: ❌ No configurada"
 key_tip = "\n💡 Consejo: Configurá tu clave API con:"
-key_config_command = "mate-commit config set-api-key --key <tu_clave_api>"
+key_config_command = "matecommit config set-api-key --key <tu_clave_api>"
 key_set = "🔑 Clave API: ✅ Configurada"
 
 [commands]

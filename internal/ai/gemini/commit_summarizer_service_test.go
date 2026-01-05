@@ -390,7 +390,7 @@ func TestGeminiCommitSummarizer(t *testing.T) {
 }
 
 func TestGenerateSuggestions_HappyPath(t *testing.T) {
-	tmpHome, err := os.MkdirTemp("", "mate-commit-test-suggestions-*")
+	tmpHome, err := os.MkdirTemp("", "matecommit-test-suggestions-*")
 	assert.NoError(t, err)
 	defer func() {
 		if err := os.RemoveAll(tmpHome); err != nil {

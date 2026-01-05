@@ -36,12 +36,6 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
-var (
-	version = versionpkg.Version
-	commit  = &versionpkg.GitCommit
-	date    = &versionpkg.BuildDate
-)
-
 func main() {
 	app, err := initializeApp()
 	if err != nil {
@@ -86,7 +80,7 @@ func initializeApp() (*cli.Command, error) {
 	startBackgroundVersionCheck()
 
 	return &cli.Command{
-		Name:                  "mate-commit",
+		Name:                  "matecommit",
 		Usage:                 translations.GetMessage("app_usage", 0, nil),
 		Version:               versionpkg.Info(),
 		Description:           translations.GetMessage("app_description", 0, nil),
@@ -132,7 +126,7 @@ func initAIProviders(ctx context.Context, cfgApp *cfg.Config, t *i18n.Translatio
 		commitAI, err := gemini.NewGeminiCommitSummarizer(ctx, cfgApp, onConfirmation)
 		if err != nil && !isCompletion {
 			logger.Warn(ctx, "could not create CommitSummarizer", "error", err)
-			logger.Info(ctx, "AI is not configured. You can configure it with 'mate-commit config init'")
+			logger.Info(ctx, "AI is not configured. You can configure it with 'matecommit config init'")
 		}
 
 		prAI, err := gemini.NewGeminiPRSummarizer(ctx, cfgApp, onConfirmation)

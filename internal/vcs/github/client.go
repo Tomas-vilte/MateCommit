@@ -338,7 +338,7 @@ func (ghc *GitHubClient) CreateLabel(ctx context.Context, name, color, descripti
 func (ghc *GitHubClient) CreateRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool, progressCh chan<- models.BuildProgress) error {
 	body := notes.Changelog
 	if body == "" {
-		body = fmt.Sprintf("# %s\n\n%s\n\n", notes.Title, notes.Summary)
+		body = fmt.Sprintf("%s\n\n", notes.Summary)
 		if len(notes.Highlights) > 0 {
 			body += "## Highlights\n\n"
 			for _, h := range notes.Highlights {
@@ -1040,6 +1040,11 @@ func (ghc *GitHubClient) uploadBinaries(ctx context.Context, releaseID int64, ve
 	date := time.Now().Format(time.RFC3339)
 
 	log := logger.FromContext(ctx)
+
+	log.Debug("creating binary builder",
+		"repo", ghc.repo,
+		"main_path", ghc.mainPath,
+		"version", version)
 
 	builderBinary := ghc.binaryBuilderFactory.NewBuilder(
 		ghc.mainPath,
