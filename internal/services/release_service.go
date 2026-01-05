@@ -373,7 +373,14 @@ func (s *ReleaseService) UpdateLocalChangelog(release *models.Release, notes *mo
 		log.Error("failed to update changelog",
 			"error", err,
 			"file", changelogFile)
-		return err
+		return domainErrors.NewAppError(
+			domainErrors.TypeInternal,
+			"Failed to update CHANGELOG.md",
+			err,
+		).WithSuggestion(
+			"Make sure CHANGELOG.md is writable and not locked by another process.\n" +
+				"Try: chmod +w CHANGELOG.md",
+		)
 	}
 
 	if err := s.EnsureUnreleasedSection(changelogFile); err != nil {
@@ -401,7 +408,14 @@ func (s *ReleaseService) prependToChangelog(filename, newContent string) error {
 		return os.WriteFile(filename, []byte(header+newContent), 0644)
 	}
 	if err != nil {
-		return err
+		return domainErrors.NewAppError(
+			domainErrors.TypeInternal,
+			"Failed to read CHANGELOG.md",
+			err,
+		).WithSuggestion(
+			"Ensure CHANGELOG.md exists and is readable.\n" +
+				"Try: ls -la CHANGELOG.md",
+		)
 	}
 
 	current := string(content)
@@ -530,7 +544,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 		return os.WriteFile(filename, []byte(header), 0644)
 	}
 	if err != nil {
-		return err
+		return domainErrors.NewAppError(
+			domainErrors.TypeInternal,
+			"Failed to read CHANGELOG.md for Unreleased section",
+			err,
+		).WithSuggestion(
+			"Check if CHANGELOG.md is readable and not corrupted.\n" +
+				"Try: cat CHANGELOG.md",
+		)
 	}
 
 	current := string(content)
@@ -567,7 +588,13 @@ func (s *ReleaseService) parseUnreleasedSection(content string) string {
 func (s *ReleaseService) MoveUnreleasedToVersion(filename string, release *models.Release, notes *models.ReleaseNotes) error {
 	content, err := os.ReadFile(filename)
 	if err != nil {
-		return err
+		return domainErrors.NewAppError(
+			domainErrors.TypeInternal,
+			"Failed to read CHANGELOG.md for Unreleased migration",
+			err,
+		).WithSuggestion(
+			"Ensure CHANGELOG.md exists and is readable.",
+		)
 	}
 
 	current := string(content)
@@ -591,11 +618,25 @@ func (s *ReleaseService) MoveUnreleasedToVersion(filename string, release *model
 	current = unreleasedPattern.ReplaceAllString(current, "$1")
 
 	if err := os.WriteFile(filename, []byte(current), 0644); err != nil {
-		return err
+		return domainErrors.NewAppError(
+			domainErrors.TypeInternal,
+			"Failed to write CHANGELOG.md during Unreleased migration",
+			err,
+		).WithSuggestion(
+			"Check file permissions and disk space.\n" +
+				"Try: df -h . && chmod +w CHANGELOG.md",
+		)
 	}
 
 	if err := s.prependToChangelog(filename, versionEntry); err != nil {
-		return err
+		return domainErrors.NewAppError(
+			domainErrors.TypeInternal,
+			"Failed to prepend new version during Unreleased migration",
+			err,
+		).WithSuggestion(
+			"The Unreleased section was removed but the new version couldn't be added.\n" +
+				"You may need to manually restore CHANGELOG.md from git.",
+		)
 	}
 
 	return s.EnsureUnreleasedSection(filename)
