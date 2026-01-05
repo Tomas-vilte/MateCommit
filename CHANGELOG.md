@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+
+## [v1.7.0] - 2026-01-05
+
+[v1.7.0]: https://github.com/thomas-vilte/matecommit/compare/v1.6.0...v1.7.0
+
+In this release, we focused on bringing more structure and automation to your development workflow. We introduced semantic changelog management and enforced JSON schemas for AI generation to ensure higher quality and more consistent output.
+
+### 🤖 AI & Generation Enhancements
+
+- We enforced a JSON schema for AI outputs to ensure more reliable and structured generation results.
+- We added support for leveraging repository labels to provide richer context during the generation process.
+- We introduced AI hints and enhanced the generation of test plans to improve development workflows.
+- We improved error handling for token counting to provide clearer feedback when limits are reached.
+
+### 📝 Smart Changelog Management
+
+- We automated the management of the 'Unreleased' section in changelogs to keep your documentation up to date effortlessly.
+- We introduced semantic sections for release notes and changelogs to make updates easier to read and navigate.
+- We added validation for changelog entries to ensure consistency across your project history.
+- We enhanced the release preview with distinct sections for a better overview before publishing.
+
+### ⚙️ Configuration & Templates
+
+- We implemented structured templates and dynamic prompt injection for more flexible and powerful generation.
+- We added a configurable main path for binary builds to support more diverse project structures.
+- We simplified the configuration loading logic to improve reliability and clarity when handling settings hierarchy.
+
+### 🛡️ Stability Improvements
+
+- We enhanced error handling for all file operations to prevent data loss and provide better troubleshooting information.
+
 ## [v1.6.0] - 2025-12-29
 
 [v1.6.0]: https://github.com/thomas-vilte/matecommit/compare/v1.5.0...v1.6.0
