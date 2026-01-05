@@ -355,6 +355,18 @@ func (s *ReleaseService) UpdateLocalChangelog(release *models.Release, notes *mo
 		"version", release.Version,
 		"file", changelogFile)
 
+	if _, err := os.Stat(changelogFile); err == nil {
+		content, readErr := os.ReadFile(changelogFile)
+		if readErr == nil && strings.Contains(string(content), "## [Unreleased]") {
+			if err := s.MoveUnreleasedToVersion(changelogFile, release, notes); err != nil {
+				log.Warn("failed to move Unreleased section", "error", err)
+			} else {
+				log.Info("moved Unreleased section to new version", "version", release.Version)
+				return nil
+			}
+		}
+	}
+
 	newContent := s.buildChangelogFromNotes(context.Background(), release, notes)
 
 	if err := s.prependToChangelog(changelogFile, newContent); err != nil {
@@ -362,6 +374,10 @@ func (s *ReleaseService) UpdateLocalChangelog(release *models.Release, notes *mo
 			"error", err,
 			"file", changelogFile)
 		return err
+	}
+
+	if err := s.EnsureUnreleasedSection(changelogFile); err != nil {
+		log.Warn("failed to ensure Unreleased section", "error", err)
 	}
 
 	log.Info("changelog updated successfully",
@@ -488,6 +504,94 @@ func (s *ReleaseService) consolidateLinkDefinitions(content string) string {
 	}
 
 	return strings.Join(result, "\n")
+}
+
+// EnsureUnreleasedSection ensures an Unreleased section exists in the CHANGELOG
+func (s *ReleaseService) EnsureUnreleasedSection(filename string) error {
+	content, err := os.ReadFile(filename)
+	if os.IsNotExist(err) {
+		header := `# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+`
+		return os.WriteFile(filename, []byte(header), 0644)
+	}
+	if err != nil {
+		return err
+	}
+
+	current := string(content)
+
+	if strings.Contains(current, "## [Unreleased]") {
+		return nil
+	}
+
+	idx := strings.Index(current, "\n## ")
+	if idx == -1 {
+		current = strings.TrimSpace(current) + "\n\n## [Unreleased]\n\n"
+	} else {
+		pre := current[:idx]
+		post := current[idx:]
+		current = strings.TrimSpace(pre) + "\n\n## [Unreleased]\n\n" + post
+	}
+
+	return os.WriteFile(filename, []byte(current), 0644)
+}
+
+// parseUnreleasedSection extracts the Unreleased section content
+func (s *ReleaseService) parseUnreleasedSection(content string) string {
+	unreleasedPattern := regexp.MustCompile(`(?s)## \[Unreleased]\s*\n(.*?)(?:## \[|$)`)
+	matches := unreleasedPattern.FindStringSubmatch(content)
+
+	if len(matches) < 2 {
+		return ""
+	}
+
+	return strings.TrimSpace(matches[1])
+}
+
+// MoveUnreleasedToVersion moves Unreleased section content to a new version
+func (s *ReleaseService) MoveUnreleasedToVersion(filename string, release *models.Release, notes *models.ReleaseNotes) error {
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+
+	current := string(content)
+
+	unreleasedContent := s.parseUnreleasedSection(current)
+
+	if unreleasedContent == "" {
+		return nil
+	}
+
+	log := logger.FromContext(context.Background())
+	log.Info("moving Unreleased section to new version",
+		"version", release.Version,
+		"unreleased_content_length", len(unreleasedContent))
+
+	versionEntry := s.buildChangelogFromNotes(context.Background(), release, notes)
+
+	versionEntry = strings.TrimSpace(versionEntry) + "\n\n" + unreleasedContent + "\n"
+
+	unreleasedPattern := regexp.MustCompile(`(?s)## \[Unreleased]\s*\n.*?(\n## \[|$)`)
+	current = unreleasedPattern.ReplaceAllString(current, "$1")
+
+	if err := os.WriteFile(filename, []byte(current), 0644); err != nil {
+		return err
+	}
+
+	if err := s.prependToChangelog(filename, versionEntry); err != nil {
+		return err
+	}
+
+	return s.EnsureUnreleasedSection(filename)
 }
 
 func (s *ReleaseService) analyzeDependencyChanges(ctx context.Context, release *models.Release) ([]models.DependencyChange, error) {
