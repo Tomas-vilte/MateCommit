@@ -362,7 +362,10 @@ func (s *ReleaseService) UpdateLocalChangelog(release *models.Release, notes *mo
 				log.Warn("failed to move Unreleased section", "error", err)
 			} else {
 				log.Info("moved Unreleased section to new version", "version", release.Version)
-				return nil
+				if s.hasUnreleasedContent(content) {
+					return nil
+				}
+				log.Debug("unreleased section was empty, will add new version entry")
 			}
 		}
 	}
@@ -464,11 +467,12 @@ func (s *ReleaseService) prependToChangelog(filename, newContent string) error {
 func (s *ReleaseService) prependToChangelogLegacy(filename, current, newContent string) error {
 	var sb strings.Builder
 
-	idx := strings.Index(current, "\n## ")
+	versionPattern := regexp.MustCompile(`\n## \[[^]]+]`)
+	loc := versionPattern.FindStringIndex(current)
 
-	if idx != -1 {
-		pre := current[:idx]
-		post := current[idx:]
+	if loc != nil {
+		pre := current[:loc[0]]
+		post := current[loc[0]:]
 
 		sb.WriteString(strings.TrimSpace(pre))
 		sb.WriteString("\n\n")
@@ -490,9 +494,18 @@ func (s *ReleaseService) prependToChangelogLegacy(filename, current, newContent 
 
 	result := sb.String()
 
+	// Remove empty Unreleased sections that might be between versions
+	result = s.removeEmptyUnreleasedSections(result)
+
 	result = s.consolidateLinkDefinitions(result)
 
 	return os.WriteFile(filename, []byte(result), 0644)
+}
+
+// removeEmptyUnreleasedSections removes empty ## [Unreleased] sections that appear between versions
+func (s *ReleaseService) removeEmptyUnreleasedSections(content string) string {
+	emptyUnreleasedPattern := regexp.MustCompile(`(?s)## \[Unreleased]\s*\n(?=## \[)`)
+	return emptyUnreleasedPattern.ReplaceAllString(content, "")
 }
 
 // consolidateLinkDefinitions removes duplicate link reference definitions
@@ -560,12 +573,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 		return nil
 	}
 
-	idx := strings.Index(current, "\n## ")
-	if idx == -1 {
+	versionPattern := regexp.MustCompile(`\n## \[[^]]+]`)
+	loc := versionPattern.FindStringIndex(current)
+
+	if loc == nil {
 		current = strings.TrimSpace(current) + "\n\n## [Unreleased]\n\n"
 	} else {
-		pre := current[:idx]
-		post := current[idx:]
+		pre := current[:loc[0]]
+		post := current[loc[0]:]
 		current = strings.TrimSpace(pre) + "\n\n## [Unreleased]\n\n" + post
 	}
 
@@ -582,6 +597,11 @@ func (s *ReleaseService) parseUnreleasedSection(content string) string {
 	}
 
 	return strings.TrimSpace(matches[1])
+}
+
+// hasUnreleasedContent checks if the Unreleased section has actual content
+func (s *ReleaseService) hasUnreleasedContent(content []byte) bool {
+	return s.parseUnreleasedSection(string(content)) != ""
 }
 
 // MoveUnreleasedToVersion moves Unreleased section content to a new version
@@ -601,11 +621,17 @@ func (s *ReleaseService) MoveUnreleasedToVersion(filename string, release *model
 
 	unreleasedContent := s.parseUnreleasedSection(current)
 
+	log := logger.FromContext(context.Background())
+	log.Debug("parsed unreleased section",
+		"unreleased_content", unreleasedContent,
+		"unreleased_content_length", len(unreleasedContent),
+		"is_empty", unreleasedContent == "")
+
 	if unreleasedContent == "" {
+		log.Info("unreleased section is empty, skipping migration")
 		return nil
 	}
 
-	log := logger.FromContext(context.Background())
 	log.Info("moving Unreleased section to new version",
 		"version", release.Version,
 		"unreleased_content_length", len(unreleasedContent))
@@ -617,6 +643,10 @@ func (s *ReleaseService) MoveUnreleasedToVersion(filename string, release *model
 	unreleasedPattern := regexp.MustCompile(`(?s)## \[Unreleased]\s*\n.*?(\n## \[|$)`)
 	current = unreleasedPattern.ReplaceAllString(current, "$1")
 
+	log.Debug("writing modified changelog without unreleased section",
+		"filename", filename,
+		"content_length", len(current))
+
 	if err := os.WriteFile(filename, []byte(current), 0644); err != nil {
 		return domainErrors.NewAppError(
 			domainErrors.TypeInternal,
@@ -627,6 +657,8 @@ func (s *ReleaseService) MoveUnreleasedToVersion(filename string, release *model
 				"Try: df -h . && chmod +w CHANGELOG.md",
 		)
 	}
+
+	log.Debug("changelog written successfully, prepending new version")
 
 	if err := s.prependToChangelog(filename, versionEntry); err != nil {
 		return domainErrors.NewAppError(
@@ -974,9 +1006,14 @@ func (s *ReleaseService) formatReleaseItem(item models.ReleaseItem) string {
 }
 
 func (s *ReleaseService) CommitChangelog(ctx context.Context, version string) error {
+	log := logger.FromContext(ctx)
+	log.Info("starting changelog commit process", "version", version)
+
 	if err := s.git.AddFileToStaging(ctx, "CHANGELOG.md"); err != nil {
+		log.Error("failed to add CHANGELOG.md to staging", "error", err)
 		return domainErrors.NewAppError(domainErrors.TypeGit, "failed to add CHANGELOG.md to staging", err)
 	}
+	log.Debug("CHANGELOG.md added to staging")
 
 	versionFile, _, err := s.FindVersionFile(ctx)
 	if err != nil {
@@ -988,19 +1025,30 @@ func (s *ReleaseService) CommitChangelog(ctx context.Context, version string) er
 	}
 
 	if _, err := os.Stat(versionFile); err == nil {
+		log.Debug("adding version file to staging", "file", versionFile)
 		if err := s.git.AddFileToStaging(ctx, versionFile); err != nil {
+			log.Error("failed to add version file to staging", "file", versionFile, "error", err)
 			return domainErrors.NewAppError(domainErrors.TypeGit, fmt.Sprintf("failed to add version file to staging: %s", versionFile), err)
 		}
+		log.Debug("version file added to staging", "file", versionFile)
+	} else {
+		log.Debug("version file not found, skipping", "file", versionFile)
 	}
 
+	log.Debug("checking for staged changes")
 	if !s.git.HasStagedChanges(ctx) {
+		log.Error("no staged changes detected after adding files")
 		return domainErrors.ErrNoChanges
 	}
+	log.Debug("staged changes detected, proceeding with commit")
 
 	message := fmt.Sprintf("chore: update changelog and bump version to %s", version)
 	if err := s.git.CreateCommit(ctx, message); err != nil {
+		log.Error("failed to create commit", "error", err)
 		return domainErrors.NewAppError(domainErrors.TypeGit, "failed to commit changelog and version bump", err)
 	}
+
+	log.Info("changelog commit process completed successfully")
 	return nil
 
 }
