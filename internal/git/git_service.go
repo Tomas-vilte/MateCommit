@@ -3,6 +3,7 @@ package git
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"sort"
@@ -31,11 +32,32 @@ func (s *GitService) SetFallback(name, email string) {
 
 // HasStagedChanges checks if there are changes in the staging area
 func (s *GitService) HasStagedChanges(ctx context.Context) bool {
-	cmd := exec.CommandContext(ctx, "git", "diff", "--cached", "--quiet")
-	err := cmd.Run()
+	log := logger.FromContext(ctx)
 
-	// If the command returns an error (exit status 1), it means there are staged changes
-	return err != nil && cmd.ProcessState.ExitCode() == 1
+	repoRoot, err := s.getRepoRoot(ctx)
+	if err != nil {
+		log.Error("failed to get repo root", "error", err)
+		return false
+	}
+
+	cmd := exec.CommandContext(ctx, "git", "diff", "--cached", "--quiet")
+	cmd.Dir = repoRoot
+	err = cmd.Run()
+
+	hasChanges := err != nil && cmd.ProcessState.ExitCode() == 1
+
+	statusCmd := exec.CommandContext(ctx, "git", "status", "--porcelain")
+	statusCmd.Dir = repoRoot
+	statusOutput, _ := statusCmd.Output()
+	statusStr := strings.TrimSpace(string(statusOutput))
+
+	log.Debug("checking staged changes",
+		"repo_root", repoRoot,
+		"has_staged_changes", hasChanges,
+		"exit_code", cmd.ProcessState.ExitCode(),
+		"git_status", statusStr)
+
+	return hasChanges
 }
 
 func (s *GitService) GetChangedFiles(ctx context.Context) ([]string, error) {
@@ -109,7 +131,6 @@ func (s *GitService) GetDiff(ctx context.Context) (string, error) {
 			}
 		}
 
-		// If still no diff after checking untracked files
 		if combinedDiff == "" {
 			log.Warn("no differences detected in repository")
 			return "", errors.ErrNoDiff
@@ -132,10 +153,16 @@ func (s *GitService) CreateCommit(ctx context.Context, message string) error {
 		return errors.ErrNoChanges
 	}
 
+	repoRoot, err := s.getRepoRoot(ctx)
+	if err != nil {
+		return err
+	}
+
 	log.Debug("creating git commit",
 		"message_length", len(message))
 
 	cmd := exec.CommandContext(ctx, "git", "commit", "-m", message)
+	cmd.Dir = repoRoot
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 
@@ -167,20 +194,48 @@ func (s *GitService) CreateCommit(ctx context.Context, message string) error {
 }
 
 func (s *GitService) AddFileToStaging(ctx context.Context, file string) error {
+	log := logger.FromContext(ctx)
+
 	repoRoot, err := s.getRepoRoot(ctx)
 	if err != nil {
 		return err
 	}
 
-	cmd := exec.CommandContext(ctx, "git", "add", "-A", "--", file)
+	log.Debug("adding file to staging",
+		"file", file,
+		"repo_root", repoRoot)
+
+	fullPath := repoRoot + "/" + file
+	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+		log.Error("file does not exist",
+			"file", file,
+			"full_path", fullPath)
+		return errors.ErrAddFile.WithError(err).WithContext("file", file).WithContext("reason", "file_not_found")
+	}
+
+	cmd := exec.CommandContext(ctx, "git", "add", "--", file)
 	cmd.Dir = repoRoot
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
 		stderrStr := strings.TrimSpace(stderr.String())
+		log.Error("failed to add file to staging",
+			"file", file,
+			"error", err,
+			"stderr", stderrStr)
 		return errors.ErrAddFile.WithError(err).WithContext("file", file).WithContext("stderr", stderrStr)
 	}
+
+	statusCmd := exec.CommandContext(ctx, "git", "status", "--porcelain", "--", file)
+	statusCmd.Dir = repoRoot
+	statusOutput, _ := statusCmd.Output()
+	log.Debug("git status after add",
+		"file", file,
+		"status", strings.TrimSpace(string(statusOutput)))
+
+	log.Debug("file added to staging successfully",
+		"file", file)
 	return nil
 }
 
@@ -277,7 +332,6 @@ func (s *GitService) GetCommitsSinceTag(ctx context.Context, tag string) ([]mode
 
 	var args []string
 	if tag == "" {
-		// if no previous tag exists, get all commits
 		args = []string{"log", "--pretty=format:%H|%an|%ae|%ad|%s|%b", "--no-merges", "--date=iso"}
 	} else {
 		if err := s.ValidateTagExists(ctx, tag); err != nil {
