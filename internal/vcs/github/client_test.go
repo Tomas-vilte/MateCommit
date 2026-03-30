@@ -207,6 +207,30 @@ func TestLabelExists(t *testing.T) {
 	}
 }
 
+func TestValidateAndFilterLabels(t *testing.T) {
+	client := newTestClient(nil, nil, nil, nil)
+	tests := []struct {
+		name     string
+		input    []string
+		expected []string
+	}{
+		{"Valid labels", []string{"feature", "fix"}, []string{"feature", "fix"}},
+		{"Invalid labels ignored", []string{"feature", "invalid"}, []string{"feature"}},
+		{"Mapped aliases", []string{"bug", "enhancement", "documentation", "infrastructure", "testing"}, []string{"fix", "feature", "docs", "infra", "test"}},
+		{"Case insensitive", []string{"BUG", "FeaTure"}, []string{"fix", "feature"}},
+		{"Duplicates ignored", []string{"feature", "fix", "feature"}, []string{"feature", "fix"}},
+		{"Duplicate across mapping ignored", []string{"bug", "fix"}, []string{"fix"}},
+		{"Empty strings ignored", []string{"", " ", "fix"}, []string{"fix"}},
+	}
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := client.validateAndFilterLabels(tt.input)
+			assert.ElementsMatch(t, tt.expected, result)
+		})
+	}
+}
+
 func TestGitHubClient_UpdatePR_ErrorCases(t *testing.T) {
 	t.Run("should return error when Edit fails", func(t *testing.T) {
 		mockPR := &MockPRService{}

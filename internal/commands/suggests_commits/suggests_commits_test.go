@@ -18,8 +18,8 @@ type MockCommitService struct {
 	mock.Mock
 }
 
-func (m *MockCommitService) GenerateSuggestions(ctx context.Context, count int, issueNumber int, progress func(models.ProgressEvent)) ([]models.CommitSuggestion, error) {
-	args := m.Called(ctx, count, issueNumber, progress)
+func (m *MockCommitService) GenerateSuggestions(ctx context.Context, count int, issueNumber int, files []string, progress func(models.ProgressEvent)) ([]models.CommitSuggestion, error) {
+	args := m.Called(ctx, count, issueNumber, files, progress)
 	return args.Get(0).([]models.CommitSuggestion), args.Error(1)
 }
 
@@ -53,6 +53,11 @@ func (m *MockGitService) GetChangedFiles(ctx context.Context) ([]string, error) 
 
 func (m *MockGitService) GetDiff(ctx context.Context) (string, error) {
 	args := m.Called(ctx)
+	return args.String(0), args.Error(1)
+}
+
+func (m *MockGitService) GetDiffForFiles(ctx context.Context, files []string) (string, error) {
+	args := m.Called(ctx, files)
 	return args.String(0), args.Error(1)
 }
 
@@ -102,7 +107,7 @@ func TestSuggestCommand(t *testing.T) {
 		}
 
 		mockGit.On("ValidateGitConfig", mock.Anything).Return(nil)
-		mockService.On("GenerateSuggestions", mock.Anything, cfg.SuggestionsCount, 0, mock.Anything).Return(suggestions, nil)
+		mockService.On("GenerateSuggestions", mock.Anything, cfg.SuggestionsCount, 0, []string(nil), mock.Anything).Return(suggestions, nil)
 		mockHandler.On("HandleSuggestions", mock.Anything, suggestions).Return(nil)
 
 		factory := NewSuggestCommandFactory(mockService, mockHandler, mockGit)
@@ -162,7 +167,7 @@ func TestSuggestCommand(t *testing.T) {
 		}
 
 		mockGit.On("ValidateGitConfig", mock.Anything).Return(nil)
-		mockService.On("GenerateSuggestions", mock.Anything, cfg.SuggestionsCount, 0, mock.Anything).Return(suggestions, nil)
+		mockService.On("GenerateSuggestions", mock.Anything, cfg.SuggestionsCount, 0, []string(nil), mock.Anything).Return(suggestions, nil)
 		mockHandler.On("HandleSuggestions", mock.Anything, suggestions).Return(nil)
 
 		factory := NewSuggestCommandFactory(mockService, mockHandler, mockGit)
@@ -198,7 +203,7 @@ func TestSuggestCommand(t *testing.T) {
 		}
 
 		mockGit.On("ValidateGitConfig", mock.Anything).Return(nil)
-		mockService.On("GenerateSuggestions", mock.Anything, cfg.SuggestionsCount, 0, mock.Anything).Return(suggestions, nil)
+		mockService.On("GenerateSuggestions", mock.Anything, cfg.SuggestionsCount, 0, []string(nil), mock.Anything).Return(suggestions, nil)
 		mockHandler.On("HandleSuggestions", mock.Anything, suggestions).Return(nil)
 
 		factory := NewSuggestCommandFactory(mockService, mockHandler, mockGit)
@@ -227,7 +232,7 @@ func TestSuggestCommand(t *testing.T) {
 
 		expectedError := fmt.Errorf("service error")
 		mockGit.On("ValidateGitConfig", mock.Anything).Return(nil)
-		mockService.On("GenerateSuggestions", mock.Anything, cfg.SuggestionsCount, 0, mock.Anything).Return([]models.CommitSuggestion{}, expectedError)
+		mockService.On("GenerateSuggestions", mock.Anything, cfg.SuggestionsCount, 0, []string(nil), mock.Anything).Return([]models.CommitSuggestion{}, expectedError)
 
 		factory := NewSuggestCommandFactory(mockService, mockHandler, mockGit)
 		command := factory.CreateCommand(translations, cfg)

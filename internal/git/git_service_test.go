@@ -400,6 +400,7 @@ func TestAddFileToStaging(t *testing.T) {
 		expectedMessages := []string{
 			"did not match any files",
 			"no concordó con ningún archivo",
+			"no such file or directory",
 		}
 
 		match := false

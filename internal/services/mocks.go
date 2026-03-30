@@ -65,6 +65,11 @@ func (m *MockGitService) GetDiff(ctx context.Context) (string, error) {
 	return args.String(0), args.Error(1)
 }
 
+func (m *MockGitService) GetDiffForFiles(ctx context.Context, files []string) (string, error) {
+	args := m.Called(ctx, files)
+	return args.String(0), args.Error(1)
+}
+
 func (m *MockGitService) StageAllChanges(ctx context.Context) error {
 	args := m.Called(ctx)
 	return args.Error(0)

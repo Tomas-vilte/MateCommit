@@ -227,7 +227,7 @@ func TestShowMonthlyStats_WithActivity(t *testing.T) {
 			CostUSD:   0.0010,
 		},
 		{
-			Timestamp: now.AddDate(0, -1, 0),
+			Timestamp: time.Date(now.Year(), now.Month()-1, 15, 0, 0, 0, 0, now.Location()),
 			Command:   "suggest",
 			CostUSD:   0.0050,
 		},

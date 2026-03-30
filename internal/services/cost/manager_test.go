@@ -90,7 +90,7 @@ func TestManager_Totals(t *testing.T) {
 	now := time.Now()
 	todayRecord := ActivityRecord{Timestamp: now, CostUSD: 1.5}
 	yesterdayRecord := ActivityRecord{Timestamp: now.AddDate(0, 0, -1), CostUSD: 2.0}
-	lastMonthRecord := ActivityRecord{Timestamp: now.AddDate(0, -1, 0), CostUSD: 5.0}
+	lastMonthRecord := ActivityRecord{Timestamp: time.Date(now.Year(), now.Month()-1, 15, 0, 0, 0, 0, now.Location()), CostUSD: 5.0}
 
 	records := []ActivityRecord{todayRecord, yesterdayRecord, lastMonthRecord}
 	data, _ := json.Marshal(records)
@@ -329,7 +329,7 @@ func TestGetBreakdownByCommand(t *testing.T) {
 		manager.historyPath = tmpDir + "/history.json"
 
 		now := time.Now()
-		lastMonth := now.AddDate(0, -1, 0)
+		lastMonth := time.Date(now.Year(), now.Month()-1, 15, 0, 0, 0, 0, now.Location())
 
 		records := []ActivityRecord{
 			{
@@ -475,7 +475,7 @@ func TestGetCacheStats(t *testing.T) {
 		manager.historyPath = tmpDir + "/history.json"
 
 		now := time.Now()
-		lastMonth := now.AddDate(0, -1, 0)
+		lastMonth := time.Date(now.Year(), now.Month()-1, 15, 0, 0, 0, 0, now.Location())
 
 		records := []ActivityRecord{
 			{Timestamp: now, Command: "suggest", CostUSD: 0.002, CacheHit: true},
