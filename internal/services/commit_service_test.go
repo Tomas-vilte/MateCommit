@@ -60,7 +60,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 			WithVCSClient(mockVCS),
 			WithConfig(cfg),
 		)
-		suggestions, err := service.GenerateSuggestions(context.Background(), 3, 0, func(e models.ProgressEvent) {})
+		suggestions, err := service.GenerateSuggestions(context.Background(), 3, 0, nil, func(e models.ProgressEvent) {})
 
 		assert.NoError(t, err)
 		assert.Equal(t, expectedResponse, suggestions)
@@ -77,7 +77,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		service := NewCommitService(mockGit, mockAI,
 			WithConfig(cfg),
 		)
-		suggestions, err := service.GenerateSuggestions(context.Background(), 3, 0, func(e models.ProgressEvent) {})
+		suggestions, err := service.GenerateSuggestions(context.Background(), 3, 0, nil, func(e models.ProgressEvent) {})
 
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
@@ -94,7 +94,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		service := NewCommitService(mockGit, mockAI,
 			WithConfig(cfg),
 		)
-		suggestions, err := service.GenerateSuggestions(context.Background(), 3, 0, func(e models.ProgressEvent) {})
+		suggestions, err := service.GenerateSuggestions(context.Background(), 3, 0, nil, func(e models.ProgressEvent) {})
 
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
@@ -111,7 +111,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		service := NewCommitService(mockGit, mockAI,
 			WithConfig(cfg),
 		)
-		suggestions, err := service.GenerateSuggestions(context.Background(), 3, 0, func(e models.ProgressEvent) {})
+		suggestions, err := service.GenerateSuggestions(context.Background(), 3, 0, nil, func(e models.ProgressEvent) {})
 
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
@@ -131,7 +131,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		service := NewCommitService(mockGit, mockAI,
 			WithConfig(cfg),
 		)
-		suggestions, err := service.GenerateSuggestions(context.Background(), 3, 0, func(e models.ProgressEvent) {})
+		suggestions, err := service.GenerateSuggestions(context.Background(), 3, 0, nil, func(e models.ProgressEvent) {})
 
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
@@ -151,7 +151,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		service := NewCommitService(mockGit, mockAI,
 			WithConfig(cfg),
 		)
-		suggestions, err := service.GenerateSuggestions(context.Background(), 3, 0, func(e models.ProgressEvent) {})
+		suggestions, err := service.GenerateSuggestions(context.Background(), 3, 0, nil, func(e models.ProgressEvent) {})
 
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
@@ -171,7 +171,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 			WithTicketManager(mockJira),
 			WithConfig(cfg),
 		)
-		suggestions, err := service.GenerateSuggestions(context.Background(), 3, 0, func(e models.ProgressEvent) {})
+		suggestions, err := service.GenerateSuggestions(context.Background(), 3, 0, nil, func(e models.ProgressEvent) {})
 
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
@@ -181,7 +181,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 	t.Run("AI service nil", func(t *testing.T) {
 		mockGit, _, _, _, _ := setupTest(t)
 		service := NewCommitService(mockGit, nil)
-		suggestions, err := service.GenerateSuggestions(context.Background(), 3, 0, func(e models.ProgressEvent) {})
+		suggestions, err := service.GenerateSuggestions(context.Background(), 3, 0, nil, func(e models.ProgressEvent) {})
 		assert.Error(t, err)
 		assert.Nil(t, suggestions)
 		assert.ErrorIs(t, err, domainErrors.ErrAPIKeyMissing)
@@ -202,7 +202,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		}), 3).Return([]models.CommitSuggestion{}, nil)
 
 		service := NewCommitService(mockGit, mockAI, WithConfig(cfg))
-		_, err := service.GenerateSuggestions(context.Background(), 3, 0, func(e models.ProgressEvent) {})
+		_, err := service.GenerateSuggestions(context.Background(), 3, 0, nil, func(e models.ProgressEvent) {})
 		assert.NoError(t, err)
 	})
 
@@ -226,7 +226,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		}), 3).Return([]models.CommitSuggestion{}, nil)
 
 		service := NewCommitService(mockGit, mockAI, WithVCSClient(mockVCS), WithConfig(cfg))
-		_, err := service.GenerateSuggestions(context.Background(), 3, 0, func(e models.ProgressEvent) {})
+		_, err := service.GenerateSuggestions(context.Background(), 3, 0, nil, func(e models.ProgressEvent) {})
 		assert.NoError(t, err)
 		mockVCS.AssertCalled(t, "GetIssue", mock.Anything, 999)
 	})
@@ -247,7 +247,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		}), 3).Return([]models.CommitSuggestion{}, nil)
 
 		service := NewCommitService(mockGit, mockAI, WithConfig(cfg))
-		_, err := service.GenerateSuggestions(context.Background(), 3, 0, func(e models.ProgressEvent) {})
+		_, err := service.GenerateSuggestions(context.Background(), 3, 0, nil, func(e models.ProgressEvent) {})
 		assert.NoError(t, err)
 	})
 
@@ -268,7 +268,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		}), 3).Return([]models.CommitSuggestion{}, nil)
 
 		service := NewCommitService(mockGit, mockAI, WithConfig(cfg))
-		_, err := service.GenerateSuggestions(context.Background(), 3, 0, func(e models.ProgressEvent) {})
+		_, err := service.GenerateSuggestions(context.Background(), 3, 0, nil, func(e models.ProgressEvent) {})
 		assert.NoError(t, err)
 	})
 
@@ -289,7 +289,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		}), 3).Return([]models.CommitSuggestion{}, nil)
 
 		service := NewCommitService(mockGit, mockAI, WithConfig(cfg))
-		_, err := service.GenerateSuggestions(context.Background(), 3, 0, func(e models.ProgressEvent) {})
+		_, err := service.GenerateSuggestions(context.Background(), 3, 0, nil, func(e models.ProgressEvent) {})
 		assert.NoError(t, err)
 	})
 
@@ -311,7 +311,7 @@ func TestCommitService_GenerateSuggestionsWithIssue(t *testing.T) {
 		}), 3).Return([]models.CommitSuggestion{}, nil)
 
 		service := NewCommitService(mockGit, mockAI, WithVCSClient(mockVCS), WithConfig(cfg))
-		suggestions, err := service.GenerateSuggestions(context.Background(), 3, 100, func(e models.ProgressEvent) {})
+		suggestions, err := service.GenerateSuggestions(context.Background(), 3, 100, nil, func(e models.ProgressEvent) {})
 
 		assert.NoError(t, err)
 		assert.NotNil(t, suggestions)
@@ -332,7 +332,7 @@ func TestCommitService_GenerateSuggestionsWithIssue(t *testing.T) {
 		}), 3).Return([]models.CommitSuggestion{}, nil)
 
 		service := NewCommitService(mockGit, mockAI, WithVCSClient(mockVCS), WithConfig(cfg))
-		_, err := service.GenerateSuggestions(context.Background(), 3, 100, func(e models.ProgressEvent) {})
+		_, err := service.GenerateSuggestions(context.Background(), 3, 100, nil, func(e models.ProgressEvent) {})
 
 		assert.NoError(t, err)
 	})
@@ -354,7 +354,7 @@ func TestCommitService_IssueDetection(t *testing.T) {
 		}), 3).Return([]models.CommitSuggestion{}, nil)
 
 		service := NewCommitService(mockGit, mockAI, WithVCSClient(mockVCS), WithConfig(cfg))
-		_, err := service.GenerateSuggestions(context.Background(), 3, 0, func(e models.ProgressEvent) {})
+		_, err := service.GenerateSuggestions(context.Background(), 3, 0, nil, func(e models.ProgressEvent) {})
 		assert.NoError(t, err)
 		mockVCS.AssertCalled(t, "GetIssue", mock.Anything, 123)
 	})

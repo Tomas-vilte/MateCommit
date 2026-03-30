@@ -504,8 +504,8 @@ func (s *ReleaseService) prependToChangelogLegacy(filename, current, newContent 
 
 // removeEmptyUnreleasedSections removes empty ## [Unreleased] sections that appear between versions
 func (s *ReleaseService) removeEmptyUnreleasedSections(content string) string {
-	emptyUnreleasedPattern := regexp.MustCompile(`(?s)## \[Unreleased]\s*\n(?=## \[)`)
-	return emptyUnreleasedPattern.ReplaceAllString(content, "")
+	emptyUnreleasedPattern := regexp.MustCompile(`(?s)## \[Unreleased\]\s*\n(## \[)`)
+	return emptyUnreleasedPattern.ReplaceAllString(content, "$1")
 }
 
 // consolidateLinkDefinitions removes duplicate link reference definitions
@@ -1084,6 +1084,10 @@ func (s *ReleaseService) UpdateAppVersion(ctx context.Context, version string) e
 
 	content, err := os.ReadFile(versionFile)
 	if err != nil {
+		if os.IsNotExist(err) && (s.config == nil || s.config.VersionFile == "") {
+			log.Warn("version file not found, skipping version update", "file", versionFile)
+			return nil
+		}
 		return domainErrors.NewAppError(domainErrors.TypeInternal,
 			fmt.Sprintf("failed to read version file: %s", versionFile), err)
 	}

@@ -22,6 +22,7 @@ import (
 type commitGitService interface {
 	GetChangedFiles(ctx context.Context) ([]string, error)
 	GetDiff(ctx context.Context) (string, error)
+	GetDiffForFiles(ctx context.Context, files []string) (string, error)
 	GetRecentCommitMessages(ctx context.Context, limit int) ([]string, error)
 	GetRepoInfo(ctx context.Context) (string, string, string, error)
 	GetCurrentBranch(ctx context.Context) (string, error)
@@ -66,14 +67,15 @@ func NewCommitService(gitSvc commitGitService, aiSvc ai.CommitSummarizer, opts .
 	return s
 }
 
-func (s *CommitService) GenerateSuggestions(ctx context.Context, count int, issueNumber int, progress func(models.ProgressEvent)) ([]models.CommitSuggestion, error) {
+func (s *CommitService) GenerateSuggestions(ctx context.Context, count int, issueNumber int, files []string, progress func(models.ProgressEvent)) ([]models.CommitSuggestion, error) {
 	log := logger.FromContext(ctx)
 
 	log.Info("generating commit suggestions",
 		"count", count,
 		"issue_number", issueNumber,
+		"specific_files", len(files) > 0,
 	)
-	commitInfo, err := s.buildCommitInfo(ctx, issueNumber, progress)
+	commitInfo, err := s.buildCommitInfo(ctx, issueNumber, files, progress)
 	if err != nil {
 		log.Error("failed to build commit info",
 			"error", err,
@@ -101,7 +103,7 @@ func (s *CommitService) GenerateSuggestions(ctx context.Context, count int, issu
 	return suggestions, nil
 }
 
-func (s *CommitService) buildCommitInfo(ctx context.Context, issueNumber int, progress func(models.ProgressEvent)) (models.CommitInfo, error) {
+func (s *CommitService) buildCommitInfo(ctx context.Context, issueNumber int, files []string, progress func(models.ProgressEvent)) (models.CommitInfo, error) {
 	log := logger.FromContext(ctx)
 
 	log.Debug("building commit info",
@@ -114,16 +116,28 @@ func (s *CommitService) buildCommitInfo(ctx context.Context, issueNumber int, pr
 		return commitInfo, domainErrors.ErrAPIKeyMissing
 	}
 
-	changes, err := s.git.GetChangedFiles(ctx)
-	if err != nil {
-		return commitInfo, err
+	var changes []string
+	var err error
+	if len(files) > 0 {
+		changes = files
+	} else {
+		changes, err = s.git.GetChangedFiles(ctx)
+		if err != nil {
+			return commitInfo, err
+		}
 	}
 
 	if len(changes) == 0 {
 		return commitInfo, domainErrors.ErrNoChanges
 	}
 
-	diff, err := s.git.GetDiff(ctx)
+	var diff string
+	if len(files) > 0 {
+		diff, err = s.git.GetDiffForFiles(ctx, files)
+	} else {
+		diff, err = s.git.GetDiff(ctx)
+	}
+	
 	if err != nil {
 		return commitInfo, domainErrors.NewAppError(domainErrors.TypeGit, "error getting git diff", err)
 	}

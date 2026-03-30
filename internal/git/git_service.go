@@ -3,7 +3,6 @@ package git
 import (
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
 	"regexp"
 	"sort"
@@ -145,6 +144,66 @@ func (s *GitService) GetDiff(ctx context.Context) (string, error) {
 	return combinedDiff, nil
 }
 
+func (s *GitService) GetDiffForFiles(ctx context.Context, files []string) (string, error) {
+	log := logger.FromContext(ctx)
+
+	if len(files) == 0 {
+		return "", errors.ErrNoDiff
+	}
+
+	log.Debug("executing git diff for specific files", "count", len(files))
+
+	argsStaged := append([]string{"diff", "--cached", "--"}, files...)
+	stagedCmd := exec.CommandContext(ctx, "git", argsStaged...)
+	stagedOutput, err := stagedCmd.Output()
+	if err != nil {
+		log.Error("git diff --cached failed for files", "error", err)
+		return "", errors.ErrGetDiff.WithError(err).WithContext("diff_type", "staged_files")
+	}
+
+	argsUnstaged := append([]string{"diff", "--"}, files...)
+	unstagedCmd := exec.CommandContext(ctx, "git", argsUnstaged...)
+	unstageOutput, err := unstagedCmd.Output()
+	if err != nil {
+		log.Error("git diff failed for files", "error", err)
+		return "", errors.ErrGetDiff.WithError(err).WithContext("diff_type", "unstaged_files")
+	}
+
+	combinedDiff := string(stagedOutput) + string(unstageOutput)
+	
+	if combinedDiff == "" {
+		// Fallback check for untracked files in our selection
+		untrackedCmd := exec.CommandContext(ctx, "git", "ls-files", "--others", "--exclude-standard")
+		untrackedFiles, err := untrackedCmd.Output()
+		if err == nil && len(untrackedFiles) > 0 {
+			untrackedList := strings.Split(string(untrackedFiles), "\n")
+			
+			// Quick map for O(1) lookups
+			selectedMap := make(map[string]bool)
+			for _, f := range files {
+				selectedMap[f] = true
+			}
+
+			for _, file := range untrackedList {
+				if file != "" && selectedMap[file] {
+					fileContentCmd := exec.CommandContext(ctx, "git", "show", ":"+file)
+					content, err := fileContentCmd.Output()
+					if err != nil {
+						combinedDiff += "\n=== New file" + " " + file + "===\n"
+						combinedDiff += string(content)
+					}
+				}
+			}
+		}
+		
+		if combinedDiff == "" {
+			return "", errors.ErrNoDiff
+		}
+	}
+
+	return combinedDiff, nil
+}
+
 func (s *GitService) CreateCommit(ctx context.Context, message string) error {
 	log := logger.FromContext(ctx)
 
@@ -205,13 +264,7 @@ func (s *GitService) AddFileToStaging(ctx context.Context, file string) error {
 		"file", file,
 		"repo_root", repoRoot)
 
-	fullPath := repoRoot + "/" + file
-	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
-		log.Error("file does not exist",
-			"file", file,
-			"full_path", fullPath)
-		return errors.ErrAddFile.WithError(err).WithContext("file", file).WithContext("reason", "file_not_found")
-	}
+
 
 	cmd := exec.CommandContext(ctx, "git", "add", "--", file)
 	cmd.Dir = repoRoot
