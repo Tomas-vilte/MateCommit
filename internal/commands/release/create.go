@@ -220,6 +220,20 @@ func createReleaseAction(releaseSvc releaseService, trans *i18n.Translations, re
 
 			fmt.Println(trans.GetMessage("release.publishing_release", 0, nil))
 			buildBinaries := cmd.Bool("build-binaries")
+			mainPath := cmd.String("main-path")
+			if mainPath == "" && config != nil && config.MainPath != "" {
+				mainPath = config.MainPath
+			}
+			if mainPath == "" {
+				mainPath = "./cmd/main.go"
+			}
+
+			if buildBinaries {
+				if _, err := os.Stat(mainPath); os.IsNotExist(err) {
+					log.Warn("main entrypoint not found, smartly skipping build binaries during publish", "file", mainPath)
+					buildBinaries = false
+				}
+			}
 
 			if buildBinaries {
 				progressCh := make(chan models.BuildProgress, 10)

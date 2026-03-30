@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -588,4 +589,51 @@ func parseInt(s string) int {
 func PrintSectionHeader(title string) {
 	separator := strings.Repeat("─", 60)
 	fmt.Printf("\n%s\n%s\n%s\n\n", separator, title, separator)
+}
+
+// PromptMultiSelect presents a numbered list of options and asks the user to input
+// comma-separated choices (e.g. "1,3"). Hitting enter without choices defaults to all.
+func PromptMultiSelect(t *i18n.Translations, message string, options []string) ([]string, error) {
+	if len(options) == 0 {
+		return nil, nil
+	}
+
+	fmt.Printf("\n%s\n", Info.Sprint(message))
+	for i, opt := range options {
+		fmt.Printf("   [%s] %s\n", Accent.Sprintf("%d", i+1), opt)
+	}
+
+	fmt.Printf("\n%s: ", Dim.Sprint(t.GetMessage("ui.multi_select_prompt", 0, nil)))
+
+	var response string
+	reader := bufio.NewReader(os.Stdin)
+	response, _ = reader.ReadString('\n')
+	response = strings.TrimSpace(response)
+
+	if response == "" {
+		return options, nil
+	}
+
+	var selected []string
+	parts := strings.Split(response, ",")
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+
+		var idx int
+		_, err := fmt.Sscanf(p, "%d", &idx)
+		if err != nil || idx < 1 || idx > len(options) {
+			PrintError(os.Stdout, t.GetMessage("ui.multi_select_invalid", 0, struct{ Selection string }{p}))
+			continue
+		}
+		selected = append(selected, options[idx-1])
+	}
+
+	if len(selected) == 0 {
+		return options, nil
+	}
+
+	return selected, nil
 }

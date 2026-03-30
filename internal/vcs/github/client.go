@@ -114,6 +114,7 @@ var labelDescriptions = map[string]string{
 }
 
 func NewGitHubClient(owner, repo, token string) *GitHubClient {
+	token = strings.TrimSpace(token)
 	var httpClient *http.Client
 	if token != "" {
 		ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
@@ -1006,12 +1007,31 @@ func (ghc *GitHubClient) getDiffFromCommits(ctx context.Context, commits []*gith
 	return combinedDiff.String(), nil
 }
 
+var labelAliases = map[string]string{
+	"bug":            "fix",
+	"enhancement":    "feature",
+	"documentation":  "docs",
+	"infrastructure": "infra",
+	"testing":        "test",
+}
+
 func (ghc *GitHubClient) validateAndFilterLabels(labels []string) []string {
 	var validLabels []string
+	seen := make(map[string]bool)
+
 	for _, label := range labels {
 		cleaned := strings.ToLower(strings.TrimSpace(label))
-		if cleaned != "" && ghc.isAllowedLabel(cleaned) {
+		if cleaned == "" {
+			continue
+		}
+
+		if mapped, ok := labelAliases[cleaned]; ok {
+			cleaned = mapped
+		}
+
+		if ghc.isAllowedLabel(cleaned) && !seen[cleaned] {
 			validLabels = append(validLabels, cleaned)
+			seen[cleaned] = true
 		}
 	}
 	return validLabels

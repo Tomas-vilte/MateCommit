@@ -19,7 +19,7 @@ import (
 
 // commitService is a minimal interface for testing purposes
 type commitService interface {
-	GenerateSuggestions(ctx context.Context, count int, issueNumber int, progress func(models.ProgressEvent)) ([]models.CommitSuggestion, error)
+	GenerateSuggestions(ctx context.Context, count int, issueNumber int, files []string, progress func(models.ProgressEvent)) ([]models.CommitSuggestion, error)
 }
 
 // commitHandler is a minimal interface for testing purposes
@@ -31,6 +31,7 @@ type gitService interface {
 	ValidateGitConfig(ctx context.Context) error
 	GetChangedFiles(ctx context.Context) ([]string, error)
 	GetDiff(ctx context.Context) (string, error)
+	GetDiffForFiles(ctx context.Context, files []string) (string, error)
 }
 
 type SuggestCommandFactory struct {
@@ -81,9 +82,13 @@ func (f *SuggestCommandFactory) createFlags(cfg *config.Config, t *i18n.Translat
 		},
 		&cli.IntFlag{
 			Name:    "issue",
-			Aliases: []string{"i"},
 			Usage:   t.GetMessage("suggest_issue_flag_usage", 0, nil),
 			Value:   0,
+		},
+		&cli.BoolFlag{
+			Name:    "interactive",
+			Aliases: []string{"i"},
+			Usage:   "Interactively select which files to include in the AI summary",
 		},
 		&cli.BoolFlag{
 			Name:    "dry-run",
@@ -102,13 +107,15 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 		lang := command.String("lang")
 		noEmoji := command.Bool("no-emoji")
 		dryRun := command.Bool("dry-run")
+		interactive := command.Bool("interactive")
 
 		log.Info("executing suggest command",
 			"count", count,
 			"issue_number", issueNumber,
 			"language", lang,
 			"no_emoji", noEmoji,
-			"dry_run", dryRun)
+			"dry_run", dryRun,
+			"interactive", interactive)
 
 		if noEmoji {
 			cfg.UseEmoji = false
@@ -142,6 +149,31 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 			return err
 		}
 
+		var selectedFiles []string
+		if interactive {
+			changedFiles, err := f.gitService.GetChangedFiles(ctx)
+			if err != nil {
+				ui.HandleAppError(err, t)
+				return err
+			}
+			
+			if len(changedFiles) == 0 {
+				ui.PrintWarning("No changed files to select.")
+				return nil
+			}
+
+			selectedFiles, err = ui.PromptMultiSelect(t, t.GetMessage("ui.multi_select_default_msg", 0, nil), changedFiles)
+			if err != nil {
+				ui.HandleAppError(err, t)
+				return err
+			}
+
+			if len(selectedFiles) == 0 {
+				ui.PrintWarning("No files selected. Operation cancelled.")
+				return nil
+			}
+		}
+
 		spinner := ui.NewSmartSpinner(t.GetMessage("analyzing_changes", 0, nil))
 		spinner.Start()
 
@@ -150,7 +182,7 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 
 		start := time.Now()
 
-		suggestions, err = f.commitService.GenerateSuggestions(ctx, count, issueNumber, func(event models.ProgressEvent) {
+		suggestions, err = f.commitService.GenerateSuggestions(ctx, count, issueNumber, selectedFiles, func(event models.ProgressEvent) {
 			msg := ""
 			switch event.Type {
 			case models.ProgressIssuesDetected:

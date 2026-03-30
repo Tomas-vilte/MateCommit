@@ -102,10 +102,13 @@ func (c *StatsCommand) showDailyStats(manager *cost.Manager, t *i18n.Translation
 	for _, record := range todayRecords {
 		cacheIndicator := ""
 		if record.CacheHit {
-			cacheIndicator = green.Sprint(" [CACHE]")
+			cacheIndicator = green.Sprint(t.GetMessage("stats.cache_indicator", 0, nil))
 		}
 
-		tokensInfo := dim.Sprintf("(%d→%d tok)", record.TokensInput, record.TokensOutput)
+		tokensInfo := dim.Sprint(t.GetMessage("stats.tokens_label", 0, struct {
+			Input  int
+			Output int
+		}{record.TokensInput, record.TokensOutput}))
 
 		fmt.Printf("%s - %s: %s %s%s\n",
 			record.Timestamp.Format("15:04"),
@@ -119,7 +122,7 @@ func (c *StatsCommand) showDailyStats(manager *cost.Manager, t *i18n.Translation
 	fmt.Println()
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	_, _ = cyan.Printf("%s: ", t.GetMessage("stats.total_today", 0, nil))
-	_, _ = yellow.Printf("$%.4f USD\n", total)
+	_, _ = yellow.Println(t.GetMessage("stats.total_today_value", 0, struct{ Total float64 }{total}))
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	fmt.Println()
 
@@ -154,7 +157,11 @@ func (c *StatsCommand) showMonthlyStats(manager *cost.Manager, t *i18n.Translati
 	dim := color.New(color.FgHiBlack)
 	green := color.New(color.FgGreen)
 
-	_, _ = cyan.Printf("\n📅 %s\n", t.GetMessage("stats.monthly_title", 0, struct{ Month string }{time.Now().Format("January 2006")}))
+	now := time.Now()
+	monthName := getMonthName(t, now.Month())
+	monthYear := fmt.Sprintf("%s %d", monthName, now.Year())
+
+	_, _ = cyan.Printf("\n📅 %s\n", t.GetMessage("stats.monthly_title", 0, struct{ Month string }{monthYear}))
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	fmt.Println()
 
@@ -201,7 +208,7 @@ func (c *StatsCommand) showMonthlyStats(manager *cost.Manager, t *i18n.Translati
 	fmt.Println()
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	_, _ = cyan.Printf("%s: ", t.GetMessage("stats.total_month", 0, nil))
-	_, _ = yellow.Printf("$%.4f USD\n", total)
+	_, _ = yellow.Println(t.GetMessage("stats.total_month_value", 0, struct{ Total float64 }{total}))
 
 	daysWithActivity := len(dailyTotals)
 	if daysWithActivity > 0 {
@@ -259,7 +266,11 @@ func (c *StatsCommand) showBreakdown(manager *cost.Manager, t *i18n.Translations
 	dim := color.New(color.FgHiBlack)
 	green := color.New(color.FgGreen)
 
-	_, _ = cyan.Printf("\n📊 Usage Breakdown - %s\n", time.Now().Format("January 2006"))
+	now := time.Now()
+	monthName := getMonthName(t, now.Month())
+	monthYear := fmt.Sprintf("%s %d", monthName, now.Year())
+
+	_, _ = cyan.Printf("\n📊 %s\n", t.GetMessage("stats.usage_breakdown_title", 0, struct{ Month string }{monthYear}))
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	fmt.Println()
 
@@ -330,4 +341,27 @@ func (c *StatsCommand) showBreakdown(manager *cost.Manager, t *i18n.Translations
 	}
 
 	return nil
+}
+
+func getMonthName(t *i18n.Translations, month time.Month) string {
+	months := map[time.Month]string{
+		time.January:   "months.january",
+		time.February:  "months.february",
+		time.March:     "months.march",
+		time.April:     "months.april",
+		time.May:       "months.may",
+		time.June:      "months.june",
+		time.July:      "months.july",
+		time.August:    "months.august",
+		time.September: "months.september",
+		time.October:   "months.october",
+		time.November:  "months.november",
+		time.December:  "months.december",
+	}
+
+	key, ok := months[month]
+	if !ok {
+		return month.String()
+	}
+	return t.GetMessage(key, 0, nil)
 }
