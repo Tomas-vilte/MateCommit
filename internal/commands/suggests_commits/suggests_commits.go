@@ -108,6 +108,10 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 		noEmoji := command.Bool("no-emoji")
 		dryRun := command.Bool("dry-run")
 		interactive := command.Bool("interactive")
+		
+		if interactive && !command.IsSet("count") {
+			count = 1
+		}
 
 		log.Info("executing suggest command",
 			"count", count,
