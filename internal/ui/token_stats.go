@@ -25,7 +25,7 @@ func PrintTokenUsage(usage *models.TokenUsage, t *i18n.Translations) {
 		_, _ = yellow.Printf("$%.4f USD\n", usage.CostUSD)
 	}
 	if usage.CacheHit {
-		_, _ = green.Printf("✓ %s\n", t.GetMessage("cost.cache_hit", 0, nil))
+		_, _ = green.Printf("%s\n", t.GetMessage("cost.cache_hit", 0, nil))
 	}
 	if usage.DurationMs > 0 {
 		fmt.Printf("⏱️  %s: %dms\n", t.GetMessage("ui.duration", 0, nil), usage.DurationMs)

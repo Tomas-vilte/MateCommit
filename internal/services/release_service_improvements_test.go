@@ -55,6 +55,10 @@ func TestBuildChangelogFromNotes_WithSemanticSections(t *testing.T) {
 	release := &models.Release{
 		Version:         "v1.8.0",
 		PreviousVersion: "v1.7.0",
+		Features: []models.ReleaseItem{
+			{Description: "Improved AI accuracy", PRNumber: "101"},
+			{Description: "Added new models", CommitHash: "abcdef1234567890"},
+		},
 	}
 
 	notes := &models.ReleaseNotes{
@@ -80,8 +84,8 @@ func TestBuildChangelogFromNotes_WithSemanticSections(t *testing.T) {
 
 	// Should render sections
 	assert.Contains(t, result, "### ✨ AI & Generation Improvements")
-	assert.Contains(t, result, "- Improved AI accuracy")
-	assert.Contains(t, result, "- Added new models")
+	assert.Contains(t, result, "- Improved AI accuracy ([#101](https://github.com/test/repo/pull/101))")
+	assert.Contains(t, result, "- Added new models ([`abcdef1`](https://github.com/test/repo/commit/abcdef1234567890))")
 	assert.Contains(t, result, "### 🛠️ Templates & Configuration")
 	assert.Contains(t, result, "- New template system")
 
@@ -145,6 +149,65 @@ func TestBuildChangelogFromNotes_WithBreakingChanges(t *testing.T) {
 	assert.Contains(t, result, "### ⚠️ Breaking Changes")
 	assert.Contains(t, result, "- Removed deprecated API")
 	assert.Contains(t, result, "- Changed configuration format")
+}
+
+func TestBuildChangelogFromNotes_WithReferences(t *testing.T) {
+	mockGit := &mockGitService{owner: "test", repo: "repo", provider: "github"}
+	service := &ReleaseService{git: mockGit}
+	ctx := context.Background()
+
+	release := &models.Release{
+		Version:         "v1.8.0",
+		PreviousVersion: "v1.7.0",
+		Features: []models.ReleaseItem{
+			{Description: "Feature 1", PRNumber: "123"},
+			{Description: "Feature 2", CommitHash: "abcdef1234567890"},
+		},
+		BugFixes: []models.ReleaseItem{
+			{Description: "Fix 1", PRNumber: "123"},
+		},
+	}
+
+	notes := &models.ReleaseNotes{
+		Summary: "Test release",
+		Highlights: []string{
+			"Feature 1",
+		},
+	}
+
+	result := service.buildChangelogFromNotes(ctx, release, notes)
+
+	assert.Contains(t, result, "### References")
+	assert.Contains(t, result, "[#123](https://github.com/test/repo/pull/123)")
+	assert.Contains(t, result, "[`abcdef1`](https://github.com/test/repo/commit/abcdef1234567890)")
+	assert.Equal(t, 1, strings.Count(result, "[#123](https://github.com/test/repo/pull/123)"))
+}
+
+func TestBuildChangelogFromNotes_UsesReferencesInlineAndSkipsDuplicateReferenceSection(t *testing.T) {
+	mockGit := &mockGitService{owner: "test", repo: "repo", provider: "github"}
+	service := &ReleaseService{git: mockGit}
+	ctx := context.Background()
+
+	release := &models.Release{
+		Version:         "v1.8.0",
+		PreviousVersion: "v1.7.0",
+		Features: []models.ReleaseItem{
+			{Description: "Improved AI accuracy", PRNumber: "101"},
+		},
+	}
+
+	notes := &models.ReleaseNotes{
+		Summary: "Test release",
+		Sections: []models.ReleaseNotesSection{{
+			Title: "✨ AI & Generation Improvements",
+			Items: []string{"Improved AI accuracy"},
+		}},
+	}
+
+	result := service.buildChangelogFromNotes(ctx, release, notes)
+
+	assert.Contains(t, result, "- Improved AI accuracy ([#101](https://github.com/test/repo/pull/101))")
+	assert.NotContains(t, result, "### References")
 }
 
 // TestPrependToChangelog_NewFile tests creating a new CHANGELOG

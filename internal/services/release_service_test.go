@@ -168,7 +168,7 @@ func TestReleaseService_GenerateReleaseNotes(t *testing.T) {
 		release := &models.Release{
 			Version: "v1.1.0",
 			Features: []models.ReleaseItem{
-				{Description: "Feature 1", Scope: "core"},
+				{Description: "Feature 1", Scope: "core", CommitHash: "abcdef1234567890"},
 			},
 			BugFixes: []models.ReleaseItem{
 				{Description: "Fix 1", PRNumber: "123"},
@@ -184,6 +184,8 @@ func TestReleaseService_GenerateReleaseNotes(t *testing.T) {
 		assert.Contains(t, notes.Summary, "1 bug fixes")
 		assert.Contains(t, notes.Changelog, "Feature 1")
 		assert.Contains(t, notes.Changelog, "Fix 1")
+		assert.Contains(t, notes.Changelog, "(`abcdef1`)")
+		assert.Contains(t, notes.Changelog, "(#123)")
 	})
 
 	t.Run("Error from generator", func(t *testing.T) {
@@ -353,6 +355,32 @@ func TestReleaseService_CreateTag(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "tag already exists")
+		mockGit.AssertExpectations(t)
+	})
+}
+
+func TestReleaseService_TagExists(t *testing.T) {
+	t.Run("returns true when git tag exists", func(t *testing.T) {
+		mockGit := new(MockGitService)
+		service := NewReleaseService(mockGit)
+
+		mockGit.On("ValidateTagExists", mock.Anything, "v1.0.0").Return(nil)
+
+		exists := service.TagExists(context.Background(), "v1.0.0")
+
+		assert.True(t, exists)
+		mockGit.AssertExpectations(t)
+	})
+
+	t.Run("returns false when git tag does not exist", func(t *testing.T) {
+		mockGit := new(MockGitService)
+		service := NewReleaseService(mockGit)
+
+		mockGit.On("ValidateTagExists", mock.Anything, "v1.0.0").Return(errors.New("tag not found"))
+
+		exists := service.TagExists(context.Background(), "v1.0.0")
+
+		assert.False(t, exists)
 		mockGit.AssertExpectations(t)
 	})
 }
@@ -528,6 +556,26 @@ const CurrentVersion = "0.0.1"
 		err = service.UpdateAppVersion(ctx, "v1.0.0")
 		assert.Error(t, err)
 	})
+
+	t.Run("should skip when no version file can be detected", func(t *testing.T) {
+		dir := t.TempDir()
+		origDir, _ := os.Getwd()
+		defer func() {
+			if err := os.Chdir(origDir); err != nil {
+				t.Fatal(err)
+			}
+		}()
+
+		err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test\n"), 0644)
+		require.NoError(t, err)
+		err = os.Chdir(dir)
+		require.NoError(t, err)
+
+		service := NewReleaseService(nil)
+
+		err = service.UpdateAppVersion(context.Background(), "v1.0.0")
+		assert.NoError(t, err)
+	})
 }
 
 func TestReleaseService_CategorizeCommits_AllTypes(t *testing.T) {
@@ -636,6 +684,17 @@ func TestReleaseService_PrependToChangelog(t *testing.T) {
 		assert.Contains(t, string(content), "## [1.0.0]")
 		assert.True(t, strings.HasPrefix(string(content), "# Changelog"))
 	})
+
+	t.Run("Replace existing version without duplicating body", func(t *testing.T) {
+		err := service.prependToChangelog(changelogPath, "## [1.1.0]\nUpdated version body\n\n- item\n")
+		assert.NoError(t, err)
+
+		content, _ := os.ReadFile(changelogPath)
+		contentStr := string(content)
+		assert.Equal(t, 1, strings.Count(contentStr, "## [1.1.0]"))
+		assert.Equal(t, 1, strings.Count(contentStr, "Updated version body"))
+		assert.NotContains(t, contentStr, "Newer version")
+	})
 }
 
 func TestReleaseService_FindVersionFile_RealScenarios(t *testing.T) {
@@ -672,6 +731,38 @@ const Version = "1.0.0"
 
 		assert.NoError(t, err)
 		assert.Equal(t, "internal/version/version.go", foundFile)
+		assert.Contains(t, pattern, "Version")
+	})
+
+	t.Run("Go library with root version.go", func(t *testing.T) {
+		dir := t.TempDir()
+		origDir, _ := os.Getwd()
+		defer func() {
+			if err := os.Chdir(origDir); err != nil {
+				t.Fatal(err)
+			}
+		}()
+
+		goModPath := filepath.Join(dir, "go.mod")
+		err := os.WriteFile(goModPath, []byte("module test\n"), 0644)
+		require.NoError(t, err)
+
+		versionFile := filepath.Join(dir, "version.go")
+		versionContent := `package test
+
+const Version = "1.0.0"
+`
+		err = os.WriteFile(versionFile, []byte(versionContent), 0644)
+		require.NoError(t, err)
+
+		err = os.Chdir(dir)
+		require.NoError(t, err)
+
+		service := &ReleaseService{}
+		foundFile, pattern, err := service.FindVersionFile(context.Background())
+
+		assert.NoError(t, err)
+		assert.Equal(t, "version.go", foundFile)
 		assert.Contains(t, pattern, "Version")
 	})
 
@@ -1062,6 +1153,33 @@ const Version = "1.0.0"
 		mockGit.On("CreateCommit", mock.Anything, "chore: update changelog and bump version to v2.0.0").Return(nil)
 
 		err := service.CommitChangelog(context.Background(), "v2.0.0")
+
+		assert.NoError(t, err)
+		mockGit.AssertExpectations(t)
+	})
+
+	t.Run("Commits changelog without inferred version file", func(t *testing.T) {
+		dir := t.TempDir()
+		origDir, _ := os.Getwd()
+		defer func() {
+			if err := os.Chdir(origDir); err != nil {
+				t.Fatal(err)
+			}
+		}()
+
+		err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module test\n"), 0644)
+		require.NoError(t, err)
+		err = os.Chdir(dir)
+		require.NoError(t, err)
+
+		mockGit := new(MockGitService)
+		service := NewReleaseService(mockGit)
+
+		mockGit.On("AddFileToStaging", mock.Anything, "CHANGELOG.md").Return(nil)
+		mockGit.On("HasStagedChanges", mock.Anything).Return(true)
+		mockGit.On("CreateCommit", mock.Anything, "chore: update changelog and bump version to v2.1.0").Return(nil)
+
+		err = service.CommitChangelog(context.Background(), "v2.1.0")
 
 		assert.NoError(t, err)
 		mockGit.AssertExpectations(t)

@@ -247,6 +247,14 @@ func (s *ReleaseService) CreateTag(ctx context.Context, version, message string)
 	return nil
 }
 
+func (s *ReleaseService) TagExists(ctx context.Context, version string) bool {
+	if s.git == nil {
+		return false
+	}
+
+	return s.git.ValidateTagExists(ctx, version) == nil
+}
+
 func (s *ReleaseService) PushTag(ctx context.Context, version string) error {
 	log := logger.FromContext(ctx)
 
@@ -432,16 +440,24 @@ func (s *ReleaseService) prependToChangelog(filename, newContent string) error {
 
 	newVersion := matches[1]
 
-	existingVersionPattern := regexp.MustCompile(`(?m)^## \[` + regexp.QuoteMeta(newVersion) + `\].*?(?:^## \[|$)`)
-	if existingVersionPattern.MatchString(current) {
+	headerPattern := regexp.MustCompile(`(?m)^## \[` + regexp.QuoteMeta(newVersion) + `\].*$`)
+	if headerPattern.MatchString(current) {
 		log := logger.FromContext(context.Background())
 		log.Debug("version already exists in changelog, replacing",
 			"version", newVersion)
 
-		loc := existingVersionPattern.FindStringIndex(current)
+		loc := headerPattern.FindStringIndex(current)
 		if loc != nil {
+			nextVersionPattern := regexp.MustCompile(`(?m)^## \[[^]]+]`)
+			nextLoc := nextVersionPattern.FindStringIndex(current[loc[1]:])
+
+			end := len(current)
+			if nextLoc != nil {
+				end = loc[1] + nextLoc[0]
+			}
+
 			before := current[:loc[0]]
-			after := current[loc[1]:]
+			after := current[end:]
 
 			before = strings.TrimRight(before, "\n")
 
@@ -905,12 +921,14 @@ func (s *ReleaseService) buildChangelogFromNotes(ctx context.Context, release *m
 		sb.WriteString(fmt.Sprintf("%s\n\n", notes.Summary))
 	}
 
+	usedReferences := make(map[string]bool)
+
 	if len(notes.Sections) > 0 {
 		for _, section := range notes.Sections {
 			if section.Title != "" && len(section.Items) > 0 {
 				sb.WriteString(fmt.Sprintf("### %s\n\n", section.Title))
 				for _, item := range section.Items {
-					sb.WriteString(fmt.Sprintf("- %s\n", item))
+					sb.WriteString(fmt.Sprintf("- %s\n", s.formatNoteBulletWithReference(release, item, owner, repo, provider, usedReferences)))
 				}
 				sb.WriteString("\n")
 			}
@@ -918,7 +936,7 @@ func (s *ReleaseService) buildChangelogFromNotes(ctx context.Context, release *m
 	} else if len(notes.Highlights) > 0 {
 		sb.WriteString("### ✨ Highlights\n\n")
 		for _, highlight := range notes.Highlights {
-			sb.WriteString(fmt.Sprintf("- %s\n", highlight))
+			sb.WriteString(fmt.Sprintf("- %s\n", s.formatNoteBulletWithReference(release, highlight, owner, repo, provider, usedReferences)))
 		}
 		sb.WriteString("\n")
 	}
@@ -926,12 +944,141 @@ func (s *ReleaseService) buildChangelogFromNotes(ctx context.Context, release *m
 	if len(notes.BreakingChanges) > 0 {
 		sb.WriteString("### ⚠️ Breaking Changes\n\n")
 		for _, bc := range notes.BreakingChanges {
-			sb.WriteString(fmt.Sprintf("- %s\n", bc))
+			sb.WriteString(fmt.Sprintf("- %s\n", s.formatNoteBulletWithReference(release, bc, owner, repo, provider, usedReferences)))
+		}
+		sb.WriteString("\n")
+	}
+
+	references := s.collectReleaseReferences(release, owner, repo, provider, usedReferences)
+	if len(references) > 0 {
+		sb.WriteString("### References\n\n")
+		for _, reference := range references {
+			sb.WriteString(fmt.Sprintf("- %s\n", reference))
 		}
 		sb.WriteString("\n")
 	}
 
 	return sb.String()
+}
+
+func (s *ReleaseService) formatNoteBulletWithReference(release *models.Release, itemText, owner, repo, provider string, usedReferences map[string]bool) string {
+	reference := s.matchReferenceForNoteItem(release, itemText, owner, repo, provider)
+	if reference == "" || usedReferences[reference] {
+		return itemText
+	}
+
+	usedReferences[reference] = true
+	return fmt.Sprintf("%s (%s)", itemText, reference)
+}
+
+func (s *ReleaseService) collectReleaseReferences(release *models.Release, owner, repo, provider string, exclude map[string]bool) []string {
+	seen := make(map[string]bool)
+	refs := make([]string, 0)
+
+	appendItem := func(item models.ReleaseItem) {
+		ref := formatReleaseReference(item, owner, repo, provider)
+		if ref == "" || seen[ref] || exclude[ref] {
+			return
+		}
+		seen[ref] = true
+		refs = append(refs, ref)
+	}
+
+	for _, item := range release.Breaking {
+		appendItem(item)
+	}
+	for _, item := range release.Features {
+		appendItem(item)
+	}
+	for _, item := range release.BugFixes {
+		appendItem(item)
+	}
+	for _, item := range release.Improvements {
+		appendItem(item)
+	}
+	for _, item := range release.Documentation {
+		appendItem(item)
+	}
+	for _, item := range release.Other {
+		appendItem(item)
+	}
+
+	return refs
+}
+
+func (s *ReleaseService) matchReferenceForNoteItem(release *models.Release, itemText, owner, repo, provider string) string {
+	normalizedItem := normalizeChangelogMatchText(itemText)
+	if len(normalizedItem) < 12 {
+		return ""
+	}
+
+	for _, releaseItem := range s.allReleaseItems(release) {
+		normalizedDescription := normalizeChangelogMatchText(releaseItem.Description)
+		if len(normalizedDescription) < 12 {
+			continue
+		}
+
+		if normalizedItem == normalizedDescription || strings.Contains(normalizedItem, normalizedDescription) || strings.Contains(normalizedDescription, normalizedItem) {
+			return formatReleaseReference(releaseItem, owner, repo, provider)
+		}
+	}
+
+	return ""
+}
+
+func (s *ReleaseService) allReleaseItems(release *models.Release) []models.ReleaseItem {
+	items := make([]models.ReleaseItem, 0, len(release.Breaking)+len(release.Features)+len(release.BugFixes)+len(release.Improvements)+len(release.Documentation)+len(release.Other))
+	items = append(items, release.Breaking...)
+	items = append(items, release.Features...)
+	items = append(items, release.BugFixes...)
+	items = append(items, release.Improvements...)
+	items = append(items, release.Documentation...)
+	items = append(items, release.Other...)
+	return items
+}
+
+func normalizeChangelogMatchText(text string) string {
+	text = strings.ToLower(text)
+	replacer := strings.NewReplacer(
+		"`", " ",
+		"*", " ",
+		"_", " ",
+		"#", " ",
+		"-", " ",
+		"/", " ",
+		":", " ",
+		";", " ",
+		",", " ",
+		".", " ",
+		"(", " ",
+		")", " ",
+	)
+	text = replacer.Replace(text)
+	return strings.Join(strings.Fields(text), " ")
+}
+
+func formatReleaseReference(item models.ReleaseItem, owner, repo, provider string) string {
+	if item.PRNumber != "" {
+		if provider == "github" && owner != "" && repo != "" {
+			return fmt.Sprintf("[#%s](https://github.com/%s/%s/pull/%s)", item.PRNumber, owner, repo, item.PRNumber)
+		}
+		return fmt.Sprintf("#%s", item.PRNumber)
+	}
+
+	if item.CommitHash == "" {
+		return ""
+	}
+
+	shortHash := item.CommitHash
+	if len(shortHash) > 7 {
+		shortHash = shortHash[:7]
+	}
+
+	if provider == "github" && owner != "" && repo != "" {
+		return fmt.Sprintf("[`%s`](https://github.com/%s/%s/commit/%s)", shortHash, owner, repo, item.CommitHash)
+	}
+
+	return fmt.Sprintf("`%s`", shortHash)
 }
 
 // BuildChangelogPreview generates a preview of how the CHANGELOG entry will look
@@ -997,8 +1144,8 @@ func (s *ReleaseService) formatReleaseItem(item models.ReleaseItem) string {
 
 	line += item.Description
 
-	if item.PRNumber != "" {
-		line += fmt.Sprintf(" (#%s)", item.PRNumber)
+	if ref := formatReleaseReference(item, "", "", ""); ref != "" {
+		line += fmt.Sprintf(" (%s)", ref)
 	}
 
 	line += "\n"
@@ -1020,19 +1167,21 @@ func (s *ReleaseService) CommitChangelog(ctx context.Context, version string) er
 		if s.config != nil && s.config.VersionFile != "" {
 			versionFile = s.config.VersionFile
 		} else {
-			versionFile = "cmd/main.go"
+			versionFile = ""
 		}
 	}
 
-	if _, err := os.Stat(versionFile); err == nil {
-		log.Debug("adding version file to staging", "file", versionFile)
-		if err := s.git.AddFileToStaging(ctx, versionFile); err != nil {
-			log.Error("failed to add version file to staging", "file", versionFile, "error", err)
-			return domainErrors.NewAppError(domainErrors.TypeGit, fmt.Sprintf("failed to add version file to staging: %s", versionFile), err)
+	if versionFile != "" {
+		if _, err := os.Stat(versionFile); err == nil {
+			log.Debug("adding version file to staging", "file", versionFile)
+			if err := s.git.AddFileToStaging(ctx, versionFile); err != nil {
+				log.Error("failed to add version file to staging", "file", versionFile, "error", err)
+				return domainErrors.NewAppError(domainErrors.TypeGit, fmt.Sprintf("failed to add version file to staging: %s", versionFile), err)
+			}
+			log.Debug("version file added to staging", "file", versionFile)
+		} else {
+			log.Debug("version file not found, skipping", "file", versionFile)
 		}
-		log.Debug("version file added to staging", "file", versionFile)
-	} else {
-		log.Debug("version file not found, skipping", "file", versionFile)
 	}
 
 	log.Debug("checking for staged changes")
@@ -1063,14 +1212,15 @@ func (s *ReleaseService) UpdateAppVersion(ctx context.Context, version string) e
 
 	versionFile, versionPattern, err := s.FindVersionFile(ctx)
 	if err != nil {
-		log.Warn("could not auto-detect version file, using defaults", "error", err)
-		versionFile = "cmd/main.go"
-		versionPattern = `Version:\s*".*"`
+		if s.config == nil || s.config.VersionFile == "" {
+			log.Warn("could not auto-detect version file, skipping version update", "error", err)
+			return nil
+		}
+
+		log.Warn("could not auto-detect version file, using configured version file", "error", err)
+		versionFile = s.config.VersionFile
 
 		if s.config != nil {
-			if s.config.VersionFile != "" {
-				versionFile = s.config.VersionFile
-			}
 			if s.config.VersionPattern != "" {
 				versionPattern = s.config.VersionPattern
 			}
@@ -1657,6 +1807,7 @@ var versionFilesByLanguage = map[string][]string{
 		"internal/version/version.go",
 		"pkg/version/version.go",
 		"version/version.go",
+		"version.go",
 		"cmd/main.go",
 		"main.go",
 		"internal/version.go",

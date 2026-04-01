@@ -23,6 +23,7 @@ type releaseService interface {
 	GenerateReleaseNotes(ctx context.Context, release *models.Release) (*models.ReleaseNotes, error)
 	PublishRelease(ctx context.Context, release *models.Release, notes *models.ReleaseNotes, draft bool, buildBinaries bool, progressCh chan<- models.BuildProgress) error
 	CreateTag(ctx context.Context, version, message string) error
+	TagExists(ctx context.Context, version string) bool
 	PushTag(ctx context.Context, version string) error
 	GetRelease(ctx context.Context, version string) (*models.VCSRelease, error)
 	UpdateRelease(ctx context.Context, version, body string) error

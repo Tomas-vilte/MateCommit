@@ -201,19 +201,33 @@ func createReleaseAction(releaseSvc releaseService, trans *i18n.Translations, re
 		}
 
 		message := fmt.Sprintf("%s\n\n%s", notes.Title, notes.Summary)
-		err = releaseSvc.CreateTag(ctx, release.Version, message)
-		if err != nil {
-			log.Error("failed to create tag",
-				"error", err,
-				"version", release.Version,
-				"duration_ms", time.Since(start).Milliseconds())
-			return fmt.Errorf("%s", trans.GetMessage("release.error_creating_tag", 0, struct{ Error string }{err.Error()}))
+		tagExists := cmd.Bool("publish") && releaseSvc.TagExists(ctx, release.Version)
+		if tagExists {
+			log.Info("git tag already exists, continuing with publish",
+				"version", release.Version)
+			fmt.Printf("⚠️  %s\n", trans.GetMessage("release.tag_already_exists", 0, struct{ Version string }{release.Version}))
+		} else {
+			err = releaseSvc.CreateTag(ctx, release.Version, message)
+			if err != nil {
+				if cmd.Bool("publish") && isTagAlreadyExistsError(err) {
+					log.Info("git tag already exists, continuing with publish",
+						"error", err,
+						"version", release.Version)
+					fmt.Printf("⚠️  %s\n", trans.GetMessage("release.tag_already_exists", 0, struct{ Version string }{release.Version}))
+				} else {
+					log.Error("failed to create tag",
+						"error", err,
+						"version", release.Version,
+						"duration_ms", time.Since(start).Milliseconds())
+					return fmt.Errorf("%s", trans.GetMessage("release.error_creating_tag", 0, struct{ Error string }{err.Error()}))
+				}
+			} else {
+				log.Info("tag created successfully",
+					"version", release.Version)
+
+				fmt.Println(trans.GetMessage("release.tag_created", 0, struct{ Version string }{release.Version}))
+			}
 		}
-
-		log.Info("tag created successfully",
-			"version", release.Version)
-
-		fmt.Println(trans.GetMessage("release.tag_created", 0, struct{ Version string }{release.Version}))
 
 		if cmd.Bool("publish") {
 			notes.Changelog = FormatReleaseMarkdown(release, notes, trans)
@@ -230,7 +244,7 @@ func createReleaseAction(releaseSvc releaseService, trans *i18n.Translations, re
 
 			if buildBinaries {
 				if _, err := os.Stat(mainPath); os.IsNotExist(err) {
-					log.Warn("main entrypoint not found, smartly skipping build binaries during publish", "file", mainPath)
+					log.Info("main entrypoint not found, smartly skipping build binaries during publish", "file", mainPath)
 					buildBinaries = false
 				}
 			}
@@ -344,4 +358,13 @@ func createReleaseAction(releaseSvc releaseService, trans *i18n.Translations, re
 
 		return nil
 	}
+}
+
+func isTagAlreadyExistsError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errMsg := strings.ToLower(err.Error())
+	return strings.Contains(errMsg, "already exists")
 }

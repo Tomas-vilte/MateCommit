@@ -37,6 +37,11 @@ func (m *MockReleaseService) CreateTag(ctx context.Context, version, message str
 	return args.Error(0)
 }
 
+func (m *MockReleaseService) TagExists(ctx context.Context, version string) bool {
+	args := m.Called(ctx, version)
+	return args.Bool(0)
+}
+
 func (m *MockReleaseService) PushTag(ctx context.Context, version string) error {
 	args := m.Called(ctx, version)
 	return args.Error(0)
