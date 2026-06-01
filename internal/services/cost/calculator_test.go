@@ -41,9 +41,9 @@ func TestCalculator_EstimateCost(t *testing.T) {
 			want:         0.075 + 0.30,
 		},
 		{
-			name:         "Gemini - partial model match (pro-preview)",
+			name:         "Gemini - partial model match (pro)",
 			provider:     "gemini",
-			model:        "gemini-3-pro-preview-001",
+			model:        "gemini-3.1-pro-preview-001",
 			inputTokens:  1_000_000,
 			outputTokens: 1_000_000,
 			want:         2.00 + 12.00,

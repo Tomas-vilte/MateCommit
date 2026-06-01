@@ -15,11 +15,11 @@ type ProviderPricing map[string]map[string]PricingTable
 // https://ai.google.dev/gemini-api/docs/pricing
 var pricing = ProviderPricing{
 	"gemini": {
-		"gemini-1.5-flash":       {InputPricePerMillion: 0.075, OutputPricePerMillion: 0.30},
-		"gemini-1.5-pro":         {InputPricePerMillion: 1.25, OutputPricePerMillion: 5.00},
-		"gemini-2.5-flash":       {InputPricePerMillion: 0.10, OutputPricePerMillion: 0.40},
-		"gemini-3-flash-preview": {InputPricePerMillion: 0.50, OutputPricePerMillion: 3.00},
-		"gemini-3-pro-preview":   {InputPricePerMillion: 2.00, OutputPricePerMillion: 12.00},
+		"gemini-1.5-flash": {InputPricePerMillion: 0.075, OutputPricePerMillion: 0.30},
+		"gemini-1.5-pro":   {InputPricePerMillion: 1.25, OutputPricePerMillion: 5.00},
+		"gemini-2.5-flash": {InputPricePerMillion: 0.10, OutputPricePerMillion: 0.40},
+		"gemini-3.5-flash":   {InputPricePerMillion: 1.50, OutputPricePerMillion: 9.00},
+		"gemini-3.1-pro-preview": {InputPricePerMillion: 2.00, OutputPricePerMillion: 12.00},
 	},
 	"openai": {
 		"gpt-4o":      {InputPricePerMillion: 2.50, OutputPricePerMillion: 10.00},

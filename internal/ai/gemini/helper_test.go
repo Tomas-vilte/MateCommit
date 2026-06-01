@@ -48,7 +48,7 @@ func TestGetGenerateConfig(t *testing.T) {
 	})
 
 	t.Run("Thinking Mode for gemini-3", func(t *testing.T) {
-		cfg := GetGenerateConfig("gemini-3-flash-preview", "", nil)
+		cfg := GetGenerateConfig("gemini-3.5-flash", "", nil)
 		assert.NotNil(t, cfg.ThinkingConfig)
 		assert.True(t, cfg.ThinkingConfig.IncludeThoughts)
 		assert.Equal(t, genai.ThinkingLevelHigh, cfg.ThinkingConfig.ThinkingLevel)

@@ -236,7 +236,7 @@ func TestCostAwareWrapper_WrapGenerate_SuggestedModel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("WrapGenerate() error = %v", err)
 	}
-	expectedModel := "gemini-3-flash-preview"
+	expectedModel := "gemini-3.5-flash"
 	if usedModel != expectedModel {
 		t.Errorf("expected suggested model %q to be used, got %q", expectedModel, usedModel)
 	}

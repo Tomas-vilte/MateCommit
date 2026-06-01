@@ -374,7 +374,7 @@ func TestGetForecast(t *testing.T) {
 		totalSpent := 0.15
 		for i := 0; i < 5; i++ {
 			err := manager.SaveActivity(ActivityRecord{
-				Timestamp: now.AddDate(0, 0, -i),
+				Timestamp: now,
 				Command:   "suggest",
 				CostUSD:   0.03,
 			})

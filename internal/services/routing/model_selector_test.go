@@ -25,25 +25,25 @@ func TestModelSelector_SelectBestModel(t *testing.T) {
 			name:            "Generate release operation should return high quality model",
 			operation:       "generate-release",
 			estimatedTokens: 100,
-			want:            "gemini-3-pro-preview",
+			want:            "gemini-3.1-pro-preview",
 		},
 		{
 			name:            "Generate issue operation should return high quality model",
 			operation:       "generate-issue",
 			estimatedTokens: 100,
-			want:            "gemini-3-pro-preview",
+			want:            "gemini-3.1-pro-preview",
 		},
 		{
 			name:            "High token count should return flash-preview model",
 			operation:       "summarize",
 			estimatedTokens: 20000,
-			want:            "gemini-3-flash-preview",
+			want:            "gemini-3.5-flash",
 		},
 		{
 			name:            "Boundary token count should return flash-preview model",
 			operation:       "summarize",
 			estimatedTokens: 15001,
-			want:            "gemini-3-flash-preview",
+			want:            "gemini-3.5-flash",
 		},
 		{
 			name:            "Exact boundary token count should return default model",
@@ -83,12 +83,12 @@ func TestModelSelector_GetRationale(t *testing.T) {
 	}{
 		{
 			name:          "High quality model rationale",
-			selectedModel: "gemini-3-pro-preview",
+			selectedModel: "gemini-3.1-pro-preview",
 			want:          "routing.reason_high_quality",
 		},
 		{
 			name:          "Large context model rationale",
-			selectedModel: "gemini-3-flash-preview",
+			selectedModel: "gemini-3.5-flash",
 			want:          "routing.reason_large",
 		},
 		{
