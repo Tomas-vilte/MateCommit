@@ -65,8 +65,8 @@ func (m *MockReleaseService) EnrichReleaseContext(ctx context.Context, release *
 	return args.Error(0)
 }
 
-func (m *MockReleaseService) UpdateLocalChangelog(release *models.Release, notes *models.ReleaseNotes) error {
-	args := m.Called(release, notes)
+func (m *MockReleaseService) UpdateLocalChangelog(ctx context.Context, release *models.Release, notes *models.ReleaseNotes) error {
+	args := m.Called(ctx, release, notes)
 	return args.Error(0)
 }
 
@@ -198,4 +198,9 @@ func (m *MockGitService) ValidateGitConfig(ctx context.Context) error {
 func (m *MockGitService) ValidateTagExists(ctx context.Context, tag string) error {
 	args := m.Called(ctx, tag)
 	return args.Error(0)
+}
+
+func (m *MockGitService) GetRepoRoot(ctx context.Context) (string, error) {
+	args := m.Called(ctx)
+	return args.String(0), args.Error(1)
 }

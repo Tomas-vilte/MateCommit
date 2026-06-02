@@ -262,7 +262,7 @@ func TestCreateCommand_WithChangelog(t *testing.T) {
 	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
 
-	mockService.On("UpdateLocalChangelog", release, notes).Return(nil)
+	mockService.On("UpdateLocalChangelog", mock.Anything, release, notes).Return(nil)
 	mockService.On("UpdateAppVersion", mock.Anything, "v1.0.0").Return(nil)
 	mockService.On("CommitChangelog", mock.Anything, "v1.0.0").Return(nil)
 	mockService.On("PushChanges", mock.Anything).Return(nil)

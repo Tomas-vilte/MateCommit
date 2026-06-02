@@ -57,6 +57,7 @@ type releaseGitService interface {
 	GetCurrentBranch(ctx context.Context) (string, error)
 	FetchTags(ctx context.Context) error
 	ValidateTagExists(ctx context.Context, tag string) error
+	GetRepoRoot(ctx context.Context) (string, error)
 }
 
 type ReleaseService struct {
@@ -354,10 +355,15 @@ func (s *ReleaseService) EnrichReleaseContext(ctx context.Context, release *mode
 	return nil
 }
 
-func (s *ReleaseService) UpdateLocalChangelog(release *models.Release, notes *models.ReleaseNotes) error {
-	const changelogFile = "CHANGELOG.md"
+func (s *ReleaseService) UpdateLocalChangelog(ctx context.Context, release *models.Release, notes *models.ReleaseNotes) error {
+	log := logger.FromContext(ctx)
 
-	log := logger.FromContext(context.Background())
+	repoRoot, err := s.git.GetRepoRoot(ctx)
+	if err != nil {
+		log.Error("failed to get repository root for changelog", "error", err)
+		return fmt.Errorf("failed to get repository root: %w", err)
+	}
+	changelogFile := filepath.Join(repoRoot, "CHANGELOG.md")
 
 	log.Debug("updating local changelog",
 		"version", release.Version,
@@ -1156,7 +1162,14 @@ func (s *ReleaseService) CommitChangelog(ctx context.Context, version string) er
 	log := logger.FromContext(ctx)
 	log.Info("starting changelog commit process", "version", version)
 
-	if err := s.git.AddFileToStaging(ctx, "CHANGELOG.md"); err != nil {
+	repoRoot, err := s.git.GetRepoRoot(ctx)
+	if err != nil {
+		log.Error("failed to get repository root for committing changelog", "error", err)
+		return domainErrors.NewAppError(domainErrors.TypeGit, "failed to get repository root", err)
+	}
+	changelogFile := filepath.Join(repoRoot, "CHANGELOG.md")
+
+	if err := s.git.AddFileToStaging(ctx, changelogFile); err != nil {
 		log.Error("failed to add CHANGELOG.md to staging", "error", err)
 		return domainErrors.NewAppError(domainErrors.TypeGit, "failed to add CHANGELOG.md to staging", err)
 	}

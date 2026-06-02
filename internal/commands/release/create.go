@@ -142,7 +142,7 @@ func createReleaseAction(releaseSvc releaseService, trans *i18n.Translations, re
 			s := ui.NewSmartSpinner(trans.GetMessage("release.changelog_update_started", 0, nil))
 			s.Start()
 
-			if err := releaseSvc.UpdateLocalChangelog(release, notes); err != nil {
+			if err := releaseSvc.UpdateLocalChangelog(ctx, release, notes); err != nil {
 				s.Error(trans.GetMessage("release.error_updating_changelog", 0, struct{ Error string }{err.Error()}))
 				return fmt.Errorf("%w", err)
 			}

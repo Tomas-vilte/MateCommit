@@ -1118,7 +1118,8 @@ const Version = "1.0.0"
 		cfg := &config.Config{VersionFile: versionFile}
 		service := NewReleaseService(mockGit, WithReleaseConfig(cfg))
 
-		mockGit.On("AddFileToStaging", mock.Anything, "CHANGELOG.md").Return(nil)
+		mockGit.On("GetRepoRoot", mock.Anything).Return(dir, nil)
+		mockGit.On("AddFileToStaging", mock.Anything, filepath.Join(dir, "CHANGELOG.md")).Return(nil)
 		mockGit.On("AddFileToStaging", mock.Anything, versionFile).Return(nil)
 		mockGit.On("HasStagedChanges", mock.Anything).Return(true)
 		mockGit.On("CreateCommit", mock.Anything, "chore: update changelog and bump version to v1.1.0").Return(nil)
@@ -1133,6 +1134,7 @@ const Version = "1.0.0"
 		mockGit := new(MockGitService)
 		service := NewReleaseService(mockGit)
 
+		mockGit.On("GetRepoRoot", mock.Anything).Return(".", nil)
 		mockGit.On("AddFileToStaging", mock.Anything, "CHANGELOG.md").Return(nil)
 		mockGit.On("HasStagedChanges", mock.Anything).Return(false)
 
@@ -1148,6 +1150,7 @@ const Version = "1.0.0"
 		cfg := &config.Config{VersionFile: "/non/existent/file.go"}
 		service := NewReleaseService(mockGit, WithReleaseConfig(cfg))
 
+		mockGit.On("GetRepoRoot", mock.Anything).Return(".", nil)
 		mockGit.On("AddFileToStaging", mock.Anything, "CHANGELOG.md").Return(nil)
 		mockGit.On("HasStagedChanges", mock.Anything).Return(true)
 		mockGit.On("CreateCommit", mock.Anything, "chore: update changelog and bump version to v2.0.0").Return(nil)
@@ -1175,7 +1178,8 @@ const Version = "1.0.0"
 		mockGit := new(MockGitService)
 		service := NewReleaseService(mockGit)
 
-		mockGit.On("AddFileToStaging", mock.Anything, "CHANGELOG.md").Return(nil)
+		mockGit.On("GetRepoRoot", mock.Anything).Return(dir, nil)
+		mockGit.On("AddFileToStaging", mock.Anything, filepath.Join(dir, "CHANGELOG.md")).Return(nil)
 		mockGit.On("HasStagedChanges", mock.Anything).Return(true)
 		mockGit.On("CreateCommit", mock.Anything, "chore: update changelog and bump version to v2.1.0").Return(nil)
 
@@ -1195,6 +1199,7 @@ const Version = "1.0.0"
 		cfg := &config.Config{VersionFile: versionFile}
 		service := NewReleaseService(mockGit, WithReleaseConfig(cfg))
 
+		mockGit.On("GetRepoRoot", mock.Anything).Return(".", nil)
 		mockGit.On("AddFileToStaging", mock.Anything, "CHANGELOG.md").Return(nil)
 		mockGit.On("AddFileToStaging", mock.Anything, versionFile).Return(errors.New("permission denied"))
 
@@ -1209,6 +1214,7 @@ const Version = "1.0.0"
 		mockGit := new(MockGitService)
 		service := NewReleaseService(mockGit)
 
+		mockGit.On("GetRepoRoot", mock.Anything).Return(".", nil)
 		mockGit.On("AddFileToStaging", mock.Anything, "CHANGELOG.md").Return(nil)
 		mockGit.On("HasStagedChanges", mock.Anything).Return(true)
 		mockGit.On("CreateCommit", mock.Anything, mock.Anything).Return(errors.New("commit failed"))
@@ -1443,8 +1449,9 @@ func TestReleaseService_UpdateLocalChangelog_RealScenarios(t *testing.T) {
 
 		mockGit.On("GetTagDate", mock.Anything, "v1.1.0").Return("2025-01-15", nil)
 		mockGit.On("GetRepoInfo", mock.Anything).Return("user", "repo", "github", nil)
+		mockGit.On("GetRepoRoot", mock.Anything).Return(dir, nil)
 
-		err = service.UpdateLocalChangelog(release, notes)
+		err = service.UpdateLocalChangelog(context.Background(), release, notes)
 
 		assert.NoError(t, err)
 
@@ -1495,8 +1502,9 @@ Initial release
 
 		mockGit.On("GetTagDate", mock.Anything, "v1.1.0").Return("2025-01-15", nil)
 		mockGit.On("GetRepoInfo", mock.Anything).Return("", "", "", errors.New("not a repo"))
+		mockGit.On("GetRepoRoot", mock.Anything).Return(dir, nil)
 
-		err = service.UpdateLocalChangelog(release, notes)
+		err = service.UpdateLocalChangelog(context.Background(), release, notes)
 
 		assert.NoError(t, err)
 

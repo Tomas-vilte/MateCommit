@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -299,7 +300,7 @@ Initial release
 		Highlights: []string{"AI feature"},
 	}
 
-	err = service.UpdateLocalChangelog(release, notes)
+	err = service.UpdateLocalChangelog(context.Background(), release, notes)
 	require.NoError(t, err)
 
 	content, err := os.ReadFile("CHANGELOG.md")

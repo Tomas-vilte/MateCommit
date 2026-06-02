@@ -151,6 +151,11 @@ func (m *MockGitService) ValidateTagExists(ctx context.Context, tag string) erro
 	return args.Error(0)
 }
 
+func (m *MockGitService) GetRepoRoot(ctx context.Context) (string, error) {
+	args := m.Called(ctx)
+	return args.String(0), args.Error(1)
+}
+
 func (m *MockAIProvider) GenerateSuggestions(ctx context.Context, info models.CommitInfo, count int) ([]models.CommitSuggestion, error) {
 	args := m.Called(ctx, info, count)
 	return args.Get(0).([]models.CommitSuggestion), args.Error(1)

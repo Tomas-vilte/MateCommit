@@ -450,6 +450,39 @@ func TestAddFileToStaging(t *testing.T) {
 			t.Error("La eliminación no se registró en staging")
 		}
 	})
+
+	t.Run("Add file from subdirectory", func(t *testing.T) {
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		service := NewGitService()
+		subDir := filepath.Join(tempDir, "subdir")
+		if err := os.MkdirAll(subDir, 0755); err != nil {
+			t.Fatalf("Error creating subdir: %v", err)
+		}
+
+		testFile := filepath.Join(subDir, "file_in_subdir.txt")
+		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+			t.Fatalf("Error writing file: %v", err)
+		}
+
+		if err := os.Chdir(subDir); err != nil {
+			t.Fatalf("Error changing to subdir: %v", err)
+		}
+		defer func() {
+			_ = os.Chdir(tempDir)
+		}()
+
+		err := service.AddFileToStaging(context.Background(), "file_in_subdir.txt")
+		if err != nil {
+			t.Fatalf("Error adding file from subdirectory: %v", err)
+		}
+
+		cmd := exec.Command("git", "diff", "--cached", "--name-status")
+		cmd.Dir = tempDir
+		output, _ := cmd.Output()
+		assert.Contains(t, string(output), "A\tsubdir/file_in_subdir.txt")
+	})
 }
 
 func TestGetRepoInfo(t *testing.T) {

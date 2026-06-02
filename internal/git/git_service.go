@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -33,7 +34,7 @@ func (s *GitService) SetFallback(name, email string) {
 func (s *GitService) HasStagedChanges(ctx context.Context) bool {
 	log := logger.FromContext(ctx)
 
-	repoRoot, err := s.getRepoRoot(ctx)
+	repoRoot, err := s.GetRepoRoot(ctx)
 	if err != nil {
 		log.Error("failed to get repo root", "error", err)
 		return false
@@ -212,7 +213,7 @@ func (s *GitService) CreateCommit(ctx context.Context, message string) error {
 		return errors.ErrNoChanges
 	}
 
-	repoRoot, err := s.getRepoRoot(ctx)
+	repoRoot, err := s.GetRepoRoot(ctx)
 	if err != nil {
 		return err
 	}
@@ -255,18 +256,23 @@ func (s *GitService) CreateCommit(ctx context.Context, message string) error {
 func (s *GitService) AddFileToStaging(ctx context.Context, file string) error {
 	log := logger.FromContext(ctx)
 
-	repoRoot, err := s.getRepoRoot(ctx)
+	repoRoot, err := s.GetRepoRoot(ctx)
 	if err != nil {
 		return err
 	}
 
+	absFile, err := filepath.Abs(file)
+	if err != nil {
+		log.Warn("failed to get absolute path of file, using original", "file", file, "error", err)
+		absFile = file
+	}
+
 	log.Debug("adding file to staging",
 		"file", file,
+		"abs_file", absFile,
 		"repo_root", repoRoot)
 
-
-
-	cmd := exec.CommandContext(ctx, "git", "add", "--", file)
+	cmd := exec.CommandContext(ctx, "git", "add", "--", absFile)
 	cmd.Dir = repoRoot
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
@@ -275,16 +281,18 @@ func (s *GitService) AddFileToStaging(ctx context.Context, file string) error {
 		stderrStr := strings.TrimSpace(stderr.String())
 		log.Error("failed to add file to staging",
 			"file", file,
+			"abs_file", absFile,
 			"error", err,
 			"stderr", stderrStr)
 		return errors.ErrAddFile.WithError(err).WithContext("file", file).WithContext("stderr", stderrStr)
 	}
 
-	statusCmd := exec.CommandContext(ctx, "git", "status", "--porcelain", "--", file)
+	statusCmd := exec.CommandContext(ctx, "git", "status", "--porcelain", "--", absFile)
 	statusCmd.Dir = repoRoot
 	statusOutput, _ := statusCmd.Output()
 	log.Debug("git status after add",
 		"file", file,
+		"abs_file", absFile,
 		"status", strings.TrimSpace(string(statusOutput)))
 
 	log.Debug("file added to staging successfully",
@@ -548,7 +556,7 @@ func (s *GitService) FetchTags(ctx context.Context) error {
 // ValidateGitConfig checks if git user.name and user.email are configured
 func (s *GitService) ValidateGitConfig(ctx context.Context) error {
 	log := logger.FromContext(ctx)
-	repoRoot, err := s.getRepoRoot(ctx)
+	repoRoot, err := s.GetRepoRoot(ctx)
 	if err != nil {
 		log.Error("failed to get repo root for config validation", "error", err)
 		return errors.ErrNotInGitRepo
@@ -589,7 +597,7 @@ func (s *GitService) ValidateGitConfig(ctx context.Context) error {
 // GetGitUserName returns the configured git user.name
 func (s *GitService) GetGitUserName(ctx context.Context) (string, error) {
 	log := logger.FromContext(ctx)
-	repoRoot, _ := s.getRepoRoot(ctx)
+	repoRoot, _ := s.GetRepoRoot(ctx)
 
 	cmd := exec.CommandContext(ctx, "git", "config", "user.name")
 	if repoRoot != "" {
@@ -611,7 +619,7 @@ func (s *GitService) GetGitUserName(ctx context.Context) (string, error) {
 // GetGitUserEmail returns the configured git user.email
 func (s *GitService) GetGitUserEmail(ctx context.Context) (string, error) {
 	log := logger.FromContext(ctx)
-	repoRoot, _ := s.getRepoRoot(ctx)
+	repoRoot, _ := s.GetRepoRoot(ctx)
 
 	cmd := exec.CommandContext(ctx, "git", "config", "user.email")
 	if repoRoot != "" {
@@ -665,8 +673,8 @@ func detectProvider(host string) string {
 	return "unknown"
 }
 
-// getRepoRoot gets the absolute path to the root of the git repository
-func (s *GitService) getRepoRoot(ctx context.Context) (string, error) {
+// GetRepoRoot gets the absolute path to the root of the git repository
+func (s *GitService) GetRepoRoot(ctx context.Context) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--show-toplevel")
 	output, err := cmd.Output()
 	if err != nil {
