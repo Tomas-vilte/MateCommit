@@ -79,6 +79,12 @@ func (s *GitService) GetChangedFiles(ctx context.Context) ([]string, error) {
 		if len(line) > 3 {
 			path := strings.TrimSpace(line[3:])
 
+			// Rename/copy entries are reported as "old -> new"; only the
+			// new path exists on disk and is relevant for staging/diffing.
+			if idx := strings.Index(path, " -> "); idx != -1 {
+				path = path[idx+len(" -> "):]
+			}
+
 			if path != "" {
 				changes = append(changes, path)
 			}
