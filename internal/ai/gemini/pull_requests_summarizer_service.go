@@ -40,7 +40,7 @@ func getPRSummarySchema() *genai.Schema {
 			},
 			"body": {
 				Type:        genai.TypeString,
-				Description: "Detailed markdown body with overview, key changes, and technical impact",
+				Description: "Detailed PR body as valid Markdown. Use real newline characters between headers, paragraphs and list items (e.g. \"## Title\\n\\nParagraph text\\n\\n- [ ] item\"). Never collapse sections into a single line of prose.",
 			},
 			"labels": {
 				Type: genai.TypeArray,
