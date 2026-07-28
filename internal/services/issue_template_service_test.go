@@ -342,21 +342,21 @@ func TestIssueTemplateService_PRTemplates(t *testing.T) {
 }
 
 func TestIssueTemplateService_NewTemplates(t *testing.T) {
-	service := &IssueTemplateService{}
-
 	t.Run("Performance Template is valid YAML", func(t *testing.T) {
-		content := service.buildPerformanceTemplate()
+		content, err := defaultTemplateFiles.ReadFile("templates/performance.yml")
+		assert.NoError(t, err)
 		var tmpl models.IssueTemplate
-		err := yaml.Unmarshal([]byte(content), &tmpl)
+		err = yaml.Unmarshal(content, &tmpl)
 		assert.NoError(t, err)
 		assert.Equal(t, "Performance Issue", tmpl.Name)
 		assert.Contains(t, tmpl.Labels, "performance")
 	})
 
 	t.Run("Security Template is valid YAML", func(t *testing.T) {
-		content := service.buildSecurityTemplate()
+		content, err := defaultTemplateFiles.ReadFile("templates/security.yml")
+		assert.NoError(t, err)
 		var tmpl models.IssueTemplate
-		err := yaml.Unmarshal([]byte(content), &tmpl)
+		err = yaml.Unmarshal(content, &tmpl)
 		assert.NoError(t, err)
 		assert.Equal(t, "Security Vulnerability", tmpl.Name)
 		assert.Contains(t, tmpl.Labels, "security")
