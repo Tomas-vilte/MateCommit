@@ -62,12 +62,6 @@ func WithDate(date string) Option {
 	}
 }
 
-func WithVersionPackage(pkg string) Option {
-	return func(b *BinaryBuilder) {
-		b.versionPackage = pkg
-	}
-}
-
 func NewBinaryBuilder(mainPath, binaryName string, opts ...Option) *BinaryBuilder {
 	b := &BinaryBuilder{
 		mainPath:   mainPath,

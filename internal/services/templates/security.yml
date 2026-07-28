@@ -1,0 +1,23 @@
+name: Security Vulnerability
+description: Report a security vulnerability
+title: '[SECURITY] '
+labels:
+    - security
+    - critical
+body:
+    - type: markdown
+      attributes:
+        label: ""
+        value: '**IMPORTANT:** Please do not disclose security vulnerabilities publicly until they have been addressed.'
+    - type: textarea
+      id: description
+      attributes:
+        label: Vulnerability Description
+        description: Describe the security issue.
+      validations:
+        required: true
+    - type: textarea
+      id: impact
+      attributes:
+        label: Impact
+        description: What is the potential impact of this vulnerability?

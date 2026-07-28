@@ -1,0 +1,30 @@
+name: Performance Issue
+description: Report a performance issue or inefficiency
+title: '[PERF] '
+labels:
+    - performance
+    - optimization
+body:
+    - type: markdown
+      attributes:
+        label: ""
+        value: Thanks for helping us make things faster! Please describe the performance issue in detail.
+    - type: textarea
+      id: description
+      attributes:
+        label: Description
+        description: What is slow or inefficient?
+        placeholder: The dashboard takes 5 seconds to load...
+      validations:
+        required: true
+    - type: input
+      id: metric
+      attributes:
+        label: Metric (optional)
+        description: e.g., Response time, CPU usage, Memory
+        placeholder: 500ms -> 2s
+    - type: textarea
+      id: repro
+      attributes:
+        label: Steps to reproduce
+        description: How can we observe this?

@@ -227,7 +227,16 @@ func (s *GitService) CreateCommit(ctx context.Context, message string) error {
 	log.Debug("creating git commit",
 		"message_length", len(message))
 
-	cmd := exec.CommandContext(ctx, "git", "commit", "-m", message)
+	args := make([]string, 0, 6)
+	if name, err := s.GetGitUserName(ctx); err == nil && name != "" {
+		args = append(args, "-c", "user.name="+name)
+	}
+	if email, err := s.GetGitUserEmail(ctx); err == nil && email != "" {
+		args = append(args, "-c", "user.email="+email)
+	}
+	args = append(args, "commit", "-m", message)
+
+	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = repoRoot
 	var stderr strings.Builder
 	cmd.Stderr = &stderr

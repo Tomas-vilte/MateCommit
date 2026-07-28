@@ -1,0 +1,22 @@
+name: Custom issue
+description: File a custom issue
+title: '[ISSUE] '
+labels: []
+body:
+    - type: markdown
+      attributes:
+        label: ""
+        value: Open a custom issue.
+    - type: textarea
+      id: description
+      attributes:
+        label: Description
+        description: Enter the issue description.
+        placeholder: Describe your issue here
+      validations:
+        required: true
+    - type: textarea
+      id: additional
+      attributes:
+        label: Additional information
+        description: Any additional context.

@@ -1118,4 +1118,36 @@ func TestGitService_Fallback(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "fallback@example.com", email)
 	})
+
+	t.Run("CreateCommit uses fallback identity as commit author", func(t *testing.T) {
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		_ = exec.Command("git", "config", "--unset", "user.name").Run()
+		_ = exec.Command("git", "config", "--unset", "user.email").Run()
+
+		if err := os.WriteFile("fallback.txt", []byte("content"), 0644); err != nil {
+			t.Fatalf("Error creando archivo de prueba: %v", err)
+		}
+		if err := exec.Command("git", "add", "fallback.txt").Run(); err != nil {
+			t.Fatalf("Error agregando archivo: %v", err)
+		}
+
+		service := NewGitService()
+		service.SetFallback("Fallback Name", "fallback@example.com")
+
+		if err := service.CreateCommit(context.Background(), "test: fallback identity"); err != nil {
+			t.Fatalf("Error creando commit: %v", err)
+		}
+
+		out, err := exec.Command("git", "log", "-1", "--format=%an <%ae>").Output()
+		if err != nil {
+			t.Fatalf("Error leyendo el autor del commit: %v", err)
+		}
+
+		author := strings.TrimSpace(string(out))
+		if author != "Fallback Name <fallback@example.com>" {
+			t.Errorf("author = %q, want %q", author, "Fallback Name <fallback@example.com>")
+		}
+	})
 }
