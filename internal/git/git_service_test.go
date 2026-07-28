@@ -157,6 +157,54 @@ func TestGitService(t *testing.T) {
 		}
 	})
 
+	t.Run("GetChangedFiles con archivo renombrado", func(t *testing.T) {
+		// arrange
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		if err := os.WriteFile("old.txt", []byte("contenido"), 0644); err != nil {
+			t.Fatalf("Error creando archivo original: %v", err)
+		}
+		if err := exec.Command("git", "add", "old.txt").Run(); err != nil {
+			t.Fatalf("Error agregando archivo original: %v", err)
+		}
+		if err := exec.Command("git", "commit", "-m", "init").Run(); err != nil {
+			t.Fatalf("Error creando commit inicial: %v", err)
+		}
+		if err := os.Rename("old.txt", "new.txt"); err != nil {
+			t.Fatalf("Error renombrando archivo: %v", err)
+		}
+		if err := exec.Command("git", "add", "-A").Run(); err != nil {
+			t.Fatalf("Error agregando cambios: %v", err)
+		}
+
+		service := NewGitService()
+
+		// act
+		changes, err := service.GetChangedFiles(context.Background())
+
+		// assert
+		if err != nil {
+			t.Errorf("Error obteniendo archivos cambiados: %v", err)
+		}
+
+		for _, path := range changes {
+			if strings.Contains(path, " -> ") {
+				t.Errorf("el path no debe contener la notación de rename cruda: %q", path)
+			}
+		}
+
+		found := false
+		for _, path := range changes {
+			if path == "new.txt" {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("se esperaba encontrar 'new.txt' entre los cambios, se obtuvo: %v", changes)
+		}
+	})
+
 	t.Run("CreateCommit", func(t *testing.T) {
 		// arrange
 		tempDir := setupTestRepo(t)

@@ -74,6 +74,7 @@ const (
   # Golden Rules (Constraints)
   1. **No Hallucinations:** If it's not in the diff, DO NOT invent it.
   2. **Tone:** Professional, direct, technical. Use first person ("I implemented", "I added").
+  3. **Markdown Format (STRICT):** The "body" field MUST be valid Markdown with REAL newline characters (\n) between headers, paragraphs, and list items. Each "## Header" goes on its own line followed by a blank line. Each checklist item ("- [ ] ...") goes on its own line. NEVER merge multiple sections or checklist items into a single paragraph of running text.
   # Instructions
   1. Title: Catchy but descriptive (max 80 chars).
   2. Key Changes: Filter the noise. Explain the *technical impact*, not just the code change.
@@ -86,11 +87,12 @@ const (
   # Reglas de Oro (Constraints)
   1. **Cero alucinaciones:** Si algo no está explícito en el diff, no lo inventes.
   2. **Tono:** Profesional, cercano y directo. Usa primera persona ("Implementé", "Agregué", "Corregí"). Evita el lenguaje robótico ("Se ha realizado").
+  3. **Formato Markdown (ESTRICTO):** El campo "body" DEBE ser Markdown válido con saltos de línea reales (\n) entre encabezados, párrafos e items de lista. Cada "## Encabezado" va en su propia línea seguido de una línea en blanco. Cada checkbox ("- [ ] ...") va en su propia línea. NUNCA mezcles varias secciones o checkboxes en un solo párrafo de texto corrido.
   # Instrucciones
   1. Título: Descriptivo y conciso (máx 80 caracteres).
   2. Cambios Clave: Filtrá el ruido. Explicá el *impacto* técnico y el propósito, no solo qué línea cambió.
   3. Etiquetas: Elegí con criterio (feature, fix, refactor, docs, infra, test, breaking-change).
-  
+
   IMPORTANTE: Responde en ESPAÑOL. Todo el contenido del JSON debe estar en español.`
 )
 
