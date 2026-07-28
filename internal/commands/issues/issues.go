@@ -236,7 +236,7 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 			"title", result.Title,
 			"labels_count", len(result.Labels))
 
-		f.printPreview(result, t, cfg)
+		_ = showPreview(result, t, cfg)
 		ui.PrintTokenUsage(result.Usage, t)
 
 		if dryRun {
@@ -318,38 +318,6 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 
 		return nil
 	}
-}
-
-// handleCreationError is now replaced by ui.HandleAppError
-
-// printPreview shows a preview of the issue to be created.
-func (f *IssuesCommandFactory) printPreview(result *models.IssueGenerationResult, t *i18n.Translations, cfg *config.Config) {
-	separator := strings.Repeat("\u2500", 60)
-
-	fmt.Println()
-	fmt.Println(separator)
-
-	emoji := ""
-	if cfg.UseEmoji {
-		emoji = "\U0001F4CB "
-	}
-
-	ui.PrintInfo(fmt.Sprintf("%s%s", emoji, t.GetMessage("issue.preview_title", 0, nil)))
-	fmt.Println()
-
-	ui.PrintKeyValue(t.GetMessage("issue.preview_title_label", 0, nil), result.Title)
-	fmt.Println()
-
-	ui.PrintInfo(fmt.Sprintf("%s:", t.GetMessage("issue.preview_description_label", 0, nil)))
-	fmt.Println(result.Description)
-	fmt.Println()
-
-	if len(result.Labels) > 0 {
-		ui.PrintInfo(fmt.Sprintf("%s: %s", t.GetMessage("issue.preview_labels_label", 0, nil), strings.Join(result.Labels, ", ")))
-	}
-
-	fmt.Println(separator)
-	fmt.Println()
 }
 
 // promptConfirmation requests confirmation from the user to create the issue.

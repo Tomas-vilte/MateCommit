@@ -3,7 +3,6 @@ package dependency
 import (
 	"context"
 	"encoding/json"
-	"strconv"
 	"strings"
 
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
@@ -106,7 +105,7 @@ func (p *PackageJsonAnalyzer) computeChanges(oldDeps, newDeps map[string]npmDep)
 					NewVersion: p.cleanVersion(newDep.version),
 					Type:       models.DependencyUpdated,
 					Manager:    "package.json",
-					Severity:   p.calculateSeverity(oldDep.version, newDep.version),
+					Severity:   calculateSemverSeverity(p.cleanVersion(oldDep.version), p.cleanVersion(newDep.version)),
 					IsDirect:   !newDep.isDev,
 				})
 			}
@@ -150,50 +149,3 @@ func (p *PackageJsonAnalyzer) cleanVersion(version string) string {
 	return strings.TrimSpace(version)
 }
 
-// calculateSeverity determines the severity of the change based on semver
-func (p *PackageJsonAnalyzer) calculateSeverity(oldVersion, newVersion string) models.ChangeSeverity {
-	oldClean := p.cleanVersion(oldVersion)
-	newClean := p.cleanVersion(newVersion)
-
-	oldParts := p.parseVersion(oldClean)
-	newParts := p.parseVersion(newClean)
-
-	if len(oldParts) < 3 || len(newParts) < 3 {
-		return models.UnknownChange
-	}
-
-	if newParts[0] > oldParts[0] {
-		return models.MajorChange
-	}
-
-	if newParts[1] > oldParts[1] {
-		return models.MinorChange
-	}
-
-	if newParts[2] > oldParts[2] {
-		return models.PatchChange
-	}
-
-	return models.UnknownChange
-}
-
-// parseVersion extracts [major, minor, patch] from a version string
-func (p *PackageJsonAnalyzer) parseVersion(version string) []int {
-	parts := strings.Split(version, ".")
-	result := make([]int, 0, 3)
-
-	for i := 0; i < 3 && i < len(parts); i++ {
-		numStr := parts[i]
-		if idx := strings.IndexAny(numStr, "-+"); idx != -1 {
-			numStr = numStr[:idx]
-		}
-
-		num, err := strconv.Atoi(numStr)
-		if err != nil {
-			return []int{}
-		}
-		result = append(result, num)
-	}
-
-	return result
-}

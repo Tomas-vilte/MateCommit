@@ -42,16 +42,6 @@ func TestNewAnalyzerRegistry(t *testing.T) {
 	assert.Len(t, registry.analyzers, 2, "should have 2 default analyzers (GoMod and PackageJson)")
 }
 
-func TestAnalyzerRegistry_RegisterAnalyzer(t *testing.T) {
-	registry := NewAnalyzerRegistry()
-	initialCount := len(registry.analyzers)
-
-	mockAnalyzer := new(MockAnalyzer)
-	registry.RegisterAnalyzer(mockAnalyzer)
-
-	assert.Len(t, registry.analyzers, initialCount+1, "should have one more analyzer after registration")
-}
-
 func TestAnalyzerRegistry_AnalyzeAll(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -129,17 +119,13 @@ func TestAnalyzerRegistry_AnalyzeAll(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create a registry with only mock analyzers
-			registry := &AnalyzerRegistry{
-				analyzers: []vcs.DependencyAnalyzer{},
-			}
-
 			mockVCS := new(MockVCSClient)
 			mockAnalyzer1 := new(MockAnalyzer)
 			mockAnalyzer2 := new(MockAnalyzer)
 
-			registry.RegisterAnalyzer(mockAnalyzer1)
-			registry.RegisterAnalyzer(mockAnalyzer2)
+			registry := &AnalyzerRegistry{
+				analyzers: []vcs.DependencyAnalyzer{mockAnalyzer1, mockAnalyzer2},
+			}
 
 			tt.setupMocks(mockVCS, mockAnalyzer1, mockAnalyzer2)
 
@@ -154,108 +140,35 @@ func TestAnalyzerRegistry_AnalyzeAll(t *testing.T) {
 	}
 }
 
-func TestAnalyzerRegistry_GetSupportedAnalyzers(t *testing.T) {
-	tests := []struct {
-		name          string
-		setupMocks    func(*MockVCSClient, *MockAnalyzer, *MockAnalyzer)
-		expectedNames []string
-		expectedCount int
-		description   string
-	}{
-		{
-			name: "both analyzers supported",
-			setupMocks: func(vcs *MockVCSClient, a1 *MockAnalyzer, a2 *MockAnalyzer) {
-				a1.On("CanHandle", mock.Anything, vcs, "v1.0.0", "v2.0.0").Return(true)
-				a1.On("Name").Return("analyzer1")
-
-				a2.On("CanHandle", mock.Anything, vcs, "v1.0.0", "v2.0.0").Return(true)
-				a2.On("Name").Return("analyzer2")
-			},
-			expectedNames: []string{"analyzer1", "analyzer2"},
-			expectedCount: 2,
-			description:   "should return both analyzer names",
-		},
-		{
-			name: "only one analyzer supported",
-			setupMocks: func(vcs *MockVCSClient, a1 *MockAnalyzer, a2 *MockAnalyzer) {
-				a1.On("CanHandle", mock.Anything, vcs, "v1.0.0", "v2.0.0").Return(true)
-				a1.On("Name").Return("analyzer1")
-
-				a2.On("CanHandle", mock.Anything, vcs, "v1.0.0", "v2.0.0").Return(false)
-			},
-			expectedNames: []string{"analyzer1"},
-			expectedCount: 1,
-			description:   "should return only supported analyzer name",
-		},
-		{
-			name: "no analyzers supported",
-			setupMocks: func(vcs *MockVCSClient, a1 *MockAnalyzer, a2 *MockAnalyzer) {
-				a1.On("CanHandle", mock.Anything, vcs, "v1.0.0", "v2.0.0").Return(false)
-				a2.On("CanHandle", mock.Anything, vcs, "v1.0.0", "v2.0.0").Return(false)
-			},
-			expectedNames: []string{},
-			expectedCount: 0,
-			description:   "should return empty list when no analyzers are supported",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create a registry with only mock analyzers
-			registry := &AnalyzerRegistry{
-				analyzers: []vcs.DependencyAnalyzer{},
-			}
-
-			mockVCS := new(MockVCSClient)
-			mockAnalyzer1 := new(MockAnalyzer)
-			mockAnalyzer2 := new(MockAnalyzer)
-
-			registry.RegisterAnalyzer(mockAnalyzer1)
-			registry.RegisterAnalyzer(mockAnalyzer2)
-
-			tt.setupMocks(mockVCS, mockAnalyzer1, mockAnalyzer2)
-
-			supported := registry.GetSupportedAnalyzers(context.Background(), mockVCS, "v1.0.0", "v2.0.0")
-
-			assert.Len(t, supported, tt.expectedCount, tt.description)
-			if tt.expectedCount > 0 {
-				assert.Equal(t, tt.expectedNames, supported)
-			}
-
-			mockAnalyzer1.AssertExpectations(t)
-			mockAnalyzer2.AssertExpectations(t)
-		})
-	}
-}
-
 func TestAnalyzerRegistry_Integration(t *testing.T) {
 	t.Run("default registry has go.mod and package.json analyzers", func(t *testing.T) {
 		registry := NewAnalyzerRegistry()
 
-		// Create a mock VCS that returns content for both files
+		names := make([]string, 0, len(registry.analyzers))
+		for _, a := range registry.analyzers {
+			names = append(names, a.Name())
+		}
+
+		assert.Contains(t, names, "go.mod")
+		assert.Contains(t, names, "package.json")
+		assert.Len(t, names, 2)
+	})
+
+	t.Run("AnalyzeAll works with real go.mod and package.json content", func(t *testing.T) {
+		registry := NewAnalyzerRegistry()
+
 		mockVCS := new(MockVCSClient)
 		mockVCS.On("GetFileAtTag", mock.Anything, "v1.0.0", "go.mod").
 			Return("module test\n", nil)
 		mockVCS.On("GetFileAtTag", mock.Anything, "v1.0.0", "package.json").
 			Return(`{"name": "test"}`, nil)
+		mockVCS.On("GetFileAtTag", mock.Anything, "v0.9.0", "go.mod").
+			Return("module test\n", nil)
+		mockVCS.On("GetFileAtTag", mock.Anything, "v0.9.0", "package.json").
+			Return(`{"name": "test"}`, nil)
 
-		supported := registry.GetSupportedAnalyzers(context.Background(), mockVCS, "v0.9.0", "v1.0.0")
+		_, err := registry.AnalyzeAll(context.Background(), mockVCS, "v0.9.0", "v1.0.0")
 
-		assert.Contains(t, supported, "go.mod")
-		assert.Contains(t, supported, "package.json")
-		assert.Len(t, supported, 2)
-
-		mockVCS.AssertExpectations(t)
-	})
-
-	t.Run("can add custom analyzer to default registry", func(t *testing.T) {
-		registry := NewAnalyzerRegistry()
-
-		customAnalyzer := new(MockAnalyzer)
-		customAnalyzer.On("Name").Return("custom-analyzer")
-
-		registry.RegisterAnalyzer(customAnalyzer)
-
-		assert.Len(t, registry.analyzers, 3, "should have 3 analyzers (2 default + 1 custom)")
+		assert.NoError(t, err)
 	})
 }

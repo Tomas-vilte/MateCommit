@@ -363,18 +363,6 @@ func (s *IssueGeneratorService) GenerateWithTemplate(ctx context.Context, templa
 	return result, nil
 }
 
-func (s *IssueGeneratorService) SuggestTemplates(ctx context.Context) ([]models.TemplateMetadata, error) {
-	if s.templateService == nil {
-		return []models.TemplateMetadata{}, nil
-	}
-
-	templates, err := s.templateService.ListTemplates(ctx)
-	if err != nil {
-		return []models.TemplateMetadata{}, nil
-	}
-	return templates, nil
-}
-
 func (s *IssueGeneratorService) mergeAssignees(genAssignees, templateAssignees []string) []string {
 	assigneeMap := make(map[string]bool)
 	for _, a := range genAssignees {

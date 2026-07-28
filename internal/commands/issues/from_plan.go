@@ -142,20 +142,20 @@ func showPreview(result *models.IssueGenerationResult, t *i18n.Translations, cfg
 		emoji = "\U0001F4CB "
 	}
 
-	ui.PrintInfo(fmt.Sprintf("%s%s", emoji, t.GetMessage("issue_from_plan.preview_header", 0, nil)))
+	ui.PrintInfo(fmt.Sprintf("%s%s", emoji, t.GetMessage("issue.preview_title", 0, nil)))
 	fmt.Println()
 
-	ui.PrintKeyValue("Title", result.Title)
+	ui.PrintKeyValue(t.GetMessage("issue.preview_title_label", 0, nil), result.Title)
 	fmt.Println()
 
 	if result.Description != "" {
-		ui.PrintInfo("Description:")
+		ui.PrintInfo(fmt.Sprintf("%s:", t.GetMessage("issue.preview_description_label", 0, nil)))
 		fmt.Println(result.Description)
 		fmt.Println()
 	}
 
 	if len(result.Labels) > 0 {
-		ui.PrintInfo(fmt.Sprintf("Labels: %s", strings.Join(result.Labels, ", ")))
+		ui.PrintInfo(fmt.Sprintf("%s: %s", t.GetMessage("issue.preview_labels_label", 0, nil), strings.Join(result.Labels, ", ")))
 	}
 
 	fmt.Println(separator)

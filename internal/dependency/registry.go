@@ -20,11 +20,6 @@ func NewAnalyzerRegistry() *AnalyzerRegistry {
 	}
 }
 
-// RegisterAnalyzer adds a custom analyzer
-func (r *AnalyzerRegistry) RegisterAnalyzer(analyzer vcs.DependencyAnalyzer) {
-	r.analyzers = append(r.analyzers, analyzer)
-}
-
 // AnalyzeAll executes all applicable analyzers and combines the results
 func (r *AnalyzerRegistry) AnalyzeAll(ctx context.Context, vcsClient vcs.VCSClient, previousTag, currentTag string) ([]models.DependencyChange, error) {
 	var allChanges []models.DependencyChange
@@ -39,16 +34,4 @@ func (r *AnalyzerRegistry) AnalyzeAll(ctx context.Context, vcsClient vcs.VCSClie
 		}
 	}
 	return allChanges, nil
-}
-
-// GetSupportedAnalyzers returns a list of detected analyzers
-func (r *AnalyzerRegistry) GetSupportedAnalyzers(ctx context.Context, vcsClient vcs.VCSClient, previousTag, currentTag string) []string {
-	var supported []string
-
-	for _, analyzer := range r.analyzers {
-		if analyzer.CanHandle(ctx, vcsClient, previousTag, currentTag) {
-			supported = append(supported, analyzer.Name())
-		}
-	}
-	return supported
 }
