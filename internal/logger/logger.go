@@ -41,15 +41,6 @@ func FromContext(ctx context.Context) *slog.Logger {
 	return slog.Default()
 }
 
-func WithLogger(ctx context.Context, logger *slog.Logger) context.Context {
-	return context.WithValue(ctx, loggerKey, logger)
-}
-
-func With(ctx context.Context, args ...any) context.Context {
-	l := FromContext(ctx).With(args...)
-	return WithLogger(ctx, l)
-}
-
 func Debug(ctx context.Context, msg string, args ...any) {
 	FromContext(ctx).Debug(msg, args...)
 }

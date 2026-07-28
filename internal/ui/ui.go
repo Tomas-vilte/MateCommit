@@ -70,13 +70,6 @@ func (s *SmartSpinner) Stop() {
 	}
 }
 
-// StopActiveSpinner stops the currently active spinner in the terminal session.
-func StopActiveSpinner() {
-	if activeSpinner != nil {
-		activeSpinner.Stop()
-	}
-}
-
 // SuspendActiveSpinner temporarily stops the active spinner without deleting its reference,
 // allowing it to be resumed after user interaction.
 func SuspendActiveSpinner() {
@@ -121,58 +114,6 @@ func (s *SmartSpinner) Log(msg string) {
 	s.Start()
 }
 
-// SpinnerBuilder allows building spinners with flexible configuration
-type SpinnerBuilder struct {
-	message string
-	charset int
-	color   string
-	speed   time.Duration
-}
-
-// NewSpinner creates a new spinner builder
-func NewSpinner() *SpinnerBuilder {
-	return &SpinnerBuilder{
-		charset: 14,
-		color:   "cyan",
-		speed:   100 * time.Millisecond,
-	}
-}
-
-// WithMessage sets the spinner message
-func (b *SpinnerBuilder) WithMessage(msg string) *SpinnerBuilder {
-	b.message = msg
-	return b
-}
-
-// WithColor sets the spinner color
-func (b *SpinnerBuilder) WithColor(color string) *SpinnerBuilder {
-	b.color = color
-	return b
-}
-
-// WithSpeed sets the spinner speed
-func (b *SpinnerBuilder) WithSpeed(speed time.Duration) *SpinnerBuilder {
-	b.speed = speed
-	return b
-}
-
-// WithCharset sets the spinner charset
-func (b *SpinnerBuilder) WithCharset(charset int) *SpinnerBuilder {
-	b.charset = charset
-	return b
-}
-
-// Build constructs the SmartSpinner with the specified configuration
-func (b *SpinnerBuilder) Build() *SmartSpinner {
-	s := spinner.New(
-		spinner.CharSets[b.charset],
-		b.speed,
-		spinner.WithColor(b.color),
-		spinner.WithSuffix(" "+MateEmoji+" "+b.message),
-	)
-	return &SmartSpinner{spinner: s}
-}
-
 func PrintSuccess(w io.Writer, msg string) {
 	_, _ = fmt.Fprintf(w, "%s %s\n", SuccessEmoji, Success.Sprint(msg))
 }
@@ -199,13 +140,6 @@ func PrintSectionBanner(title string) {
 func PrintDuration(msg string, duration time.Duration) {
 	durationStr := Dim.Sprintf("(%s)", duration.Round(10*time.Millisecond))
 	fmt.Printf("%s %s %s\n", SuccessEmoji, Success.Sprint(msg), durationStr)
-}
-
-func PrintErrorWithSuggestion(errMsg, suggestion string) {
-	PrintError(os.Stdout, errMsg)
-	if suggestion != "" {
-		fmt.Printf("\n%s %s\n", Info.Sprint("💡"), suggestion)
-	}
 }
 
 // HandleAppError handles an application error and displays it in a friendly way.
@@ -292,39 +226,6 @@ func ShowDiff(files []string) error {
 		fmt.Println(string(output))
 	}
 
-	return nil
-}
-
-func WithSpinner(message string, fn func() error) error {
-	s := NewSmartSpinner(message)
-	s.Start()
-
-	err := fn()
-
-	if err != nil {
-		s.Error(fmt.Sprintf("Error: %v", err))
-		return err
-	}
-
-	s.Success("Done")
-	return nil
-}
-
-func WithSpinnerAndDuration(message string, fn func() error) error {
-	s := NewSmartSpinner(message)
-	s.Start()
-
-	start := time.Now()
-	err := fn()
-	duration := time.Since(start)
-
-	if err != nil {
-		s.Error(fmt.Sprintf("Error: %v", err))
-		return err
-	}
-
-	s.Stop()
-	PrintDuration(message+" completed", duration)
 	return nil
 }
 
