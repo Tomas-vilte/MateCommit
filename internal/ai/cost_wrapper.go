@@ -80,6 +80,14 @@ func (w *CostAwareWrapper) SetSkipConfirmation(skip bool) {
 	w.skipConfirmation = skip
 }
 
+// InvalidateCache removes the cached response for the given prompt, so a
+// truncated or malformed response (network-successful but unusable) doesn't
+// keep getting served back on retry until the TTL expires.
+func (w *CostAwareWrapper) InvalidateCache(prompt string) error {
+	contentHash := w.cache.GenerateHash(w.provider.GetProviderName() + w.provider.GetModelName() + prompt)
+	return w.cache.Delete(contentHash)
+}
+
 // WrapGenerate wraps any generation function with tracking
 func (w *CostAwareWrapper) WrapGenerate(
 	ctx context.Context,

@@ -223,63 +223,89 @@ func (s *GeminiCommitSummarizer) GenerateSuggestions(ctx context.Context, info m
 		"prompt_length", len(prompt),
 		"language", s.config.Language)
 
-	resp, usage, err := s.wrapper.WrapGenerate(ctx, "suggest-commits", prompt, s.generateFn)
-	if err != nil {
-		log.Error("failed to generate suggestions",
-			"error", err)
-		return nil, err
-	}
+	var usage *models.TokenUsage
+	var suggestions []models.CommitSuggestion
 
-	var responseText string
-	if geminiResp, ok := resp.(*genai.GenerateContentResponse); ok {
-		log.Debug("formatResponse received GenerateContentResponse",
-			"candidates_count", len(geminiResp.Candidates))
-		responseText = formatResponse(geminiResp)
-		if len(responseText) > 0 {
-			preview := responseText
-			if len(responseText) > 100 {
-				preview = responseText[:100]
+	const maxAttempts = 2
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		resp, respUsage, err := s.wrapper.WrapGenerate(ctx, "suggest-commits", prompt, s.generateFn)
+		if err != nil {
+			log.Error("failed to generate suggestions",
+				"error", err)
+			return nil, err
+		}
+
+		var responseText string
+		if geminiResp, ok := resp.(*genai.GenerateContentResponse); ok {
+			log.Debug("formatResponse received GenerateContentResponse",
+				"candidates_count", len(geminiResp.Candidates))
+			responseText = formatResponse(geminiResp)
+			if len(responseText) > 0 {
+				preview := responseText
+				if len(responseText) > 100 {
+					preview = responseText[:100]
+				}
+				log.Debug("formatResponse result",
+					"response_length", len(responseText),
+					"response_preview", preview)
+			} else {
+				log.Debug("formatResponse result empty")
 			}
-			log.Debug("formatResponse result",
-				"response_length", len(responseText),
-				"response_preview", preview)
+		} else if str, ok := resp.(string); ok {
+			responseText = str
+			log.Debug("received string response", "length", len(str))
+		} else if respMap, ok := resp.(map[string]interface{}); ok {
+			log.Debug("received map response from cache, extracting text")
+			responseText = extractTextFromMap(respMap)
+			log.Debug("extracted text from map", "length", len(responseText))
 		} else {
-			log.Debug("formatResponse result empty")
+			log.Warn("unexpected response type", "type", fmt.Sprintf("%T", resp))
 		}
-	} else if str, ok := resp.(string); ok {
-		responseText = str
-		log.Debug("received string response", "length", len(str))
-	} else if respMap, ok := resp.(map[string]interface{}); ok {
-		log.Debug("received map response from cache, extracting text")
-		responseText = extractTextFromMap(respMap)
-		log.Debug("extracted text from map", "length", len(responseText))
-	} else {
-		log.Warn("unexpected response type", "type", fmt.Sprintf("%T", resp))
-	}
 
-	if responseText == "" {
-		return nil, domainErrors.ErrInvalidAIOutput.
-			WithContext("reason", "empty response from AI").
-			WithContext("operation", "generate commit suggestions")
-	}
-
-	suggestions, err := s.parseSuggestionsJSON(responseText)
-	if err != nil {
-		respLen := len(responseText)
-		preview := responseText
-		if respLen > 500 {
-			preview = responseText[:500] + "..."
+		if responseText == "" {
+			if attempt < maxAttempts {
+				log.Warn("empty response from AI, invalidating cache and retrying", "attempt", attempt)
+				_ = s.wrapper.InvalidateCache(prompt)
+				continue
+			}
+			return nil, domainErrors.ErrInvalidAIOutput.
+				WithContext("reason", "empty response from AI").
+				WithContext("operation", "generate commit suggestions")
 		}
-		return nil, domainErrors.ErrInvalidAIOutput.
-			WithContext("reason", "failed to parse JSON").
-			WithContext("response_length", respLen).
-			WithContext("preview", preview).
-			WithError(err)
-	}
-	if len(suggestions) == 0 {
-		log.Warn("AI generated no suggestions")
-		return nil, domainErrors.ErrInvalidAIOutput.
-			WithContext("reason", "AI generated no suggestions")
+
+		parsed, err := s.parseSuggestionsJSON(responseText)
+		if err != nil {
+			if attempt < maxAttempts {
+				log.Warn("failed to parse suggestions JSON, invalidating cache and retrying",
+					"error", err, "attempt", attempt)
+				_ = s.wrapper.InvalidateCache(prompt)
+				continue
+			}
+			respLen := len(responseText)
+			preview := responseText
+			if respLen > 500 {
+				preview = responseText[:500] + "..."
+			}
+			return nil, domainErrors.ErrInvalidAIOutput.
+				WithContext("reason", "failed to parse JSON").
+				WithContext("response_length", respLen).
+				WithContext("preview", preview).
+				WithError(err)
+		}
+		if len(parsed) == 0 {
+			if attempt < maxAttempts {
+				log.Warn("AI generated no suggestions, invalidating cache and retrying", "attempt", attempt)
+				_ = s.wrapper.InvalidateCache(prompt)
+				continue
+			}
+			log.Warn("AI generated no suggestions")
+			return nil, domainErrors.ErrInvalidAIOutput.
+				WithContext("reason", "AI generated no suggestions")
+		}
+
+		usage = respUsage
+		suggestions = parsed
+		break
 	}
 	for i := range suggestions {
 		suggestions[i].Usage = usage

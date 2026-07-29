@@ -99,6 +99,15 @@ func (c *Cache) Set(hash string, response interface{}) error {
 	return nil
 }
 
+// Delete removes a single cached response by hash, if present.
+func (c *Cache) Delete(hash string) error {
+	filePath := filepath.Join(c.cacheDir, hash+".json")
+	if err := os.Remove(filePath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("error deleting cache entry: %w", err)
+	}
+	return nil
+}
+
 // CleanExpired removes expired cache files
 func (c *Cache) CleanExpired() error {
 	entries, err := os.ReadDir(c.cacheDir)
