@@ -21,6 +21,7 @@ import (
 // commitGitService defines only the methods needed by CommitService.
 type commitGitService interface {
 	GetChangedFiles(ctx context.Context) ([]string, error)
+	GetChangedFilesWithStatus(ctx context.Context) ([]models.GitChange, error)
 	GetDiff(ctx context.Context) (string, error)
 	GetDiffForFiles(ctx context.Context, files []string) (string, error)
 	GetRecentCommitMessages(ctx context.Context, limit int) ([]string, error)
@@ -117,13 +118,18 @@ func (s *CommitService) buildCommitInfo(ctx context.Context, issueNumber int, fi
 	}
 
 	var changes []string
+	var fileChanges []models.GitChange
 	var err error
 	if len(files) > 0 {
 		changes = files
 	} else {
-		changes, err = s.git.GetChangedFiles(ctx)
+		fileChanges, err = s.git.GetChangedFilesWithStatus(ctx)
 		if err != nil {
 			return commitInfo, err
+		}
+		changes = make([]string, len(fileChanges))
+		for i, c := range fileChanges {
+			changes[i] = c.Path
 		}
 	}
 
@@ -150,6 +156,7 @@ func (s *CommitService) buildCommitInfo(ctx context.Context, issueNumber int, fi
 
 	commitInfo = models.CommitInfo{
 		Files:         changes,
+		FileChanges:   fileChanges,
 		Diff:          diff,
 		RecentHistory: strings.Join(recentHistory, "\n"),
 	}

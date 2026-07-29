@@ -14,6 +14,8 @@ type VCSClient interface {
 	GetPR(ctx context.Context, prNumber int) (models.PRData, error)
 	// GetRepoLabels gets all available labels in the repository
 	GetRepoLabels(ctx context.Context) ([]string, error)
+	// GetRepoLabelsWithDescriptions gets all available labels in the repository along with their descriptions
+	GetRepoLabelsWithDescriptions(ctx context.Context) ([]models.RepoLabel, error)
 	// CreateLabel creates a new label in the repository
 	CreateLabel(ctx context.Context, name string, color string, description string) error
 	// AddLabelsToPR adds specific labels to a PR

@@ -400,6 +400,49 @@ func TestGitService(t *testing.T) {
 		if !strings.Contains(diff, "nuevo.txt") {
 			t.Error("El diff no contiene el archivo nuevo")
 		}
+		if !strings.Contains(diff, "archivo nuevo") {
+			t.Error("El diff no contiene el contenido real del archivo nuevo")
+		}
+	})
+
+	t.Run("GetDiff with untracked file alongside a modified tracked file", func(t *testing.T) {
+		// arrange
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		service := NewGitService()
+
+		if err := os.WriteFile("test.txt", []byte("contenido original"), 0644); err != nil {
+			t.Fatalf("Error creando archivo: %v", err)
+		}
+		if err := exec.Command("git", "add", "test.txt").Run(); err != nil {
+			t.Fatalf("Error haciendo stage del archivo: %v", err)
+		}
+		if err := exec.Command("git", "commit", "-m", "commit inicial").Run(); err != nil {
+			t.Fatalf("Error creando commit inicial: %v", err)
+		}
+
+		if err := os.WriteFile("test.txt", []byte("cambio existente"), 0644); err != nil {
+			t.Fatalf("Error modificando archivo existente: %v", err)
+		}
+		if err := os.WriteFile("nuevo.txt", []byte("contenido del nuevo archivo"), 0644); err != nil {
+			t.Fatalf("Error creando archivo nuevo: %v", err)
+		}
+
+		// act
+		diff, err := service.GetDiff(context.Background())
+
+		// assert
+		if err != nil {
+			t.Errorf("Error obteniendo diff: %v", err)
+		}
+
+		if !strings.Contains(diff, "cambio existente") {
+			t.Error("El diff no contiene el cambio del archivo trackeado")
+		}
+		if !strings.Contains(diff, "nuevo.txt") || !strings.Contains(diff, "contenido del nuevo archivo") {
+			t.Error("El diff no contiene el archivo nuevo cuando coexiste con un archivo modificado")
+		}
 	})
 
 	t.Run("GetDiff unchanged", func(t *testing.T) {

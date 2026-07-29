@@ -49,7 +49,7 @@ func getReleaseNotesSchema() *genai.Schema {
 			},
 			"summary": {
 				Type:        genai.TypeString,
-				Description: "2-3 sentences explaining the release focus in first person plural",
+				Description: "1-2 sentences on what this release actually changed, grounded in the diff. Write like an engineer summarizing their own work, not a press release — do NOT open with a formulaic phrase like 'In this release, we focused on...'. State the specific change(s) directly. Avoid buzzwords (leverage, robust, seamless, enhance the experience).",
 			},
 			"sections": {
 				Type: genai.TypeArray,
@@ -58,7 +58,7 @@ func getReleaseNotesSchema() *genai.Schema {
 					Properties: map[string]*genai.Schema{
 						"title": {
 							Type:        genai.TypeString,
-							Description: "Section title (e.g. '🎨 UI/UX Improvements')",
+							Description: "Section title, plain text, no emoji (e.g. 'UI/UX Improvements')",
 						},
 						"items": {
 							Type: genai.TypeArray,

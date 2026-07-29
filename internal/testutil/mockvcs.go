@@ -28,6 +28,11 @@ func (m *MockVCSClient) GetRepoLabels(ctx context.Context) ([]string, error) {
 	return args.Get(0).([]string), args.Error(1)
 }
 
+func (m *MockVCSClient) GetRepoLabelsWithDescriptions(ctx context.Context) ([]models.RepoLabel, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]models.RepoLabel), args.Error(1)
+}
+
 func (m *MockVCSClient) CreateLabel(ctx context.Context, name, color, description string) error {
 	args := m.Called(ctx, name, color, description)
 	return args.Error(0)

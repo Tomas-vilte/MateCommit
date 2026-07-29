@@ -36,8 +36,8 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		}
 		mockJira.On("GetTicketInfo", "PROJ-1234").Return(ticketInfo, nil)
 
-		changes := []string{"file1.go"}
-		mockGit.On("GetChangedFiles", mock.Anything).Return(changes, nil)
+		changes := []models.GitChange{{Path: "file1.go", Status: "modified"}}
+		mockGit.On("GetChangedFilesWithStatus", mock.Anything).Return(changes, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("some diff", nil)
 		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return([]string{"history"}, nil)
 		mockVCS.On("GetIssue", mock.Anything, 1234).Return(&models.Issue{Number: 1234, Title: "Issue Title"}, nil)
@@ -73,7 +73,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 	t.Run("no changes detected", func(t *testing.T) {
 		mockGit, mockAI, _, _, cfg := setupTest(t)
 
-		mockGit.On("GetChangedFiles", mock.Anything).Return([]string{}, nil)
+		mockGit.On("GetChangedFilesWithStatus", mock.Anything).Return([]models.GitChange{}, nil)
 
 		service := NewCommitService(mockGit, mockAI,
 			WithConfig(cfg),
@@ -88,8 +88,8 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 	t.Run("error getting diff", func(t *testing.T) {
 		mockGit, mockAI, _, _, cfg := setupTest(t)
 
-		changes := []string{"file1.go"}
-		mockGit.On("GetChangedFiles", mock.Anything).Return(changes, nil)
+		changes := []models.GitChange{{Path: "file1.go", Status: "modified"}}
+		mockGit.On("GetChangedFilesWithStatus", mock.Anything).Return(changes, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("", errors.New("git error"))
 
 		service := NewCommitService(mockGit, mockAI,
@@ -105,8 +105,8 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 	t.Run("no differences string (empty diff)", func(t *testing.T) {
 		mockGit, mockAI, _, _, cfg := setupTest(t)
 
-		changes := []string{"file1.go"}
-		mockGit.On("GetChangedFiles", mock.Anything).Return(changes, nil)
+		changes := []models.GitChange{{Path: "file1.go", Status: "modified"}}
+		mockGit.On("GetChangedFilesWithStatus", mock.Anything).Return(changes, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("", nil)
 
 		service := NewCommitService(mockGit, mockAI,
@@ -124,7 +124,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 	t.Run("error getting branch name", func(t *testing.T) {
 		mockGit, mockAI, _, _, cfg := setupTest(t)
 
-		mockGit.On("GetChangedFiles", mock.Anything).Return([]string{"f.go"}, nil)
+		mockGit.On("GetChangedFilesWithStatus", mock.Anything).Return([]models.GitChange{{Path: "f.go", Status: "modified"}}, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("diff", nil)
 		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return([]string{"history"}, nil)
 		mockGit.On("GetCurrentBranch", mock.Anything).Return("", errors.New("branch error"))
@@ -144,7 +144,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 	t.Run("branch without ticket ID", func(t *testing.T) {
 		mockGit, mockAI, _, _, cfg := setupTest(t)
 
-		mockGit.On("GetChangedFiles", mock.Anything).Return([]string{"f.go"}, nil)
+		mockGit.On("GetChangedFilesWithStatus", mock.Anything).Return([]models.GitChange{{Path: "f.go", Status: "modified"}}, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("diff", nil)
 		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return([]string{"history"}, nil)
 		mockGit.On("GetCurrentBranch", mock.Anything).Return("main", nil)
@@ -162,7 +162,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 	t.Run("error getting ticket info", func(t *testing.T) {
 		mockGit, mockAI, mockJira, _, cfg := setupTest(t)
 
-		mockGit.On("GetChangedFiles", mock.Anything).Return([]string{"f.go"}, nil)
+		mockGit.On("GetChangedFilesWithStatus", mock.Anything).Return([]models.GitChange{{Path: "f.go", Status: "modified"}}, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("diff", nil)
 		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return([]string{"history"}, nil)
 		mockGit.On("GetCurrentBranch", mock.Anything).Return("feat/PROJ-123", nil)
@@ -192,7 +192,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		mockGit, mockAI, _, _, cfg := setupTest(t)
 		cfg.UseTicket = false
 
-		mockGit.On("GetChangedFiles", mock.Anything).Return([]string{"f.go"}, nil)
+		mockGit.On("GetChangedFilesWithStatus", mock.Anything).Return([]models.GitChange{{Path: "f.go", Status: "modified"}}, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("diff", nil)
 		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return([]string{"history"}, nil)
 		mockGit.On("GetCurrentBranch", mock.Anything).Return("main", nil)
@@ -211,7 +211,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		mockGit, mockAI, _, mockVCS, cfg := setupTest(t)
 		cfg.UseTicket = false
 
-		mockGit.On("GetChangedFiles", mock.Anything).Return([]string{"f.go"}, nil)
+		mockGit.On("GetChangedFilesWithStatus", mock.Anything).Return([]models.GitChange{{Path: "f.go", Status: "modified"}}, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("diff", nil)
 		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return([]string{"history"}, nil)
 		mockGit.On("GetCurrentBranch", mock.Anything).Return("main", nil)
@@ -236,7 +236,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		mockGit, mockAI, _, _, cfg := setupTest(t)
 		cfg.UseTicket = false
 
-		mockGit.On("GetChangedFiles", mock.Anything).Return([]string{"f.go"}, nil)
+		mockGit.On("GetChangedFilesWithStatus", mock.Anything).Return([]models.GitChange{{Path: "f.go", Status: "modified"}}, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("diff", nil)
 		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return([]string{"history"}, nil)
 		mockGit.On("GetCurrentBranch", mock.Anything).Return("issue/123", nil)
@@ -256,7 +256,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		mockGit, mockAI, _, _, cfg := setupTest(t)
 		cfg.UseTicket = false
 
-		mockGit.On("GetChangedFiles", mock.Anything).Return([]string{"f.go"}, nil)
+		mockGit.On("GetChangedFilesWithStatus", mock.Anything).Return([]models.GitChange{{Path: "f.go", Status: "modified"}}, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("diff", nil)
 		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return([]string{"history"}, nil)
 		mockGit.On("GetCurrentBranch", mock.Anything).Return("issue/123", nil)
@@ -277,7 +277,7 @@ func TestCommitService_GenerateSuggestions(t *testing.T) {
 		mockGit, mockAI, _, _, cfg := setupTest(t)
 		cfg.UseTicket = false
 
-		mockGit.On("GetChangedFiles", mock.Anything).Return([]string{"f.go"}, nil)
+		mockGit.On("GetChangedFilesWithStatus", mock.Anything).Return([]models.GitChange{{Path: "f.go", Status: "modified"}}, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("diff", nil)
 		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return([]string{"history"}, nil)
 		mockGit.On("GetCurrentBranch", mock.Anything).Return("issue/123", nil)
@@ -301,7 +301,7 @@ func TestCommitService_GenerateSuggestionsWithIssue(t *testing.T) {
 		mockGit, mockAI, _, mockVCS, cfg := setupTest(t)
 		cfg.UseTicket = false
 
-		mockGit.On("GetChangedFiles", mock.Anything).Return([]string{"f.go"}, nil)
+		mockGit.On("GetChangedFilesWithStatus", mock.Anything).Return([]models.GitChange{{Path: "f.go", Status: "modified"}}, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("diff", nil)
 		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return([]string{"history"}, nil)
 
@@ -322,7 +322,7 @@ func TestCommitService_GenerateSuggestionsWithIssue(t *testing.T) {
 		mockGit, mockAI, _, mockVCS, cfg := setupTest(t)
 		cfg.UseTicket = false
 
-		mockGit.On("GetChangedFiles", mock.Anything).Return([]string{"f.go"}, nil)
+		mockGit.On("GetChangedFilesWithStatus", mock.Anything).Return([]models.GitChange{{Path: "f.go", Status: "modified"}}, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("diff", nil)
 		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return([]string{"history"}, nil)
 
@@ -345,7 +345,7 @@ func TestCommitService_IssueDetection(t *testing.T) {
 		cfg.UseTicket = false
 
 		mockGit.On("GetCurrentBranch", mock.Anything).Return("issue/123-fix", nil)
-		mockGit.On("GetChangedFiles", mock.Anything).Return([]string{"f"}, nil)
+		mockGit.On("GetChangedFilesWithStatus", mock.Anything).Return([]models.GitChange{{Path: "f", Status: "modified"}}, nil)
 		mockGit.On("GetDiff", mock.Anything).Return("d", nil)
 		mockGit.On("GetRecentCommitMessages", mock.Anything, 10).Return([]string{"history"}, nil)
 		mockVCS.On("GetIssue", mock.Anything, 123).Return(&models.Issue{Number: 123}, nil)
