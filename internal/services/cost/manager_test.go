@@ -79,6 +79,41 @@ func TestManager_SaveAndLoadActivity(t *testing.T) {
 	}
 }
 
+func TestManager_SaveActivity_PrunesOldRecords(t *testing.T) {
+	// Arrange
+	m, tempDir := setupTestManager(t, 1.0)
+	defer func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Errorf("RemoveAll() error = %v", err)
+		}
+	}()
+
+	now := time.Now()
+	seed := []ActivityRecord{
+		{Timestamp: now.AddDate(0, 0, -historyRetentionDays-1), Command: "old", CostUSD: 0.01},
+		{Timestamp: now.AddDate(0, 0, -1), Command: "recent", CostUSD: 0.02},
+	}
+	data, err := json.MarshalIndent(seed, "", "  ")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(m.historyPath, data, 0644))
+
+	// Act: saving a new record should prune the entry older than the retention window
+	require.NoError(t, m.SaveActivity(ActivityRecord{Timestamp: now, Command: "new", CostUSD: 0.03}))
+
+	// Assert
+	history, err := m.GetHistory()
+	require.NoError(t, err)
+
+	commands := make([]string, 0, len(history))
+	for _, r := range history {
+		commands = append(commands, r.Command)
+	}
+	assert.NotContains(t, commands, "old", "record older than the retention window should be pruned")
+	assert.Contains(t, commands, "recent")
+	assert.Contains(t, commands, "new")
+	assert.Len(t, history, 2)
+}
+
 func TestManager_Totals(t *testing.T) {
 	// Arrange
 	m, tempDir := setupTestManager(t, 10.0)
