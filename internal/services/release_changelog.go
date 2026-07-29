@@ -474,7 +474,7 @@ func (s *ReleaseService) buildChangelogFromNotes(ctx context.Context, release *m
 			}
 		}
 	} else if len(notes.Highlights) > 0 {
-		sb.WriteString("### ✨ Highlights\n\n")
+		sb.WriteString("### Highlights\n\n")
 		for _, highlight := range notes.Highlights {
 			sb.WriteString(fmt.Sprintf("- %s\n", s.formatNoteBulletWithReference(release, highlight, owner, repo, provider, usedReferences)))
 		}
@@ -482,7 +482,7 @@ func (s *ReleaseService) buildChangelogFromNotes(ctx context.Context, release *m
 	}
 
 	if len(notes.BreakingChanges) > 0 {
-		sb.WriteString("### ⚠️ Breaking Changes\n\n")
+		sb.WriteString("### Breaking Changes\n\n")
 		for _, bc := range notes.BreakingChanges {
 			sb.WriteString(fmt.Sprintf("- %s\n", s.formatNoteBulletWithReference(release, bc, owner, repo, provider, usedReferences)))
 		}
@@ -633,7 +633,7 @@ func (s *ReleaseService) buildChangelog(release *models.Release) string {
 	sb.WriteString(fmt.Sprintf("## %s\n\n", release.Version))
 
 	if len(release.Breaking) > 0 {
-		sb.WriteString("### ⚠️ BREAKING CHANGES\n\n")
+		sb.WriteString("### BREAKING CHANGES\n\n")
 		for _, item := range release.Breaking {
 			sb.WriteString(s.formatReleaseItem(item))
 		}
@@ -641,7 +641,7 @@ func (s *ReleaseService) buildChangelog(release *models.Release) string {
 	}
 
 	if len(release.Features) > 0 {
-		sb.WriteString("### ✨ New Features\n\n")
+		sb.WriteString("### New Features\n\n")
 		for _, item := range release.Features {
 			sb.WriteString(s.formatReleaseItem(item))
 		}
@@ -649,7 +649,7 @@ func (s *ReleaseService) buildChangelog(release *models.Release) string {
 	}
 
 	if len(release.BugFixes) > 0 {
-		sb.WriteString("### 🐛 Bug Fixes\n\n")
+		sb.WriteString("### Bug Fixes\n\n")
 		for _, item := range release.BugFixes {
 			sb.WriteString(s.formatReleaseItem(item))
 		}
@@ -657,7 +657,7 @@ func (s *ReleaseService) buildChangelog(release *models.Release) string {
 	}
 
 	if len(release.Improvements) > 0 {
-		sb.WriteString("### 🔧 Improvements\n\n")
+		sb.WriteString("### Improvements\n\n")
 		for _, item := range release.Improvements {
 			sb.WriteString(s.formatReleaseItem(item))
 		}
@@ -665,7 +665,7 @@ func (s *ReleaseService) buildChangelog(release *models.Release) string {
 	}
 
 	if len(release.Documentation) > 0 {
-		sb.WriteString("### 📚 Documentation\n\n")
+		sb.WriteString("### Documentation\n\n")
 		for _, item := range release.Documentation {
 			sb.WriteString(s.formatReleaseItem(item))
 		}

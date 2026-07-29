@@ -58,7 +58,7 @@ func getReleaseNotesSchema() *genai.Schema {
 					Properties: map[string]*genai.Schema{
 						"title": {
 							Type:        genai.TypeString,
-							Description: "Section title (e.g. '🎨 UI/UX Improvements')",
+							Description: "Section title, plain text, no emoji (e.g. 'UI/UX Improvements')",
 						},
 						"items": {
 							Type: genai.TypeArray,

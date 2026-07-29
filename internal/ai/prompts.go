@@ -232,18 +232,20 @@ Generá release notes profesionales para un CHANGELOG.md siguiendo el estándar 
 ## 2. AGRUPACIÓN SEMÁNTICA (SECCIONES) - MUY IMPORTANTE
 **DEBES** agrupar los cambios en secciones temáticas usando el campo "sections" del esquema JSON.
 **Cada sección** debe tener:
-- Un título descriptivo y atractivo (puede incluir emoji)
+- Un título descriptivo, sin emoji
 - Una lista de items relacionados
 
 **Ejemplos de buenos títulos de sección:**
-- "✨ AI & Generation Improvements" - para mejoras en generación de IA
-- "🛠️ Templates & Configuration" - para cambios en templates y config
-- "🛡️ Stability & Performance" - para mejoras de estabilidad
-- "🎨 User Interface" - para cambios visuales
-- "🚀 Performance" - para optimizaciones
-- "🔒 Security" - para fixes de seguridad
-- "📚 Documentation" - para cambios en docs
-- "🔧 Developer Experience" - para mejoras de DX
+- "AI & Generation Improvements" - para mejoras en generación de IA
+- "Templates & Configuration" - para cambios en templates y config
+- "Stability & Performance" - para mejoras de estabilidad
+- "User Interface" - para cambios visuales
+- "Performance" - para optimizaciones
+- "Security" - para fixes de seguridad
+- "Documentation" - para cambios en docs
+- "Developer Experience" - para mejoras de DX
+
+**Cero emojis:** No uses emojis en ningún título de sección ni en ningún item. Texto plano y profesional únicamente.
 
 **Cuándo usar cada tipo:**
 - Agrupa cambios relacionados por área funcional (ej: AI, Templates, CLI)
@@ -280,18 +282,20 @@ Generate professional release notes for a CHANGELOG.md following the "Keep a Cha
 ## 2. SEMANTIC GROUPING (SECTIONS) - VERY IMPORTANT
 You MUST group changes into thematic sections using the "sections" field in the JSON schema.
 **Each section** must have:
-- A descriptive and engaging title (can include emoji)
+- A descriptive title, no emoji
 - A list of related items
 
 **Examples of good section titles:**
-- "✨ AI & Generation Improvements" - for AI generation enhancements
-- "🛠️ Templates & Configuration" - for template and config changes
-- "🛡️ Stability & Performance" - for stability improvements
-- "🎨 User Interface" - for visual changes
-- "🚀 Performance" - for optimizations
-- "🔒 Security" - for security fixes
-- "📚 Documentation" - for documentation changes
-- "🔧 Developer Experience" - for DX improvements
+- "AI & Generation Improvements" - for AI generation enhancements
+- "Templates & Configuration" - for template and config changes
+- "Stability & Performance" - for stability improvements
+- "User Interface" - for visual changes
+- "Performance" - for optimizations
+- "Security" - for security fixes
+- "Documentation" - for documentation changes
+- "Developer Experience" - for DX improvements
+
+**No emojis:** Don't use emoji in any section title or item. Plain, professional text only.
 
 **When to use each type:**
 - Group related changes by functional area (e.g., AI, Templates, CLI)

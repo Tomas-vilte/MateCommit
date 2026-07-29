@@ -116,7 +116,7 @@ func TestBuildChangelogFromNotes_FallbackToHighlights(t *testing.T) {
 	result := service.buildChangelogFromNotes(ctx, release, notes)
 
 	// Should render Highlights when no sections
-	assert.Contains(t, result, "### ✨ Highlights")
+	assert.Contains(t, result, "### Highlights")
 	assert.Contains(t, result, "- Feature 1")
 	assert.Contains(t, result, "- Feature 2")
 }
@@ -146,7 +146,7 @@ func TestBuildChangelogFromNotes_WithBreakingChanges(t *testing.T) {
 	result := service.buildChangelogFromNotes(ctx, release, notes)
 
 	// Should render breaking changes
-	assert.Contains(t, result, "### ⚠️ Breaking Changes")
+	assert.Contains(t, result, "### Breaking Changes")
 	assert.Contains(t, result, "- Removed deprecated API")
 	assert.Contains(t, result, "- Changed configuration format")
 }

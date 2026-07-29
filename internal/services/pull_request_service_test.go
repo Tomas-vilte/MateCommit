@@ -266,7 +266,7 @@ func TestPRService_SummarizePR_BreakingChanges(t *testing.T) {
 	mockVCS.On("GetRepoLabels", ctx).Return([]string(nil), nil)
 
 	mockAI.On("GeneratePRSummary", ctx, mock.MatchedBy(func(prompt string) bool {
-		return contextContains(prompt, "⚠️ Breaking Changes:", "feat!: breaking change here")
+		return contextContains(prompt, "Breaking Changes:", "feat!: breaking change here")
 	}), []string(nil)).Return(expectedSummary, nil)
 
 	mockVCS.On("UpdatePR", ctx, prNumber, mock.MatchedBy(func(s models.PRSummary) bool {

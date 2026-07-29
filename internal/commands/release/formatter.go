@@ -38,13 +38,13 @@ func FormatReleaseMarkdown(release *models.Release, notes *models.ReleaseNotes, 
 	}
 
 	if len(notes.BreakingChanges) > 0 {
-		content += fmt.Sprintf("## ⚠️ %s\n\n", trans.GetMessage("release.breaking_changes_title", 0, nil))
+		content += fmt.Sprintf("## %s\n\n", trans.GetMessage("release.breaking_changes_title", 0, nil))
 		for _, bc := range notes.BreakingChanges {
 			content += fmt.Sprintf("- %s\n", bc)
 		}
 		content += "\n"
 	} else {
-		content += fmt.Sprintf("## ⚠️ %s\n\n%s 🎉\n\n",
+		content += fmt.Sprintf("## %s\n\n%s\n\n",
 			trans.GetMessage("release.breaking_changes_title", 0, nil),
 			trans.GetMessage("release.no_breaking_changes", 0, nil))
 	}
@@ -62,7 +62,7 @@ func FormatReleaseMarkdown(release *models.Release, notes *models.ReleaseNotes, 
 		}
 
 		if len(validLinks) > 0 {
-			content += fmt.Sprintf("## 📚 %s\n\n", trans.GetMessage("release.resources_title", 0, nil))
+			content += fmt.Sprintf("## %s\n\n", trans.GetMessage("release.resources_title", 0, nil))
 			for key, value := range validLinks {
 				if strings.HasPrefix(value, "http://") || strings.HasPrefix(value, "https://") {
 					content += fmt.Sprintf("- [%s](%s)\n", key, value)

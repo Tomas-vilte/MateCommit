@@ -242,7 +242,7 @@ func (s *PRService) buildPRPrompt(prData models.PRData, template *models.IssueTe
 	prompt += fmt.Sprintf("Stats: %d commits, %d files, ~%d lines\n\n", commitCount, filesChanged, diffLines)
 	breakingChanges := s.detectBreakingChanges(prData.Commits)
 	if len(breakingChanges) > 0 {
-		prompt += "⚠️ Breaking Changes:\n"
+		prompt += "Breaking Changes:\n"
 		for _, bc := range breakingChanges {
 			prompt += fmt.Sprintf("- %s\n", bc)
 		}
@@ -339,7 +339,7 @@ func (s *PRService) detectBreakingChanges(commits []models.Commit) []string {
 
 func (s *PRService) generateTestPlan(prData models.PRData) string {
 	var testPlan strings.Builder
-	testPlan.WriteString("\n\n## 🧪 Test Plan & Evidence\n\n")
+	testPlan.WriteString("\n\n## Test Plan & Evidence\n\n")
 
 	hasUI := false
 	hasAPI := false
@@ -391,7 +391,7 @@ func (s *PRService) addBreakingChangesToSummary(summary models.PRSummary, breaki
 	}
 
 	var breakingSection strings.Builder
-	breakingSection.WriteString("\n\n## ⚠️ Breaking Changes\n\n")
+	breakingSection.WriteString("\n\n## Breaking Changes\n\n")
 
 	for _, change := range breakingChanges {
 		breakingSection.WriteString(fmt.Sprintf("- %s\n", change))
