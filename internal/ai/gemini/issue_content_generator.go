@@ -83,7 +83,7 @@ func getIssueSchema() *genai.Schema {
 			},
 			"description": {
 				Type:        genai.TypeString,
-				Description: "The body of the issue in markdown format",
+				Description: "The body of the issue written as an actual multi-line Markdown document, with real line breaks between headers and paragraphs — like a person typing in a text editor, not a single run-on line. Never write the two-character escape sequence (backslash followed by n) as literal text in place of a line break, and never collapse sections into a single line of prose.",
 			},
 			"labels": {
 				Type: genai.TypeArray,
