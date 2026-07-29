@@ -569,6 +569,25 @@ func TestGitHubClient_GetRelease(t *testing.T) {
 		mockRelease.AssertExpectations(t)
 	})
 
+	t.Run("should return error if token is invalid (401)", func(t *testing.T) {
+		mockPR := &MockPRService{}
+		mockIssues := &MockIssuesService{}
+		mockRelease := &MockReleaseService{}
+		mockUserService := &MockUserService{}
+		client := newTestClient(mockPR, mockIssues, mockRelease, mockUserService)
+
+		resp := &github.Response{Response: &http.Response{StatusCode: http.StatusUnauthorized}}
+		mockRelease.On("GetReleaseByTag", mock.Anything, "test-owner", "test-repo", "v1.0.0").
+			Return((*github.RepositoryRelease)(nil), resp, assert.AnError)
+
+		release, err := client.GetRelease(context.Background(), "v1.0.0")
+
+		assert.Error(t, err)
+		assert.Nil(t, release)
+		assert.Contains(t, err.Error(), "token")
+		mockRelease.AssertExpectations(t)
+	})
+
 	t.Run("should return generic error for other failures", func(t *testing.T) {
 		mockPR := &MockPRService{}
 		mockIssues := &MockIssuesService{}
@@ -1125,7 +1144,7 @@ func TestGitHubClient_GetFileAtTag(t *testing.T) {
 		expectedContent := "test content"
 		encodedContent := "dGVzdCBjb250ZW50"
 
-		mockRepo.On("GetContents", mock.Anything, "test-owner", "test-repo", tag, &github.RepositoryContentGetOptions{Ref: tag}).
+		mockRepo.On("GetContents", mock.Anything, "test-owner", "test-repo", filepath, &github.RepositoryContentGetOptions{Ref: tag}).
 			Return(&github.RepositoryContent{
 				Content:  github.Ptr(encodedContent),
 				Encoding: github.Ptr("base64"),
@@ -1150,7 +1169,7 @@ func TestGitHubClient_GetFileAtTag(t *testing.T) {
 		tag := "v1.0.0"
 		filepath := "test.txt"
 
-		mockRepo.On("GetContents", mock.Anything, "test-owner", "test-repo", tag, &github.RepositoryContentGetOptions{Ref: tag}).
+		mockRepo.On("GetContents", mock.Anything, "test-owner", "test-repo", filepath, &github.RepositoryContentGetOptions{Ref: tag}).
 			Return((*github.RepositoryContent)(nil), []*github.RepositoryContent{}, &github.Response{}, nil)
 
 		_, err := client.GetFileAtTag(context.Background(), tag, filepath)
@@ -1170,7 +1189,7 @@ func TestGitHubClient_GetFileAtTag(t *testing.T) {
 
 		tag := "v1.0.0"
 
-		mockRepo.On("GetContents", mock.Anything, "test-owner", "test-repo", tag, mock.Anything).
+		mockRepo.On("GetContents", mock.Anything, "test-owner", "test-repo", "test.txt", mock.Anything).
 			Return((*github.RepositoryContent)(nil), []*github.RepositoryContent{}, &github.Response{}, assert.AnError)
 
 		_, err := client.GetFileAtTag(context.Background(), tag, "test.txt")

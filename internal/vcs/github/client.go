@@ -397,7 +397,7 @@ func (ghc *GitHubClient) CreateRelease(ctx context.Context, release *models.Rele
 func (ghc *GitHubClient) GetRelease(ctx context.Context, version string) (*models.VCSRelease, error) {
 	release, resp, err := ghc.releaseService.GetReleaseByTag(ctx, ghc.owner, ghc.repo, version)
 	if err != nil {
-		if resp != nil && resp.StatusCode == 404 {
+		if resp != nil {
 			if resp.StatusCode == http.StatusUnauthorized {
 				return nil, domainErrors.ErrGitHubTokenInvalid.
 					WithContext("operation", "get release").
@@ -792,7 +792,7 @@ func (ghc *GitHubClient) GetFileAtTag(ctx context.Context, tag, filepath string)
 		Ref: tag,
 	}
 
-	fileContent, _, _, err := ghc.repoService.GetContents(ctx, ghc.owner, ghc.repo, tag, opts)
+	fileContent, _, _, err := ghc.repoService.GetContents(ctx, ghc.owner, ghc.repo, filepath, opts)
 	if err != nil {
 		return "", err
 	}
