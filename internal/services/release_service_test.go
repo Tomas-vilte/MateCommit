@@ -483,6 +483,41 @@ func TestReleaseService_EnrichReleaseContext(t *testing.T) {
 		assert.Equal(t, 3, release.FileStats.FilesChanged)
 		mockVCS.AssertExpectations(t)
 	})
+
+	t.Run("compares contributors and file stats against the current branch, not the prospective version", func(t *testing.T) {
+		// release.Version is a version that hasn't been tagged yet (e.g.
+		// during preview), so GitHub can't compare against it directly —
+		// the current branch tip points at the same commit a real tag
+		// would, and always exists.
+		mockGit := new(testutil.MockGitService)
+		mockVCS := new(testutil.MockVCSClient)
+		service := NewReleaseService(mockGit, WithReleaseVCSClient(mockVCS))
+
+		release := &models.Release{
+			PreviousVersion: "v1.0.0",
+			Version:         "v1.1.0",
+		}
+
+		mockGit.On("GetCurrentBranch", mock.Anything).Return("master", nil)
+		mockVCS.On("GetClosedIssuesBetweenTags", mock.Anything, "v1.0.0", "v1.1.0").
+			Return([]models.Issue{}, nil)
+		mockVCS.On("GetMergedPRsBetweenTags", mock.Anything, "v1.0.0", "v1.1.0").
+			Return([]models.PullRequest{}, nil)
+		mockVCS.On("GetContributorsBetweenTags", mock.Anything, "v1.0.0", "master").
+			Return([]string{"user1"}, nil)
+		mockVCS.On("GetFileStatsBetweenTags", mock.Anything, "v1.0.0", "master").
+			Return(&models.FileStatistics{FilesChanged: 7}, nil)
+		mockVCS.On("GetFileAtTag", mock.Anything, mock.Anything, mock.Anything).
+			Return("", errors.New("not found"))
+
+		err := service.EnrichReleaseContext(context.Background(), release)
+
+		assert.NoError(t, err)
+		assert.Len(t, release.Contributors, 1)
+		assert.Equal(t, 7, release.FileStats.FilesChanged)
+		mockGit.AssertExpectations(t)
+		mockVCS.AssertExpectations(t)
+	})
 }
 
 func TestReleaseService_UpdateAppVersion(t *testing.T) {
