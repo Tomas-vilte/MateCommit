@@ -360,6 +360,13 @@ func createConfirmationCallback(t *i18n.Translations) ai.ConfirmationCallback {
 			fmt.Println(costLabel)
 		}
 
+		if result.BudgetWarning {
+			_, _ = yellow.Println(t.GetMessage("cost.confirmation_budget_warning", 0, map[string]interface{}{
+				"Percent": fmt.Sprintf("%.0f", result.BudgetPercentUsed),
+				"Limit":   fmt.Sprintf("%.2f", result.BudgetLimit),
+			}))
+		}
+
 		_, _ = cyan.Println(t.GetMessage("cost.confirmation_separator", 0, nil))
 
 		if hasSuggestion {
