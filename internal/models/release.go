@@ -84,10 +84,7 @@ type (
 		Sections        []ReleaseNotesSection
 		Changelog       string
 		Recommended     VersionBump
-		QuickStart      string
-		Examples        []CodeExample
 		BreakingChanges []string
-		Comparisons     []Comparison
 		Links           map[string]string
 		Usage           *TokenUsage
 	}
@@ -95,21 +92,6 @@ type (
 	ReleaseNotesSection struct {
 		Title string
 		Items []string
-	}
-
-	// CodeExample represents a code example with description
-	CodeExample struct {
-		Title       string // Example title
-		Description string // Short description
-		Code        string // Example code
-		Language    string // Language (bash, go, etc.)
-	}
-
-	// Comparison represents a before/after comparison
-	Comparison struct {
-		Feature string // Feature name
-		Before  string // Previous state
-		After   string // New state
 	}
 
 	VCSRelease struct {

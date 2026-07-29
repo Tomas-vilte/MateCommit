@@ -37,30 +37,6 @@ func FormatReleaseMarkdown(release *models.Release, notes *models.ReleaseNotes, 
 		content += "\n"
 	}
 
-	if notes.QuickStart != "" {
-		content += fmt.Sprintf("## 🚀 %s\n\n", trans.GetMessage("release.quick_start_title", 0, nil))
-		content += notes.QuickStart + "\n\n"
-	}
-
-	if len(notes.Examples) > 0 {
-		content += fmt.Sprintf("## 💡 %s\n\n", trans.GetMessage("release.examples_title", 0, nil))
-		for _, example := range notes.Examples {
-			if example.Title != "" {
-				content += fmt.Sprintf("### %s\n\n", example.Title)
-			}
-			if example.Description != "" {
-				content += fmt.Sprintf("%s\n\n", example.Description)
-			}
-			if example.Code != "" {
-				lang := example.Language
-				if lang == "" {
-					lang = "bash"
-				}
-				content += fmt.Sprintf("```%s\n%s\n```\n\n", lang, example.Code)
-			}
-		}
-	}
-
 	if len(notes.BreakingChanges) > 0 {
 		content += fmt.Sprintf("## ⚠️ %s\n\n", trans.GetMessage("release.breaking_changes_title", 0, nil))
 		for _, bc := range notes.BreakingChanges {
@@ -71,16 +47,6 @@ func FormatReleaseMarkdown(release *models.Release, notes *models.ReleaseNotes, 
 		content += fmt.Sprintf("## ⚠️ %s\n\n%s 🎉\n\n",
 			trans.GetMessage("release.breaking_changes_title", 0, nil),
 			trans.GetMessage("release.no_breaking_changes", 0, nil))
-	}
-
-	if len(notes.Comparisons) > 0 {
-		content += fmt.Sprintf("## 📊 %s\n\n", trans.GetMessage("release.comparison_title", 0, nil))
-		content += "| Feature | Before | After |\n"
-		content += "|---------|--------|-------|\n"
-		for _, comp := range notes.Comparisons {
-			content += fmt.Sprintf("| %s | %s | %s |\n", comp.Feature, comp.Before, comp.After)
-		}
-		content += "\n"
 	}
 
 	if notes.Changelog != "" {

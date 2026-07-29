@@ -97,11 +97,6 @@ func (m *MockVCSClient) GetPRIssues(ctx context.Context, branchName string, comm
 	return args.Get(0).([]models.Issue), args.Error(1)
 }
 
-func (m *MockVCSClient) UpdateIssueChecklist(ctx context.Context, issueNumber int, indices []int) error {
-	args := m.Called(ctx, issueNumber, indices)
-	return args.Error(0)
-}
-
 func (m *MockVCSClient) CreateIssue(ctx context.Context, title string, body string, labels []string, assignees []string) (*models.Issue, error) {
 	args := m.Called(ctx, title, body, labels, assignees)
 	return args.Get(0).(*models.Issue), args.Error(1)

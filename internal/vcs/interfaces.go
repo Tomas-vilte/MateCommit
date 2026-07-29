@@ -40,8 +40,6 @@ type VCSClient interface {
 	GetFileAtTag(ctx context.Context, tag, filepath string) (string, error)
 	// GetPRIssues gets issues related to a PR based on branch name, commits, and description
 	GetPRIssues(ctx context.Context, branchName string, commits []string, prDescription string) ([]models.Issue, error)
-	// UpdateIssueChecklist updates the checklist of an issue marking items as completed
-	UpdateIssueChecklist(ctx context.Context, issueNumber int, indices []int) error
 	// CreateIssue creates a new issue in the repository
 	CreateIssue(ctx context.Context, title string, body string, labels []string, assignees []string) (*models.Issue, error)
 	// GetAuthenticatedUser gets the current authenticated user

@@ -466,12 +466,8 @@ error_analyzing_for_regen = "No se pudieron analizar los commits: {{.Error}}"
 error_generating_for_regen = "No se pudo generar con IA: {{.Error}}"
 notes_regenerated = "✅ Notas del release regeneradas con IA con éxito"
 
-# New sections for enhanced release notes
-quick_start_title = "Inicio Rápido"
-examples_title = "Ejemplos"
 breaking_changes_title = "Cambios que Rompen Compatibilidad"
 no_breaking_changes = "No hay cambios que rompan compatibilidad"
-comparison_title = "Comparación Antes/Después"
 resources_title = "Recursos"
 
 [git]
