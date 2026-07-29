@@ -81,6 +81,7 @@ func TestIssueGenerateAction(t *testing.T) {
 		}
 
 		mockGen.On("GenerateFromDiff", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(expectedResult, nil)
+		mockGen.On("FindSimilarOpenIssues", mock.Anything, mock.Anything).Return([]models.Issue{}, nil)
 		mockGen.On("CreateIssue", mock.Anything, mock.Anything, mock.Anything).Return(&models.Issue{Number: 1, URL: "http://test.com"}, nil)
 		withStdin("y\n", func() {
 			app := &cli.Command{Name: "test", Commands: []*cli.Command{cmd}}
@@ -102,6 +103,7 @@ func TestIssueGenerateAction(t *testing.T) {
 		}
 
 		mockGen.On("GenerateFromDescription", mock.Anything, "desc", false, true, mock.Anything).Return(expectedResult, nil)
+		mockGen.On("FindSimilarOpenIssues", mock.Anything, mock.Anything).Return([]models.Issue{}, nil)
 
 		app := &cli.Command{Name: "test", Commands: []*cli.Command{cmd}}
 		err := app.Run(context.Background(), []string{"test", "issue", "generate", "--description", "desc", "--dry-run"})
@@ -121,6 +123,7 @@ func TestIssueGenerateAction(t *testing.T) {
 		}
 
 		mockGen.On("GenerateFromDiff", mock.Anything, "", false, true, mock.Anything).Return(expectedResult, nil)
+		mockGen.On("FindSimilarOpenIssues", mock.Anything, mock.Anything).Return([]models.Issue{}, nil)
 		mockGen.On("GetAuthenticatedUser", mock.Anything).Return("test-user", nil)
 		mockGen.On("CreateIssue", mock.Anything, expectedResult, []string{"test-user"}).Return(&models.Issue{Number: 1}, nil)
 
@@ -139,6 +142,7 @@ func TestIssueGenerateAction(t *testing.T) {
 		cmd := factory.CreateCommand(trans, cfg)
 
 		mockGen.On("GenerateFromDiff", mock.Anything, "", false, true, mock.Anything).Return(&models.IssueGenerationResult{Title: "T"}, nil)
+		mockGen.On("FindSimilarOpenIssues", mock.Anything, mock.Anything).Return([]models.Issue{}, nil)
 
 		withStdin("n\n", func() {
 			app := &cli.Command{Name: "test", Commands: []*cli.Command{cmd}}
@@ -157,6 +161,7 @@ func TestIssueGenerateAction(t *testing.T) {
 		expectedResult := &models.IssueGenerationResult{Title: "Template Issue"}
 
 		mockGen.On("GenerateWithTemplate", mock.Anything, "bug", "", true, "", false).Return(expectedResult, nil)
+		mockGen.On("FindSimilarOpenIssues", mock.Anything, mock.Anything).Return([]models.Issue{}, nil)
 		mockGen.On("CreateIssue", mock.Anything, expectedResult, []string(nil)).Return(&models.Issue{Number: 1}, nil)
 
 		withStdin("y\n", func() {
