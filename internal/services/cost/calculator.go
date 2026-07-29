@@ -15,10 +15,10 @@ type ProviderPricing map[string]map[string]PricingTable
 // https://ai.google.dev/gemini-api/docs/pricing
 var pricing = ProviderPricing{
 	"gemini": {
-		"gemini-1.5-flash": {InputPricePerMillion: 0.075, OutputPricePerMillion: 0.30},
-		"gemini-1.5-pro":   {InputPricePerMillion: 1.25, OutputPricePerMillion: 5.00},
-		"gemini-2.5-flash": {InputPricePerMillion: 0.10, OutputPricePerMillion: 0.40},
-		"gemini-3.5-flash":   {InputPricePerMillion: 1.50, OutputPricePerMillion: 9.00},
+		"gemini-1.5-flash":       {InputPricePerMillion: 0.075, OutputPricePerMillion: 0.30},
+		"gemini-1.5-pro":         {InputPricePerMillion: 1.25, OutputPricePerMillion: 5.00},
+		"gemini-2.5-flash":       {InputPricePerMillion: 0.10, OutputPricePerMillion: 0.40},
+		"gemini-3.5-flash":       {InputPricePerMillion: 1.50, OutputPricePerMillion: 9.00},
 		"gemini-3.1-pro-preview": {InputPricePerMillion: 2.00, OutputPricePerMillion: 12.00},
 	},
 	"openai": {
@@ -38,14 +38,16 @@ func NewCalculator() *Calculator {
 	return &Calculator{}
 }
 
-// EstimateCost calculates the estimated cost based on provider, model, and tokens
-func (c *Calculator) EstimateCost(provider, model string, inputTokens, outputTokens int) float64 {
+// EstimateCost calculates the estimated cost based on provider, model, and tokens.
+// The second return value is false when no pricing entry could be found for the
+// given provider/model, in which case the cost is not zero — it's simply unknown.
+func (c *Calculator) EstimateCost(provider, model string, inputTokens, outputTokens int) (float64, bool) {
 	provider = strings.ToLower(provider)
 	model = strings.ToLower(model)
 
 	providerPricing, exists := pricing[provider]
 	if !exists {
-		return 0
+		return 0, false
 	}
 
 	modelPricing, exists := providerPricing[model]
@@ -53,18 +55,19 @@ func (c *Calculator) EstimateCost(provider, model string, inputTokens, outputTok
 		for modelName, prices := range providerPricing {
 			if strings.Contains(model, modelName) {
 				modelPricing = prices
+				exists = true
 				break
 			}
 		}
-		if modelPricing.InputPricePerMillion == 0 {
-			return 0
+		if !exists {
+			return 0, false
 		}
 	}
 
 	inputCost := (float64(inputTokens) / 1_000_000) * modelPricing.InputPricePerMillion
 	outputCost := (float64(outputTokens) / 1_000_000) * modelPricing.OutputPricePerMillion
 
-	return inputCost + outputCost
+	return inputCost + outputCost, true
 }
 
 // GetPricing returns the pricing table for a provider and model

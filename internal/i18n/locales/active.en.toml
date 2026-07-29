@@ -905,6 +905,7 @@ confirmation_separator = "━━━━━━━━━━━━━━━━━━
 confirmation_input_tokens = "📊 Estimated input tokens:  {{.Tokens}}"
 confirmation_output_tokens = "📤 Estimated output tokens:  {{.Tokens}}"
 confirmation_estimated_cost = "💵 Estimated cost:                {{.Cost}} USD"
+confirmation_cost_unknown = "💵 Estimated cost:                unknown (no pricing data for {{.Model}})"
 confirmation_prompt = "Do you want to continue? [Y/n]:"
 confirmation_use_suggested = "Use suggested model and continue? [Y/s/c]:"
 confirmation_use_suggested_help = "(Y: yes, use suggested | s: stay with current | c: cancel)"

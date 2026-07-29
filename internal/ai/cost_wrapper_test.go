@@ -245,3 +245,60 @@ func TestCostAwareWrapper_WrapGenerate_SuggestedModel(t *testing.T) {
 	}
 	mockP.AssertExpectations(t)
 }
+
+// TestCostAwareWrapper_WrapGenerate_UnknownModelPricing verifies that when the
+// configured model has no entry in the pricing table (e.g. a stale/renamed
+// model name), the confirmation callback is told the cost is unknown instead
+// of silently receiving a misleading $0.0000 estimate.
+func TestCostAwareWrapper_WrapGenerate_UnknownModelPricing(t *testing.T) {
+	// Arrange
+	tempHome, err := os.MkdirTemp("", "matecommit-home-*")
+	if err != nil {
+		t.Fatalf("failed to create temp home: %v", err)
+	}
+	oldHome := os.Getenv("HOME")
+	_ = os.Setenv("HOME", tempHome)
+	t.Cleanup(func() {
+		_ = os.Setenv("HOME", oldHome)
+		_ = os.RemoveAll(tempHome)
+	})
+
+	var gotResult ConfirmationResult
+	mockP := new(mockProvider)
+	cfg := WrapperConfig{
+		Provider:              mockP,
+		BudgetDaily:           1.0,
+		EstimatedOutputTokens: 200,
+		SkipConfirmation:      false,
+		OnConfirmation: func(result ConfirmationResult) (string, bool) {
+			gotResult = result
+			return "current", true
+		},
+	}
+
+	w, err := NewCostAwareWrapper(cfg)
+	if err != nil {
+		t.Fatalf("NewCostAwareWrapper() error = %v", err)
+	}
+
+	mockP.On("GetProviderName").Return("gemini")
+	mockP.On("GetModelName").Return("gemini-3-flash-preview") // stale/renamed model, not in pricing table
+	mockP.On("CountTokens", mock.Anything, mock.Anything).Return(1000, nil)
+
+	// Act
+	_, usage, err := w.WrapGenerate(context.Background(), "summarize", "prompt", func(ctx context.Context, model, p string) (interface{}, *models.TokenUsage, error) {
+		return "ok", &models.TokenUsage{InputTokens: 1000, OutputTokens: 200}, nil
+	})
+
+	// Assert
+	if err != nil {
+		t.Fatalf("WrapGenerate() error = %v", err)
+	}
+	if !gotResult.CostUnknown {
+		t.Error("expected ConfirmationResult.CostUnknown = true for a model with no pricing entry")
+	}
+	if usage.CostUSD != 0 {
+		t.Errorf("expected CostUSD = 0 for unknown pricing, got %v", usage.CostUSD)
+	}
+	mockP.AssertExpectations(t)
+}
