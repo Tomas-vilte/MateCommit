@@ -17,7 +17,7 @@ type prVCSClient interface {
 	GetPR(ctx context.Context, prNumber int) (models.PRData, error)
 	GetPRIssues(ctx context.Context, branchName string, commitMessages []string, description string) ([]models.Issue, error)
 	UpdatePR(ctx context.Context, prNumber int, summary models.PRSummary) error
-	GetRepoLabels(ctx context.Context) ([]string, error)
+	GetRepoLabelsWithDescriptions(ctx context.Context) ([]models.RepoLabel, error)
 }
 
 // prAIProvider defines the methods needed by PRService from an AI provider.
@@ -142,17 +142,25 @@ func (s *PRService) SummarizePR(ctx context.Context, prNumber int, hint string, 
 		}
 	}
 
-	prompt := s.buildPRPrompt(prData, prTemplate, hint)
+	var repoLabels []models.RepoLabel
+	if s.vcsClient != nil {
+		var err error
+		repoLabels, err = s.vcsClient.GetRepoLabelsWithDescriptions(ctx)
+		if err != nil {
+			log.Warn("failed to fetch repo labels, proceeding without them", "error", err)
+		}
+	}
+
+	prompt := s.buildPRPrompt(prData, prTemplate, hint, repoLabels)
 
 	log.Debug("calling AI for PR summary generation",
 		"pr_number", prNumber)
 
 	var availableLabels []string
-	if s.vcsClient != nil {
-		var err error
-		availableLabels, err = s.vcsClient.GetRepoLabels(ctx)
-		if err != nil {
-			log.Warn("failed to fetch repo labels, proceeding without them", "error", err)
+	if len(repoLabels) > 0 {
+		availableLabels = make([]string, len(repoLabels))
+		for i, l := range repoLabels {
+			availableLabels[i] = l.Name
 		}
 	}
 
@@ -217,11 +225,23 @@ func (s *PRService) SummarizePR(ctx context.Context, prNumber int, hint string, 
 	return summary, nil
 }
 
-func (s *PRService) buildPRPrompt(prData models.PRData, template *models.IssueTemplate, hint string) string {
+func (s *PRService) buildPRPrompt(prData models.PRData, template *models.IssueTemplate, hint string, repoLabels []models.RepoLabel) string {
 	var prompt string
 
 	prompt += fmt.Sprintf("PR #%d by %s\n", prData.ID, prData.Creator)
 	prompt += fmt.Sprintf("Branch: %s\n\n", prData.BranchName)
+
+	if len(repoLabels) > 0 {
+		prompt += "Available Labels (with descriptions, to help pick the right one):\n"
+		for _, l := range repoLabels {
+			if l.Description != "" {
+				prompt += fmt.Sprintf("- %s: %s\n", l.Name, l.Description)
+			} else {
+				prompt += fmt.Sprintf("- %s\n", l.Name)
+			}
+		}
+		prompt += "\n"
+	}
 
 	if template != nil {
 		lang := s.config.Language
@@ -266,12 +286,13 @@ func (s *PRService) buildPRPrompt(prData models.PRData, template *models.IssueTe
 	prompt += "Main files modified:\n"
 	lines := strings.Split(prData.Diff, "\n")
 	fileCount := 0
-	for _, line := range lines {
+	for i, line := range lines {
 		if strings.HasPrefix(line, "diff --git") {
 			parts := strings.Fields(line)
 			if len(parts) >= 4 {
 				file := strings.TrimPrefix(parts[2], "a/")
-				prompt += fmt.Sprintf("- %s\n", file)
+				status, file := detectDiffFileStatus(lines, i, file)
+				prompt += fmt.Sprintf("- [%s] %s\n", status, file)
 				fileCount++
 				if fileCount >= 20 {
 					break
@@ -322,6 +343,29 @@ func (s *PRService) ensurePRIssueReferences(summary models.PRSummary, issues []m
 	}
 
 	return summary
+}
+
+// detectDiffFileStatus inspects the lines following a "diff --git" header to
+// determine whether the file was added, deleted, or renamed, so the AI
+// doesn't have to infer the operation from the raw diff body. Returns the
+// status and the path to display (the new path, for renames).
+func detectDiffFileStatus(lines []string, diffLineIdx int, fallbackPath string) (status, path string) {
+	path = fallbackPath
+	for i := diffLineIdx + 1; i < len(lines) && i < diffLineIdx+6; i++ {
+		line := lines[i]
+		if strings.HasPrefix(line, "diff --git") {
+			break
+		}
+		switch {
+		case strings.HasPrefix(line, "new file mode"):
+			return "added", path
+		case strings.HasPrefix(line, "deleted file mode"):
+			return "deleted", path
+		case strings.HasPrefix(line, "rename to "):
+			return "renamed", strings.TrimPrefix(line, "rename to ")
+		}
+	}
+	return "modified", path
 }
 
 func (s *PRService) detectBreakingChanges(commits []models.Commit) []string {

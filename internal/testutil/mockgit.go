@@ -35,6 +35,14 @@ func (m *MockGitService) GetChangedFiles(ctx context.Context) ([]string, error) 
 	return args.Get(0).([]string), args.Error(1)
 }
 
+func (m *MockGitService) GetChangedFilesWithStatus(ctx context.Context) ([]models.GitChange, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.GitChange), args.Error(1)
+}
+
 func (m *MockGitService) GetDiff(ctx context.Context) (string, error) {
 	args := m.Called(ctx)
 	return args.String(0), args.Error(1)

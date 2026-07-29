@@ -309,16 +309,29 @@ func (ghc *GitHubClient) AddLabelsToPR(ctx context.Context, prNumber int, labels
 }
 
 func (ghc *GitHubClient) GetRepoLabels(ctx context.Context) ([]string, error) {
+	labels, err := ghc.GetRepoLabelsWithDescriptions(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	labelNames := make([]string, len(labels))
+	for i, label := range labels {
+		labelNames[i] = label.Name
+	}
+	return labelNames, nil
+}
+
+func (ghc *GitHubClient) GetRepoLabelsWithDescriptions(ctx context.Context) ([]models.RepoLabel, error) {
 	labels, _, err := ghc.issuesService.ListLabels(ctx, ghc.owner, ghc.repo, &github.ListOptions{PerPage: 100})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list repository labels: %w", err)
 	}
 
-	labelNames := make([]string, len(labels))
+	result := make([]models.RepoLabel, len(labels))
 	for i, label := range labels {
-		labelNames[i] = label.GetName()
+		result[i] = models.RepoLabel{Name: label.GetName(), Description: label.GetDescription()}
 	}
-	return labelNames, nil
+	return result, nil
 }
 
 func (ghc *GitHubClient) CreateLabel(ctx context.Context, name, color, description string) error {

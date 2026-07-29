@@ -334,7 +334,7 @@ func (s *GeminiCommitSummarizer) generatePrompt(locale string, info models.Commi
 	promptTemplate := ai.GetCommitPromptTemplate(locale, info.TicketInfo != nil &&
 		info.TicketInfo.TicketTitle != "")
 
-	filesFormatted := formatChanges(info.Files)
+	filesFormatted := formatFileChanges(info.FileChanges, info.Files)
 	diffFormatted := fmt.Sprintf("```diff\n%s\n```", info.Diff)
 
 	ticketInfo := ""
@@ -401,6 +401,21 @@ func formatChanges(files []string) string {
 		formattedFiles[i] = fmt.Sprintf("- %s", file)
 	}
 	return strings.Join(formattedFiles, "\n")
+}
+
+// formatFileChanges renders each file with its git status (added/modified/
+// deleted/renamed) so the AI doesn't have to infer the operation from the
+// diff. Falls back to a plain path list when status isn't available (e.g.
+// the user explicitly picked files to commit).
+func formatFileChanges(changes []models.GitChange, files []string) string {
+	if len(changes) == 0 {
+		return formatChanges(files)
+	}
+	formatted := make([]string, len(changes))
+	for i, c := range changes {
+		formatted[i] = fmt.Sprintf("- [%s] %s", c.Status, c.Path)
+	}
+	return strings.Join(formatted, "\n")
 }
 
 func formatCriteria(criteria []string) string {

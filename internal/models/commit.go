@@ -11,6 +11,7 @@ const (
 type (
 	CommitInfo struct {
 		Files         []string
+		FileChanges   []GitChange
 		Diff          string
 		TicketInfo    *TicketInfo
 		IssueInfo     *Issue

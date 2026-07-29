@@ -61,9 +61,25 @@ func (s *GitService) HasStagedChanges(ctx context.Context) bool {
 }
 
 func (s *GitService) GetChangedFiles(ctx context.Context) ([]string, error) {
+	changes, err := s.GetChangedFilesWithStatus(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	paths := make([]string, len(changes))
+	for i, c := range changes {
+		paths[i] = c.Path
+	}
+	return paths, nil
+}
+
+// GetChangedFilesWithStatus returns each changed file along with whether it
+// was added, modified, deleted, or renamed, so callers (AI prompts in
+// particular) don't have to infer the operation from the raw diff text.
+func (s *GitService) GetChangedFilesWithStatus(ctx context.Context) ([]models.GitChange, error) {
 	log := logger.FromContext(ctx)
 
-	log.Debug("getting changed files")
+	log.Debug("getting changed files with status")
 
 	cmd := exec.CommandContext(ctx, "git", "status", "--porcelain")
 	output, err := cmd.Output()
@@ -73,11 +89,12 @@ func (s *GitService) GetChangedFiles(ctx context.Context) ([]string, error) {
 		return nil, errors.ErrGetChangedFiles.WithError(err)
 	}
 
-	changes := make([]string, 0)
+	changes := make([]models.GitChange, 0)
 	lines := strings.Split(string(output), "\n")
 
 	for _, line := range lines {
 		if len(line) > 3 {
+			statusCode := line[:2]
 			path := strings.TrimSpace(line[3:])
 
 			// Rename/copy entries are reported as "old -> new"; only the
@@ -90,6 +107,8 @@ func (s *GitService) GetChangedFiles(ctx context.Context) ([]string, error) {
 				continue
 			}
 
+			status := mapGitStatusCode(statusCode)
+
 			// A brand-new untracked directory is collapsed by git status
 			// into a single entry ending in "/" instead of listing the
 			// files inside it. Expand it so callers always see real files.
@@ -101,11 +120,13 @@ func (s *GitService) GetChangedFiles(ctx context.Context) ([]string, error) {
 						"error", err)
 					continue
 				}
-				changes = append(changes, files...)
+				for _, f := range files {
+					changes = append(changes, models.GitChange{Path: f, Status: status})
+				}
 				continue
 			}
 
-			changes = append(changes, path)
+			changes = append(changes, models.GitChange{Path: path, Status: status})
 		}
 	}
 
@@ -113,6 +134,23 @@ func (s *GitService) GetChangedFiles(ctx context.Context) ([]string, error) {
 		"count", len(changes))
 
 	return changes, nil
+}
+
+// mapGitStatusCode translates a git porcelain XY status code into a
+// human-readable word suitable for AI prompts.
+func mapGitStatusCode(code string) string {
+	switch {
+	case code == "??":
+		return "added"
+	case strings.Contains(code, "A"):
+		return "added"
+	case strings.Contains(code, "D"):
+		return "deleted"
+	case strings.Contains(code, "R"):
+		return "renamed"
+	default:
+		return "modified"
+	}
 }
 
 // listUntrackedFilesIn lists the untracked files inside a directory that
@@ -131,6 +169,30 @@ func (s *GitService) listUntrackedFilesIn(ctx context.Context, dir string) ([]st
 		}
 	}
 	return files, nil
+}
+
+// getUntrackedFilesDiff produces a unified diff (against /dev/null) for every
+// untracked file, so their content is visible to the AI just like any other
+// change instead of only their path.
+func (s *GitService) getUntrackedFilesDiff(ctx context.Context) (string, error) {
+	untrackedCmd := exec.CommandContext(ctx, "git", "ls-files", "--others", "--exclude-standard")
+	untrackedOutput, err := untrackedCmd.Output()
+	if err != nil {
+		return "", err
+	}
+
+	var diff strings.Builder
+	for _, file := range strings.Split(strings.TrimSpace(string(untrackedOutput)), "\n") {
+		if file == "" {
+			continue
+		}
+		diffCmd := exec.CommandContext(ctx, "git", "diff", "--no-index", "--", "/dev/null", file)
+		// git diff --no-index exits with status 1 when it finds differences,
+		// which Output() reports as an error even though stdout is valid.
+		output, _ := diffCmd.Output()
+		diff.Write(output)
+	}
+	return diff.String(), nil
 }
 
 func (s *GitService) GetDiff(ctx context.Context) (string, error) {
@@ -156,26 +218,18 @@ func (s *GitService) GetDiff(ctx context.Context) (string, error) {
 
 	combinedDiff := string(stagedOutput) + string(unstageOutput)
 
-	if combinedDiff == "" {
-		untrackedCmd := exec.CommandContext(ctx, "git", "ls-files", "--others", "--exclude-standard")
-		untrackedFiles, err := untrackedCmd.Output()
-		if err == nil && len(untrackedFiles) > 0 {
-			for _, file := range strings.Split(string(untrackedFiles), "\n") {
-				if file != "" {
-					fileContentCmd := exec.CommandContext(ctx, "git", "show", ":"+file)
-					content, err := fileContentCmd.Output()
-					if err != nil {
-						combinedDiff += "\n=== New file" + " " + file + "===\n"
-						combinedDiff += string(content)
-					}
-				}
-			}
-		}
+	// New untracked files never show up in "git diff" (staged or not), so
+	// their content would otherwise be invisible to the AI even when other
+	// tracked files changed alongside them.
+	if untrackedDiff, err := s.getUntrackedFilesDiff(ctx); err != nil {
+		log.Warn("failed to diff untracked files", "error", err)
+	} else {
+		combinedDiff += untrackedDiff
+	}
 
-		if combinedDiff == "" {
-			log.Warn("no differences detected in repository")
-			return "", errors.ErrNoDiff
-		}
+	if combinedDiff == "" {
+		log.Warn("no differences detected in repository")
+		return "", errors.ErrNoDiff
 	}
 
 	log.Debug("git diff completed",
