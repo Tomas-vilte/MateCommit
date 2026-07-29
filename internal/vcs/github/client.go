@@ -187,12 +187,6 @@ func (ghc *GitHubClient) UpdatePR(ctx context.Context, prNumber int, summary mod
 					WithContext("pr_number", prNumber).
 					WithContext("repo", fmt.Sprintf("%s/%s", ghc.owner, ghc.repo))
 			}
-			if resp.StatusCode == http.StatusForbidden {
-				return domainErrors.ErrGitHubInsufficientPerms.
-					WithContext("operation", "update PR").
-					WithContext("pr_number", prNumber).
-					WithContext("repo", fmt.Sprintf("%s/%s", ghc.owner, ghc.repo))
-			}
 			if resp.StatusCode == http.StatusNotFound {
 				return domainErrors.ErrRepositoryNotFound.
 					WithContext("operation", "update PR").
@@ -437,7 +431,6 @@ func (ghc *GitHubClient) UpdateRelease(ctx context.Context, version, body string
 			if resp.StatusCode == http.StatusNotFound {
 				return domainErrors.ErrRepositoryNotFound.
 					WithContext("operation", "update release").
-					WithContext("version", version).
 					WithContext("version", version).
 					WithContext("repo", fmt.Sprintf("%s/%s", ghc.owner, ghc.repo))
 			}
@@ -809,6 +802,18 @@ func (ghc *GitHubClient) GetFileAtTag(ctx context.Context, tag, filepath string)
 	return content, nil
 }
 
+// addIssueNumberMatches finds every match of re in text and adds the
+// captured issue number (submatch group 1) to dest.
+func addIssueNumberMatches(re *regexp.Regexp, text string, dest map[int]bool) {
+	for _, match := range re.FindAllStringSubmatch(text, -1) {
+		if len(match) > 1 {
+			if num, err := strconv.Atoi(match[1]); err == nil {
+				dest[num] = true
+			}
+		}
+	}
+}
+
 func (ghc *GitHubClient) GetPRIssues(ctx context.Context, branchName string, commits []string, prDescription string) ([]models.Issue, error) {
 	issueNumbers := make(map[int]bool)
 	for _, re := range []*regexp.Regexp{
@@ -818,57 +823,18 @@ func (ghc *GitHubClient) GetPRIssues(ctx context.Context, branchName string, com
 		regex.BranchIssueFolder,
 		regex.BranchIssueMid,
 	} {
-		if matches := re.FindStringSubmatch(branchName); len(matches) > 1 {
-			if num, err := strconv.Atoi(matches[1]); err == nil {
-				issueNumbers[num] = true
-			}
-		}
+		addIssueNumberMatches(re, branchName, issueNumbers)
 	}
 
 	if prDescription != "" {
-		matches := regex.GitHubClosedLink.FindAllStringSubmatch(prDescription, -1)
-		for _, match := range matches {
-			if len(match) > 1 {
-				if num, err := strconv.Atoi(match[1]); err == nil {
-					issueNumbers[num] = true
-				}
-			}
-		}
-		matchesSharp := regex.BranchIssueSharp.FindAllStringSubmatch(prDescription, -1)
-		for _, match := range matchesSharp {
-			if len(match) > 1 {
-				if num, err := strconv.Atoi(match[1]); err == nil {
-					issueNumbers[num] = true
-				}
-			}
-		}
+		addIssueNumberMatches(regex.GitHubClosedLink, prDescription, issueNumbers)
+		addIssueNumberMatches(regex.BranchIssueSharp, prDescription, issueNumbers)
 	}
 
 	for _, commit := range commits {
-		matches := regex.GitHubClosedLink.FindAllStringSubmatch(commit, -1)
-		for _, match := range matches {
-			if len(match) > 1 {
-				if num, err := strconv.Atoi(match[1]); err == nil {
-					issueNumbers[num] = true
-				}
-			}
-		}
-		matchesPR := regex.GitHubPR.FindAllStringSubmatch(commit, -1)
-		for _, match := range matchesPR {
-			if len(match) > 1 {
-				if num, err := strconv.Atoi(match[1]); err == nil {
-					issueNumbers[num] = true
-				}
-			}
-		}
-		matchesSharp := regex.BranchIssueSharp.FindAllStringSubmatch(commit, -1)
-		for _, match := range matchesSharp {
-			if len(match) > 1 {
-				if num, err := strconv.Atoi(match[1]); err == nil {
-					issueNumbers[num] = true
-				}
-			}
-		}
+		addIssueNumberMatches(regex.GitHubClosedLink, commit, issueNumbers)
+		addIssueNumberMatches(regex.GitHubPR, commit, issueNumbers)
+		addIssueNumberMatches(regex.BranchIssueSharp, commit, issueNumbers)
 	}
 
 	var issues []models.Issue
@@ -897,53 +863,6 @@ func (ghc *GitHubClient) addLabelsToIssue(ctx context.Context, prNumber int, lab
 	if err != nil {
 		return fmt.Errorf("failed to add labels to PR #%d: %w", prNumber, err)
 	}
-	return nil
-}
-
-func (ghc *GitHubClient) UpdateIssueChecklist(ctx context.Context, issueNumber int, checkedIndices []int) error {
-	issue, _, err := ghc.issuesService.Get(ctx, ghc.owner, ghc.repo, issueNumber)
-	if err != nil {
-		return fmt.Errorf("error getting issue #%d: %w", issueNumber, err)
-	}
-
-	body := issue.GetBody()
-	lines := strings.Split(body, "\n")
-	var checklistLineIndices []int
-	for i, line := range lines {
-		if regex.MarkdownCheckboxUpdate.MatchString(line) {
-			checklistLineIndices = append(checklistLineIndices, i)
-		}
-	}
-
-	updated := false
-	for _, idx := range checkedIndices {
-		if idx >= 0 && idx < len(checklistLineIndices) {
-			lineIdx := checklistLineIndices[idx]
-			line := lines[lineIdx]
-
-			if matches := regex.MarkdownCheckboxUpdate.FindStringSubmatch(line); len(matches) > 3 {
-				if matches[2] == " " {
-					lines[lineIdx] = matches[1] + "[x]" + matches[3]
-					updated = true
-				}
-			}
-		}
-	}
-
-	if !updated {
-		return nil
-	}
-
-	newBody := strings.Join(lines, "\n")
-	issueRequest := &github.IssueRequest{
-		Body: github.Ptr(newBody),
-	}
-
-	_, _, err = ghc.issuesService.Edit(ctx, ghc.owner, ghc.repo, issueNumber, issueRequest)
-	if err != nil {
-		return fmt.Errorf("error updating issue body #%d: %w", issueNumber, err)
-	}
-
 	return nil
 }
 

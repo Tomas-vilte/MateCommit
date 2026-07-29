@@ -10,10 +10,9 @@ var (
 	GitHubPR           = regexp.MustCompile(`\(#(\d+)\)`)
 
 	// Issue and Ticket patterns
-	JiraTicket             = regexp.MustCompile(`([A-Za-z]+-\d+)`)
-	NumberedList           = regexp.MustCompile(`^\d+\.\s*`)
-	MarkdownCheckbox       = regexp.MustCompile(`^\s*[\-*+]\s+\[([ xX])]\s+(.+)`)
-	MarkdownCheckboxUpdate = regexp.MustCompile(`^(\s*[\-*+]\s+)\[([ xX])](\s+.+)`)
+	JiraTicket       = regexp.MustCompile(`([A-Za-z]+-\d+)`)
+	NumberedList     = regexp.MustCompile(`^\d+\.\s*`)
+	MarkdownCheckbox = regexp.MustCompile(`^\s*[\-*+]\s+\[([ xX])]\s+(.+)`)
 
 	// GitHub linkage patterns
 	GitHubClosedLink = regexp.MustCompile(`(?i)(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)`)
@@ -40,7 +39,6 @@ var (
 
 	// AI and JSON parsing
 	MarkdownJSONBlock = regexp.MustCompile("(?s)```(?:json)?\n?(.*?)```")
-	JSONString        = regexp.MustCompile(`"(?:\\.|[^"\\])*"`)
 	QuotedString      = regexp.MustCompile(`"(.*)"`)
 
 	// Dependency management
