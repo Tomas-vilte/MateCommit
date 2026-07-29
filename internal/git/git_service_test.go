@@ -205,6 +205,53 @@ func TestGitService(t *testing.T) {
 		}
 	})
 
+	t.Run("GetChangedFiles con directorio nuevo sin trackear", func(t *testing.T) {
+		// arrange
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		if err := os.Mkdir("newdir", 0755); err != nil {
+			t.Fatalf("Error creando directorio: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join("newdir", "a.go"), []byte("package newdir"), 0644); err != nil {
+			t.Fatalf("Error creando archivo a.go: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join("newdir", "b.go"), []byte("package newdir"), 0644); err != nil {
+			t.Fatalf("Error creando archivo b.go: %v", err)
+		}
+
+		service := NewGitService()
+
+		// act
+		changes, err := service.GetChangedFiles(context.Background())
+
+		// assert
+		if err != nil {
+			t.Errorf("Error obteniendo archivos cambiados: %v", err)
+		}
+
+		for _, path := range changes {
+			if strings.HasSuffix(path, "/") {
+				t.Errorf("el path no debe ser un directorio colapsado: %q", path)
+			}
+		}
+
+		wantFiles := map[string]bool{
+			filepath.Join("newdir", "a.go"): false,
+			filepath.Join("newdir", "b.go"): false,
+		}
+		for _, path := range changes {
+			if _, ok := wantFiles[path]; ok {
+				wantFiles[path] = true
+			}
+		}
+		for f, found := range wantFiles {
+			if !found {
+				t.Errorf("se esperaba encontrar %q entre los cambios, se obtuvo: %v", f, changes)
+			}
+		}
+	})
+
 	t.Run("CreateCommit", func(t *testing.T) {
 		// arrange
 		tempDir := setupTestRepo(t)

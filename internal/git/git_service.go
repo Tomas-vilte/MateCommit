@@ -86,9 +86,26 @@ func (s *GitService) GetChangedFiles(ctx context.Context) ([]string, error) {
 				path = path[idx+len(" -> "):]
 			}
 
-			if path != "" {
-				changes = append(changes, path)
+			if path == "" {
+				continue
 			}
+
+			// A brand-new untracked directory is collapsed by git status
+			// into a single entry ending in "/" instead of listing the
+			// files inside it. Expand it so callers always see real files.
+			if strings.HasSuffix(path, "/") {
+				files, err := s.listUntrackedFilesIn(ctx, path)
+				if err != nil {
+					log.Warn("failed to expand untracked directory",
+						"path", path,
+						"error", err)
+					continue
+				}
+				changes = append(changes, files...)
+				continue
+			}
+
+			changes = append(changes, path)
 		}
 	}
 
@@ -96,6 +113,24 @@ func (s *GitService) GetChangedFiles(ctx context.Context) ([]string, error) {
 		"count", len(changes))
 
 	return changes, nil
+}
+
+// listUntrackedFilesIn lists the untracked files inside a directory that
+// git status collapses into a single "dir/" entry.
+func (s *GitService) listUntrackedFilesIn(ctx context.Context, dir string) ([]string, error) {
+	cmd := exec.CommandContext(ctx, "git", "ls-files", "--others", "--exclude-standard", "--", dir)
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	files := make([]string, 0)
+	for _, f := range strings.Split(strings.TrimSpace(string(output)), "\n") {
+		if f != "" {
+			files = append(files, f)
+		}
+	}
+	return files, nil
 }
 
 func (s *GitService) GetDiff(ctx context.Context) (string, error) {
