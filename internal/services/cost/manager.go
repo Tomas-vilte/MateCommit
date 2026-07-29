@@ -78,7 +78,14 @@ func NewManager(budgetDaily float64) (*Manager, error) {
 	}, nil
 }
 
-// SaveActivity saves an activity record
+// historyRetentionDays bounds how long activity records are kept. Every
+// feature that reads history (daily/monthly totals, breakdowns, forecast)
+// only ever looks at the current day or month, so this only trims data
+// nothing depends on, keeping history.json from growing forever.
+const historyRetentionDays = 90
+
+// SaveActivity saves an activity record, pruning entries older than
+// historyRetentionDays so the history file doesn't grow unbounded.
 func (m *Manager) SaveActivity(record ActivityRecord) error {
 	slog.Debug("saving activity record",
 		"command", record.Command,
@@ -95,6 +102,7 @@ func (m *Manager) SaveActivity(record ActivityRecord) error {
 	}
 
 	records = append(records, record)
+	records = pruneOldRecords(records, time.Now())
 
 	data, err := json.MarshalIndent(records, "", "  ")
 	if err != nil {
@@ -114,6 +122,19 @@ func (m *Manager) SaveActivity(record ActivityRecord) error {
 		"total_records", len(records))
 
 	return nil
+}
+
+// pruneOldRecords drops entries older than historyRetentionDays relative to now.
+func pruneOldRecords(records []ActivityRecord, now time.Time) []ActivityRecord {
+	cutoff := now.AddDate(0, 0, -historyRetentionDays)
+
+	kept := make([]ActivityRecord, 0, len(records))
+	for _, r := range records {
+		if r.Timestamp.After(cutoff) {
+			kept = append(kept, r)
+		}
+	}
+	return kept
 }
 
 // CheckBudget checks if the estimated cost exceeds the daily budget
