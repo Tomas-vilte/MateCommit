@@ -675,6 +675,7 @@ const (
   3. **Accurate Categorization:** Always choose at least one primary category: 'feature', 'fix', or 'refactor'. Use 'fix' ONLY for bug corrections. Use 'refactor' for code improvements without logic changes. Use 'feature' for new functionality.
   4. **No Emojis:** Do not use emojis in the title or description. Keep it purely textual and professional.
   5. **Balanced Labeling:** Aim for 2-4 relevant labels. Ensure you include the primary category plus any relevant file-based labels like 'test', 'docs', or 'infra' if applicable.
+  6. **Markdown Format (STRICT):** Write the "description" field as an actual multi-line Markdown document — press enter between lines like a real document, do NOT type the two-character escape sequence (backslash followed by the letter n) as literal text anywhere in the body. Each "### Header" goes on its own line followed by a blank line before the paragraph under it. NEVER collapse multiple sections into a single run-on paragraph.
 
   Generate the issue now.`
 
@@ -690,6 +691,7 @@ const (
   3. **Categorización Precisa:** Elegí siempre al menos una categoría principal: 'feature', 'fix', o 'refactor'. Solo usá 'fix' si ves una corrección de un bug. Usá 'refactor' para mejoras de código sin cambios lógicos. Usá 'feature' para funcionalidades nuevas.
   4. **Cero Emojis:** No uses emojis ni en el título ni en el cuerpo del issue. Mantené un estilo sobrio y técnico.
   5. **Etiquetado Equilibrado:** Buscá entre 2 y 4 etiquetas relevantes. Asegurate de incluir la categoría principal más cualquier etiqueta de tipo de archivo como 'test', 'docs', o 'infra' si corresponde.
+  6. **Formato Markdown (ESTRICTO):** Escribí el campo "description" como un documento Markdown real de varias líneas — apretá enter entre líneas como en un documento de verdad, NO escribas la secuencia de escape de dos caracteres (barra invertida seguida de la letra n) como texto literal en ningún lugar del body. Cada "### Encabezado" va en su propia línea seguido de una línea en blanco antes del párrafo. NUNCA mezcles varias secciones en un solo párrafo de texto corrido.
 
   Generá el issue ahora. Responde en ESPAÑOL.`
 
