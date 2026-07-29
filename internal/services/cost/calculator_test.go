@@ -23,6 +23,7 @@ func TestCalculator_EstimateCost(t *testing.T) {
 		inputTokens  int
 		outputTokens int
 		want         float64
+		wantKnown    bool
 	}{
 		{
 			name:         "Gemini 1.5 Flash - exact match",
@@ -31,6 +32,7 @@ func TestCalculator_EstimateCost(t *testing.T) {
 			inputTokens:  1_000_000,
 			outputTokens: 1_000_000,
 			want:         0.075 + 0.30,
+			wantKnown:    true,
 		},
 		{
 			name:         "Gemini 1.5 Flash - case insensitive",
@@ -39,6 +41,7 @@ func TestCalculator_EstimateCost(t *testing.T) {
 			inputTokens:  1_000_000,
 			outputTokens: 1_000_000,
 			want:         0.075 + 0.30,
+			wantKnown:    true,
 		},
 		{
 			name:         "Gemini - partial model match (pro)",
@@ -47,6 +50,7 @@ func TestCalculator_EstimateCost(t *testing.T) {
 			inputTokens:  1_000_000,
 			outputTokens: 1_000_000,
 			want:         2.00 + 12.00,
+			wantKnown:    true,
 		},
 		{
 			name:         "OpenAI - GPT-4o mini",
@@ -55,6 +59,7 @@ func TestCalculator_EstimateCost(t *testing.T) {
 			inputTokens:  1_000_000,
 			outputTokens: 1_000_000,
 			want:         0.15 + 0.60,
+			wantKnown:    true,
 		},
 		{
 			name:         "Anthropic - Claude 3.5 Sonnet",
@@ -63,6 +68,7 @@ func TestCalculator_EstimateCost(t *testing.T) {
 			inputTokens:  1_000_000,
 			outputTokens: 1_000_000,
 			want:         3.00 + 15.00,
+			wantKnown:    true,
 		},
 		{
 			name:         "Unknown provider",
@@ -71,6 +77,7 @@ func TestCalculator_EstimateCost(t *testing.T) {
 			inputTokens:  1000,
 			outputTokens: 1000,
 			want:         0,
+			wantKnown:    false,
 		},
 		{
 			name:         "Unknown model for known provider",
@@ -79,6 +86,7 @@ func TestCalculator_EstimateCost(t *testing.T) {
 			inputTokens:  1000,
 			outputTokens: 1000,
 			want:         0,
+			wantKnown:    false,
 		},
 		{
 			name:         "Zero tokens should result in zero cost",
@@ -87,6 +95,7 @@ func TestCalculator_EstimateCost(t *testing.T) {
 			inputTokens:  0,
 			outputTokens: 0,
 			want:         0,
+			wantKnown:    true,
 		},
 	}
 
@@ -96,11 +105,14 @@ func TestCalculator_EstimateCost(t *testing.T) {
 			c := NewCalculator()
 
 			// Act
-			got := c.EstimateCost(tt.provider, tt.model, tt.inputTokens, tt.outputTokens)
+			got, gotKnown := c.EstimateCost(tt.provider, tt.model, tt.inputTokens, tt.outputTokens)
 
 			// Assert
 			if got != tt.want {
 				t.Errorf("Calculator.EstimateCost() = %v, want %v", got, tt.want)
+			}
+			if gotKnown != tt.wantKnown {
+				t.Errorf("Calculator.EstimateCost() known = %v, want %v", gotKnown, tt.wantKnown)
 			}
 		})
 	}
@@ -169,9 +181,12 @@ func TestCalculator_AddPricing(t *testing.T) {
 		t.Errorf("GetPricing() = %v, want %v", gotTable, table)
 	}
 
-	cost := c.EstimateCost(provider, model, 1_000_000, 1_000_000)
+	cost, known := c.EstimateCost(provider, model, 1_000_000, 1_000_000)
 	wantCost := 1.0 + 2.0
 	if cost != wantCost {
 		t.Errorf("EstimateCost() after AddPricing = %v, want %v", cost, wantCost)
+	}
+	if !known {
+		t.Error("EstimateCost() after AddPricing: expected known = true")
 	}
 }

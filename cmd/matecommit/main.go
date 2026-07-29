@@ -344,9 +344,16 @@ func createConfirmationCallback(t *i18n.Translations) ai.ConfirmationCallback {
 			"Tokens": yellow.Sprintf("%d", result.OutputTokens),
 		}))
 
-		costLabel := t.GetMessage("cost.confirmation_estimated_cost", 0, map[string]interface{}{
-			"Cost": yellow.Sprintf("$%.4f", result.EstimatedCost),
-		})
+		var costLabel string
+		if result.CostUnknown {
+			costLabel = t.GetMessage("cost.confirmation_cost_unknown", 0, map[string]interface{}{
+				"Model": result.CurrentModel,
+			})
+		} else {
+			costLabel = t.GetMessage("cost.confirmation_estimated_cost", 0, map[string]interface{}{
+				"Cost": yellow.Sprintf("$%.4f", result.EstimatedCost),
+			})
+		}
 		if hasSuggestion {
 			fmt.Printf("%s (%s)\n", costLabel, result.SuggestedModel)
 		} else {

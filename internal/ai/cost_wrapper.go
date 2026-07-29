@@ -21,6 +21,7 @@ type GenerateFunc func(ctx context.Context, model string, prompt string) (interf
 
 type ConfirmationResult struct {
 	EstimatedCost  float64
+	CostUnknown    bool
 	InputTokens    int
 	OutputTokens   int
 	SuggestedModel string
@@ -142,7 +143,12 @@ func (w *CostAwareWrapper) WrapGenerate(
 	suggestedModel := w.modelSelector.SelectBestModel(command, inputTokens)
 	hasSuggestion := suggestedModel != originalModel
 
-	estimatedCost := w.calculator.EstimateCost(providerName, originalModel, inputTokens, w.estimatedOutputTokens)
+	estimatedCost, costKnown := w.calculator.EstimateCost(providerName, originalModel, inputTokens, w.estimatedOutputTokens)
+	if !costKnown {
+		slog.Warn("no pricing entry found for model, cost estimate unavailable",
+			"provider", providerName,
+			"model", originalModel)
+	}
 
 	budgetStatus, err := w.manager.CheckBudget(estimatedCost)
 	if err != nil {
@@ -153,7 +159,7 @@ func (w *CostAwareWrapper) WrapGenerate(
 		return nil, nil, errors.ErrQuotaExceeded
 	}
 
-	if (estimatedCost > 0.0001 || hasSuggestion) && !w.skipConfirmation && w.onConfirmation != nil {
+	if (estimatedCost > 0.0001 || hasSuggestion || !costKnown) && !w.skipConfirmation && w.onConfirmation != nil {
 		rationaleKey := ""
 		if hasSuggestion {
 			rationaleKey = w.modelSelector.GetRationale(suggestedModel)
@@ -161,6 +167,7 @@ func (w *CostAwareWrapper) WrapGenerate(
 
 		choice, proceed := w.onConfirmation(ConfirmationResult{
 			EstimatedCost:  estimatedCost,
+			CostUnknown:    !costKnown,
 			InputTokens:    inputTokens,
 			OutputTokens:   w.estimatedOutputTokens,
 			SuggestedModel: suggestedModel,
@@ -193,7 +200,13 @@ func (w *CostAwareWrapper) WrapGenerate(
 
 	if usage != nil {
 		usage.Model = modelToUse
-		usage.CostUSD = w.calculator.EstimateCost(providerName, modelToUse, usage.InputTokens, usage.OutputTokens)
+		actualCost, actualCostKnown := w.calculator.EstimateCost(providerName, modelToUse, usage.InputTokens, usage.OutputTokens)
+		if !actualCostKnown {
+			slog.Warn("no pricing entry found for model, actual cost unavailable",
+				"provider", providerName,
+				"model", modelToUse)
+		}
+		usage.CostUSD = actualCost
 		usage.DurationMs = time.Since(startTime).Milliseconds()
 		usage.CacheHit = false
 
