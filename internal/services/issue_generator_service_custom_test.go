@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/models"
+	"github.com/thomas-vilte/matecommit/internal/testutil"
 )
 
 func TestIssueGeneratorService_SelectTemplateWithAI(t *testing.T) {
@@ -290,7 +291,7 @@ index 1234567..abcdefg 100644
 +    // Fix panic when user is nil
 +    if user != nil {`
 
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		mockGit.On("GetDiff", ctx).Return(diff, nil)
 		mockGit.On("GetChangedFiles", ctx).Return([]string{"main.go"}, nil)
 
@@ -361,7 +362,7 @@ index 1234567..abcdefg 100644
 @@ -1,0 +1,5 @@
 +func NewFeature() {`
 
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		mockGit.On("GetDiff", ctx).Return(diff, nil)
 		mockGit.On("GetChangedFiles", ctx).Return([]string{"feature.go"}, nil)
 
@@ -394,7 +395,7 @@ index 1234567..abcdefg 100644
 
 		diff := `diff --git a/test.go b/test.go`
 
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		mockGit.On("GetDiff", ctx).Return(diff, nil)
 		mockGit.On("GetChangedFiles", ctx).Return([]string{"test.go"}, nil)
 
@@ -431,7 +432,7 @@ index 1234567..abcdefg 100644
 
 		diff := `diff --git a/code.go b/code.go`
 
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		mockGit.On("GetDiff", ctx).Return(diff, nil)
 		mockGit.On("GetChangedFiles", ctx).Return([]string{"code.go"}, nil)
 

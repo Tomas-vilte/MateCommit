@@ -12,6 +12,7 @@ import (
 	"github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/thomas-vilte/matecommit/internal/models"
+	"github.com/thomas-vilte/matecommit/internal/testutil"
 )
 
 type MockCommitService struct {
@@ -31,34 +32,6 @@ type MockCommitHandler struct {
 func (m *MockCommitHandler) HandleSuggestions(ctx context.Context, suggestions []models.CommitSuggestion) error {
 	args := m.Called(ctx, suggestions)
 	return args.Error(0)
-}
-
-// Mock para GitService
-type MockGitService struct {
-	mock.Mock
-}
-
-func (m *MockGitService) ValidateGitConfig(ctx context.Context) error {
-	args := m.Called(ctx)
-	return args.Error(0)
-}
-
-func (m *MockGitService) GetChangedFiles(ctx context.Context) ([]string, error) {
-	args := m.Called(ctx)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).([]string), args.Error(1)
-}
-
-func (m *MockGitService) GetDiff(ctx context.Context) (string, error) {
-	args := m.Called(ctx)
-	return args.String(0), args.Error(1)
-}
-
-func (m *MockGitService) GetDiffForFiles(ctx context.Context, files []string) (string, error) {
-	args := m.Called(ctx, files)
-	return args.String(0), args.Error(1)
 }
 
 func setupTestEnv(t *testing.T) (*config.Config, *i18n.Translations, func()) {
@@ -95,7 +68,7 @@ func TestSuggestCommand(t *testing.T) {
 
 		mockService := new(MockCommitService)
 		mockHandler := new(MockCommitHandler)
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		ctx := context.Background()
 
 		suggestions := []models.CommitSuggestion{
@@ -129,7 +102,7 @@ func TestSuggestCommand(t *testing.T) {
 
 		mockService := new(MockCommitService)
 		mockHandler := new(MockCommitHandler)
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 
 		factory := NewSuggestCommandFactory(mockService, mockHandler, mockGit)
 		cmd := factory.CreateCommand(translations, cfg)
@@ -156,7 +129,7 @@ func TestSuggestCommand(t *testing.T) {
 
 		mockService := new(MockCommitService)
 		mockHandler := new(MockCommitHandler)
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 
 		suggestions := []models.CommitSuggestion{
 			{
@@ -192,7 +165,7 @@ func TestSuggestCommand(t *testing.T) {
 
 		mockService := new(MockCommitService)
 		mockHandler := new(MockCommitHandler)
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 
 		suggestions := []models.CommitSuggestion{
 			{
@@ -228,7 +201,7 @@ func TestSuggestCommand(t *testing.T) {
 
 		mockService := new(MockCommitService)
 		mockHandler := new(MockCommitHandler)
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 
 		expectedError := fmt.Errorf("service error")
 		mockGit.On("ValidateGitConfig", mock.Anything).Return(nil)

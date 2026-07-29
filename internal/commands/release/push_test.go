@@ -10,10 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/thomas-vilte/matecommit/internal/models"
+	"github.com/thomas-vilte/matecommit/internal/testutil"
 	"github.com/urfave/cli/v3"
 )
 
-func runPushTest(t *testing.T, args []string, mockService *MockReleaseService, mockGit *MockGitService) error {
+func runPushTest(t *testing.T, args []string, mockService *MockReleaseService, mockGit *testutil.MockGitService) error {
 	trans, err := i18n.NewTranslations("en", "../../i18n/locales")
 	if err != nil {
 		t.Logf("Warning: using empty translations: %v", err)
@@ -39,7 +40,7 @@ func runPushTest(t *testing.T, args []string, mockService *MockReleaseService, m
 
 func TestPushCommand_Success(t *testing.T) {
 	mockService := new(MockReleaseService)
-	mockGit := new(MockGitService)
+	mockGit := new(testutil.MockGitService)
 
 	mockService.On("PushTag", mock.Anything, "v1.0.0").Return(nil)
 
@@ -51,7 +52,7 @@ func TestPushCommand_Success(t *testing.T) {
 
 func TestPushCommand_Error(t *testing.T) {
 	mockService := new(MockReleaseService)
-	mockGit := new(MockGitService)
+	mockGit := new(testutil.MockGitService)
 
 	mockService.On("PushTag", mock.Anything, "v1.0.0").Return(errors.New("push failed"))
 
@@ -66,7 +67,7 @@ func TestPushCommand_Error(t *testing.T) {
 
 func TestPushCommand_AutoDetectVersion(t *testing.T) {
 	mockService := new(MockReleaseService)
-	mockGit := new(MockGitService)
+	mockGit := new(testutil.MockGitService)
 
 	release := &models.Release{
 		Version:         "v1.0.0",

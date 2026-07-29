@@ -10,13 +10,14 @@ import (
 	"github.com/thomas-vilte/matecommit/internal/config"
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/models"
+	"github.com/thomas-vilte/matecommit/internal/testutil"
 )
 
-func setupTest(t *testing.T) (*MockGitService, *MockAIProvider, *MockJiraService, *MockVCSClient, *config.Config) {
-	mockGit := new(MockGitService)
+func setupTest(t *testing.T) (*testutil.MockGitService, *MockAIProvider, *MockJiraService, *testutil.MockVCSClient, *config.Config) {
+	mockGit := new(testutil.MockGitService)
 	mockAI := new(MockAIProvider)
 	mockJiraService := new(MockJiraService)
-	mockVCS := new(MockVCSClient)
+	mockVCS := new(testutil.MockVCSClient)
 	cfgApp := &config.Config{UseTicket: true}
 	return mockGit, mockAI, mockJiraService, mockVCS, cfgApp
 }
