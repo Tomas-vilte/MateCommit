@@ -12,6 +12,7 @@ import (
 	"github.com/google/go-github/v80/github"
 	"github.com/thomas-vilte/matecommit/internal/ai/gemini"
 	"github.com/thomas-vilte/matecommit/internal/config"
+	"github.com/thomas-vilte/matecommit/internal/editor"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/thomas-vilte/matecommit/internal/ui"
 	"github.com/urfave/cli/v3"
@@ -226,19 +227,10 @@ func (d *DoctorCommand) checkGeminiAPIKey(ctx context.Context, t *i18n.Translati
 }
 
 func (d *DoctorCommand) checkEditor(_ context.Context, t *i18n.Translations, _ *config.Config) checkResult {
-	editor := os.Getenv("EDITOR")
-	if editor == "" {
-		editors := []string{"nano", "vim", "vi", "code", "emacs"}
-		for _, ed := range editors {
-			if _, err := exec.LookPath(ed); err == nil {
-				return checkResult{
-					status:     checkStatusWarning,
-					message:    t.GetMessage("doctor.editor_not_set", 0, struct{ Editor string }{ed}),
-					suggestion: fmt.Sprintf("export EDITOR=%s", ed),
-				}
-			}
-		}
+	explicitlySet := os.Getenv("EDITOR") != "" || os.Getenv("VISUAL") != ""
 
+	ed, found := editor.Resolve()
+	if !found {
 		return checkResult{
 			status:     checkStatusError,
 			message:    t.GetMessage("doctor.no_editor_found", 0, nil),
@@ -246,17 +238,25 @@ func (d *DoctorCommand) checkEditor(_ context.Context, t *i18n.Translations, _ *
 		}
 	}
 
-	if _, err := exec.LookPath(editor); err != nil {
+	if !explicitlySet {
+		return checkResult{
+			status:     checkStatusWarning,
+			message:    t.GetMessage("doctor.editor_not_set", 0, struct{ Editor string }{ed}),
+			suggestion: fmt.Sprintf("export EDITOR=%s", ed),
+		}
+	}
+
+	if _, err := exec.LookPath(ed); err != nil {
 		return checkResult{
 			status:     checkStatusError,
-			message:    t.GetMessage("doctor.editor_not_found", 0, struct{ Editor string }{editor}),
+			message:    t.GetMessage("doctor.editor_not_found", 0, struct{ Editor string }{ed}),
 			suggestion: t.GetMessage("doctor.set_valid_editor", 0, nil),
 		}
 	}
 
 	return checkResult{
 		status:  checkStatusOK,
-		message: fmt.Sprintf("(%s)", editor),
+		message: fmt.Sprintf("(%s)", ed),
 	}
 }
 
