@@ -13,12 +13,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/models"
+	"github.com/thomas-vilte/matecommit/internal/testutil"
 )
 
 func TestReleaseService_AnalyzeNextRelease(t *testing.T) {
 	t.Run("Success with existing tag and feature commits", func(t *testing.T) {
-		mockGit := new(MockGitService)
-		mockVCS := new(MockVCSClient)
+		mockGit := new(testutil.MockGitService)
+		mockVCS := new(testutil.MockVCSClient)
 		mockNotesGen := new(MockReleaseNotesGenerator)
 		service := NewReleaseService(mockGit, WithReleaseVCSClient(mockVCS), WithReleaseNotesGenerator(mockNotesGen))
 
@@ -42,7 +43,7 @@ func TestReleaseService_AnalyzeNextRelease(t *testing.T) {
 	})
 
 	t.Run("Success with breaking change", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewReleaseService(mockGit)
 
 		mockGit.On("GetLastTag", mock.Anything).Return("v1.0.0", nil)
@@ -60,7 +61,7 @@ func TestReleaseService_AnalyzeNextRelease(t *testing.T) {
 	})
 
 	t.Run("Success with no previous tags (initial release)", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewReleaseService(mockGit)
 
 		mockGit.On("GetLastTag", mock.Anything).Return("", nil)
@@ -79,7 +80,7 @@ func TestReleaseService_AnalyzeNextRelease(t *testing.T) {
 	})
 
 	t.Run("Error getting last tag", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewReleaseService(mockGit)
 
 		mockGit.On("GetLastTag", mock.Anything).Return("", errors.New("git error"))
@@ -94,7 +95,7 @@ func TestReleaseService_AnalyzeNextRelease(t *testing.T) {
 	})
 
 	t.Run("No changes since last tag", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewReleaseService(mockGit)
 
 		mockGit.On("GetLastTag", mock.Anything).Return("v1.0.0", nil)
@@ -110,7 +111,7 @@ func TestReleaseService_AnalyzeNextRelease(t *testing.T) {
 	})
 
 	t.Run("Error getting commits", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewReleaseService(mockGit)
 
 		mockGit.On("GetLastTag", mock.Anything).Return("v1.0.0", nil)
@@ -126,7 +127,7 @@ func TestReleaseService_AnalyzeNextRelease(t *testing.T) {
 	})
 
 	t.Run("Empty repository", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewReleaseService(mockGit)
 
 		mockGit.On("GetLastTag", mock.Anything).Return("", nil)
@@ -207,7 +208,7 @@ func TestReleaseService_GenerateReleaseNotes(t *testing.T) {
 
 func TestReleaseService_GetRelease(t *testing.T) {
 	t.Run("should get release successfully", func(t *testing.T) {
-		mockVCS := new(MockVCSClient)
+		mockVCS := new(testutil.MockVCSClient)
 		service := NewReleaseService(nil, WithReleaseVCSClient(mockVCS))
 
 		expectedRelease := &models.VCSRelease{
@@ -238,7 +239,7 @@ func TestReleaseService_GetRelease(t *testing.T) {
 	})
 
 	t.Run("should propagate VCS client error", func(t *testing.T) {
-		mockVCS := new(MockVCSClient)
+		mockVCS := new(testutil.MockVCSClient)
 		service := NewReleaseService(nil, WithReleaseVCSClient(mockVCS))
 
 		mockVCS.On("GetRelease", mock.Anything, "v1.2.0").Return((*models.VCSRelease)(nil), errors.New("release not found"))
@@ -254,7 +255,7 @@ func TestReleaseService_GetRelease(t *testing.T) {
 
 func TestReleaseService_UpdateRelease(t *testing.T) {
 	t.Run("should update release successfully", func(t *testing.T) {
-		mockVCS := new(MockVCSClient)
+		mockVCS := new(testutil.MockVCSClient)
 		service := NewReleaseService(nil, WithReleaseVCSClient(mockVCS))
 
 		mockVCS.On("UpdateRelease", mock.Anything, "v1.2.0", "Updated release notes").Return(nil)
@@ -274,7 +275,7 @@ func TestReleaseService_UpdateRelease(t *testing.T) {
 	})
 
 	t.Run("should propagate VCS client error", func(t *testing.T) {
-		mockVCS := new(MockVCSClient)
+		mockVCS := new(testutil.MockVCSClient)
 		service := NewReleaseService(nil, WithReleaseVCSClient(mockVCS))
 
 		mockVCS.On("UpdateRelease", mock.Anything, "v1.2.0", "Updated notes").Return(errors.New("update failed"))
@@ -289,7 +290,7 @@ func TestReleaseService_UpdateRelease(t *testing.T) {
 
 func TestReleaseService_PublishRelease(t *testing.T) {
 	t.Run("should publish release successfully", func(t *testing.T) {
-		mockVCS := new(MockVCSClient)
+		mockVCS := new(testutil.MockVCSClient)
 		service := NewReleaseService(nil, WithReleaseVCSClient(mockVCS))
 
 		release := &models.Release{Version: "v1.0.0"}
@@ -316,7 +317,7 @@ func TestReleaseService_PublishRelease(t *testing.T) {
 	})
 
 	t.Run("should propagate VCS client error", func(t *testing.T) {
-		mockVCS := new(MockVCSClient)
+		mockVCS := new(testutil.MockVCSClient)
 		service := NewReleaseService(nil, WithReleaseVCSClient(mockVCS))
 
 		release := &models.Release{Version: "v1.0.0"}
@@ -334,7 +335,7 @@ func TestReleaseService_PublishRelease(t *testing.T) {
 
 func TestReleaseService_CreateTag(t *testing.T) {
 	t.Run("should create tag successfully", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewReleaseService(mockGit)
 
 		mockGit.On("CreateTag", mock.Anything, "v1.0.0", "Release v1.0.0").Return(nil)
@@ -346,7 +347,7 @@ func TestReleaseService_CreateTag(t *testing.T) {
 	})
 
 	t.Run("should propagate git error", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewReleaseService(mockGit)
 
 		mockGit.On("CreateTag", mock.Anything, "v1.0.0", "Release v1.0.0").Return(errors.New("tag already exists"))
@@ -361,7 +362,7 @@ func TestReleaseService_CreateTag(t *testing.T) {
 
 func TestReleaseService_TagExists(t *testing.T) {
 	t.Run("returns true when git tag exists", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewReleaseService(mockGit)
 
 		mockGit.On("ValidateTagExists", mock.Anything, "v1.0.0").Return(nil)
@@ -373,7 +374,7 @@ func TestReleaseService_TagExists(t *testing.T) {
 	})
 
 	t.Run("returns false when git tag does not exist", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewReleaseService(mockGit)
 
 		mockGit.On("ValidateTagExists", mock.Anything, "v1.0.0").Return(errors.New("tag not found"))
@@ -387,7 +388,7 @@ func TestReleaseService_TagExists(t *testing.T) {
 
 func TestReleaseService_PushTag(t *testing.T) {
 	t.Run("should push tag successfully", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewReleaseService(mockGit)
 
 		mockGit.On("PushTag", mock.Anything, "v1.0.0").Return(nil)
@@ -399,7 +400,7 @@ func TestReleaseService_PushTag(t *testing.T) {
 	})
 
 	t.Run("should propagate git error", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewReleaseService(mockGit)
 
 		mockGit.On("PushTag", mock.Anything, "v1.0.0").Return(errors.New("push failed"))
@@ -414,7 +415,7 @@ func TestReleaseService_PushTag(t *testing.T) {
 
 func TestReleaseService_EnrichReleaseContext(t *testing.T) {
 	t.Run("should enrich release context successfully", func(t *testing.T) {
-		mockVCS := new(MockVCSClient)
+		mockVCS := new(testutil.MockVCSClient)
 		service := NewReleaseService(nil, WithReleaseVCSClient(mockVCS))
 
 		release := &models.Release{
@@ -454,7 +455,7 @@ func TestReleaseService_EnrichReleaseContext(t *testing.T) {
 	})
 
 	t.Run("should continue even if some enrichments fail", func(t *testing.T) {
-		mockVCS := new(MockVCSClient)
+		mockVCS := new(testutil.MockVCSClient)
 		service := NewReleaseService(nil, WithReleaseVCSClient(mockVCS))
 
 		release := &models.Release{
@@ -1038,7 +1039,7 @@ func TestReleaseService_DetectProjectType_RealScenarios(t *testing.T) {
 
 func TestReleaseService_ValidateMainBranch_RealScenarios(t *testing.T) {
 	t.Run("Valid main branch", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewReleaseService(mockGit)
 
 		mockGit.On("GetCurrentBranch", mock.Anything).Return("main", nil)
@@ -1050,7 +1051,7 @@ func TestReleaseService_ValidateMainBranch_RealScenarios(t *testing.T) {
 	})
 
 	t.Run("Valid master branch", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewReleaseService(mockGit)
 
 		mockGit.On("GetCurrentBranch", mock.Anything).Return("master", nil)
@@ -1062,7 +1063,7 @@ func TestReleaseService_ValidateMainBranch_RealScenarios(t *testing.T) {
 	})
 
 	t.Run("Invalid feature branch", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewReleaseService(mockGit)
 
 		mockGit.On("GetCurrentBranch", mock.Anything).Return("feature/new-feature", nil)
@@ -1075,7 +1076,7 @@ func TestReleaseService_ValidateMainBranch_RealScenarios(t *testing.T) {
 	})
 
 	t.Run("Invalid develop branch", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewReleaseService(mockGit)
 
 		mockGit.On("GetCurrentBranch", mock.Anything).Return("develop", nil)
@@ -1088,7 +1089,7 @@ func TestReleaseService_ValidateMainBranch_RealScenarios(t *testing.T) {
 	})
 
 	t.Run("Git error getting branch", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewReleaseService(mockGit)
 
 		mockGit.On("GetCurrentBranch", mock.Anything).Return("", errors.New("not a git repository"))
@@ -1114,7 +1115,7 @@ const Version = "1.0.0"
 		err = os.WriteFile(versionFile, []byte(content), 0644)
 		require.NoError(t, err)
 
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		cfg := &config.Config{VersionFile: versionFile}
 		service := NewReleaseService(mockGit, WithReleaseConfig(cfg))
 
@@ -1131,7 +1132,7 @@ const Version = "1.0.0"
 	})
 
 	t.Run("Error when no staged changes", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewReleaseService(mockGit)
 
 		mockGit.On("GetRepoRoot", mock.Anything).Return(".", nil)
@@ -1146,7 +1147,7 @@ const Version = "1.0.0"
 	})
 
 	t.Run("Skips missing version file and commits if other files staged", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		cfg := &config.Config{VersionFile: "/non/existent/file.go"}
 		service := NewReleaseService(mockGit, WithReleaseConfig(cfg))
 
@@ -1175,7 +1176,7 @@ const Version = "1.0.0"
 		err = os.Chdir(dir)
 		require.NoError(t, err)
 
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewReleaseService(mockGit)
 
 		mockGit.On("GetRepoRoot", mock.Anything).Return(dir, nil)
@@ -1195,7 +1196,7 @@ const Version = "1.0.0"
 		err := os.WriteFile(versionFile, []byte("1.0.0"), 0644)
 		require.NoError(t, err)
 
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		cfg := &config.Config{VersionFile: versionFile}
 		service := NewReleaseService(mockGit, WithReleaseConfig(cfg))
 
@@ -1211,7 +1212,7 @@ const Version = "1.0.0"
 	})
 
 	t.Run("Error creating commit", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewReleaseService(mockGit)
 
 		mockGit.On("GetRepoRoot", mock.Anything).Return(".", nil)
@@ -1393,7 +1394,7 @@ func TestReleaseService_FilterValidCommits_RealScenarios(t *testing.T) {
 
 func TestReleaseService_PushChanges_RealScenarios(t *testing.T) {
 	t.Run("Successfully push changes", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewReleaseService(mockGit)
 
 		mockGit.On("Push", mock.Anything).Return(nil)
@@ -1405,7 +1406,7 @@ func TestReleaseService_PushChanges_RealScenarios(t *testing.T) {
 	})
 
 	t.Run("Error pushing to remote", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewReleaseService(mockGit)
 
 		mockGit.On("Push", mock.Anything).Return(errors.New("failed to push: remote rejected"))
@@ -1430,7 +1431,7 @@ func TestReleaseService_UpdateLocalChangelog_RealScenarios(t *testing.T) {
 		err := os.Chdir(dir)
 		require.NoError(t, err)
 
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewReleaseService(mockGit)
 
 		release := &models.Release{
@@ -1487,7 +1488,7 @@ Initial release
 		err = os.Chdir(dir)
 		require.NoError(t, err)
 
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewReleaseService(mockGit)
 
 		release := &models.Release{

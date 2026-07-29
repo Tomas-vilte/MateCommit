@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/thomas-vilte/matecommit/internal/models"
+	"github.com/thomas-vilte/matecommit/internal/testutil"
 	"github.com/thomas-vilte/matecommit/internal/vcs"
 )
 
@@ -45,13 +46,13 @@ func TestNewAnalyzerRegistry(t *testing.T) {
 func TestAnalyzerRegistry_AnalyzeAll(t *testing.T) {
 	tests := []struct {
 		name          string
-		setupMocks    func(*MockVCSClient, *MockAnalyzer, *MockAnalyzer)
+		setupMocks    func(*testutil.MockVCSClient, *MockAnalyzer, *MockAnalyzer)
 		expectedCount int
 		description   string
 	}{
 		{
 			name: "both analyzers can handle",
-			setupMocks: func(vcs *MockVCSClient, a1 *MockAnalyzer, a2 *MockAnalyzer) {
+			setupMocks: func(vcs *testutil.MockVCSClient, a1 *MockAnalyzer, a2 *MockAnalyzer) {
 				a1.On("CanHandle", mock.Anything, vcs, "v1.0.0", "v2.0.0").Return(true)
 				a1.On("AnalyzeChanges", mock.Anything, vcs, "v1.0.0", "v2.0.0").Return([]models.DependencyChange{
 					{Name: "dep1", Type: models.DependencyAdded},
@@ -67,7 +68,7 @@ func TestAnalyzerRegistry_AnalyzeAll(t *testing.T) {
 		},
 		{
 			name: "only one analyzer can handle",
-			setupMocks: func(vcs *MockVCSClient, a1 *MockAnalyzer, a2 *MockAnalyzer) {
+			setupMocks: func(vcs *testutil.MockVCSClient, a1 *MockAnalyzer, a2 *MockAnalyzer) {
 				a1.On("CanHandle", mock.Anything, vcs, "v1.0.0", "v2.0.0").Return(true)
 				a1.On("AnalyzeChanges", mock.Anything, vcs, "v1.0.0", "v2.0.0").Return([]models.DependencyChange{
 					{Name: "dep1", Type: models.DependencyAdded},
@@ -80,7 +81,7 @@ func TestAnalyzerRegistry_AnalyzeAll(t *testing.T) {
 		},
 		{
 			name: "no analyzers can handle",
-			setupMocks: func(vcs *MockVCSClient, a1 *MockAnalyzer, a2 *MockAnalyzer) {
+			setupMocks: func(vcs *testutil.MockVCSClient, a1 *MockAnalyzer, a2 *MockAnalyzer) {
 				a1.On("CanHandle", mock.Anything, vcs, "v1.0.0", "v2.0.0").Return(false)
 				a2.On("CanHandle", mock.Anything, vcs, "v1.0.0", "v2.0.0").Return(false)
 			},
@@ -89,7 +90,7 @@ func TestAnalyzerRegistry_AnalyzeAll(t *testing.T) {
 		},
 		{
 			name: "analyzer returns error",
-			setupMocks: func(vcs *MockVCSClient, a1 *MockAnalyzer, a2 *MockAnalyzer) {
+			setupMocks: func(vcs *testutil.MockVCSClient, a1 *MockAnalyzer, a2 *MockAnalyzer) {
 				a1.On("CanHandle", mock.Anything, vcs, "v1.0.0", "v2.0.0").Return(true)
 				a1.On("AnalyzeChanges", mock.Anything, vcs, "v1.0.0", "v2.0.0").Return(nil, errors.New("analysis error"))
 
@@ -103,7 +104,7 @@ func TestAnalyzerRegistry_AnalyzeAll(t *testing.T) {
 		},
 		{
 			name: "analyzer returns empty changes",
-			setupMocks: func(vcs *MockVCSClient, a1 *MockAnalyzer, a2 *MockAnalyzer) {
+			setupMocks: func(vcs *testutil.MockVCSClient, a1 *MockAnalyzer, a2 *MockAnalyzer) {
 				a1.On("CanHandle", mock.Anything, vcs, "v1.0.0", "v2.0.0").Return(true)
 				a1.On("AnalyzeChanges", mock.Anything, vcs, "v1.0.0", "v2.0.0").Return([]models.DependencyChange{}, nil)
 
@@ -119,7 +120,7 @@ func TestAnalyzerRegistry_AnalyzeAll(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockVCS := new(MockVCSClient)
+			mockVCS := new(testutil.MockVCSClient)
 			mockAnalyzer1 := new(MockAnalyzer)
 			mockAnalyzer2 := new(MockAnalyzer)
 
@@ -157,7 +158,7 @@ func TestAnalyzerRegistry_Integration(t *testing.T) {
 	t.Run("AnalyzeAll works with real go.mod and package.json content", func(t *testing.T) {
 		registry := NewAnalyzerRegistry()
 
-		mockVCS := new(MockVCSClient)
+		mockVCS := new(testutil.MockVCSClient)
 		mockVCS.On("GetFileAtTag", mock.Anything, "v1.0.0", "go.mod").
 			Return("module test\n", nil)
 		mockVCS.On("GetFileAtTag", mock.Anything, "v1.0.0", "package.json").

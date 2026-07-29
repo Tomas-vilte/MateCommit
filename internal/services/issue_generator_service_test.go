@@ -10,6 +10,7 @@ import (
 	"github.com/thomas-vilte/matecommit/internal/config"
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/models"
+	"github.com/thomas-vilte/matecommit/internal/testutil"
 )
 
 func TestIssueGeneratorService_GenerateFromDiff(t *testing.T) {
@@ -17,7 +18,7 @@ func TestIssueGeneratorService_GenerateFromDiff(t *testing.T) {
 	cfg := &config.Config{Language: "en"}
 
 	t.Run("Success - Basic diff with feature", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		mockAI := new(MockIssueContentGenerator)
 		service := NewIssueGeneratorService(mockGit, mockAI, WithIssueConfig(cfg))
 
@@ -65,7 +66,7 @@ index 1234567..abcdefg 100644
 	})
 
 	t.Run("Success - Bug fix with test files", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		mockAI := new(MockIssueContentGenerator)
 		service := NewIssueGeneratorService(mockGit, mockAI, WithIssueConfig(cfg))
 
@@ -121,7 +122,7 @@ index 1234567..abcdefg 100644
 	})
 
 	t.Run("Error - No changes in diff", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		mockAI := new(MockIssueContentGenerator)
 		service := NewIssueGeneratorService(mockGit, mockAI, WithIssueConfig(cfg))
 
@@ -136,7 +137,7 @@ index 1234567..abcdefg 100644
 	})
 
 	t.Run("Error - Git diff fails", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		mockAI := new(MockIssueContentGenerator)
 		service := NewIssueGeneratorService(mockGit, mockAI, WithIssueConfig(cfg))
 
@@ -151,7 +152,7 @@ index 1234567..abcdefg 100644
 	})
 
 	t.Run("Error - AI service not configured", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		service := NewIssueGeneratorService(mockGit, nil, WithIssueConfig(cfg))
 
 		result, err := service.GenerateFromDiff(ctx, "", false, false, nil)
@@ -162,7 +163,7 @@ index 1234567..abcdefg 100644
 	})
 
 	t.Run("Error - AI generation fails", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		mockAI := new(MockIssueContentGenerator)
 		service := NewIssueGeneratorService(mockGit, mockAI, WithIssueConfig(cfg))
 
@@ -181,7 +182,7 @@ index 1234567..abcdefg 100644
 	})
 
 	t.Run("Success - Skip labels", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		mockAI := new(MockIssueContentGenerator)
 		service := NewIssueGeneratorService(mockGit, mockAI, WithIssueConfig(cfg))
 
@@ -315,7 +316,7 @@ func TestIssueGeneratorService_GenerateFromPR(t *testing.T) {
 
 	t.Run("Success - Feature PR", func(t *testing.T) {
 		mockAI := new(MockIssueContentGenerator)
-		mockVCS := new(MockVCSClient)
+		mockVCS := new(testutil.MockVCSClient)
 		service := NewIssueGeneratorService(nil, mockAI, WithIssueVCSClient(mockVCS), WithIssueConfig(cfg))
 
 		prData := models.PRData{
@@ -361,7 +362,7 @@ index 0000000..1234567
 
 	t.Run("Success - Bug fix PR with hint", func(t *testing.T) {
 		mockAI := new(MockIssueContentGenerator)
-		mockVCS := new(MockVCSClient)
+		mockVCS := new(testutil.MockVCSClient)
 		service := NewIssueGeneratorService(nil, mockAI, WithIssueVCSClient(mockVCS), WithIssueConfig(cfg))
 
 		prData := models.PRData{
@@ -403,7 +404,7 @@ index 0000000..1234567
 	})
 
 	t.Run("Error - AI service not configured", func(t *testing.T) {
-		mockVCS := new(MockVCSClient)
+		mockVCS := new(testutil.MockVCSClient)
 		service := NewIssueGeneratorService(nil, nil, WithIssueVCSClient(mockVCS), WithIssueConfig(cfg))
 
 		result, err := service.GenerateFromPR(ctx, 1, "", false, false, nil)
@@ -415,7 +416,7 @@ index 0000000..1234567
 
 	t.Run("Error - PR not found", func(t *testing.T) {
 		mockAI := new(MockIssueContentGenerator)
-		mockVCS := new(MockVCSClient)
+		mockVCS := new(testutil.MockVCSClient)
 		service := NewIssueGeneratorService(nil, mockAI, WithIssueVCSClient(mockVCS), WithIssueConfig(cfg))
 
 		prError := errors.New("PR #999 not found")
@@ -434,7 +435,7 @@ func TestIssueGeneratorService_GenerateWithTemplate(t *testing.T) {
 	cfg := &config.Config{Language: "en"}
 
 	t.Run("Success - Bug report template with diff", func(t *testing.T) {
-		mockGit := new(MockGitService)
+		mockGit := new(testutil.MockGitService)
 		mockAI := new(MockIssueContentGenerator)
 		mockTemplate := new(MockIssueTemplateService)
 		service := NewIssueGeneratorService(mockGit, mockAI, WithIssueTemplateService(mockTemplate), WithIssueConfig(cfg))
@@ -604,7 +605,7 @@ func TestIssueGeneratorService_CreateIssue(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Success", func(t *testing.T) {
-		mockVCS := new(MockVCSClient)
+		mockVCS := new(testutil.MockVCSClient)
 		service := &IssueGeneratorService{vcsClient: mockVCS}
 
 		result := &models.IssueGenerationResult{
@@ -638,7 +639,7 @@ func TestIssueGeneratorService_GetAuthenticatedUser(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Success", func(t *testing.T) {
-		mockVCS := new(MockVCSClient)
+		mockVCS := new(testutil.MockVCSClient)
 		service := &IssueGeneratorService{vcsClient: mockVCS}
 
 		mockVCS.On("GetAuthenticatedUser", ctx).Return("testuser", nil)
@@ -651,7 +652,7 @@ func TestIssueGeneratorService_GetAuthenticatedUser(t *testing.T) {
 	})
 
 	t.Run("Error", func(t *testing.T) {
-		mockVCS := new(MockVCSClient)
+		mockVCS := new(testutil.MockVCSClient)
 		service := &IssueGeneratorService{vcsClient: mockVCS}
 
 		vcsError := errors.New("authentication failed")
@@ -669,7 +670,7 @@ func TestIssueGeneratorService_LinkIssueToPR(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Success", func(t *testing.T) {
-		mockVCS := new(MockVCSClient)
+		mockVCS := new(testutil.MockVCSClient)
 		service := &IssueGeneratorService{vcsClient: mockVCS}
 
 		prData := models.PRData{
@@ -699,7 +700,7 @@ func TestIssueGeneratorService_LinkIssueToPR(t *testing.T) {
 	})
 
 	t.Run("Error - Get PR fails", func(t *testing.T) {
-		mockVCS := new(MockVCSClient)
+		mockVCS := new(testutil.MockVCSClient)
 		service := &IssueGeneratorService{vcsClient: mockVCS}
 
 		prError := errors.New("PR not found")
@@ -712,7 +713,7 @@ func TestIssueGeneratorService_LinkIssueToPR(t *testing.T) {
 	})
 
 	t.Run("Error - Update PR fails", func(t *testing.T) {
-		mockVCS := new(MockVCSClient)
+		mockVCS := new(testutil.MockVCSClient)
 		service := &IssueGeneratorService{vcsClient: mockVCS}
 
 		prData := models.PRData{
@@ -730,7 +731,6 @@ func TestIssueGeneratorService_LinkIssueToPR(t *testing.T) {
 		mockVCS.AssertExpectations(t)
 	})
 }
-
 
 func TestIssueGeneratorService_ExtractFilesFromDiff(t *testing.T) {
 	service := &IssueGeneratorService{}

@@ -14,6 +14,7 @@ import (
 	"github.com/thomas-vilte/matecommit/internal/config"
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/models"
+	"github.com/thomas-vilte/matecommit/internal/testutil"
 	"github.com/thomas-vilte/matecommit/internal/vcs/github"
 )
 
@@ -22,7 +23,7 @@ func TestPRService_SummarizePR_Success(t *testing.T) {
 	ctx := context.Background()
 	prNumber := 123
 
-	mockVCS := new(MockVCSClient)
+	mockVCS := new(testutil.MockVCSClient)
 	mockAI := new(MockPRSummarizer)
 	cfg := &config.Config{}
 
@@ -72,7 +73,7 @@ func TestPRService_SummarizePR_GetPRError(t *testing.T) {
 	ctx := context.Background()
 	prNumber := 123
 
-	mockVCS := new(MockVCSClient)
+	mockVCS := new(testutil.MockVCSClient)
 	mockAI := new(MockPRSummarizer)
 	cfg := &config.Config{}
 
@@ -100,7 +101,7 @@ func TestPRService_SummarizePR_GenerateError(t *testing.T) {
 	ctx := context.Background()
 	prNumber := 123
 
-	mockVCS := new(MockVCSClient)
+	mockVCS := new(testutil.MockVCSClient)
 	mockAI := new(MockPRSummarizer)
 	cfg := &config.Config{}
 
@@ -139,7 +140,7 @@ func TestPRService_SummarizePR_UpdateError(t *testing.T) {
 	ctx := context.Background()
 	prNumber := 123
 
-	mockVCS := new(MockVCSClient)
+	mockVCS := new(testutil.MockVCSClient)
 	mockAI := new(MockPRSummarizer)
 	cfg := &config.Config{}
 
@@ -196,7 +197,7 @@ func TestPRService_SummarizePR_WithRelatedIssues(t *testing.T) {
 	ctx := context.Background()
 	prNumber := 123
 
-	mockVCS := new(MockVCSClient)
+	mockVCS := new(testutil.MockVCSClient)
 	mockAI := new(MockPRSummarizer)
 	cfg := &config.Config{Language: "es"}
 
@@ -249,7 +250,7 @@ func TestPRService_SummarizePR_BreakingChanges(t *testing.T) {
 	ctx := context.Background()
 	prNumber := 123
 
-	mockVCS := new(MockVCSClient)
+	mockVCS := new(testutil.MockVCSClient)
 	mockAI := new(MockPRSummarizer)
 	cfg := &config.Config{}
 
@@ -468,7 +469,7 @@ func TestPRService_SummarizePR_WithTemplate(t *testing.T) {
 	ctx := context.Background()
 	prNumber := 123
 
-	mockVCS := new(MockVCSClient)
+	mockVCS := new(testutil.MockVCSClient)
 	mockAI := new(MockPRSummarizer)
 	mockTemplate := new(MockPRTemplateService)
 	cfg := &config.Config{}
@@ -527,7 +528,7 @@ func TestPRService_SummarizePR_WithTemplateError(t *testing.T) {
 	ctx := context.Background()
 	prNumber := 123
 
-	mockVCS := new(MockVCSClient)
+	mockVCS := new(testutil.MockVCSClient)
 	mockAI := new(MockPRSummarizer)
 	mockTemplate := new(MockPRTemplateService)
 	cfg := &config.Config{}

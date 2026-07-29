@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/thomas-vilte/matecommit/internal/models"
+	"github.com/thomas-vilte/matecommit/internal/testutil"
 	"github.com/urfave/cli/v3"
 )
 
@@ -27,7 +28,7 @@ func getTestTranslations(t *testing.T) *i18n.Translations {
 
 func TestEditReleaseAction_Success(t *testing.T) {
 	mockService := new(MockReleaseService)
-	mockGit := new(MockGitService)
+	mockGit := new(testutil.MockGitService)
 	trans := getTestTranslations(t)
 
 	existingRelease := &models.VCSRelease{
@@ -75,7 +76,7 @@ echo "Edited content" >> "$1"
 
 func TestEditReleaseAction_GetReleaseError(t *testing.T) {
 	mockService := new(MockReleaseService)
-	mockGit := new(MockGitService)
+	mockGit := new(testutil.MockGitService)
 	trans := getTestTranslations(t)
 
 	mockService.On("GetRelease", mock.Anything, "v1.2.0").Return((*models.VCSRelease)(nil), errors.New("release not found"))
@@ -105,7 +106,7 @@ func TestEditReleaseAction_GetReleaseError(t *testing.T) {
 
 func TestEditReleaseAction_EditorError(t *testing.T) {
 	mockService := new(MockReleaseService)
-	mockGit := new(MockGitService)
+	mockGit := new(testutil.MockGitService)
 	trans := getTestTranslations(t)
 
 	existingRelease := &models.VCSRelease{
@@ -144,7 +145,7 @@ func TestEditReleaseAction_EditorError(t *testing.T) {
 
 func TestEditReleaseAction_UpdateReleaseError(t *testing.T) {
 	mockService := new(MockReleaseService)
-	mockGit := new(MockGitService)
+	mockGit := new(testutil.MockGitService)
 	trans := getTestTranslations(t)
 
 	existingRelease := &models.VCSRelease{
@@ -193,7 +194,7 @@ exit 0
 
 func TestNewEditCommand(t *testing.T) {
 	trans := getTestTranslations(t)
-	mockGit := new(MockGitService)
+	mockGit := new(testutil.MockGitService)
 
 	factory := &ReleaseCommandFactory{
 		gitService: mockGit,
@@ -344,7 +345,7 @@ func TestGetDefaultEditor_FallbackToVi(t *testing.T) {
 
 func TestEditReleaseAction_WriteFileError(t *testing.T) {
 	mockService := new(MockReleaseService)
-	mockGit := new(MockGitService)
+	mockGit := new(testutil.MockGitService)
 	trans := getTestTranslations(t)
 
 	existingRelease := &models.VCSRelease{
@@ -383,7 +384,7 @@ func TestEditReleaseAction_WriteFileError(t *testing.T) {
 
 func TestEditReleaseAction_CompleteFlow(t *testing.T) {
 	mockService := new(MockReleaseService)
-	mockGit := new(MockGitService)
+	mockGit := new(testutil.MockGitService)
 	trans := getTestTranslations(t)
 
 	existingRelease := &models.VCSRelease{

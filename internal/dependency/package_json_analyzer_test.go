@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/thomas-vilte/matecommit/internal/models"
+	"github.com/thomas-vilte/matecommit/internal/testutil"
 )
 
 func TestPackageJsonAnalyzer_Name(t *testing.T) {
@@ -18,13 +19,13 @@ func TestPackageJsonAnalyzer_Name(t *testing.T) {
 func TestPackageJsonAnalyzer_CanHandle(t *testing.T) {
 	tests := []struct {
 		name        string
-		setupMock   func(*MockVCSClient)
+		setupMock   func(*testutil.MockVCSClient)
 		expected    bool
 		description string
 	}{
 		{
 			name: "package.json exists with content",
-			setupMock: func(m *MockVCSClient) {
+			setupMock: func(m *testutil.MockVCSClient) {
 				m.On("GetFileAtTag", mock.Anything, "v1.0.0", "package.json").
 					Return(`{"name": "test-project"}`, nil)
 			},
@@ -33,7 +34,7 @@ func TestPackageJsonAnalyzer_CanHandle(t *testing.T) {
 		},
 		{
 			name: "package.json doesn't exist",
-			setupMock: func(m *MockVCSClient) {
+			setupMock: func(m *testutil.MockVCSClient) {
 				m.On("GetFileAtTag", mock.Anything, "v1.0.0", "package.json").
 					Return("", errors.New("file not found"))
 			},
@@ -42,7 +43,7 @@ func TestPackageJsonAnalyzer_CanHandle(t *testing.T) {
 		},
 		{
 			name: "package.json exists but is empty",
-			setupMock: func(m *MockVCSClient) {
+			setupMock: func(m *testutil.MockVCSClient) {
 				m.On("GetFileAtTag", mock.Anything, "v1.0.0", "package.json").
 					Return("", nil)
 			},
@@ -53,7 +54,7 @@ func TestPackageJsonAnalyzer_CanHandle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockClient := new(MockVCSClient)
+			mockClient := new(testutil.MockVCSClient)
 			tt.setupMock(mockClient)
 
 			analyzer := NewPackageJsonAnalyzer()
@@ -68,14 +69,14 @@ func TestPackageJsonAnalyzer_CanHandle(t *testing.T) {
 func TestPackageJsonAnalyzer_AnalyzeChanges(t *testing.T) {
 	tests := []struct {
 		name        string
-		setupMock   func(*MockVCSClient)
+		setupMock   func(*testutil.MockVCSClient)
 		expectError bool
 		errorMsg    string
 		validate    func(*testing.T, []models.DependencyChange)
 	}{
 		{
 			name: "successful analysis with changes",
-			setupMock: func(m *MockVCSClient) {
+			setupMock: func(m *testutil.MockVCSClient) {
 				oldContent := `{
 					"dependencies": {
 						"express": "^4.17.1"
@@ -97,7 +98,7 @@ func TestPackageJsonAnalyzer_AnalyzeChanges(t *testing.T) {
 		},
 		{
 			name: "error reading old package.json",
-			setupMock: func(m *MockVCSClient) {
+			setupMock: func(m *testutil.MockVCSClient) {
 				m.On("GetFileAtTag", mock.Anything, "v0.9.0", "package.json").
 					Return("", errors.New("tag not found"))
 			},
@@ -106,7 +107,7 @@ func TestPackageJsonAnalyzer_AnalyzeChanges(t *testing.T) {
 		},
 		{
 			name: "error reading new package.json",
-			setupMock: func(m *MockVCSClient) {
+			setupMock: func(m *testutil.MockVCSClient) {
 				m.On("GetFileAtTag", mock.Anything, "v0.9.0", "package.json").
 					Return(`{"dependencies": {}}`, nil)
 				m.On("GetFileAtTag", mock.Anything, "v1.0.0", "package.json").
@@ -117,7 +118,7 @@ func TestPackageJsonAnalyzer_AnalyzeChanges(t *testing.T) {
 		},
 		{
 			name: "error parsing old package.json",
-			setupMock: func(m *MockVCSClient) {
+			setupMock: func(m *testutil.MockVCSClient) {
 				m.On("GetFileAtTag", mock.Anything, "v0.9.0", "package.json").
 					Return("invalid json", nil)
 				m.On("GetFileAtTag", mock.Anything, "v1.0.0", "package.json").
@@ -128,7 +129,7 @@ func TestPackageJsonAnalyzer_AnalyzeChanges(t *testing.T) {
 		},
 		{
 			name: "error parsing new package.json",
-			setupMock: func(m *MockVCSClient) {
+			setupMock: func(m *testutil.MockVCSClient) {
 				m.On("GetFileAtTag", mock.Anything, "v0.9.0", "package.json").
 					Return(`{"dependencies": {}}`, nil)
 				m.On("GetFileAtTag", mock.Anything, "v1.0.0", "package.json").
@@ -141,7 +142,7 @@ func TestPackageJsonAnalyzer_AnalyzeChanges(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mockClient := new(MockVCSClient)
+			mockClient := new(testutil.MockVCSClient)
 			tt.setupMock(mockClient)
 
 			analyzer := NewPackageJsonAnalyzer()
@@ -318,4 +319,3 @@ func TestPackageJsonAnalyzer_CleanVersion(t *testing.T) {
 		})
 	}
 }
-
