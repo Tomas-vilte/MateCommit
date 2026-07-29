@@ -73,12 +73,18 @@ const (
   {{.PRContent}}
   # Golden Rules (Constraints)
   1. **No Hallucinations:** If it's not in the diff, DO NOT invent it. Don't invent a "why" that isn't evidenced by the diff or commit messages.
-  2. **Tone:** Professional, direct, technical. Use first person ("I implemented", "I added"). Sound like an engineer describing their own work, not a template — vary sentence structure, don't tack a generic justification onto every bullet. Avoid AI/marketing buzzwords (leverage, robust, seamless, streamline, enhance the experience).
-  3. **Markdown Format (STRICT):** The "body" field MUST be valid Markdown with REAL newline characters (\n) between headers, paragraphs, and list items. Each "## Header" goes on its own line followed by a blank line. Each checklist item ("- [ ] ...") goes on its own line. NEVER merge multiple sections or checklist items into a single paragraph of running text.
+  2. **Tone:** Professional, direct, technical. Use first person ("I implemented", "I added"). Sound like an engineer describing their own work, not a template — vary sentence structure, don't tack a generic justification onto every bullet. Avoid AI/marketing buzzwords (leverage, robust, seamless, streamline, enhance, empower, cutting-edge).
+  3. **No Formulaic Openers:** Never start the body with a stock phrase like "This PR enhances/improves the quality of...", "This PR introduces changes to...", or "In this PR, I focused on...". Open with the concrete first change instead.
+  4. **Markdown Format (STRICT):** Write the "body" field as an actual multi-line Markdown document — press enter between lines like a real document, do NOT type the two-character escape sequence (backslash followed by the letter n) as literal text anywhere in the body. Each "## Header" goes on its own line followed by a blank line. Each checklist item ("- [ ] ...") goes on its own line. NEVER merge multiple sections or checklist items into a single paragraph of running text, and NEVER output the escape-sequence text in place of a real line break.
   # Instructions
   1. Title: Catchy but descriptive (max 80 chars).
-  2. Key Changes: Filter the noise. Explain the *technical impact*, not just the code change.
-  3. Labels: Choose wisely (feature, fix, refactor, docs, infra, test, breaking-change).`
+  2. Key Changes: Filter the noise. Name the actual function, file, or behavior that changed instead of describing impact in the abstract. Only add a "why it matters" clause when the benefit isn't already obvious.
+  3. Labels: Choose wisely (feature, fix, refactor, docs, infra, test, breaking-change).
+  # Quality Examples (Gold Standard)
+  ✅ GOOD: "I moved the schema validation out of ` + "`Parse`" + ` and into a dedicated ` + "`Validate`" + ` step so callers can skip it when they trust the input."
+  ✅ GOOD: "Fixed a nil pointer panic in ` + "`GetChangedFiles`" + ` when a renamed file has no new path recorded."
+  ❌ BAD (formulaic opener + buzzwords): "This PR enhances the quality of the codebase by implementing robust improvements that streamline the development workflow."
+  ❌ BAD (vague, no technical substance): "Various improvements and bug fixes to make the code better."`
 
 	prPromptTemplateES = `# Tarea
   Actuá como un Desarrollador Senior y genera un resumen del Pull Request.
@@ -86,12 +92,18 @@ const (
   {{.PRContent}}
   # Reglas de Oro (Constraints)
   1. **Cero alucinaciones:** Si algo no está explícito en el diff, no lo inventes. No inventes un "por qué" que no esté respaldado por el diff o los mensajes de commit.
-  2. **Tono:** Profesional, cercano y directo. Usa primera persona ("Implementé", "Agregué", "Corregí"). Evita el lenguaje robótico ("Se ha realizado"). Sonás como un dev contando su propio trabajo, no como un molde — variá la estructura de las oraciones, no le pegues una justificación genérica a cada bullet. Evitá muletillas de marketing/IA (robusto, optimizar como palabra comodín, mejorar la experiencia, potenciar).
-  3. **Formato Markdown (ESTRICTO):** El campo "body" DEBE ser Markdown válido con saltos de línea reales (\n) entre encabezados, párrafos e items de lista. Cada "## Encabezado" va en su propia línea seguido de una línea en blanco. Cada checkbox ("- [ ] ...") va en su propia línea. NUNCA mezcles varias secciones o checkboxes en un solo párrafo de texto corrido.
+  2. **Tono:** Profesional, cercano y directo. Usa primera persona ("Implementé", "Agregué", "Corregí"). Evita el lenguaje robótico ("Se ha realizado"). Sonás como un dev contando su propio trabajo, no como un molde — variá la estructura de las oraciones, no le pegues una justificación genérica a cada bullet. Evitá muletillas de marketing/IA (robusto, optimizar como palabra comodín, mejorar la experiencia, potenciar, de vanguardia).
+  3. **Cero aperturas de molde:** Nunca arranques el body con una frase hecha tipo "Este PR mejora la calidad de...", "Este PR introduce cambios en..." o "En este PR me enfoqué en...". Arrancá directo con el primer cambio concreto.
+  4. **Formato Markdown (ESTRICTO):** Escribí el campo "body" como un documento Markdown real de varias líneas — apretá enter entre líneas como en un documento de verdad, NO escribas la secuencia de escape de dos caracteres (barra invertida seguida de la letra n) como texto literal en ningún lugar del body. Cada "## Encabezado" va en su propia línea seguido de una línea en blanco. Cada checkbox ("- [ ] ...") va en su propia línea. NUNCA mezcles varias secciones o checkboxes en un solo párrafo de texto corrido, y NUNCA generes esa secuencia de escape en lugar de un salto de línea real.
   # Instrucciones
   1. Título: Descriptivo y conciso (máx 80 caracteres).
-  2. Cambios Clave: Filtrá el ruido. Explicá el *impacto* técnico y el propósito, no solo qué línea cambió.
+  2. Cambios Clave: Filtrá el ruido. Nombrá la función, archivo o comportamiento real que cambió en vez de describir el impacto en abstracto. Agregá una cláusula de "por qué importa" solo cuando el beneficio no sea obvio por sí solo.
   3. Etiquetas: Elegí con criterio (feature, fix, refactor, docs, infra, test, breaking-change).
+  # Ejemplos de Calidad (Gold Standard)
+  ✅ BIEN: "Moví la validación del schema fuera de ` + "`Parse`" + ` a un paso ` + "`Validate`" + ` dedicado para que quien lo llame pueda saltearla si confía en el input."
+  ✅ BIEN: "Arreglé un panic por nil pointer en ` + "`GetChangedFiles`" + ` cuando un archivo renombrado no tiene la nueva ruta registrada."
+  ❌ MAL (apertura de molde + muletillas): "Este PR mejora la calidad del código implementando mejoras robustas que optimizan el flujo de trabajo de desarrollo."
+  ❌ MAL (vago, sin sustancia técnica): "Varias mejoras y arreglos de bugs para que el código quede mejor."
 
   IMPORTANTE: Responde en ESPAÑOL. Todo el contenido del JSON debe estar en español.`
 )
@@ -361,13 +373,17 @@ const (
 
 El proyecto tiene un template específico de PR. DEBES seguir su estructura y formato al generar la descripción del PR.
 
-IMPORTANTE: Generá la descripción del PR siguiendo la estructura y formato mostrado en el template arriba. Completá cada sección basándote en los cambios de código y el contexto proporcionado.`
+IMPORTANTE: Generá la descripción del PR siguiendo la estructura y formato mostrado en el template arriba. Completá cada sección basándote en los cambios de código y el contexto proporcionado.
+
+CHECKBOXES (CRÍTICO): Si el template incluye checkboxes (ej: "Breaking change", "Unit tests", "He agregado tests"), solo marcalos como "- [x]" si podés verificarlo con evidencia concreta del diff o los commits (ej: hay archivos _test.go nuevos/modificados, o un commit dice "BREAKING CHANGE"). Si no tenés forma de saberlo con certeza, dejalo sin marcar "- [ ]" en vez de asumir. No marques "Breaking change" salvo que el diff o los commits lo evidencien explícitamente.`
 
 	prTemplateInstructionsEN = `## Project PR Template
 
 The project has a specific PR template. You MUST follow its structure and format when generating the PR description.
 
-IMPORTANT: Generate the PR description following the structure and format shown in the template above. Fill in each section based on the code changes and context provided.`
+IMPORTANT: Generate the PR description following the structure and format shown in the template above. Fill in each section based on the code changes and context provided.
+
+CHECKBOXES (CRITICAL): If the template includes checkboxes (e.g. "Breaking change", "Unit tests", "I have added tests"), only mark one as "- [x]" if you can verify it from concrete evidence in the diff or commits (e.g. new/modified _test.go files, or a commit stating "BREAKING CHANGE"). If you have no way to know for sure, leave it unchecked "- [ ]" instead of assuming. Do not check "Breaking change" unless the diff or commits explicitly show it.`
 )
 
 // GetTemplateInstructions returns template instructions based on the language
