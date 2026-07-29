@@ -72,8 +72,8 @@ const (
   # PR Content
   {{.PRContent}}
   # Golden Rules (Constraints)
-  1. **No Hallucinations:** If it's not in the diff, DO NOT invent it.
-  2. **Tone:** Professional, direct, technical. Use first person ("I implemented", "I added").
+  1. **No Hallucinations:** If it's not in the diff, DO NOT invent it. Don't invent a "why" that isn't evidenced by the diff or commit messages.
+  2. **Tone:** Professional, direct, technical. Use first person ("I implemented", "I added"). Sound like an engineer describing their own work, not a template — vary sentence structure, don't tack a generic justification onto every bullet. Avoid AI/marketing buzzwords (leverage, robust, seamless, streamline, enhance the experience).
   3. **Markdown Format (STRICT):** The "body" field MUST be valid Markdown with REAL newline characters (\n) between headers, paragraphs, and list items. Each "## Header" goes on its own line followed by a blank line. Each checklist item ("- [ ] ...") goes on its own line. NEVER merge multiple sections or checklist items into a single paragraph of running text.
   # Instructions
   1. Title: Catchy but descriptive (max 80 chars).
@@ -85,8 +85,8 @@ const (
   # Contenido del PR
   {{.PRContent}}
   # Reglas de Oro (Constraints)
-  1. **Cero alucinaciones:** Si algo no está explícito en el diff, no lo inventes.
-  2. **Tono:** Profesional, cercano y directo. Usa primera persona ("Implementé", "Agregué", "Corregí"). Evita el lenguaje robótico ("Se ha realizado").
+  1. **Cero alucinaciones:** Si algo no está explícito en el diff, no lo inventes. No inventes un "por qué" que no esté respaldado por el diff o los mensajes de commit.
+  2. **Tono:** Profesional, cercano y directo. Usa primera persona ("Implementé", "Agregué", "Corregí"). Evita el lenguaje robótico ("Se ha realizado"). Sonás como un dev contando su propio trabajo, no como un molde — variá la estructura de las oraciones, no le pegues una justificación genérica a cada bullet. Evitá muletillas de marketing/IA (robusto, optimizar como palabra comodín, mejorar la experiencia, potenciar).
   3. **Formato Markdown (ESTRICTO):** El campo "body" DEBE ser Markdown válido con saltos de línea reales (\n) entre encabezados, párrafos e items de lista. Cada "## Encabezado" va en su propia línea seguido de una línea en blanco. Cada checkbox ("- [ ] ...") va en su propia línea. NUNCA mezcles varias secciones o checkboxes en un solo párrafo de texto corrido.
   # Instrucciones
   1. Título: Descriptivo y conciso (máx 80 caracteres).
@@ -114,7 +114,8 @@ const (
   3. **Scope:** If you touched 'ui' files, scope is (ui). If 'api', then (api).
   4. **Style:**
      - Title: Imperative mood ("add", not "added").
-     - Description: First person, professional tone ("I optimized the query...").
+     - Description: First person, professional tone ("I optimized the query..."). Avoid AI/marketing buzzwords (leverage, robust, seamless, enhance). Don't add a generic justification clause if the change speaks for itself.
+     - If generating multiple suggestions, vary their phrasing and framing — don't just reword the same sentence {{.Count}} times.
   5. **Requirements Validation (IMPORTANT):**
      - Analyze ONLY the current diff changes against ticket criteria.
      - Mark as "missing" ONLY requirements that are NOT visible in the diff.
@@ -139,7 +140,8 @@ const (
      - ❌ MAL: "fix: arreglos varios en el login" (Muy vago)
      - ✅ BIEN: "fix(auth): manejo de error en token nulo (#42)" (Preciso)
   3. **Scope:** Si tocaste archivos de 'ui', el scope es (ui). Si es 'api', es (api). Si son muchos, no uses scope.
-  4. **Primera Persona:** La descripción (\"desc\") escribila como si le contaras a un colega (ej: \"Optimicé la query para mejorar el tiempo de respuesta\").
+  4. **Primera Persona:** La descripción (\"desc\") escribila como si le contaras a un colega (ej: \"Optimicé la query para mejorar el tiempo de respuesta\"). Evitá muletillas de marketing/IA (robusto, optimizar como palabra comodín, mejorar la experiencia). No agregues una justificación genérica si el cambio se explica solo.
+     Si generás varias sugerencias, variá la redacción y el enfoque entre ellas — no reformules la misma oración {{.Count}} veces.
   5. **Validación de Requerimientos (IMPORTANTE):**
      - Analiza SOLO los cambios del diff actual contra los criterios del ticket.
      - Marca como "missing" ÚNICAMENTE requisitos que NO están visibles en el diff.
@@ -166,10 +168,12 @@ const (
      - ¿Solo documentación? -> docs
   3. **Redacta:**
      - Título: Imperativo, max 50 chars si es posible (ej: "agrega validación", no "agregando").
-     - Descripción: Primera persona, tono profesional y natural. "Agregué esta validación para evitar X error".
+     - Descripción: Primera persona, tono profesional y natural. "Agregué esta validación para evitar X error". Evitá muletillas de marketing/IA (robusto, optimizar como palabra comodín, mejorar la experiencia). No justifiques lo obvio.
+     - Si generás varias sugerencias, variá la redacción entre ellas — no reformules la misma oración.
   # Ejemplos de Estilo
   - ❌ "update main.go" (Pésimo, no dice nada)
   - ❌ "se corrigió el error" (Voz pasiva, muy robótico)
+  - ❌ "mejoramos la robustez del sistema para optimizar la experiencia" (Relleno genérico de IA, no dice nada concreto)
   - ✅ "fix(cli): corrijo panic al no tener config" (Bien)
   {{.TechnicalInfo}}
   Genera {{.Count}} sugerencias ahora.`
@@ -190,10 +194,12 @@ const (
      - Docs only? -> docs
   3. **Drafting:**
      - Title: Imperative mood, max 50 chars if possible (e.g., "add validation", not "adding").
-     - Description: First person, professional tone. "I added this validation to prevent X error".
+     - Description: First person, professional tone. "I added this validation to prevent X error". Avoid AI/marketing buzzwords (leverage, robust, seamless, enhance the experience). Don't justify the obvious.
+     - If generating multiple suggestions, vary their phrasing — don't just reword the same sentence.
   # Style Examples
   - ❌ "update main.go" (Terrible, says nothing)
   - ❌ "error was fixed" (Passive voice)
+  - ❌ "enhanced system robustness to streamline the user experience" (Generic AI filler, says nothing concrete)
   - ✅ "fix(cli): handle panic when config is missing" (Perfect)
   {{.TechnicalInfo}}
   Generate {{.Count}} suggestions now.`
@@ -233,15 +239,18 @@ Generá release notes profesionales para un CHANGELOG.md siguiendo el estándar 
 - Usa máximo 5-6 secciones para mantener claridad
 
 ## 3. ESTILO Y NARRATIVA (IMPORTANTE)
-- **Voz:** Usá "Agregamos/Mejoramos" (1ra persona plural). Evita "Se ha implementado".
-- **Foco:** Centrate en el BENEFICIO para el usuario, no en la implementación técnica.
-- **Formato de items:** Cada item debe ser una oración completa y descriptiva.
+- **Sonar humano, no a molde:** Variá la estructura de las oraciones entre items. No arranques todos los bullets con la misma construcción (ej: no todo "Agregamos X para Y"). Un dev real escribe release notes con variación natural — algunos items cortos y directos, otros más largos solo cuando vale la pena.
+- **Preferí hechos técnicos concretos sobre relleno de "beneficio" genérico.** Nombrá la función, flag, archivo o comportamiento real que cambió. Agregá una cláusula de "por qué importa" solo cuando el beneficio no sea obvio por sí solo — no le pegues una justificación genérica a cada item.
+- **Evitá vocabulario de marketing/IA:** leverage, robusto, optimizar (como muletilla), mejorar la experiencia, streamline, potenciar, de vanguardia. Si una palabra simple dice lo mismo, usá la palabra simple.
+- **Cero motivación inventada:** No inventes un "por qué" que no esté respaldado por el diff o los mensajes de commit. Si el motivo no es evidente, simplemente describí qué cambió.
 
 ## 4. EJEMPLOS DE CALIDAD (GOLD STANDARD)
-❌ MAL: "feat: update user schema" (Técnico, aburrido)
-✅ BIEN: "Mejoramos el perfil de usuario para soportar múltiples direcciones."
-❌ MAL: "fix: fix crash in login" (Vago)
-✅ BIEN: "Solucionamos un cierre inesperado al iniciar sesión con Google."
+✅ BIEN (técnico y específico): "Agregamos ` + "`group.WithAAD(aad)`" + ` como opción funcional en ` + "`SendMessage`" + ` para adjuntar datos autenticados adicionales."
+✅ BIEN (conciso, sin relleno): "Arreglamos una condición de carrera en el campo events agregando un mutex de lectura-escritura dedicado."
+✅ BIEN (feature de cara al usuario, beneficio solo cuando aporta claridad real): "Los perfiles de usuario ahora soportan múltiples direcciones."
+❌ MAL (relleno genérico de IA): "Mejoramos la experiencia del usuario implementando mejoras robustas para optimizar tu flujo de trabajo."
+❌ MAL (demasiado vago para ser útil): "Varios arreglos y mejoras."
+❌ MAL (justificación redundante): "Agregamos validación de inputs para garantizar la integridad de los datos y mejorar la confiabilidad general del sistema." (decí qué se validó y cómo, nada más)
 
 Generá las release notes ahora usando el esquema JSON con secciones semánticas.`
 
@@ -278,15 +287,18 @@ You MUST group changes into thematic sections using the "sections" field in the 
 - Use maximum 5-6 sections to maintain clarity
 
 ## 3. STYLE AND NARRATIVE (IMPORTANT)
-- **Voice:** Use "We added/We improved" (1st person plural). Avoid passive voice.
-- **Focus:** Focus on USER BENEFIT, not technical implementation.
-- **Item format:** Each item should be a complete, descriptive sentence.
+- **Sound human, not templated:** Vary sentence structure between items. Don't start every single bullet with the same construction (e.g. not every line as "We added X to Y"). A real engineer writes release notes with natural variation — some items short and direct, others longer only when it's worth it.
+- **Prefer concrete technical facts over generic benefit-speak.** Name the actual function, flag, file, or behavior that changed. Only add a "why it matters" clause when the benefit isn't already obvious — don't tack a generic justification onto every single item.
+- **Avoid AI/marketing buzzwords:** leverage, robust, seamless, streamline, enhance the experience, empower, cutting-edge. If a plain word says the same thing, use the plain word.
+- **No hallucinated motivation:** Don't invent a "why" that isn't supported by the diff or commit messages. If the reason isn't evident, just describe what changed.
 
 ## 4. QUALITY EXAMPLES (GOLD STANDARD)
-❌ BAD: "feat: update user schema" (Too technical)
-✅ GOOD: "Enhanced user profile to support multiple addresses."
-❌ BAD: "fix: fix crash in login" (Vague)
-✅ GOOD: "Fixed a crash when logging in via Google."
+✅ GOOD (technical, specific): "Added ` + "`group.WithAAD(aad)`" + ` as a functional option on ` + "`SendMessage`" + ` for attaching additional authenticated data."
+✅ GOOD (concise, no filler): "Fixed a race condition in the events field by adding a dedicated read-write mutex."
+✅ GOOD (user-facing feature, benefit only when it adds real clarity): "User profiles now support multiple addresses."
+❌ BAD (generic AI filler): "We enhanced the user experience by implementing robust improvements to streamline your workflow."
+❌ BAD (too vague to be useful): "Various bug fixes and improvements."
+❌ BAD (redundant justification): "Added input validation to ensure data integrity and improve overall system reliability." (just say what was validated and how)
 
 Generate the release notes now using the JSON schema with semantic sections.`
 )
@@ -636,8 +648,8 @@ const (
   {{.IssueInfo}}
 
   # Golden Rules (Constraints)
-  1. **Active Voice:** Write in FIRST PERSON ("I implemented", "I added", "We refactored"). Avoid passive voice like "It was implemented".
-  2. **Context First:** Explain the WHY before the WHAT.
+  1. **Active Voice:** Write in FIRST PERSON ("I implemented", "I added", "We refactored"). Avoid passive voice like "It was implemented". Avoid AI/marketing buzzwords (leverage, robust, seamless, enhance the experience) — write like an engineer, not a press release.
+  2. **Context First:** Explain the WHY before the WHAT — but only state a reason that's evidenced by the diff, commits, or description provided. Don't invent motivation that isn't there.
   3. **Accurate Categorization:** Always choose at least one primary category: 'feature', 'fix', or 'refactor'. Use 'fix' ONLY for bug corrections. Use 'refactor' for code improvements without logic changes. Use 'feature' for new functionality.
   4. **No Emojis:** Do not use emojis in the title or description. Keep it purely textual and professional.
   5. **Balanced Labeling:** Aim for 2-4 relevant labels. Ensure you include the primary category plus any relevant file-based labels like 'test', 'docs', or 'infra' if applicable.
@@ -651,8 +663,8 @@ const (
   {{.IssueInfo}}
 
   # Reglas de Oro (Constraints)
-  1. **Voz Activa:** Escribí en PRIMERA PERSONA ("Implementé", "Agregué", "Corregí"). Prohibido usar voz pasiva robótica.
-  2. **Contexto Real:** Explicá el POR QUÉ del cambio, no solo qué líneas tocaste.
+  1. **Voz Activa:** Escribí en PRIMERA PERSONA ("Implementé", "Agregué", "Corregí"). Prohibido usar voz pasiva robótica. Evitá muletillas de marketing/IA (robusto, optimizar como palabra comodín, mejorar la experiencia) — escribí como un dev, no como un comunicado de prensa.
+  2. **Contexto Real:** Explicá el POR QUÉ del cambio, no solo qué líneas tocaste — pero solo si ese motivo está respaldado por el diff, los commits o la descripción. No inventes una motivación que no esté ahí.
   3. **Categorización Precisa:** Elegí siempre al menos una categoría principal: 'feature', 'fix', o 'refactor'. Solo usá 'fix' si ves una corrección de un bug. Usá 'refactor' para mejoras de código sin cambios lógicos. Usá 'feature' para funcionalidades nuevas.
   4. **Cero Emojis:** No uses emojis ni en el título ni en el cuerpo del issue. Mantené un estilo sobrio y técnico.
   5. **Etiquetado Equilibrado:** Buscá entre 2 y 4 etiquetas relevantes. Asegurate de incluir la categoría principal más cualquier etiqueta de tipo de archivo como 'test', 'docs', o 'infra' si corresponde.
