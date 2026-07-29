@@ -509,6 +509,44 @@ func TestIssueGeneratorService_GenerateWithTemplate(t *testing.T) {
 		mockAI.AssertExpectations(t)
 	})
 
+	t.Run("Success - drops template labels that don't exist in the repo", func(t *testing.T) {
+		mockAI := new(MockIssueContentGenerator)
+		mockTemplate := new(MockIssueTemplateService)
+		mockVCS := new(testutil.MockVCSClient)
+		service := NewIssueGeneratorService(nil, mockAI, WithIssueTemplateService(mockTemplate), WithIssueVCSClient(mockVCS), WithIssueConfig(cfg))
+
+		// The template's own YAML hardcodes "optimization", which was never
+		// created as a real label on the repo — only "performance" is real.
+		template := &models.IssueTemplate{
+			Name:   "performance",
+			Title:  "[PERF] ",
+			Labels: []string{"performance", "optimization"},
+		}
+		generated := &models.IssueGenerationResult{
+			Title:       "Slow release preview",
+			Description: "The release preview command is slow",
+			Labels:      []string{"performance", "refactor"},
+		}
+		merged := &models.IssueGenerationResult{
+			Title:       "[PERF] Slow release preview",
+			Description: "The release preview command is slow\n---\n## Performance",
+			Labels:      []string{"performance", "optimization", "refactor"},
+		}
+
+		mockTemplate.On("GetTemplateByName", ctx, "performance").Return(template, nil)
+		mockVCS.On("GetRepoLabels", ctx).Return([]string{"performance", "refactor", "release"}, nil)
+		mockAI.On("GenerateIssueContent", ctx, mock.Anything).Return(generated, nil)
+		mockTemplate.On("MergeWithGeneratedContent", template, mock.Anything).Return(merged)
+
+		result, err := service.GenerateWithTemplate(ctx, "performance", "", false, "Slow release preview", false)
+
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, []string{"performance", "refactor"}, result.Labels)
+		assert.NotContains(t, result.Labels, "optimization")
+		mockTemplate.AssertExpectations(t)
+		mockAI.AssertExpectations(t)
+	})
+
 	t.Run("Error - Template not found", func(t *testing.T) {
 		mockAI := new(MockIssueContentGenerator)
 		mockTemplate := new(MockIssueTemplateService)
