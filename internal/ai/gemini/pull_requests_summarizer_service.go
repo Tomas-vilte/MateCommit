@@ -47,7 +47,7 @@ func getPRSummarySchema() *genai.Schema {
 				Items: &genai.Schema{
 					Type: genai.TypeString,
 				},
-				Description: "Array of label strings (feature, fix, refactor, docs, infra, test, breaking-change)",
+				Description: "Array of label strings. Pick ONLY from the repo's actual available labels given in the prompt (with their descriptions) — choose the most specific match, don't default to a generic one when a more precise label fits. Never invent a label that isn't in that list.",
 			},
 		},
 	}

@@ -90,7 +90,7 @@ func getIssueSchema() *genai.Schema {
 				Items: &genai.Schema{
 					Type: genai.TypeString,
 				},
-				Description: "List of labels (e.g. bug, feature, refactor, good first issue)",
+				Description: "Array of label strings. Pick ONLY from the repo's actual available labels given in the prompt — choose the most specific match, don't default to a generic one when a more precise label fits. Never invent a label that isn't in that list.",
 			},
 		},
 	}
