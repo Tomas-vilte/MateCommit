@@ -302,3 +302,84 @@ func TestCostAwareWrapper_WrapGenerate_UnknownModelPricing(t *testing.T) {
 	}
 	mockP.AssertExpectations(t)
 }
+
+// TestCostAwareWrapper_WrapGenerate_BudgetWarning verifies that once daily
+// spend crosses a warning threshold (50/75/90%), the confirmation callback
+// is told about it so the UI can surface it — this was previously computed
+// by cost.Manager.CheckBudget but silently discarded by the caller.
+func TestCostAwareWrapper_WrapGenerate_BudgetWarning(t *testing.T) {
+	// Arrange
+	tempHome, err := os.MkdirTemp("", "matecommit-home-*")
+	if err != nil {
+		t.Fatalf("failed to create temp home: %v", err)
+	}
+	oldHome := os.Getenv("HOME")
+	_ = os.Setenv("HOME", tempHome)
+	t.Cleanup(func() {
+		_ = os.Setenv("HOME", oldHome)
+		_ = os.RemoveAll(tempHome)
+	})
+
+	// Pre-seed today's spend at 80% of a $0.10 budget: CheckBudget's warning
+	// thresholds look at spend already recorded before this call, not the
+	// projected total, so the warning only fires if prior spend alone
+	// crosses 50/75/90%.
+	budgetDaily := 0.10
+	manager, err := cost.NewManager(budgetDaily)
+	if err != nil {
+		t.Fatalf("cost.NewManager() error = %v", err)
+	}
+	if err := manager.SaveActivity(cost.ActivityRecord{
+		Timestamp: time.Now(),
+		Command:   "seed",
+		Provider:  "gemini",
+		Model:     "gemini-1.5-flash",
+		CostUSD:   0.08,
+	}); err != nil {
+		t.Fatalf("SaveActivity() error = %v", err)
+	}
+
+	var gotResult ConfirmationResult
+	mockP := new(mockProvider)
+	cfg := WrapperConfig{
+		Provider:              mockP,
+		BudgetDaily:           budgetDaily,
+		EstimatedOutputTokens: 0,
+		SkipConfirmation:      false,
+		OnConfirmation: func(result ConfirmationResult) (string, bool) {
+			gotResult = result
+			return "current", true
+		},
+	}
+
+	w, err := NewCostAwareWrapper(cfg)
+	if err != nil {
+		t.Fatalf("NewCostAwareWrapper() error = %v", err)
+	}
+
+	mockP.On("GetProviderName").Return("gemini")
+	mockP.On("GetModelName").Return("gemini-1.5-flash")
+	mockP.On("CountTokens", mock.Anything, mock.Anything).Return(10, nil) // negligible additional cost
+
+	// Act: prior spend ($0.08) is already 80% of the $0.10 budget, so this
+	// call's confirmation should carry a warning even though its own
+	// marginal cost is tiny.
+	_, _, err = w.WrapGenerate(context.Background(), "summarize", "prompt", func(ctx context.Context, model, p string) (interface{}, *models.TokenUsage, error) {
+		return "ok", &models.TokenUsage{InputTokens: 10, OutputTokens: 0}, nil
+	})
+
+	// Assert
+	if err != nil {
+		t.Fatalf("WrapGenerate() error = %v", err)
+	}
+	if !gotResult.BudgetWarning {
+		t.Error("expected ConfirmationResult.BudgetWarning = true once spend crosses the warning threshold")
+	}
+	if gotResult.BudgetLimit != 0.10 {
+		t.Errorf("expected BudgetLimit = 0.10, got %v", gotResult.BudgetLimit)
+	}
+	if gotResult.BudgetPercentUsed <= 0 {
+		t.Errorf("expected BudgetPercentUsed > 0, got %v", gotResult.BudgetPercentUsed)
+	}
+	mockP.AssertExpectations(t)
+}

@@ -20,13 +20,16 @@ type ConfirmationCallback func(result ConfirmationResult) (choice string, procee
 type GenerateFunc func(ctx context.Context, model string, prompt string) (interface{}, *models.TokenUsage, error)
 
 type ConfirmationResult struct {
-	EstimatedCost  float64
-	CostUnknown    bool
-	InputTokens    int
-	OutputTokens   int
-	SuggestedModel string
-	CurrentModel   string
-	RationaleKey   string
+	EstimatedCost     float64
+	CostUnknown       bool
+	InputTokens       int
+	OutputTokens      int
+	SuggestedModel    string
+	CurrentModel      string
+	RationaleKey      string
+	BudgetWarning     bool
+	BudgetPercentUsed float64
+	BudgetLimit       float64
 }
 
 type CostAwareWrapper struct {
@@ -159,20 +162,23 @@ func (w *CostAwareWrapper) WrapGenerate(
 		return nil, nil, errors.ErrQuotaExceeded
 	}
 
-	if (estimatedCost > 0.0001 || hasSuggestion || !costKnown) && !w.skipConfirmation && w.onConfirmation != nil {
+	if (estimatedCost > 0.0001 || hasSuggestion || !costKnown || budgetStatus.IsWarning) && !w.skipConfirmation && w.onConfirmation != nil {
 		rationaleKey := ""
 		if hasSuggestion {
 			rationaleKey = w.modelSelector.GetRationale(suggestedModel)
 		}
 
 		choice, proceed := w.onConfirmation(ConfirmationResult{
-			EstimatedCost:  estimatedCost,
-			CostUnknown:    !costKnown,
-			InputTokens:    inputTokens,
-			OutputTokens:   w.estimatedOutputTokens,
-			SuggestedModel: suggestedModel,
-			CurrentModel:   originalModel,
-			RationaleKey:   rationaleKey,
+			EstimatedCost:     estimatedCost,
+			CostUnknown:       !costKnown,
+			InputTokens:       inputTokens,
+			OutputTokens:      w.estimatedOutputTokens,
+			SuggestedModel:    suggestedModel,
+			CurrentModel:      originalModel,
+			RationaleKey:      rationaleKey,
+			BudgetWarning:     budgetStatus.IsWarning,
+			BudgetPercentUsed: budgetStatus.PercentUsed,
+			BudgetLimit:       budgetStatus.Limit,
 		})
 
 		if !proceed {
