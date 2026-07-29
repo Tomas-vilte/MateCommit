@@ -148,11 +148,35 @@ func (s *IssueGeneratorService) GenerateFromDiff(ctx context.Context, hint strin
 		logger.Debug(ctx, "labels inferred",
 			"total_labels", len(result.Labels))
 	}
+	result.Labels = filterToAvailableLabels(result.Labels, availableLabels)
 
 	logger.Info(ctx, "issue generated from diff successfully",
 		"title", result.Title)
 
 	return result, nil
+}
+
+// filterToAvailableLabels keeps only labels that actually exist in the
+// repo, dropping anything a template hardcodes or a heuristic guesses that
+// isn't real (e.g. an issue template's own YAML "labels:" field can list a
+// label that was never created on GitHub). If availableLabels is empty
+// (fetch failed, or no VCS client), there's nothing reliable to validate
+// against, so labels are kept as-is.
+func filterToAvailableLabels(labels, availableLabels []string) []string {
+	if len(availableLabels) == 0 {
+		return labels
+	}
+	allowed := make(map[string]bool, len(availableLabels))
+	for _, l := range availableLabels {
+		allowed[strings.ToLower(l)] = true
+	}
+	filtered := make([]string, 0, len(labels))
+	for _, l := range labels {
+		if allowed[strings.ToLower(l)] {
+			filtered = append(filtered, l)
+		}
+	}
+	return filtered
 }
 
 func (s *IssueGeneratorService) fetchAvailableLabels(ctx context.Context) ([]string, error) {
@@ -225,6 +249,8 @@ func (s *IssueGeneratorService) GenerateFromDescription(ctx context.Context, des
 
 	if skipLabels {
 		result.Labels = []string{}
+	} else {
+		result.Labels = filterToAvailableLabels(result.Labels, availableLabels)
 	}
 
 	logger.Info(ctx, "issue generated from description successfully",
@@ -328,6 +354,7 @@ func (s *IssueGeneratorService) GenerateFromPR(ctx context.Context, prNumber int
 		logger.Debug(ctx, "labels inferred from PR",
 			"total_labels", len(result.Labels))
 	}
+	result.Labels = filterToAvailableLabels(result.Labels, availableLabels)
 
 	logger.Info(ctx, "issue generated from PR successfully",
 		"pr_number", prNumber,
