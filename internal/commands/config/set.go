@@ -2,7 +2,6 @@ package config
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -40,34 +39,9 @@ func (c *ConfigCommandFactory) newSetCommand(t *i18n.Translations, cfg *config.C
 			key := strings.ToLower(command.Args().Get(0))
 			value := command.Args().Get(1)
 
-			isLocalExplicit := command.Bool("local")
-			isGlobalExplicit := command.Bool("global")
-
-			useLocal := isLocalExplicit
-			if !isGlobalExplicit && !isLocalExplicit {
-				localPath := config.GetRepoConfigPath()
-				useLocal = localPath != ""
-			}
-
-			targetCfg := cfg
-			if useLocal {
-				localPath := config.GetRepoConfigPath()
-				if localPath == "" {
-					return errors.New(t.GetMessage("config_local.not_in_repo", 0, nil))
-				}
-
-				localCfg, err := config.LoadConfig(localPath)
-				if err != nil {
-					if os.IsNotExist(err) || errors.Is(err, os.ErrNotExist) {
-						localCfg, err = config.CreateDefaultConfig(localPath)
-						if err != nil {
-							return fmt.Errorf("error creating local config: %w", err)
-						}
-					} else {
-						return fmt.Errorf("error loading local config: %w. Fix the file manually or delete it", err)
-					}
-				}
-				targetCfg = localCfg
+			targetCfg, useLocal, err := resolveTargetConfig(command, cfg, t)
+			if err != nil {
+				return err
 			}
 
 			switch key {
@@ -110,7 +84,6 @@ func (c *ConfigCommandFactory) newSetCommand(t *i18n.Translations, cfg *config.C
 				return fmt.Errorf("unknown configuration key: %s", key)
 			}
 
-			var err error
 			if useLocal {
 				err = config.SaveLocalConfig(targetCfg)
 			} else {

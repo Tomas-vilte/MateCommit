@@ -7,6 +7,7 @@ import (
 	"os/exec"
 
 	"github.com/thomas-vilte/matecommit/internal/commands/completion_helper"
+	"github.com/thomas-vilte/matecommit/internal/editor"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/ui"
@@ -163,17 +164,8 @@ func generateReleaseTemplate(name string, trans *i18n.Translations) string {
 	)
 }
 func getDefaultEditor() string {
-	if editor := os.Getenv("EDITOR"); editor != "" {
-		return editor
-	}
-	if editor := os.Getenv("VISUAL"); editor != "" {
-		return editor
-	}
-	if _, err := exec.LookPath("nano"); err == nil {
-		return "nano"
-	}
-	if _, err := exec.LookPath("vim"); err == nil {
-		return "vim"
+	if ed, found := editor.Resolve(); found {
+		return ed
 	}
 	return "vi"
 }

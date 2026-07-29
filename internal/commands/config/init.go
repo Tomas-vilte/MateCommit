@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -54,33 +53,12 @@ func (c *ConfigCommandFactory) newInitCommand(t *i18n.Translations, cfg *config.
 
 func initConfigAction(cfg *config.Config, t *i18n.Translations) cli.ActionFunc {
 	return func(ctx context.Context, command *cli.Command) error {
-		isLocalExplicit := command.Bool("local")
-		isGlobalExplicit := command.Bool("global")
-
-		useLocal := isLocalExplicit
-		if !isGlobalExplicit && !isLocalExplicit {
-			localPath := config.GetRepoConfigPath()
-			useLocal = localPath != ""
+		localCfg, useLocal, err := resolveTargetConfig(command, cfg, t)
+		if err != nil {
+			return err
 		}
 
 		if useLocal {
-			localPath := config.GetRepoConfigPath()
-			if localPath == "" {
-				return errors.New(t.GetMessage("config_local.not_in_repo", 0, nil))
-			}
-
-			localCfg, err := config.LoadConfig(localPath)
-			if err != nil {
-				if os.IsNotExist(err) {
-					localCfg, err = config.CreateDefaultConfig(localPath)
-					if err != nil {
-						return fmt.Errorf("error creating local config: %w", err)
-					}
-				} else {
-					return fmt.Errorf("error loading local config: %w", err)
-				}
-			}
-
 			reader := bufio.NewReader(os.Stdin)
 
 			if command.Bool("quick") {
