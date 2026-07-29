@@ -536,7 +536,10 @@ func (ghc *GitHubClient) GetMergedPRsBetweenTags(ctx context.Context, previousTa
 		}
 
 		for _, pr := range prs {
-			if pr.GetMerged() && pr.GetMergedAt().After(prevRelease.GetCreatedAt().Time) {
+			// The list endpoint never populates the "merged" boolean field
+			// (only the single-PR endpoint does) — merged_at is the only
+			// reliable signal here, and a zero value means "not merged".
+			if !pr.GetMergedAt().IsZero() && pr.GetMergedAt().After(prevRelease.GetCreatedAt().Time) {
 				labels := make([]string, 0, len(pr.Labels))
 				for _, label := range pr.Labels {
 					labels = append(labels, label.GetName())

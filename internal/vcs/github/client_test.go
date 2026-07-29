@@ -903,25 +903,28 @@ func TestGitHubClient_GetMergedPRsBetweenTags(t *testing.T) {
 			CreatedAt: &prevReleaseDate,
 		}
 
+		// The "List pull requests" endpoint never populates the "merged"
+		// boolean field (only the single-PR endpoint does) — real API
+		// responses only ever carry merged_at, so none of these set Merged.
 		pr1 := &github.PullRequest{
 			Number:   github.Ptr(1),
 			Title:    github.Ptr("PR 1"),
 			Body:     github.Ptr("Description 1"),
 			User:     &github.User{Login: github.Ptr("user1")},
-			Merged:   github.Ptr(true),
 			MergedAt: &github.Timestamp{Time: mergedTime1},
 			HTMLURL:  github.Ptr("url1"),
 			Labels:   []*github.Label{{Name: github.Ptr("bug")}},
 		}
 
+		// Closed but never merged: no MergedAt at all, matching how a real
+		// closed-without-merging PR looks from the list endpoint.
 		pr2 := &github.PullRequest{
 			Number: github.Ptr(2),
-			Merged: github.Ptr(false),
 		}
 
+		// Merged, but before the previous release — must be excluded by date.
 		pr3 := &github.PullRequest{
 			Number:   github.Ptr(3),
-			Merged:   github.Ptr(true),
 			MergedAt: &github.Timestamp{Time: mergedTime2},
 		}
 
@@ -962,7 +965,6 @@ func TestGitHubClient_GetMergedPRsBetweenTags(t *testing.T) {
 		mergedTime := time.Now()
 		pr1 := &github.PullRequest{
 			Number:   github.Ptr(1),
-			Merged:   github.Ptr(true),
 			MergedAt: &github.Timestamp{Time: mergedTime},
 		}
 

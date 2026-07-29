@@ -278,36 +278,60 @@ func (s *ReleaseService) EnrichReleaseContext(ctx context.Context, release *mode
 		return domainErrors.ErrConfigMissing
 	}
 
+	// release.Version is the prospective next version — it isn't a real tag
+	// yet during preview (and possibly not even during create, before the
+	// tag is pushed), so comparisons need the actual current branch tip
+	// instead. It points at the same commit a freshly created tag would.
+	headRef := release.Version
+	if s.git != nil {
+		if branch, err := s.git.GetCurrentBranch(ctx); err == nil {
+			headRef = branch
+		} else {
+			log.Warn("failed to resolve current branch for release comparisons, falling back to version string",
+				"error", err)
+		}
+	}
+
 	if issues, err := s.vcsClient.GetClosedIssuesBetweenTags(ctx, release.PreviousVersion, release.Version); err == nil {
 		release.ClosedIssues = issues
 		log.Debug("closed issues fetched",
 			"count", len(issues))
+	} else {
+		log.Warn("failed to fetch closed issues", "error", err)
 	}
 
 	if prs, err := s.vcsClient.GetMergedPRsBetweenTags(ctx, release.PreviousVersion, release.Version); err == nil {
 		release.MergedPRs = prs
 		log.Debug("merged PRs fetched",
 			"count", len(prs))
+	} else {
+		log.Warn("failed to fetch merged PRs", "error", err)
 	}
 
-	if contributors, err := s.vcsClient.GetContributorsBetweenTags(ctx, release.PreviousVersion, release.Version); err == nil {
+	if contributors, err := s.vcsClient.GetContributorsBetweenTags(ctx, release.PreviousVersion, headRef); err == nil {
 		release.Contributors = contributors
 		release.NewContributors = contributors
 		log.Debug("contributors fetched",
 			"count", len(contributors))
+	} else {
+		log.Warn("failed to fetch contributors", "error", err)
 	}
 
-	if stats, err := s.vcsClient.GetFileStatsBetweenTags(ctx, release.PreviousVersion, release.Version); err == nil {
+	if stats, err := s.vcsClient.GetFileStatsBetweenTags(ctx, release.PreviousVersion, headRef); err == nil {
 		release.FileStats = *stats
 		log.Debug("file stats fetched",
 			"files_changed", stats.FilesChanged,
 			"insertions", stats.Insertions,
 			"deletions", stats.Deletions)
+	} else {
+		log.Warn("failed to fetch file stats", "error", err)
 	}
 
 	if deps, err := s.analyzeDependencyChanges(ctx, release); err == nil {
 		release.Dependencies = deps
 		log.Debug("dependencies analyzed")
+	} else {
+		log.Warn("failed to analyze dependency changes", "error", err)
 	}
 
 	log.Info("release context enriched successfully")

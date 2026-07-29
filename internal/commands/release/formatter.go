@@ -74,6 +74,20 @@ func FormatReleaseMarkdown(release *models.Release, notes *models.ReleaseNotes, 
 		}
 	}
 
+	if len(release.MergedPRs) > 0 {
+		md.WriteString("## ")
+		md.WriteString(trans.GetMessage("release.md_pull_requests", 0, nil))
+		md.WriteString("\n\n")
+		for _, pr := range release.MergedPRs {
+			if pr.URL != "" {
+				md.WriteString(fmt.Sprintf("- [#%d](%s) %s (by @%s)\n", pr.Number, pr.URL, pr.Title, pr.Author))
+			} else {
+				md.WriteString(fmt.Sprintf("- #%d %s (by @%s)\n", pr.Number, pr.Title, pr.Author))
+			}
+		}
+		md.WriteString("\n")
+	}
+
 	if len(release.Contributors) > 0 {
 		md.WriteString("## ")
 		md.WriteString(trans.GetMessage("release.md_contributors", 0, nil))
