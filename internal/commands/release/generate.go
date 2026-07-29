@@ -50,40 +50,15 @@ func generateReleaseAction(releaseSvc releaseService, trans *i18n.Translations) 
 		fmt.Println(trans.GetMessage("release.generating", 0, nil))
 		fmt.Println()
 
-		if err := releaseSvc.ValidateMainBranch(ctx); err != nil {
-			log.Error("branch validation failed",
-				"error", err)
-			return fmt.Errorf("%s", trans.GetMessage("release.error_invalid_branch", 0, struct{ Error string }{err.Error()}))
-		}
-
-		release, err := releaseSvc.AnalyzeNextRelease(ctx)
+		release, err := analyzeNextRelease(ctx, releaseSvc, trans, start)
 		if err != nil {
-			log.Error("failed to analyze next release",
-				"error", err,
-				"duration_ms", time.Since(start).Milliseconds())
-			ui.HandleAppError(err)
-			return fmt.Errorf("%s", trans.GetMessage("release.error_analyzing", 0, struct{ Error string }{err.Error()}))
+			return err
 		}
 
-		log.Debug("release analyzed",
-			"version", release.Version)
-
-		if err := releaseSvc.EnrichReleaseContext(ctx, release); err != nil {
-			log.Warn("failed to enrich release context", "error", err)
-			fmt.Printf("⚠️  %s\n", trans.GetMessage("release.warning_enrich_context", 0, struct{ Error string }{err.Error()}))
-		}
-
-		notes, err := releaseSvc.GenerateReleaseNotes(ctx, release)
+		notes, err := generateReleaseNotes(ctx, releaseSvc, trans, start, release)
 		if err != nil {
-			log.Error("failed to generate release notes",
-				"error", err,
-				"duration_ms", time.Since(start).Milliseconds())
-			ui.HandleAppError(err)
-			return fmt.Errorf("%s", trans.GetMessage("release.error_generating_notes", 0, struct{ Error string }{err.Error()}))
+			return err
 		}
-
-		log.Debug("release notes generated",
-			"title", notes.Title)
 
 		content := FormatReleaseMarkdown(release, notes, trans)
 
