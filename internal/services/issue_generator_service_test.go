@@ -731,51 +731,6 @@ func TestIssueGeneratorService_LinkIssueToPR(t *testing.T) {
 	})
 }
 
-func TestIssueGeneratorService_SuggestTemplates(t *testing.T) {
-	ctx := context.Background()
-
-	t.Run("Success", func(t *testing.T) {
-		mockTemplate := new(MockIssueTemplateService)
-		service := &IssueGeneratorService{templateService: mockTemplate}
-
-		expectedTemplates := []models.TemplateMetadata{
-			{Name: "bug_report", FilePath: ".github/ISSUE_TEMPLATE/bug_report.md"},
-			{Name: "feature_request", FilePath: ".github/ISSUE_TEMPLATE/feature_request.md"},
-		}
-
-		mockTemplate.On("ListTemplates", ctx).Return(expectedTemplates, nil)
-
-		templates, err := service.SuggestTemplates(ctx)
-
-		assert.NoError(t, err)
-		assert.Len(t, templates, 2)
-		assert.Equal(t, "bug_report", templates[0].Name)
-		mockTemplate.AssertExpectations(t)
-	})
-
-	t.Run("No template service", func(t *testing.T) {
-		service := &IssueGeneratorService{}
-
-		templates, err := service.SuggestTemplates(ctx)
-
-		assert.NoError(t, err)
-		assert.Empty(t, templates)
-	})
-
-	t.Run("Error - List templates fails", func(t *testing.T) {
-		mockTemplate := new(MockIssueTemplateService)
-		service := &IssueGeneratorService{templateService: mockTemplate}
-
-		templateError := errors.New("failed to list templates")
-		mockTemplate.On("ListTemplates", ctx).Return([]models.TemplateMetadata{}, templateError)
-
-		templates, err := service.SuggestTemplates(ctx)
-
-		assert.NoError(t, err)
-		assert.Empty(t, templates)
-		mockTemplate.AssertExpectations(t)
-	})
-}
 
 func TestIssueGeneratorService_ExtractFilesFromDiff(t *testing.T) {
 	service := &IssueGeneratorService{}

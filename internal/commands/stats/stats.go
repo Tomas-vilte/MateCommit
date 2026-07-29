@@ -3,6 +3,7 @@ package stats
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -185,13 +186,7 @@ func (c *StatsCommand) showMonthlyStats(manager *cost.Manager, t *i18n.Translati
 	for day := range dailyTotals {
 		days = append(days, day)
 	}
-	for i := 0; i < len(days); i++ {
-		for j := i + 1; j < len(days); j++ {
-			if days[i] > days[j] {
-				days[i], days[j] = days[j], days[i]
-			}
-		}
-	}
+	sort.Strings(days)
 
 	for _, day := range days {
 		dayTotal := dailyTotals[day]

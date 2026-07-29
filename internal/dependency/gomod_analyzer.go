@@ -2,7 +2,6 @@ package dependency
 
 import (
 	"context"
-	"strconv"
 	"strings"
 
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
@@ -117,7 +116,7 @@ func (g *GoModAnalyzer) computeChanges(oldDeps, newDeps map[string]goDep) []mode
 					NewVersion: newDep.version,
 					Type:       models.DependencyUpdated,
 					Manager:    "go.mod",
-					Severity:   g.calculateSeverity(oldDep.version, newDep.version),
+					Severity:   calculateSemverSeverity(oldDep.version, newDep.version),
 					IsDirect:   !newDep.indirect,
 				})
 			}
@@ -148,53 +147,3 @@ func (g *GoModAnalyzer) computeChanges(oldDeps, newDeps map[string]goDep) []mode
 	return changes
 }
 
-// calculateSeverity determines the change severity based on semver
-func (g *GoModAnalyzer) calculateSeverity(oldVersion, newVersion string) models.ChangeSeverity {
-	oldParts := g.parseVersion(oldVersion)
-	newParts := g.parseVersion(newVersion)
-
-	if len(oldParts) < 3 || len(newParts) < 3 {
-		return models.UnknownChange
-	}
-
-	if newParts[0] > oldParts[0] {
-		return models.MajorChange
-	}
-
-	if newParts[1] > oldParts[1] {
-		return models.MinorChange
-	}
-
-	if newParts[2] > oldParts[2] {
-		return models.PatchChange
-	}
-
-	return models.UnknownChange
-}
-
-// parseVersion extracts [major, minor, patch] from a version string
-func (g *GoModAnalyzer) parseVersion(version string) []int {
-	version = strings.TrimPrefix(version, "v")
-
-	// Remove pre-release tag (after -)
-	if idx := strings.Index(version, "-"); idx != -1 {
-		version = version[:idx]
-	}
-
-	// Remove build metadata (after +)
-	if idx := strings.Index(version, "+"); idx != -1 {
-		version = version[:idx]
-	}
-
-	parts := strings.Split(version, ".")
-	result := make([]int, 0, 3)
-
-	for i := 0; i < 3 && i < len(parts); i++ {
-		num, err := strconv.Atoi(parts[i])
-		if err != nil {
-			return []int{}
-		}
-		result = append(result, num)
-	}
-	return result
-}
