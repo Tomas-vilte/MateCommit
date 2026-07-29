@@ -138,60 +138,86 @@ func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prContent 
 	log.Debug("calling gemini API for PR summary",
 		"prompt_length", len(prompt))
 
-	resp, usage, err := gps.wrapper.WrapGenerate(ctx, "summarize-pr", prompt, gps.generateFn)
-	if err != nil {
-		log.Error("failed to generate PR summary",
-			"error", err)
-		return models.PRSummary{}, err
-	}
-
-	var responseText string
-	if geminiResp, ok := resp.(*genai.GenerateContentResponse); ok {
-		log.Debug("formatResponse received GenerateContentResponse",
-			"candidates_count", len(geminiResp.Candidates))
-		responseText = formatResponse(geminiResp)
-	} else if str, ok := resp.(string); ok {
-		responseText = str
-		log.Debug("received string response", "length", len(str))
-	} else if respMap, ok := resp.(map[string]interface{}); ok {
-		log.Debug("received map response from cache, extracting text")
-		responseText = extractTextFromMap(respMap)
-		log.Debug("extracted text from map", "length", len(responseText))
-	} else {
-		log.Warn("unexpected response type", "type", fmt.Sprintf("%T", resp))
-	}
-
-	if responseText == "" {
-		return models.PRSummary{}, domainErrors.ErrInvalidAIOutput.
-			WithContext("reason", "empty response from AI").
-			WithContext("operation", "summarize PR")
-	}
-
+	var usage *models.TokenUsage
 	var jsonSummary PRSummaryJSON
-	if err := json.Unmarshal([]byte(responseText), &jsonSummary); err != nil {
-		respLen := len(responseText)
-		preview := responseText
-		if respLen > 500 {
-			preview = responseText[:500] + "..."
+
+	const maxAttempts = 2
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		resp, respUsage, err := gps.wrapper.WrapGenerate(ctx, "summarize-pr", prompt, gps.generateFn)
+		if err != nil {
+			log.Error("failed to generate PR summary",
+				"error", err)
+			return models.PRSummary{}, err
 		}
-		return models.PRSummary{}, domainErrors.ErrInvalidAIOutput.
-			WithContext("reason", "failed to parse JSON").
-			WithContext("response_length", respLen).
-			WithContext("preview", preview).
-			WithError(err)
-	}
-	if strings.TrimSpace(jsonSummary.Title) == "" {
-		respLen := len(responseText)
-		preview := responseText
-		if respLen > 500 {
-			preview = responseText[:500] + "..."
+
+		var responseText string
+		if geminiResp, ok := resp.(*genai.GenerateContentResponse); ok {
+			log.Debug("formatResponse received GenerateContentResponse",
+				"candidates_count", len(geminiResp.Candidates))
+			responseText = formatResponse(geminiResp)
+		} else if str, ok := resp.(string); ok {
+			responseText = str
+			log.Debug("received string response", "length", len(str))
+		} else if respMap, ok := resp.(map[string]interface{}); ok {
+			log.Debug("received map response from cache, extracting text")
+			responseText = extractTextFromMap(respMap)
+			log.Debug("extracted text from map", "length", len(responseText))
+		} else {
+			log.Warn("unexpected response type", "type", fmt.Sprintf("%T", resp))
 		}
-		log.Warn("AI generated no PR title",
-			"response_length", respLen)
-		return models.PRSummary{}, domainErrors.ErrInvalidAIOutput.
-			WithContext("reason", "AI generated no PR title").
-			WithContext("response_length", respLen).
-			WithContext("preview", preview)
+
+		if responseText == "" {
+			if attempt < maxAttempts {
+				log.Warn("empty response from AI, invalidating cache and retrying", "attempt", attempt)
+				_ = gps.wrapper.InvalidateCache(prompt)
+				continue
+			}
+			return models.PRSummary{}, domainErrors.ErrInvalidAIOutput.
+				WithContext("reason", "empty response from AI").
+				WithContext("operation", "summarize PR")
+		}
+
+		var parsed PRSummaryJSON
+		if err := json.Unmarshal([]byte(responseText), &parsed); err != nil {
+			if attempt < maxAttempts {
+				log.Warn("failed to parse PR summary JSON, invalidating cache and retrying",
+					"error", err, "attempt", attempt)
+				_ = gps.wrapper.InvalidateCache(prompt)
+				continue
+			}
+			respLen := len(responseText)
+			preview := responseText
+			if respLen > 500 {
+				preview = responseText[:500] + "..."
+			}
+			return models.PRSummary{}, domainErrors.ErrInvalidAIOutput.
+				WithContext("reason", "failed to parse JSON").
+				WithContext("response_length", respLen).
+				WithContext("preview", preview).
+				WithError(err)
+		}
+		if strings.TrimSpace(parsed.Title) == "" {
+			if attempt < maxAttempts {
+				log.Warn("AI generated no PR title, invalidating cache and retrying", "attempt", attempt)
+				_ = gps.wrapper.InvalidateCache(prompt)
+				continue
+			}
+			respLen := len(responseText)
+			preview := responseText
+			if respLen > 500 {
+				preview = responseText[:500] + "..."
+			}
+			log.Warn("AI generated no PR title",
+				"response_length", respLen)
+			return models.PRSummary{}, domainErrors.ErrInvalidAIOutput.
+				WithContext("reason", "AI generated no PR title").
+				WithContext("response_length", respLen).
+				WithContext("preview", preview)
+		}
+
+		usage = respUsage
+		jsonSummary = parsed
+		break
 	}
 
 	log.Info("PR summary generated successfully via gemini",

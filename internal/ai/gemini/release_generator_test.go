@@ -338,4 +338,53 @@ func TestGenerateNotes(t *testing.T) {
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "invalid AI output format")
 	})
+
+	t.Run("retries once on truncated JSON and succeeds on second attempt", func(t *testing.T) {
+		// Arrange
+		callCount := 0
+		validJSON := `{"title": "Release v2.0.0", "summary": "Summary", "highlights": ["H1"], "breaking_changes": []}`
+		generator.generateFn = func(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
+			callCount++
+			text := `{"title": "trunc` // malformed/truncated JSON on the first attempt
+			if callCount > 1 {
+				text = validJSON
+			}
+			return &genai.GenerateContentResponse{
+				Candidates: []*genai.Candidate{
+					{Content: &genai.Content{Parts: []*genai.Part{{Text: text}}}},
+				},
+				UsageMetadata: &genai.GenerateContentResponseUsageMetadata{TotalTokenCount: 100},
+			}, &models.TokenUsage{TotalTokens: 100}, nil
+		}
+
+		// Act
+		notes, err := generator.GenerateNotes(ctx, &models.Release{Version: "v2.0.0-retry-ok"})
+
+		// Assert
+		assert.NoError(t, err)
+		assert.Equal(t, "Release v2.0.0", notes.Title)
+		assert.Equal(t, 2, callCount, "should retry exactly once after the truncated response")
+	})
+
+	t.Run("gives up after exhausting retries on persistently truncated JSON", func(t *testing.T) {
+		// Arrange
+		callCount := 0
+		generator.generateFn = func(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
+			callCount++
+			return &genai.GenerateContentResponse{
+				Candidates: []*genai.Candidate{
+					{Content: &genai.Content{Parts: []*genai.Part{{Text: `{"title": "still trunc`}}}},
+				},
+				UsageMetadata: &genai.GenerateContentResponseUsageMetadata{TotalTokenCount: 100},
+			}, &models.TokenUsage{TotalTokens: 100}, nil
+		}
+
+		// Act
+		notes, err := generator.GenerateNotes(ctx, &models.Release{Version: "v2.0.0-retry-fail"})
+
+		// Assert
+		assert.Error(t, err)
+		assert.Nil(t, notes)
+		assert.Equal(t, 2, callCount, "should stop after the second attempt, not retry forever")
+	})
 }

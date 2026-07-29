@@ -186,54 +186,72 @@ func (g *ReleaseNotesGenerator) GenerateNotes(ctx context.Context, release *mode
 	log.Debug("calling gemini API for release notes",
 		"prompt_length", len(prompt))
 
-	resp, usage, err := g.wrapper.WrapGenerate(ctx, "generate-release", prompt, g.generateFn)
-	if err != nil {
-		log.Error("failed to generate release notes",
-			"error", err,
-			"version", release.Version)
-		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error generating release notes", err)
+	const maxAttempts = 2
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		resp, usage, err := g.wrapper.WrapGenerate(ctx, "generate-release", prompt, g.generateFn)
+		if err != nil {
+			log.Error("failed to generate release notes",
+				"error", err,
+				"version", release.Version)
+			return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error generating release notes", err)
+		}
+
+		var responseText string
+		if geminiResp, ok := resp.(*genai.GenerateContentResponse); ok {
+			log.Debug("formatResponse received GenerateContentResponse",
+				"candidates_count", len(geminiResp.Candidates))
+			responseText = formatResponse(geminiResp)
+		} else if str, ok := resp.(string); ok {
+			responseText = str
+			log.Debug("received string response", "length", len(str))
+		} else if respMap, ok := resp.(map[string]interface{}); ok {
+			log.Debug("received map response from cache, extracting text")
+			responseText = extractTextFromMap(respMap)
+			log.Debug("extracted text from map", "length", len(responseText))
+		} else {
+			log.Warn("unexpected response type", "type", fmt.Sprintf("%T", resp))
+		}
+
+		if responseText == "" {
+			if attempt < maxAttempts {
+				log.Warn("empty response from gemini AI, invalidating cache and retrying", "attempt", attempt)
+				_ = g.wrapper.InvalidateCache(prompt)
+				continue
+			}
+			log.Error("empty response from gemini AI")
+			return nil, domainErrors.ErrInvalidAIOutput.
+				WithContext("reason", "empty response from AI").
+				WithContext("operation", "generate release notes")
+		}
+
+		log.Debug("gemini response received",
+			"response_length", len(responseText))
+
+		notes, err := g.parseJSONResponse(responseText, release)
+		if err != nil {
+			if attempt < maxAttempts {
+				log.Warn("failed to parse release notes response, invalidating cache and retrying",
+					"error", err, "attempt", attempt)
+				_ = g.wrapper.InvalidateCache(prompt)
+				continue
+			}
+			log.Error("failed to parse release notes response",
+				"error", err)
+			return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error parsing AI JSON response", err)
+		}
+
+		notes.Usage = usage
+
+		log.Info("release notes generated successfully via gemini",
+			"title", notes.Title,
+			"highlights_count", len(notes.Highlights))
+
+		return notes, nil
 	}
 
-	var responseText string
-	if geminiResp, ok := resp.(*genai.GenerateContentResponse); ok {
-		log.Debug("formatResponse received GenerateContentResponse",
-			"candidates_count", len(geminiResp.Candidates))
-		responseText = formatResponse(geminiResp)
-	} else if str, ok := resp.(string); ok {
-		responseText = str
-		log.Debug("received string response", "length", len(str))
-	} else if respMap, ok := resp.(map[string]interface{}); ok {
-		log.Debug("received map response from cache, extracting text")
-		responseText = extractTextFromMap(respMap)
-		log.Debug("extracted text from map", "length", len(responseText))
-	} else {
-		log.Warn("unexpected response type", "type", fmt.Sprintf("%T", resp))
-	}
-
-	if responseText == "" {
-		log.Error("empty response from gemini AI")
-		return nil, domainErrors.ErrInvalidAIOutput.
-			WithContext("reason", "empty response from AI").
-			WithContext("operation", "generate release notes")
-	}
-
-	log.Debug("gemini response received",
-		"response_length", len(responseText))
-
-	notes, err := g.parseJSONResponse(responseText, release)
-	if err != nil {
-		log.Error("failed to parse release notes response",
-			"error", err)
-		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error parsing AI JSON response", err)
-	}
-
-	notes.Usage = usage
-
-	log.Info("release notes generated successfully via gemini",
-		"title", notes.Title,
-		"highlights_count", len(notes.Highlights))
-
-	return notes, nil
+	return nil, domainErrors.ErrInvalidAIOutput.
+		WithContext("reason", "AI response invalid after retry").
+		WithContext("operation", "generate release notes")
 }
 
 func (g *ReleaseNotesGenerator) buildPrompt(release *models.Release) string {

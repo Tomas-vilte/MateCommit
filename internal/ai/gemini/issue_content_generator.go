@@ -142,43 +142,56 @@ func (s *GeminiIssueContentGenerator) GenerateIssueContent(ctx context.Context, 
 	log.Debug("calling gemini API for issue content",
 		"prompt_length", len(prompt))
 
-	resp, usage, err := s.wrapper.WrapGenerate(ctx, "generate-issue", prompt, s.generateFn)
-	if err != nil {
-		log.Error("failed to generate issue content",
-			"error", err)
-		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error generating issue content", err)
-	}
-
+	var usage *models.TokenUsage
 	var responseText string
-	if geminiResp, ok := resp.(*genai.GenerateContentResponse); ok {
-		log.Debug("formatResponse received GenerateContentResponse",
-			"candidates_count", len(geminiResp.Candidates))
-		responseText = formatResponse(geminiResp)
-		if len(responseText) > 0 {
-			preview := responseText
-			if len(responseText) > 100 {
-				preview = responseText[:100]
-			}
-			log.Debug("formatResponse result",
-				"response_length", len(responseText),
-				"response_preview", preview)
-		} else {
-			log.Debug("formatResponse result empty")
-		}
-	} else if str, ok := resp.(string); ok {
-		responseText = str
-		log.Debug("received string response", "length", len(str))
-	} else if respMap, ok := resp.(map[string]interface{}); ok {
-		log.Debug("received map response from cache, extracting text")
-		responseText = extractTextFromMap(respMap)
-		log.Debug("extracted text from map", "length", len(responseText))
-	} else {
-		log.Warn("unexpected response type", "type", fmt.Sprintf("%T", resp))
-	}
 
-	if responseText == "" {
-		log.Error("empty response from gemini AI after format")
-		return nil, domainErrors.NewAppError(domainErrors.TypeAI, "empty response from AI", nil)
+	const maxAttempts = 2
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		resp, respUsage, err := s.wrapper.WrapGenerate(ctx, "generate-issue", prompt, s.generateFn)
+		if err != nil {
+			log.Error("failed to generate issue content",
+				"error", err)
+			return nil, domainErrors.NewAppError(domainErrors.TypeAI, "error generating issue content", err)
+		}
+
+		if geminiResp, ok := resp.(*genai.GenerateContentResponse); ok {
+			log.Debug("formatResponse received GenerateContentResponse",
+				"candidates_count", len(geminiResp.Candidates))
+			responseText = formatResponse(geminiResp)
+			if len(responseText) > 0 {
+				preview := responseText
+				if len(responseText) > 100 {
+					preview = responseText[:100]
+				}
+				log.Debug("formatResponse result",
+					"response_length", len(responseText),
+					"response_preview", preview)
+			} else {
+				log.Debug("formatResponse result empty")
+			}
+		} else if str, ok := resp.(string); ok {
+			responseText = str
+			log.Debug("received string response", "length", len(str))
+		} else if respMap, ok := resp.(map[string]interface{}); ok {
+			log.Debug("received map response from cache, extracting text")
+			responseText = extractTextFromMap(respMap)
+			log.Debug("extracted text from map", "length", len(responseText))
+		} else {
+			log.Warn("unexpected response type", "type", fmt.Sprintf("%T", resp))
+		}
+
+		if responseText == "" {
+			if attempt < maxAttempts {
+				log.Warn("empty response from AI, invalidating cache and retrying", "attempt", attempt)
+				_ = s.wrapper.InvalidateCache(prompt)
+				continue
+			}
+			log.Error("empty response from gemini AI after format")
+			return nil, domainErrors.NewAppError(domainErrors.TypeAI, "empty response from AI", nil)
+		}
+
+		usage = respUsage
+		break
 	}
 
 	log.Debug("gemini response received",
