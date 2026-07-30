@@ -38,6 +38,8 @@ type VCSClient interface {
 	GetFileStatsBetweenTags(ctx context.Context, previousTag, currentTag string) (*models.FileStatistics, error)
 	// GetIssue gets information for an issue/ticket by its number
 	GetIssue(ctx context.Context, issueNumber int) (*models.Issue, error)
+	// ListOpenIssues gets currently open issues in the repository, most recently updated first
+	ListOpenIssues(ctx context.Context) ([]models.Issue, error)
 	// GetFileAtTag gets the content of a file at a specific tag
 	GetFileAtTag(ctx context.Context, tag, filepath string) (string, error)
 	// GetPRIssues gets issues related to a PR based on branch name, commits, and description

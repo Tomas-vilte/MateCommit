@@ -33,6 +33,14 @@ func (m *MockVCSClient) GetRepoLabelsWithDescriptions(ctx context.Context) ([]mo
 	return args.Get(0).([]models.RepoLabel), args.Error(1)
 }
 
+func (m *MockVCSClient) ListOpenIssues(ctx context.Context) ([]models.Issue, error) {
+	args := m.Called(ctx)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.Issue), args.Error(1)
+}
+
 func (m *MockVCSClient) CreateLabel(ctx context.Context, name, color, description string) error {
 	args := m.Called(ctx, name, color, description)
 	return args.Error(0)

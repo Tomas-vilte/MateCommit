@@ -639,6 +639,61 @@ func TestIssueGeneratorService_InferBranchName(t *testing.T) {
 	}
 }
 
+func TestIssueGeneratorService_FindSimilarOpenIssues(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("finds an issue with a strongly overlapping title", func(t *testing.T) {
+		mockVCS := new(testutil.MockVCSClient)
+		service := &IssueGeneratorService{vcsClient: mockVCS}
+
+		mockVCS.On("ListOpenIssues", ctx).Return([]models.Issue{
+			{Number: 10, Title: "Refactor release preview to parallelize GitHub API calls"},
+			{Number: 11, Title: "Add dark mode support to the CLI"},
+		}, nil)
+
+		similar, err := service.FindSimilarOpenIssues(ctx, "Parallelize GitHub API calls in release preview command")
+
+		assert.NoError(t, err)
+		assert.Len(t, similar, 1)
+		assert.Equal(t, 10, similar[0].Number)
+	})
+
+	t.Run("ignores issues with little title overlap", func(t *testing.T) {
+		mockVCS := new(testutil.MockVCSClient)
+		service := &IssueGeneratorService{vcsClient: mockVCS}
+
+		mockVCS.On("ListOpenIssues", ctx).Return([]models.Issue{
+			{Number: 20, Title: "Add dark mode support to the CLI"},
+		}, nil)
+
+		similar, err := service.FindSimilarOpenIssues(ctx, "Fix panic when config file is missing")
+
+		assert.NoError(t, err)
+		assert.Empty(t, similar)
+	})
+
+	t.Run("returns nil when no VCS client is configured", func(t *testing.T) {
+		service := &IssueGeneratorService{}
+
+		similar, err := service.FindSimilarOpenIssues(ctx, "Any title")
+
+		assert.NoError(t, err)
+		assert.Nil(t, similar)
+	})
+
+	t.Run("propagates errors from ListOpenIssues", func(t *testing.T) {
+		mockVCS := new(testutil.MockVCSClient)
+		service := &IssueGeneratorService{vcsClient: mockVCS}
+
+		mockVCS.On("ListOpenIssues", ctx).Return(nil, errors.New("api error"))
+
+		similar, err := service.FindSimilarOpenIssues(ctx, "Any title")
+
+		assert.Error(t, err)
+		assert.Nil(t, similar)
+	})
+}
+
 func TestIssueGeneratorService_CreateIssue(t *testing.T) {
 	ctx := context.Background()
 

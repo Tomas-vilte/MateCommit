@@ -51,6 +51,14 @@ func (m *MockIssueGeneratorService) CreateIssue(ctx context.Context, result *mod
 	return args.Get(0).(*models.Issue), args.Error(1)
 }
 
+func (m *MockIssueGeneratorService) FindSimilarOpenIssues(ctx context.Context, title string) ([]models.Issue, error) {
+	args := m.Called(ctx, title)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]models.Issue), args.Error(1)
+}
+
 func (m *MockIssueGeneratorService) GetAuthenticatedUser(ctx context.Context) (string, error) {
 	args := m.Called(ctx)
 	return args.String(0), args.Error(1)

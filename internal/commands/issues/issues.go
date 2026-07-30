@@ -25,6 +25,7 @@ type IssueGeneratorService interface {
 	GenerateFromPR(ctx context.Context, prNumber int, hint string, skipLabels bool, autoTemplate bool, explicitTemplate *models.IssueTemplate) (*models.IssueGenerationResult, error)
 	GenerateWithTemplate(ctx context.Context, templateName string, hint string, fromDiff bool, description string, skipLabels bool) (*models.IssueGenerationResult, error)
 	CreateIssue(ctx context.Context, result *models.IssueGenerationResult, assignees []string) (*models.Issue, error)
+	FindSimilarOpenIssues(ctx context.Context, title string) ([]models.Issue, error)
 	GetAuthenticatedUser(ctx context.Context) (string, error)
 	InferBranchName(issueNumber int, labels []string) string
 	LinkIssueToPR(ctx context.Context, prNumber int, issueNumber int) error
@@ -238,6 +239,13 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 
 		_ = showPreview(result, t, cfg)
 		ui.PrintTokenUsage(result.Usage, t)
+
+		if similar, err := issueService.FindSimilarOpenIssues(ctx, result.Title); err == nil && len(similar) > 0 {
+			ui.PrintWarning(t.GetMessage("issue.similar_issues_found", 0, struct{ Count int }{len(similar)}))
+			for _, s := range similar {
+				fmt.Printf("  #%d: %s (%s)\n", s.Number, s.Title, s.URL)
+			}
+		}
 
 		if dryRun {
 			ui.PrintInfo(t.GetMessage("issue.dry_run_complete", 0, nil))

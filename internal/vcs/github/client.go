@@ -514,6 +514,44 @@ func (ghc *GitHubClient) GetClosedIssuesBetweenTags(ctx context.Context, previou
 	return allIssues, nil
 }
 
+// ListOpenIssues fetches currently open issues, most recently updated
+// first, capped to a single page so a duplicate check stays cheap and fast.
+func (ghc *GitHubClient) ListOpenIssues(ctx context.Context) ([]models.Issue, error) {
+	opts := &github.IssueListByRepoOptions{
+		State:     "open",
+		Sort:      "updated",
+		Direction: "desc",
+		ListOptions: github.ListOptions{
+			PerPage: 100,
+		},
+	}
+
+	issues, _, err := ghc.issuesService.ListByRepo(ctx, ghc.owner, ghc.repo, opts)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]models.Issue, 0, len(issues))
+	for _, issue := range issues {
+		if issue.PullRequestLinks != nil {
+			continue
+		}
+		labels := make([]string, 0, len(issue.Labels))
+		for _, label := range issue.Labels {
+			labels = append(labels, label.GetName())
+		}
+		result = append(result, models.Issue{
+			Number: issue.GetNumber(),
+			Title:  issue.GetTitle(),
+			Labels: labels,
+			Author: issue.GetUser().GetLogin(),
+			URL:    issue.GetHTMLURL(),
+		})
+	}
+
+	return result, nil
+}
+
 func (ghc *GitHubClient) GetMergedPRsBetweenTags(ctx context.Context, previousTag, _ string) ([]models.PullRequest, error) {
 	prevRelease, _, err := ghc.releaseService.GetReleaseByTag(ctx, ghc.owner, ghc.repo, previousTag)
 	if err != nil {

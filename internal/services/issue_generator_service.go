@@ -529,6 +529,73 @@ func (s *IssueGeneratorService) extractFilesFromDiff(diff string) []string {
 
 // CreateIssue creates a new issue in the repository using the configured VCS client.
 // It returns the created issue with its assigned number and URL.
+// FindSimilarOpenIssues does a lightweight, local keyword-overlap match of
+// the generated title against currently open issues, so the CLI can warn
+// about likely duplicates before creating a new one. No AI call involved —
+// this only needs to be fast and cheap, not exhaustive.
+func (s *IssueGeneratorService) FindSimilarOpenIssues(ctx context.Context, title string) ([]models.Issue, error) {
+	if s.vcsClient == nil {
+		return nil, nil
+	}
+
+	openIssues, err := s.vcsClient.ListOpenIssues(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	titleWords := significantWords(title)
+	if len(titleWords) == 0 {
+		return nil, nil
+	}
+
+	var similar []models.Issue
+	for _, issue := range openIssues {
+		otherWords := significantWords(issue.Title)
+		if len(otherWords) == 0 {
+			continue
+		}
+
+		shared := 0
+		for w := range titleWords {
+			if otherWords[w] {
+				shared++
+			}
+		}
+
+		smaller := len(titleWords)
+		if len(otherWords) < smaller {
+			smaller = len(otherWords)
+		}
+
+		if shared >= 2 && float64(shared)/float64(smaller) >= 0.5 {
+			similar = append(similar, issue)
+		}
+	}
+
+	return similar, nil
+}
+
+// significantWords tokenizes text into lowercase, punctuation-stripped
+// words, dropping short/common words that carry no real matching signal.
+func significantWords(text string) map[string]bool {
+	stopwords := map[string]bool{
+		"the": true, "a": true, "an": true, "to": true, "of": true, "in": true,
+		"for": true, "and": true, "or": true, "is": true, "on": true, "with": true,
+		"el": true, "la": true, "los": true, "las": true, "de": true, "en": true,
+		"un": true, "una": true, "para": true, "y": true, "o": true, "que": true,
+	}
+
+	words := make(map[string]bool)
+	for _, w := range strings.Fields(strings.ToLower(text)) {
+		w = strings.Trim(w, ".,!?:;()[]{}'\"")
+		if len(w) < 3 || stopwords[w] {
+			continue
+		}
+		words[w] = true
+	}
+	return words
+}
+
 func (s *IssueGeneratorService) CreateIssue(ctx context.Context, result *models.IssueGenerationResult, assignees []string) (*models.Issue, error) {
 	return s.vcsClient.CreateIssue(ctx, result.Title, result.Description, result.Labels, assignees)
 }
