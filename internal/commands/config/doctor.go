@@ -71,12 +71,18 @@ func (d *DoctorCommand) runHealthCheck(ctx context.Context, t *i18n.Translations
 			}
 		case checkStatusWarning:
 			spinner.Warning(checkName)
+			if result.message != "" {
+				ui.PrintInfo("  " + result.message)
+			}
 			warnings = append(warnings, result.message)
 			if result.suggestion != "" {
 				ui.PrintInfo("  → " + result.suggestion)
 			}
 		case checkStatusError:
 			spinner.Error(checkName)
+			if result.message != "" {
+				ui.PrintInfo("  " + result.message)
+			}
 			errors = append(errors, result.message)
 			allPassed = false
 			if result.suggestion != "" {
@@ -271,12 +277,18 @@ func (d *DoctorCommand) printCommandStatus(command string, available bool, t *i1
 	fmt.Printf("  %s matecommit %-15s %s\n", status, command, statusMsg)
 }
 
-func (d *DoctorCommand) checkGitUserName(ctx context.Context, t *i18n.Translations, _ *config.Config) checkResult {
+func (d *DoctorCommand) checkGitUserName(ctx context.Context, t *i18n.Translations, cfg *config.Config) checkResult {
 	cmd := exec.CommandContext(ctx, "git", "config", "user.name")
 	output, err := cmd.Output()
 	userName := strings.TrimSpace(string(output))
 
 	if err != nil || userName == "" {
+		if cfg != nil && cfg.GitFallback.UserName != "" {
+			return checkResult{
+				status:  checkStatusWarning,
+				message: fmt.Sprintf("%s (%s)", t.GetMessage("doctor.git_user_fallback", 0, nil), cfg.GitFallback.UserName),
+			}
+		}
 		return checkResult{
 			status:     checkStatusError,
 			message:    t.GetMessage("doctor.git_user_not_set", 0, nil),
@@ -289,12 +301,18 @@ func (d *DoctorCommand) checkGitUserName(ctx context.Context, t *i18n.Translatio
 		message: fmt.Sprintf("(%s)", userName),
 	}
 }
-func (d *DoctorCommand) checkGitUserEmail(ctx context.Context, t *i18n.Translations, _ *config.Config) checkResult {
+func (d *DoctorCommand) checkGitUserEmail(ctx context.Context, t *i18n.Translations, cfg *config.Config) checkResult {
 	cmd := exec.CommandContext(ctx, "git", "config", "user.email")
 	output, err := cmd.Output()
 	userEmail := strings.TrimSpace(string(output))
 
 	if err != nil || userEmail == "" {
+		if cfg != nil && cfg.GitFallback.UserEmail != "" {
+			return checkResult{
+				status:  checkStatusWarning,
+				message: fmt.Sprintf("%s (%s)", t.GetMessage("doctor.git_email_fallback", 0, nil), cfg.GitFallback.UserEmail),
+			}
+		}
 		return checkResult{
 			status:     checkStatusError,
 			message:    t.GetMessage("doctor.git_email_not_set", 0, nil),
