@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/thomas-vilte/matecommit/internal/cache"
+	"github.com/thomas-vilte/matecommit/internal/cost"
 	"github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/thomas-vilte/matecommit/internal/services/cost"
-	"github.com/thomas-vilte/matecommit/internal/services/routing"
+	"github.com/thomas-vilte/matecommit/internal/routing"
 )
 
 type ConfirmationCallback func(result ConfirmationResult) (choice string, proceed bool)
