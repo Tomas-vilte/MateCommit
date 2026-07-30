@@ -151,6 +151,38 @@ func TestBuildChangelogFromNotes_WithBreakingChanges(t *testing.T) {
 	assert.Contains(t, result, "- Changed configuration format")
 }
 
+// TestBuildChangelogFromNotes_WithMergedPRsAndContributors tests that the
+// checked-in CHANGELOG.md lists real merged PRs and contributors, not just
+// the fragile per-commit "### References" match.
+func TestBuildChangelogFromNotes_WithMergedPRsAndContributors(t *testing.T) {
+	mockGit := &mockGitService{owner: "test", repo: "repo", provider: "github"}
+	service := &ReleaseService{git: mockGit}
+	ctx := context.Background()
+
+	release := &models.Release{
+		Version:         "v2.0.0",
+		PreviousVersion: "v1.7.0",
+		MergedPRs: []models.PullRequest{
+			{Number: 90, Title: "Add feature X", Author: "thomas-vilte", URL: "https://github.com/test/repo/pull/90"},
+			{Number: 91, Title: "Fix bug Y", Author: "dependabot[bot]", URL: "https://github.com/test/repo/pull/91"},
+		},
+		Contributors: []string{"thomas-vilte", "dependabot[bot]"},
+	}
+
+	notes := &models.ReleaseNotes{
+		Summary:    "Minor release",
+		Highlights: []string{"New feature"},
+	}
+
+	result := service.buildChangelogFromNotes(ctx, release, notes)
+
+	assert.Contains(t, result, "### Pull Requests")
+	assert.Contains(t, result, "[#90](https://github.com/test/repo/pull/90) Add feature X (by @thomas-vilte)")
+	assert.Contains(t, result, "[#91](https://github.com/test/repo/pull/91) Fix bug Y (by @dependabot[bot])")
+	assert.Contains(t, result, "### Contributors")
+	assert.Contains(t, result, "Thanks to @thomas-vilte, @dependabot[bot]")
+}
+
 func TestBuildChangelogFromNotes_WithReferences(t *testing.T) {
 	mockGit := &mockGitService{owner: "test", repo: "repo", provider: "github"}
 	service := &ReleaseService{git: mockGit}
