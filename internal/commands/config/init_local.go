@@ -7,7 +7,6 @@ import (
 
 	"github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
-	"github.com/thomas-vilte/matecommit/internal/ui"
 	"github.com/urfave/cli/v3"
 )
 
@@ -45,7 +44,7 @@ func runFullSetupLocal(ctx context.Context, command *cli.Command, reader *bufio.
 	printConfigSummary(cfg, t)
 	fmt.Println(t.GetMessage("config_local.saved_successfully", 0, nil))
 
-	if ui.AskConfirmation(t.GetMessage("init.prompt_run_again", 0, nil)) {
+	if askConfirmation(reader, t.GetMessage("init.prompt_run_again", 0, nil)) {
 		return runFullSetupLocal(ctx, command, reader, cfg, t)
 	}
 
