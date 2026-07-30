@@ -371,6 +371,23 @@ func (s *GitService) AddFileToStaging(ctx context.Context, file string) error {
 		absFile = file
 	}
 
+	// If the file has no pending change relative to the index (e.g. it was
+	// already staged by the user via a manual "git rm" or "git add"), "git
+	// add" has nothing to do — and once the file no longer exists on disk
+	// at all (a staged deletion), running it anyway fails with "pathspec
+	// did not match any files" instead of being the harmless no-op it
+	// should be.
+	precheckCmd := exec.CommandContext(ctx, "git", "status", "--porcelain", "--", absFile)
+	precheckCmd.Dir = repoRoot
+	precheckOutput, _ := precheckCmd.Output()
+	precheckLine := strings.TrimRight(string(precheckOutput), "\n")
+	if len(precheckLine) > 1 && precheckLine[1] == ' ' {
+		log.Debug("file already fully staged, skipping git add",
+			"file", file,
+			"status", precheckLine)
+		return nil
+	}
+
 	log.Debug("adding file to staging",
 		"file", file,
 		"abs_file", absFile,

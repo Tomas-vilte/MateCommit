@@ -9,8 +9,8 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/thomas-vilte/matecommit/internal/config"
+	"github.com/thomas-vilte/matecommit/internal/cost"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
-	"github.com/thomas-vilte/matecommit/internal/services/cost"
 	"github.com/urfave/cli/v3"
 )
 

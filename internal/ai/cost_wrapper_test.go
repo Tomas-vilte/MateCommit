@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/mock"
+	"github.com/thomas-vilte/matecommit/internal/cost"
 	"github.com/thomas-vilte/matecommit/internal/models"
-	"github.com/thomas-vilte/matecommit/internal/services/cost"
 )
 
 type mockProvider struct {
