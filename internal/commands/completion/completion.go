@@ -22,8 +22,11 @@ _mate_commit_bash_autocomplete() {
     # Construct the command line with previous words and append the completion flag
     # We strip the current word being completed (index COMP_CWORD) to ask for suggestions based on the context so far
     local cmd_context=("${COMP_WORDS[@]:0:$COMP_CWORD}")
-    opts=$( "${cmd_context[@]}" --generate-shell-completion )
-    
+    # Suggestions come as "name:description" (urfave/cli's default format);
+    # compgen -W splits on whitespace, so the description would otherwise be
+    # torn apart into bogus extra candidates. Keep only the name per line.
+    opts=$( "${cmd_context[@]}" --generate-shell-completion | cut -d: -f1 )
+
     COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
     return 0
   fi

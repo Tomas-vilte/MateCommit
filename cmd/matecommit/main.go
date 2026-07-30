@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -39,11 +38,18 @@ import (
 func main() {
 	app, err := initializeApp()
 	if err != nil {
-		log.Fatalf("Error starting the CLI: %v", err)
+		fmt.Fprintf(os.Stderr, "Error starting the CLI: %v\n", err)
+		os.Exit(1)
 	}
 
+	// Not log.Fatal: internal/logger.Initialize calls slog.SetDefault, which
+	// (per log/slog's documented behavior) redirects the stdlib log package
+	// through the slog handler at Info level. With the handler's default
+	// Warn threshold, that silently drops every fatal error unless --debug
+	// is passed — and even then it prints mislabeled as "[INFO]".
 	if err := app.Run(context.Background(), os.Args); err != nil {
-		log.Fatal(err)
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 }
 
@@ -60,7 +66,7 @@ func initializeApp() (*cli.Command, error) {
 
 	translations, err := i18n.NewTranslations(cfgApp.Language, "")
 	if err != nil {
-		log.Fatalf("Error loading translations: %v", err)
+		return nil, fmt.Errorf("error loading translations: %w", err)
 	}
 
 	ctx := context.Background()
@@ -92,9 +98,12 @@ func initializeApp() (*cli.Command, error) {
 				Usage: translations.GetMessage("flags_global.debug_flag", 0, nil),
 			},
 			&cli.BoolFlag{
-				Name:    "verbose",
-				Aliases: []string{"v"},
-				Usage:   translations.GetMessage("flags_global.verbose_flag", 0, nil),
+				// No -v alias: urfave/cli auto-registers -v for --version,
+				// and since it doesn't detect the collision, -v (and even
+				// the long --verbose form) ends up resolving to --version,
+				// silently skipping whatever command was actually requested.
+				Name:  "verbose",
+				Usage: translations.GetMessage("flags_global.verbose_flag", 0, nil),
 			},
 		},
 		Before: func(ctx context.Context, c *cli.Command) (context.Context, error) {
