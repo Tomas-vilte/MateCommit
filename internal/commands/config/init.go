@@ -130,7 +130,7 @@ func runFullSetup(ctx context.Context, command *cli.Command, reader *bufio.Reade
 
 	printConfigSummary(cfg, t)
 
-	if ui.AskConfirmation(t.GetMessage("init.prompt_run_again", 0, nil)) {
+	if askConfirmation(reader, t.GetMessage("init.prompt_run_again", 0, nil)) {
 		return runFullSetup(ctx, command, reader, cfg, t)
 	}
 
@@ -163,7 +163,7 @@ func configureWelcome(ctx context.Context, reader *bufio.Reader, cfg *config.Con
 	if apiKey != "" {
 		if !validateGeminiAPIKey(ctx, apiKey, t) {
 			ui.PrintWarning(t.GetMessage("config.api_key_saved_unverified", 0, nil))
-			if ui.AskConfirmation(t.GetMessage("config.retry_api_key", 0, nil)) {
+			if askConfirmation(reader, t.GetMessage("config.retry_api_key", 0, nil)) {
 				return configureWelcome(ctx, reader, cfg, t)
 			}
 		}
@@ -230,7 +230,7 @@ func configureVCS(reader *bufio.Reader, cfg *config.Config, t *i18n.Translations
 
 	printSection(t.GetMessage("init.section_vcs", 0, nil))
 
-	if !ui.AskConfirmation(t.GetMessage("init.prompt_vcs_enable_blank_no", 0, struct{ Providers string }{vcsProvidersStr})) {
+	if !askConfirmation(reader, t.GetMessage("init.prompt_vcs_enable_blank_no", 0, struct{ Providers string }{vcsProvidersStr})) {
 		fmt.Println(t.GetMessage("init.info_vcs_skipped", 0, nil))
 		return nil
 	}
@@ -260,7 +260,7 @@ func configureVCS(reader *bufio.Reader, cfg *config.Config, t *i18n.Translations
 
 		if !isValid {
 			ui.PrintWarning(t.GetMessage("config.token_saved_unverified", 0, nil))
-			if ui.AskConfirmation(t.GetMessage("config.retry_token", 0, nil)) {
+			if askConfirmation(reader, t.GetMessage("config.retry_token", 0, nil)) {
 				continue
 			}
 		}
@@ -286,7 +286,7 @@ func configureTickets(reader *bufio.Reader, cfg *config.Config, t *i18n.Translat
 
 	printSection(t.GetMessage("init.section_tickets", 0, nil))
 
-	if !ui.AskConfirmation(t.GetMessage("init.prompt_ticket_enable_blank_no", 0, struct{ Providers string }{ticketProvidersStr})) {
+	if !askConfirmation(reader, t.GetMessage("init.prompt_ticket_enable_blank_no", 0, struct{ Providers string }{ticketProvidersStr})) {
 		disableTickets(cfg)
 		return nil
 	}
@@ -310,7 +310,7 @@ func configureTickets(reader *bufio.Reader, cfg *config.Config, t *i18n.Translat
 
 		if !isValidURL(jiraURL) {
 			ui.PrintWarning(t.GetMessage("init.warning_invalid_url", 0, nil))
-			if !ui.AskConfirmation(t.GetMessage("init.confirm_continue_anyway", 0, nil)) {
+			if !askConfirmation(reader, t.GetMessage("init.confirm_continue_anyway", 0, nil)) {
 				continue
 			}
 		}
@@ -351,7 +351,7 @@ func configureTickets(reader *bufio.Reader, cfg *config.Config, t *i18n.Translat
 
 		if !isValid {
 			ui.PrintWarning(t.GetMessage("config.jira_saved_unverified", 0, nil))
-			if ui.AskConfirmation(t.GetMessage("config.retry_jira", 0, nil)) {
+			if askConfirmation(reader, t.GetMessage("config.retry_jira", 0, nil)) {
 				continue
 			}
 		}
@@ -450,8 +450,17 @@ func validateGeminiAPIKey(ctx context.Context, apiKey string, t *i18n.Translatio
 	testCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	_, err := gemini.NewGeminiCommitSummarizer(testCtx, testCfg, nil)
+	summarizer, err := gemini.NewGeminiCommitSummarizer(testCtx, testCfg, nil)
 	if err != nil {
+		spinner.Error(t.GetMessage("config.api_key_invalid", 0, nil))
+		ui.PrintError(os.Stdout, t.GetMessage("config.check_api_key_error", 0, struct{ Error string }{err.Error()}))
+		return false
+	}
+
+	// Constructing the client above only validates the key locally (it never
+	// contacts the API), so an actual request is required to confirm the key
+	// is authorized — CountTokens is the cheapest real call available.
+	if _, err := summarizer.CountTokens(testCtx, "ping"); err != nil {
 		spinner.Error(t.GetMessage("config.api_key_invalid", 0, nil))
 		ui.PrintError(os.Stdout, t.GetMessage("config.check_api_key_error", 0, struct{ Error string }{err.Error()}))
 		return false
@@ -656,6 +665,18 @@ func isValidEmail(email string) bool {
 func printSection(title string) {
 	fmt.Println()
 	fmt.Println(title)
+}
+
+// askConfirmation mirrors ui.AskConfirmation but reads from the wizard's
+// shared bufio.Reader instead of calling fmt.Scanln directly on os.Stdin.
+// The init wizard interleaves buffered ReadString('\n') prompts with y/n
+// confirmations; fmt.Scanln reads ahead independently of that buffer, so
+// mixing the two desyncs stdin and misdelivers answers to the wrong prompt.
+func askConfirmation(reader *bufio.Reader, question string) bool {
+	fmt.Printf("\n%s (y/n): ", ui.Info.Sprint(question))
+	line, _ := reader.ReadString('\n')
+	line = strings.ToLower(strings.TrimSpace(line))
+	return line == "y" || line == "yes" || line == "s" || line == "si"
 }
 
 func toStrings[T ~string](vals []T) []string {
