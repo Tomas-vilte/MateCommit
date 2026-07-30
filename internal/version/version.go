@@ -2,7 +2,7 @@ package version
 
 // Version is the current version of MateCommit
 // This version should be updated in each release
-const Version = "1.7.0"
+const Version = "1.8.0"
 
 // GitCommit is the git commit hash (injected at build time)
 var GitCommit = "dev"

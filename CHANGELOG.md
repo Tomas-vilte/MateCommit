@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 
+## [v1.8.0] - 2026-07-30
+
+[v1.8.0]: https://github.com/thomas-vilte/matecommit/compare/v1.7.0...v1.8.0
+
+This release updates Gemini models to 3.1 Pro and 3.5 Flash while introducing interactive file selection and budget usage warnings. It also improves issue generation by warning about similar open issues and enforcing strict markdown formatting for descriptions and pull request summaries.
+
+### AI and Generation Improvements
+
+- Updated Gemini models to 3.1 Pro and 3.5 Flash.
+- Added retry logic and cache invalidation for Gemini AI services.
+- Injected detailed Git status and VCS label data into AI prompts to improve context awareness.
+- Enforced strict multi-line Markdown formatting for AI-generated issue descriptions and PR summaries.
+
+### Issue and Pull Request Management
+
+- Implemented warnings for similar open issues during the generation process to prevent duplicates.
+- Added automatic filtering of unavailable issue labels from generated suggestions.
+- Included merged pull requests in the generated release notes.
+- Refined prompt instructions for label selection and change descriptions.
+
+### CLI and User Experience
+
+- Added interactive file selection for AI suggestions.
+- Introduced budget usage warnings and indicators for unknown model pricing in confirmation prompts.
+- Implemented activity history pruning to manage local data usage.
+- Added new localization strings and improved i18n support for statistics.
+- Injected build-time version information directly into the binary.
+
+### Git and VCS Operations
+
+- Fixed a bug where staging failed when files were renamed during commit generation.
+- Expanded untracked directory detection in GetChangedFiles.
+- Explicitly set commit author identity during git operations.
+- Improved tag handling and changelog path resolution robustness.
+
+### Refactoring and Stability
+
+- Modularized the monolithic release service into specialized components for changelogs and version files.
+- Centralized editor and configuration target resolution logic.
+- Consolidated test mocks into a dedicated testutil package and renamed mock files to use the _test.go suffix.
+- Corrected GitHub file path retrieval and improved error handling for release operations.
+
+### References
+
+- [#83](https://github.com/thomas-vilte/matecommit/pull/83)
+
 ## [v1.7.0] - 2026-01-05
 
 [v1.7.0]: https://github.com/thomas-vilte/matecommit/compare/v1.6.0...v1.7.0
