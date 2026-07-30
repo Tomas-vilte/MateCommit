@@ -56,7 +56,7 @@ other = "<clave> <valor>"
 other = "Faltan argumentos. Uso: config set <clave> <valor>"
 
 [config_set_success]
-other = "Configuración actualizada: %s = %s"
+other = "Configuración actualizada ({{.Scope}}): {{.Key}} = {{.Value}}"
 
 [config_command_usage]
 other = "Gestiona la configuración de la aplicación"
