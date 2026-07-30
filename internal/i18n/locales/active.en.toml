@@ -577,6 +577,8 @@ command_ready = "(ready)"
 command_unavailable = "(unavailable)"
 git_user_not_set = "Git user.name is not configured"
 git_email_not_set = "Git user.email is not configured"
+git_user_fallback = "Git user.name not set, using matecommit fallback identity"
+git_email_fallback = "Git user.email not set, using matecommit fallback identity"
 
 # Checks
 check_config_file = "Configuration file"
