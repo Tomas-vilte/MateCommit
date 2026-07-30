@@ -498,6 +498,30 @@ func (s *ReleaseService) buildChangelogFromNotes(ctx context.Context, release *m
 		sb.WriteString("\n")
 	}
 
+	if len(release.MergedPRs) > 0 {
+		sb.WriteString("### Pull Requests\n\n")
+		for _, pr := range release.MergedPRs {
+			if pr.URL != "" {
+				sb.WriteString(fmt.Sprintf("- [#%d](%s) %s (by @%s)\n", pr.Number, pr.URL, pr.Title, pr.Author))
+			} else {
+				sb.WriteString(fmt.Sprintf("- #%d %s (by @%s)\n", pr.Number, pr.Title, pr.Author))
+			}
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(release.Contributors) > 0 {
+		sb.WriteString("### Contributors\n\n")
+		sb.WriteString("Thanks to ")
+		for i, contributor := range release.Contributors {
+			sb.WriteString(fmt.Sprintf("@%s", contributor))
+			if i < len(release.Contributors)-1 {
+				sb.WriteString(", ")
+			}
+		}
+		sb.WriteString("\n\n")
+	}
+
 	return sb.String()
 }
 
