@@ -51,6 +51,39 @@ This release updates Gemini models to 3.1 Pro and 3.5 Flash while introducing in
 
 - [#83](https://github.com/thomas-vilte/matecommit/pull/83)
 
+### Pull Requests
+
+- [#112](https://github.com/thomas-vilte/matecommit/pull/112) feat: Include merged PRs and contributors in changelog (by @thomas-vilte)
+- [#111](https://github.com/thomas-vilte/matecommit/pull/111) feat(release): Push git tag to remote before publishing release (by @thomas-vilte)
+- [#110](https://github.com/thomas-vilte/matecommit/pull/110) feat(issues): Warn about similar open issues during issue generation (by @thomas-vilte)
+- [#109](https://github.com/thomas-vilte/matecommit/pull/109) Enforce strict multi-line Markdown format for AI-generated issue descriptions (by @thomas-vilte)
+- [#107](https://github.com/thomas-vilte/matecommit/pull/107) Filter out unavailable issue labels from generated issues (by @thomas-vilte)
+- [#106](https://github.com/thomas-vilte/matecommit/pull/106) feat(release): Include merged pull requests in release notes (by @thomas-vilte)
+- [#105](https://github.com/thomas-vilte/matecommit/pull/105) Add retry and cache invalidation for Gemini AI services (by @thomas-vilte)
+- [#104](https://github.com/thomas-vilte/matecommit/pull/104) Refine AI prompt instructions for label selection and PR body (by @thomas-vilte)
+- [#103](https://github.com/thomas-vilte/matecommit/pull/103) feat(ai): enhance prompts with detailed git status and vcs label data (by @thomas-vilte)
+- [#102](https://github.com/thomas-vilte/matecommit/pull/102) feat(cost): Implement activity history pruning (by @thomas-vilte)
+- [#101](https://github.com/thomas-vilte/matecommit/pull/101) feat(cost): Display budget usage warning in confirmation (by @thomas-vilte)
+- [#100](https://github.com/thomas-vilte/matecommit/pull/100) Refactor: Streamline release notes and VCS client (by @thomas-vilte)
+- [#99](https://github.com/thomas-vilte/matecommit/pull/99) feat(i18n): Add various new localization strings (by @thomas-vilte)
+- [#98](https://github.com/thomas-vilte/matecommit/pull/98) Fix: Correct GitHub file path retrieval and enhance release error handling (by @thomas-vilte)
+- [#97](https://github.com/thomas-vilte/matecommit/pull/97) refactor(release): modularize monolithic release service (by @thomas-vilte)
+- [#96](https://github.com/thomas-vilte/matecommit/pull/96) refactor(core): Centralize editor and config target resolution (by @thomas-vilte)
+- [#95](https://github.com/thomas-vilte/matecommit/pull/95) Refactor: Centralize common release command logic (by @thomas-vilte)
+- [#94](https://github.com/thomas-vilte/matecommit/pull/94) refactor: centralize test mocks and expand untracked directories (by @thomas-vilte)
+- [#93](https://github.com/thomas-vilte/matecommit/pull/93) feat(cost): Indicate unknown model pricing in confirmation (by @thomas-vilte)
+- [#92](https://github.com/thomas-vilte/matecommit/pull/92) refactor(core): Consolidate shared logic and remove unused code (by @thomas-vilte)
+- [#91](https://github.com/thomas-vilte/matecommit/pull/91) refactor(mocks): Rename mock files to _test.go suffix (by @thomas-vilte)
+- [#90](https://github.com/thomas-vilte/matecommit/pull/90) Refactor: Embed templates, improve Git authoring, and remove deprecated code (by @thomas-vilte)
+- [#89](https://github.com/thomas-vilte/matecommit/pull/89) Fix: Handle renamed files in git staging & enforce strict Markdown format (by @thomas-vilte)
+- [#87](https://github.com/thomas-vilte/matecommit/pull/87) CLI: Interactive file selection for AI suggestions and i18n stats enhancement (by @thomas-vilte)
+- [#86](https://github.com/thomas-vilte/matecommit/pull/86) chore(deps): bump google.golang.org/grpc from 1.77.0 to 1.79.3 in the go_modules group across 1 directory (by @dependabot[bot])
+- [#84](https://github.com/thomas-vilte/matecommit/pull/84) Refactor: Enhance Git and Changelog Operations Robustness (by @thomas-vilte)
+
+### Contributors
+
+Thanks to @thomas-vilte, @dependabot[bot]
+
 ## [v1.7.0] - 2026-01-05
 
 [v1.7.0]: https://github.com/thomas-vilte/matecommit/compare/v1.6.0...v1.7.0
