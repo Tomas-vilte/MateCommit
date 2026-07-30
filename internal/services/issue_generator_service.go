@@ -458,6 +458,9 @@ If no template fits perfectly, choose "Custom Issue" or the most generic one.`, 
 	request := models.IssueGenerationRequest{
 		Description: prompt,
 		Language:    "en",
+		// This is a small internal call to pick a template, not the user's
+		// actual issue content — don't make them confirm cost for it too.
+		SkipConfirmation: true,
 	}
 
 	result, err := s.ai.GenerateIssueContent(ctx, request)
