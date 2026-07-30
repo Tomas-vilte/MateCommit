@@ -524,6 +524,44 @@ func TestAddFileToStaging(t *testing.T) {
 		}
 	})
 
+	t.Run("Already fully staged deleted file is a no-op", func(t *testing.T) {
+		// Reproduces a real failure: if a file was already staged for
+		// deletion by the user directly (e.g. "git rm"), it no longer
+		// exists on disk or in the index diff, so running "git add" on it
+		// again used to fail with "pathspec did not match any files"
+		// instead of being the harmless no-op it should be.
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		service := NewGitService()
+		testFile := "already-staged-deletion.txt"
+
+		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+			return
+		}
+		if err := service.AddFileToStaging(context.Background(), testFile); err != nil {
+			t.Fatalf("Error al agregar archivo al staging: %v", err)
+		}
+		if err := service.CreateCommit(context.Background(), "Commit inicial"); err != nil {
+			t.Fatalf("Error al crear commit inicial: %v", err)
+		}
+
+		rmCmd := exec.Command("git", "rm", testFile)
+		if err := rmCmd.Run(); err != nil {
+			t.Fatalf("Error al hacer git rm: %v", err)
+		}
+
+		if err := service.AddFileToStaging(context.Background(), testFile); err != nil {
+			t.Fatalf("AddFileToStaging debería ser un no-op silencioso, pero devolvió: %v", err)
+		}
+
+		cmd := exec.Command("git", "diff", "--cached", "--name-status")
+		output, _ := cmd.Output()
+		if !strings.Contains(string(output), "D\t"+testFile) {
+			t.Error("La eliminación previamente stageada se perdió")
+		}
+	})
+
 	t.Run("Non-existent file", func(t *testing.T) {
 		tempDir := setupTestRepo(t)
 		defer cleanupTestRepo(t, tempDir)
