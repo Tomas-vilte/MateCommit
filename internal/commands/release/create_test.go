@@ -186,6 +186,7 @@ func TestCreateCommand_WithPublish(t *testing.T) {
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
 	mockService.On("CreateTag", mock.Anything, "v1.0.0", mock.Anything).Return(nil)
 	mockService.On("TagExists", mock.Anything, mock.Anything).Maybe().Return(false)
+	mockService.On("PushTag", mock.Anything, "v1.0.0").Return(nil)
 
 	mockService.On("PublishRelease", mock.Anything, release, notes, false, false, mock.Anything).Return(nil)
 
@@ -205,6 +206,7 @@ func TestCreateCommand_WithPublishAndExistingTag(t *testing.T) {
 	mockService.On("EnrichReleaseContext", mock.Anything, mock.Anything).Return(nil)
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
 	mockService.On("TagExists", mock.Anything, "v1.0.0").Return(true)
+	mockService.On("PushTag", mock.Anything, "v1.0.0").Return(nil)
 	mockService.On("PublishRelease", mock.Anything, release, notes, false, false, mock.Anything).Return(nil)
 
 	err := runCreateTest(t, "y\n", []string{"--publish"}, mockService)
@@ -224,6 +226,7 @@ func TestCreateCommand_WithPublishDraft(t *testing.T) {
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
 	mockService.On("CreateTag", mock.Anything, "v1.0.0", mock.Anything).Return(nil)
 	mockService.On("TagExists", mock.Anything, "v1.0.0").Return(false)
+	mockService.On("PushTag", mock.Anything, "v1.0.0").Return(nil)
 
 	mockService.On("PublishRelease", mock.Anything, release, notes, true, false, mock.Anything).Return(nil)
 
@@ -244,6 +247,7 @@ func TestCreateCommand_PublishError(t *testing.T) {
 	mockService.On("GenerateReleaseNotes", mock.Anything, release).Return(notes, nil)
 	mockService.On("CreateTag", mock.Anything, "v1.0.0", mock.Anything).Return(nil)
 	mockService.On("TagExists", mock.Anything, "v1.0.0").Return(false)
+	mockService.On("PushTag", mock.Anything, "v1.0.0").Return(nil)
 
 	mockService.On("PublishRelease", mock.Anything, release, notes, false, false, mock.Anything).Return(errors.New("publish error"))
 

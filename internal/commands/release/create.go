@@ -202,6 +202,19 @@ func createReleaseAction(releaseSvc releaseService, trans *i18n.Translations, re
 		}
 
 		if cmd.Bool("publish") {
+			// The tag above was only created locally — GitHub can't attach
+			// a release to a tag it has never seen, and silently falls
+			// back to an "untagged-..." release instead of erroring.
+			fmt.Println(trans.GetMessage("release.pushing_tag", 0, struct{ Version string }{release.Version}))
+			if err := releaseSvc.PushTag(ctx, release.Version); err != nil {
+				log.Error("failed to push tag before publishing",
+					"error", err,
+					"version", release.Version,
+					"duration_ms", time.Since(start).Milliseconds())
+				return fmt.Errorf("%s", trans.GetMessage("release.error_pushing_tag", 0, struct{ Error string }{err.Error()}))
+			}
+			fmt.Println(trans.GetMessage("release.push_success", 0, struct{ Version string }{release.Version}))
+
 			notes.Changelog = FormatReleaseMarkdown(release, notes, trans)
 
 			fmt.Println(trans.GetMessage("release.publishing_release", 0, nil))
