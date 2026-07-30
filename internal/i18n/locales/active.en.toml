@@ -56,7 +56,7 @@ other = "<key> <value>"
 other = "Missing arguments. Usage: config set <key> <value>"
 
 [config_set_success]
-other = "Configuration updated: %s = %s"
+other = "Configuration updated ({{.Scope}}): {{.Key}} = {{.Value}}"
 
 [config_command_usage]
 other = "Manage configuration"
