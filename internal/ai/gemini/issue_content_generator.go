@@ -142,6 +142,11 @@ func (s *GeminiIssueContentGenerator) GenerateIssueContent(ctx context.Context, 
 	log.Debug("calling gemini API for issue content",
 		"prompt_length", len(prompt))
 
+	if request.SkipConfirmation {
+		s.wrapper.SetSkipConfirmation(true)
+		defer s.wrapper.SetSkipConfirmation(false)
+	}
+
 	var usage *models.TokenUsage
 	var responseText string
 

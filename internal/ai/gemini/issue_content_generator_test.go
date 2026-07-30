@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/thomas-vilte/matecommit/internal/ai"
 	"github.com/thomas-vilte/matecommit/internal/config"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"google.golang.org/genai"
@@ -441,5 +442,71 @@ func TestGenerateIssueContent_HappyPath(t *testing.T) {
 		assert.Equal(t, "Issue Title", result.Title)
 		assert.Equal(t, "Issue Description", result.Description)
 		assert.Contains(t, result.Labels, "fix")
+	})
+}
+
+// TestGenerateIssueContent_SkipConfirmation verifies that a request with
+// SkipConfirmation bypasses the cost confirmation prompt (used for internal
+// orchestration calls like template auto-selection), while a normal request
+// still goes through it — so the user isn't asked twice for one logical
+// "generate an issue" action.
+func TestGenerateIssueContent_SkipConfirmation(t *testing.T) {
+	tmpHome, err := os.MkdirTemp("", "matecommit-test-issue-skip-*")
+	assert.NoError(t, err)
+	defer func() {
+		if err := os.RemoveAll(tmpHome); err != nil {
+			return
+		}
+	}()
+	oldHome := os.Getenv("HOME")
+	_ = os.Setenv("HOME", tmpHome)
+	defer func() {
+		if err := os.Setenv("HOME", oldHome); err != nil {
+			return
+		}
+	}()
+
+	ctx := context.Background()
+	cfg := &config.Config{
+		AIProviders: map[string]config.AIProviderConfig{"gemini": {APIKey: "test"}},
+		AIConfig:    config.AIConfig{Models: map[config.AI]config.Model{config.AIGemini: "gemini-pro"}},
+	}
+
+	confirmationCalls := 0
+	onConfirmation := func(ai.ConfirmationResult) (string, bool) {
+		confirmationCalls++
+		return "current", true
+	}
+
+	gen, err := NewGeminiIssueContentGenerator(ctx, cfg, onConfirmation)
+	assert.NoError(t, err)
+
+	expectedJSON := `{"title": "Issue Title", "description": "Issue Description", "labels": ["fix"]}`
+	gen.generateFn = func(ctx context.Context, mName string, p string) (interface{}, *models.TokenUsage, error) {
+		return &genai.GenerateContentResponse{
+			Candidates: []*genai.Candidate{
+				{Content: &genai.Content{Parts: []*genai.Part{{Text: expectedJSON}}}},
+			},
+		}, &models.TokenUsage{TotalTokens: 30}, nil
+	}
+
+	t.Run("normal request triggers confirmation", func(t *testing.T) {
+		_, err := gen.GenerateIssueContent(ctx, models.IssueGenerationRequest{Description: "unique-prompt-1"})
+		assert.NoError(t, err)
+		assert.Equal(t, 1, confirmationCalls, "confirmation should have been requested")
+	})
+
+	t.Run("SkipConfirmation bypasses the prompt", func(t *testing.T) {
+		confirmationCalls = 0
+		_, err := gen.GenerateIssueContent(ctx, models.IssueGenerationRequest{Description: "unique-prompt-2", SkipConfirmation: true})
+		assert.NoError(t, err)
+		assert.Equal(t, 0, confirmationCalls, "confirmation should have been skipped")
+	})
+
+	t.Run("wrapper returns to normal confirmation behavior afterwards", func(t *testing.T) {
+		confirmationCalls = 0
+		_, err := gen.GenerateIssueContent(ctx, models.IssueGenerationRequest{Description: "unique-prompt-3"})
+		assert.NoError(t, err)
+		assert.Equal(t, 1, confirmationCalls, "confirmation should be re-enabled after a SkipConfirmation call")
 	})
 }

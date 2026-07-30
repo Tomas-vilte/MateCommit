@@ -23,6 +23,12 @@ type IssueGenerationRequest struct {
 
 	// AvailableLabels is the list of labels available in the repository (optional)
 	AvailableLabels []string
+
+	// SkipConfirmation bypasses the cost confirmation prompt for this call.
+	// Used for small internal orchestration calls (e.g. template
+	// auto-selection) that shouldn't interrupt the user twice for what
+	// they experience as a single logical action.
+	SkipConfirmation bool
 }
 
 // IssueGenerationResult contains the result of an issue's content generation.
