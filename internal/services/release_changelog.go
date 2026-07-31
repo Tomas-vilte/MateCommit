@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -773,7 +774,82 @@ func (s *ReleaseService) CommitChangelog(ctx context.Context, version string) er
 
 }
 
-// PushChanges pushes committed changes to the remote repository
-func (s *ReleaseService) PushChanges(ctx context.Context) error {
-	return s.git.Push(ctx)
+// PushChanges pushes committed changes to the remote repository. If the
+// push is rejected by a GitHub ruleset/branch protection rule, it falls
+// back to pushing a new branch and opening a pull request instead — but
+// only when that fallback actually works (the branch itself isn't also
+// blocked by a broader ruleset). On success via the fallback, the returned
+// error wraps domainErrors.ErrReleasePROpened rather than signaling a
+// genuine failure; callers should check for it with errors.Is.
+func (s *ReleaseService) PushChanges(ctx context.Context, version string) error {
+	log := logger.FromContext(ctx)
+
+	err := s.git.Push(ctx)
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, domainErrors.ErrPushRejectedByRuleset) {
+		return err
+	}
+
+	log.Warn("push rejected by a ruleset, attempting to open a pull request instead", "error", err)
+	return s.openReleasePR(ctx, version)
+}
+
+// openReleasePR is the fallback used by PushChanges when a direct push is
+// blocked by a ruleset: it moves the already-committed changes onto a new
+// branch, pushes that branch, and opens a PR into the original branch.
+func (s *ReleaseService) openReleasePR(ctx context.Context, version string) error {
+	log := logger.FromContext(ctx)
+
+	baseBranch, err := s.git.GetCurrentBranch(ctx)
+	if err != nil {
+		return domainErrors.NewAppError(domainErrors.TypeGit, "failed to determine current branch", err)
+	}
+
+	branchName := fmt.Sprintf("matecommit/release-%s", version)
+
+	if err := s.git.CreateAndSwitchBranch(ctx, branchName); err != nil {
+		return err
+	}
+
+	pushErr := s.git.PushBranch(ctx, branchName)
+
+	// Switch back to the original branch regardless of outcome so the user
+	// isn't left stranded on the temporary release branch. This only moves
+	// HEAD — the changelog commit stays safely on both branches, nothing
+	// destructive happens to the user's local state.
+	if switchErr := s.git.SwitchBranch(ctx, baseBranch); switchErr != nil {
+		log.Error("failed to switch back to original branch after opening release PR",
+			"branch", baseBranch, "error", switchErr)
+	}
+
+	if pushErr != nil {
+		log.Error("pushing the fallback release branch also failed — a broader ruleset is likely in play",
+			"branch", branchName, "error", pushErr)
+		return pushErr
+	}
+
+	if s.vcsClient == nil {
+		return domainErrors.NewAppError(domainErrors.TypeConfiguration,
+			fmt.Sprintf("branch %s was pushed, but no VCS provider is configured to open the pull request automatically", branchName), nil).
+			WithSuggestion(fmt.Sprintf("Open a pull request manually from %s into %s", branchName, baseBranch))
+	}
+
+	title := fmt.Sprintf("chore: release %s", version)
+	body := fmt.Sprintf(
+		"Opened automatically by matecommit: `%s` is protected by a ruleset that blocks direct pushes.\n\nMerge this PR, then re-run the release command to finish tagging and publishing %s.",
+		baseBranch, version)
+
+	pr, err := s.vcsClient.CreatePR(ctx, title, body, branchName, baseBranch)
+	if err != nil {
+		return domainErrors.NewAppError(domainErrors.TypeVCS, "branch pushed, but failed to open the pull request", err).
+			WithSuggestion(fmt.Sprintf("Open a pull request manually from %s into %s", branchName, baseBranch))
+	}
+
+	log.Info("opened pull request for protected branch", "url", pr.URL, "number", pr.Number)
+
+	return domainErrors.ErrReleasePROpened.
+		WithContext("pr_url", pr.URL).
+		WithSuggestion(fmt.Sprintf("Merge %s, then re-run this command to finish the release", pr.URL))
 }

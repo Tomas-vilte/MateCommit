@@ -44,6 +44,18 @@ func (e *AppError) Unwrap() error {
 	return e.Err
 }
 
+// Is lets errors.Is match against the package-level sentinel AppErrors
+// (e.g. ErrPushRejectedByRuleset) by Type+Message, even though
+// WithError/WithContext/WithSuggestion return a new *AppError instance
+// each time rather than the same pointer.
+func (e *AppError) Is(target error) bool {
+	t, ok := target.(*AppError)
+	if !ok {
+		return false
+	}
+	return e.Type == t.Type && e.Message == t.Message
+}
+
 // WithError creates a new AppError with an underlying error
 func (e *AppError) WithError(err error) *AppError {
 	return &AppError{
@@ -134,6 +146,21 @@ var (
 
 	ErrPushRejectedByRuleset = NewAppError(TypeGit, "Push rejected by a GitHub branch/tag ruleset", nil).
 					WithSuggestion("This ref is protected — push your changes through a pull request instead, or ask a repo admin to adjust the ruleset in Settings > Rules")
+
+	// ErrReleasePROpened is not really a failure — it signals that PushChanges
+	// couldn't push directly (ruleset) but successfully opened a pull request
+	// as a fallback. Callers should check for it with errors.Is and present it
+	// as "action needed", not as a generic error.
+	ErrReleasePROpened = NewAppError(TypeGit, "Opened a pull request instead of pushing directly", nil)
+
+	ErrCreateBranch = NewAppError(TypeGit, "Failed to create branch", nil).
+				WithSuggestion("Make sure the branch name is valid and doesn't already exist locally")
+
+	ErrSwitchBranch = NewAppError(TypeGit, "Failed to switch branch", nil).
+				WithSuggestion("Make sure the branch exists: git branch -a")
+
+	ErrPushBranch = NewAppError(TypeGit, "Failed to push branch", nil).
+				WithSuggestion("Check your remote connection: git remote -v")
 
 	ErrFetchTags = NewAppError(TypeGit, "Failed to fetch tags from remote", nil).
 			WithSuggestion("Check your network connection and remote access")

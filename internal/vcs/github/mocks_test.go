@@ -14,6 +14,11 @@ type MockPRService struct {
 	mock.Mock
 }
 
+func (m *MockPRService) Create(ctx context.Context, owner, repo string, pull *github.NewPullRequest) (*github.PullRequest, *github.Response, error) {
+	args := m.Called(ctx, owner, repo, pull)
+	return args.Get(0).(*github.PullRequest), args.Get(1).(*github.Response), args.Error(2)
+}
+
 func (m *MockPRService) Edit(ctx context.Context, owner, repo string, number int, pr *github.PullRequest) (*github.PullRequest, *github.Response, error) {
 	args := m.Called(ctx, owner, repo, number, pr)
 	return args.Get(0).(*github.PullRequest), args.Get(1).(*github.Response), args.Error(2)

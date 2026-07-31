@@ -30,6 +30,9 @@ type releaseGitService interface {
 	FetchTags(ctx context.Context) error
 	ValidateTagExists(ctx context.Context, tag string) error
 	GetRepoRoot(ctx context.Context) (string, error)
+	CreateAndSwitchBranch(ctx context.Context, branchName string) error
+	SwitchBranch(ctx context.Context, branchName string) error
+	PushBranch(ctx context.Context, branchName string) error
 }
 type ReleaseService struct {
 	git         releaseGitService
