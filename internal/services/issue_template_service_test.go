@@ -137,7 +137,7 @@ func TestIssueTemplateService_FilesystemOps(t *testing.T) {
 	t.Run("InitializeTemplates - Already exists", func(t *testing.T) {
 		err := service.InitializeTemplates(context.Background(), false)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "CONFIGURATION: templates_already_exist")
+		assert.Contains(t, err.Error(), "CONFIGURATION: issue templates already exist")
 
 		err = service.InitializeTemplates(context.Background(), true)
 		assert.NoError(t, err)
