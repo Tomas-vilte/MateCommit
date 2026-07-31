@@ -288,7 +288,7 @@ func (s *IssueGeneratorService) GenerateFromPR(ctx context.Context, prNumber int
 		"diff_size", len(prData.Diff))
 
 	var contextBuilder strings.Builder
-	contextBuilder.WriteString(fmt.Sprintf("Pull Request #%d: %s\n\n", prNumber, prData.Title))
+	fmt.Fprintf(&contextBuilder, "Pull Request #%d: %s\n\n", prNumber, prData.Title)
 
 	if prData.Description != "" {
 		contextBuilder.WriteString("PR Description:\n")
@@ -299,7 +299,7 @@ func (s *IssueGeneratorService) GenerateFromPR(ctx context.Context, prNumber int
 	if len(prData.Commits) > 0 {
 		contextBuilder.WriteString("Commits:\n")
 		for _, commit := range prData.Commits {
-			contextBuilder.WriteString(fmt.Sprintf("- %s\n", commit))
+			fmt.Fprintf(&contextBuilder, "- %s\n", commit)
 		}
 		contextBuilder.WriteString("\n")
 	}
@@ -423,21 +423,21 @@ func (s *IssueGeneratorService) SelectTemplateWithAI(ctx context.Context, title,
 
 	var templateListBuilder strings.Builder
 	for _, t := range templates {
-		templateListBuilder.WriteString(fmt.Sprintf("- %s: %s\n", t.Name, t.About))
+		fmt.Fprintf(&templateListBuilder, "- %s: %s\n", t.Name, t.About)
 	}
 
 	var contextBuilder strings.Builder
 	if title != "" {
-		contextBuilder.WriteString(fmt.Sprintf("Title: %s\n", title))
+		fmt.Fprintf(&contextBuilder, "Title: %s\n", title)
 	}
 	if description != "" {
-		contextBuilder.WriteString(fmt.Sprintf("Description: %s\n", description))
+		fmt.Fprintf(&contextBuilder, "Description: %s\n", description)
 	}
 	if len(changedFiles) > 0 {
-		contextBuilder.WriteString(fmt.Sprintf("Changed files: %s\n", strings.Join(changedFiles, ", ")))
+		fmt.Fprintf(&contextBuilder, "Changed files: %s\n", strings.Join(changedFiles, ", "))
 	}
 	if len(labels) > 0 {
-		contextBuilder.WriteString(fmt.Sprintf("Labels: %s\n", strings.Join(labels, ", ")))
+		fmt.Fprintf(&contextBuilder, "Labels: %s\n", strings.Join(labels, ", "))
 	}
 
 	prompt := fmt.Sprintf(`You are an intelligent assistant helping to select the correct issue template for a software project.

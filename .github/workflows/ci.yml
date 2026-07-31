@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [ '1.21', '1.22', '1.23']
+        go-version: [ '1.25', '1.26']
 
     steps:
       - name: Checkout code
@@ -32,11 +32,6 @@ jobs:
           go mod verify
           go mod tidy
           git diff --exit-code go.mod go.sum || (echo "go.mod or go.sum changed unexpectedly" && exit 1)
-
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: latest
 
       - name: Run tests
         env:

@@ -255,12 +255,12 @@ func (ghc *GitHubClient) getDiffFromCommits(ctx context.Context, commits []*gith
 		}
 
 		if fullCommit.GetStats().GetTotal() > 0 {
-			combinedDiff.WriteString(fmt.Sprintf("\n# Commit: %s\n", sha[:8]))
-			combinedDiff.WriteString(fmt.Sprintf("# Message: %s\n\n", strings.Split(commit.GetCommit().GetMessage(), "\n")[0]))
+			fmt.Fprintf(&combinedDiff, "\n# Commit: %s\n", sha[:8])
+			fmt.Fprintf(&combinedDiff, "# Message: %s\n\n", strings.Split(commit.GetCommit().GetMessage(), "\n")[0])
 
 			for _, file := range fullCommit.Files {
 				if file.Patch != nil {
-					combinedDiff.WriteString(fmt.Sprintf("diff --git a/%s b/%s\n", file.GetFilename(), file.GetFilename()))
+					fmt.Fprintf(&combinedDiff, "diff --git a/%s b/%s\n", file.GetFilename(), file.GetFilename())
 					combinedDiff.WriteString(*file.Patch)
 					combinedDiff.WriteString("\n")
 				}

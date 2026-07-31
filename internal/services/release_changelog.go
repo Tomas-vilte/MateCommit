@@ -459,7 +459,7 @@ func (s *ReleaseService) buildChangelogFromNotes(ctx context.Context, release *m
 	sb.WriteString(versionHeader + "\n\n")
 
 	if notes.Summary != "" {
-		sb.WriteString(fmt.Sprintf("%s\n\n", notes.Summary))
+		fmt.Fprintf(&sb, "%s\n\n", notes.Summary)
 	}
 
 	usedReferences := make(map[string]bool)
@@ -467,9 +467,9 @@ func (s *ReleaseService) buildChangelogFromNotes(ctx context.Context, release *m
 	if len(notes.Sections) > 0 {
 		for _, section := range notes.Sections {
 			if section.Title != "" && len(section.Items) > 0 {
-				sb.WriteString(fmt.Sprintf("### %s\n\n", section.Title))
+				fmt.Fprintf(&sb, "### %s\n\n", section.Title)
 				for _, item := range section.Items {
-					sb.WriteString(fmt.Sprintf("- %s\n", s.formatNoteBulletWithReference(release, item, owner, repo, provider, usedReferences)))
+					fmt.Fprintf(&sb, "- %s\n", s.formatNoteBulletWithReference(release, item, owner, repo, provider, usedReferences))
 				}
 				sb.WriteString("\n")
 			}
@@ -477,7 +477,7 @@ func (s *ReleaseService) buildChangelogFromNotes(ctx context.Context, release *m
 	} else if len(notes.Highlights) > 0 {
 		sb.WriteString("### Highlights\n\n")
 		for _, highlight := range notes.Highlights {
-			sb.WriteString(fmt.Sprintf("- %s\n", s.formatNoteBulletWithReference(release, highlight, owner, repo, provider, usedReferences)))
+			fmt.Fprintf(&sb, "- %s\n", s.formatNoteBulletWithReference(release, highlight, owner, repo, provider, usedReferences))
 		}
 		sb.WriteString("\n")
 	}
@@ -485,7 +485,7 @@ func (s *ReleaseService) buildChangelogFromNotes(ctx context.Context, release *m
 	if len(notes.BreakingChanges) > 0 {
 		sb.WriteString("### Breaking Changes\n\n")
 		for _, bc := range notes.BreakingChanges {
-			sb.WriteString(fmt.Sprintf("- %s\n", s.formatNoteBulletWithReference(release, bc, owner, repo, provider, usedReferences)))
+			fmt.Fprintf(&sb, "- %s\n", s.formatNoteBulletWithReference(release, bc, owner, repo, provider, usedReferences))
 		}
 		sb.WriteString("\n")
 	}
@@ -494,7 +494,7 @@ func (s *ReleaseService) buildChangelogFromNotes(ctx context.Context, release *m
 	if len(references) > 0 {
 		sb.WriteString("### References\n\n")
 		for _, reference := range references {
-			sb.WriteString(fmt.Sprintf("- %s\n", reference))
+			fmt.Fprintf(&sb, "- %s\n", reference)
 		}
 		sb.WriteString("\n")
 	}
@@ -503,9 +503,9 @@ func (s *ReleaseService) buildChangelogFromNotes(ctx context.Context, release *m
 		sb.WriteString("### Pull Requests\n\n")
 		for _, pr := range release.MergedPRs {
 			if pr.URL != "" {
-				sb.WriteString(fmt.Sprintf("- [#%d](%s) %s (by @%s)\n", pr.Number, pr.URL, pr.Title, pr.Author))
+				fmt.Fprintf(&sb, "- [#%d](%s) %s (by @%s)\n", pr.Number, pr.URL, pr.Title, pr.Author)
 			} else {
-				sb.WriteString(fmt.Sprintf("- #%d %s (by @%s)\n", pr.Number, pr.Title, pr.Author))
+				fmt.Fprintf(&sb, "- #%d %s (by @%s)\n", pr.Number, pr.Title, pr.Author)
 			}
 		}
 		sb.WriteString("\n")
@@ -515,7 +515,7 @@ func (s *ReleaseService) buildChangelogFromNotes(ctx context.Context, release *m
 		sb.WriteString("### Contributors\n\n")
 		sb.WriteString("Thanks to ")
 		for i, contributor := range release.Contributors {
-			sb.WriteString(fmt.Sprintf("@%s", contributor))
+			fmt.Fprintf(&sb, "@%s", contributor)
 			if i < len(release.Contributors)-1 {
 				sb.WriteString(", ")
 			}
@@ -655,7 +655,7 @@ func (s *ReleaseService) BuildChangelogPreview(ctx context.Context, release *mod
 func (s *ReleaseService) buildChangelog(release *models.Release) string {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("## %s\n\n", release.Version))
+	fmt.Fprintf(&sb, "## %s\n\n", release.Version)
 
 	if len(release.Breaking) > 0 {
 		sb.WriteString("### BREAKING CHANGES\n\n")
