@@ -118,8 +118,33 @@ func PrintSuccess(w io.Writer, msg string) {
 	_, _ = fmt.Fprintf(w, "%s %s\n", SuccessEmoji, Success.Sprint(msg))
 }
 
-func PrintError(w io.Writer, msg string) {
+// shownError marks an error as already displayed to the user, so the
+// top-level handler in main() can exit with the right code without
+// printing the same message a second time.
+type shownError struct{ err error }
+
+func (e *shownError) Error() string { return e.err.Error() }
+func (e *shownError) Unwrap() error { return e.err }
+
+// Shown wraps err to mark it as already displayed to the user.
+func Shown(err error) error {
+	if err == nil {
+		return nil
+	}
+	return &shownError{err: err}
+}
+
+// IsShown reports whether err (or something it wraps) was already
+// displayed to the user via PrintError/HandleAppError, so a top-level
+// handler knows not to print it again.
+func IsShown(err error) bool {
+	var se *shownError
+	return errors.As(err, &se)
+}
+
+func PrintError(w io.Writer, msg string) error {
 	_, _ = fmt.Fprintf(w, "%s %s\n", Error.Sprint("❌"), Error.Sprint(msg))
+	return Shown(errors.New(msg))
 }
 
 func PrintWarning(msg string) {
@@ -142,11 +167,13 @@ func PrintDuration(msg string, duration time.Duration) {
 	fmt.Printf("%s %s %s\n", SuccessEmoji, Success.Sprint(msg), durationStr)
 }
 
-// HandleAppError handles an application error and displays it in a friendly way.
-// If translations is nil, it will use English defaults.
-func HandleAppError(err error, translations ...*i18n.Translations) {
+// HandleAppError handles an application error and displays it in a friendly
+// way, then returns it wrapped with Shown so callers can propagate it
+// (`return ui.HandleAppError(err, t)`) without a top-level handler printing
+// it again. If translations is nil, it will use English defaults.
+func HandleAppError(err error, translations ...*i18n.Translations) error {
 	if err == nil {
-		return
+		return nil
 	}
 
 	var t *i18n.Translations
@@ -185,10 +212,11 @@ func HandleAppError(err error, translations ...*i18n.Translations) {
 		}
 		fmt.Println()
 
-		return
+		return Shown(err)
 	}
 
-	PrintError(os.Stdout, err.Error())
+	_, _ = fmt.Fprintf(os.Stdout, "%s %s\n", Error.Sprint("❌"), Error.Sprint(err.Error()))
+	return Shown(err)
 }
 
 func PrintKeyValue(key, value string) {

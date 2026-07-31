@@ -39,7 +39,7 @@ func pushReleaseAction(releaseSvc releaseService, trans *i18n.Translations) cli.
 		if version == "" {
 			release, err := releaseSvc.AnalyzeNextRelease(ctx)
 			if err != nil {
-				return fmt.Errorf("%s", trans.GetMessage("release.error_analyzing", 0, struct{ Error string }{err.Error()}))
+				return ui.HandleAppError(err)
 			}
 			version = release.Version
 		}
@@ -48,8 +48,7 @@ func pushReleaseAction(releaseSvc releaseService, trans *i18n.Translations) cli.
 
 		err := releaseSvc.PushTag(ctx, version)
 		if err != nil {
-			ui.HandleAppError(err)
-			return fmt.Errorf("%s", trans.GetMessage("release.error_pushing_tag", 0, struct{ Error string }{err.Error()}))
+			return ui.HandleAppError(err)
 		}
 
 		fmt.Println(trans.GetMessage("release.push_success", 0, struct{ Version string }{version}))

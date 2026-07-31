@@ -47,8 +47,15 @@ func main() {
 	// through the slog handler at Info level. With the handler's default
 	// Warn threshold, that silently drops every fatal error unless --debug
 	// is passed — and even then it prints mislabeled as "[INFO]".
+	//
+	// Commands are expected to display their own errors via ui.PrintError /
+	// ui.HandleAppError before returning them (wrapped with ui.Shown) — this
+	// is the last-resort net for the few paths that don't, so it only prints
+	// when nothing has shown the error yet.
 	if err := app.Run(context.Background(), os.Args); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		if !ui.IsShown(err) {
+			fmt.Fprintln(os.Stderr, err)
+		}
 		os.Exit(1)
 	}
 }

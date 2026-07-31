@@ -132,8 +132,7 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 				Min int
 				Max int
 			}{1, 10})
-			ui.PrintError(os.Stdout, msg)
-			return fmt.Errorf("%s", msg)
+			return ui.PrintError(os.Stdout, msg)
 		}
 
 		cfg.Language = command.String("lang")
@@ -149,18 +148,16 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 		ui.PrintSectionBanner(t.GetMessage("ui.generating_suggestions_banner", 0, nil))
 
 		if err := f.gitService.ValidateGitConfig(ctx); err != nil {
-			ui.HandleAppError(err, t)
-			return err
+			return ui.HandleAppError(err, t)
 		}
 
 		var selectedFiles []string
 		if interactive {
 			changedFiles, err := f.gitService.GetChangedFiles(ctx)
 			if err != nil {
-				ui.HandleAppError(err, t)
-				return err
+				return ui.HandleAppError(err, t)
 			}
-			
+
 			if len(changedFiles) == 0 {
 				ui.PrintWarning("No changed files to select.")
 				return nil
@@ -168,8 +165,7 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 
 			selectedFiles, err = ui.PromptMultiSelect(t, t.GetMessage("ui.multi_select_default_msg", 0, nil), changedFiles)
 			if err != nil {
-				ui.HandleAppError(err, t)
-				return err
+				return ui.HandleAppError(err, t)
 			}
 
 			if len(selectedFiles) == 0 {
@@ -214,7 +210,7 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 				"duration_ms", duration.Milliseconds())
 			spinner.Error(t.GetMessage("ui.error_generating_suggestions", 0, nil))
 			ui.HandleAppError(err, t)
-			return fmt.Errorf("%s", t.GetMessage("suggestion_generation_error", 0, struct{ Error error }{err}))
+			return ui.Shown(fmt.Errorf("%s", t.GetMessage("suggestion_generation_error", 0, struct{ Error error }{err})))
 		}
 
 		log.Info("suggestions generated successfully",
@@ -243,14 +239,12 @@ func (f *SuggestCommandFactory) handleDryRun(ctx context.Context, t *i18n.Transl
 	fmt.Println()
 
 	if err := f.gitService.ValidateGitConfig(ctx); err != nil {
-		ui.HandleAppError(err, t)
-		return err
+		return ui.HandleAppError(err, t)
 	}
 
 	files, err := f.gitService.GetChangedFiles(ctx)
 	if err != nil {
-		ui.HandleAppError(err, t)
-		return err
+		return ui.HandleAppError(err, t)
 	}
 
 	if len(files) == 0 {
@@ -261,8 +255,7 @@ func (f *SuggestCommandFactory) handleDryRun(ctx context.Context, t *i18n.Transl
 
 	diff, err := f.gitService.GetDiff(ctx)
 	if err != nil {
-		ui.HandleAppError(err, t)
-		return err
+		return ui.HandleAppError(err, t)
 	}
 
 	_, _ = cyan.Printf(t.GetMessage("stats.dry_run_changed_files", 0, nil)+"\n", len(files))

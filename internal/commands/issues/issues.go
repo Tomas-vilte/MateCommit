@@ -177,15 +177,13 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 		if sourcesCount == 0 {
 			log.Error("no input source provided",
 				"duration_ms", time.Since(start).Milliseconds())
-			ui.PrintError(os.Stdout, t.GetMessage("issue.error_no_input", 0, nil))
-			return fmt.Errorf("%s", t.GetMessage("issue.error_no_input", 0, nil))
+			return ui.PrintError(os.Stdout, t.GetMessage("issue.error_no_input", 0, nil))
 		}
 
 		if sourcesCount > 1 {
 			log.Error("multiple input sources provided",
 				"duration_ms", time.Since(start).Milliseconds())
-			ui.PrintError(os.Stdout, t.GetMessage("issue.error_multiple_sources", 0, nil))
-			return fmt.Errorf("%s", t.GetMessage("issue.error_multiple_sources", 0, nil))
+			return ui.PrintError(os.Stdout, t.GetMessage("issue.error_multiple_sources", 0, nil))
 		}
 
 		ui.PrintSectionBanner(t.GetMessage("issue.banner", 0, nil))
@@ -195,8 +193,7 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 			log.Error("failed to create issue service",
 				"error", err,
 				"duration_ms", time.Since(start).Milliseconds())
-			ui.PrintError(os.Stdout, fmt.Sprintf("%s: %v", t.GetMessage("issue.error_generating", 0, nil), err))
-			return err
+			return ui.PrintError(os.Stdout, fmt.Sprintf("%s: %v", t.GetMessage("issue.error_generating", 0, nil), err))
 		}
 
 		var spinnerMsg string
@@ -229,8 +226,7 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 				"from_diff", fromDiff,
 				"from_pr", fromPR,
 				"duration_ms", time.Since(start).Milliseconds())
-			ui.HandleAppError(err)
-			return err
+			return ui.HandleAppError(err)
 		}
 
 		log.Debug("issue generated",
@@ -283,8 +279,7 @@ func (f *IssuesCommandFactory) createGenerateAction(t *i18n.Translations, cfg *c
 			log.Error("failed to create issue",
 				"error", err,
 				"duration_ms", time.Since(start).Milliseconds())
-			ui.HandleAppError(err)
-			return err
+			return ui.HandleAppError(err)
 		}
 
 		log.Info("issue created successfully",
@@ -394,16 +389,14 @@ func (f *IssuesCommandFactory) createLinkAction(t *i18n.Translations, _ *config.
 			log.Error("invalid PR number",
 				"pr_number", prNumber,
 				"duration_ms", time.Since(start).Milliseconds())
-			ui.PrintError(os.Stdout, t.GetMessage("issue.error_invalid_pr", 0, nil))
-			return fmt.Errorf("invalid PR number")
+			return ui.PrintError(os.Stdout, t.GetMessage("issue.error_invalid_pr", 0, nil))
 		}
 
 		if issueNumber <= 0 {
 			log.Error("invalid issue number",
 				"issue_number", issueNumber,
 				"duration_ms", time.Since(start).Milliseconds())
-			ui.PrintError(os.Stdout, t.GetMessage("issue.error_invalid_issue", 0, nil))
-			return fmt.Errorf("invalid issue number")
+			return ui.PrintError(os.Stdout, t.GetMessage("issue.error_invalid_issue", 0, nil))
 		}
 
 		ui.PrintSectionBanner(t.GetMessage("issue.link_banner", 0, nil))
@@ -413,8 +406,7 @@ func (f *IssuesCommandFactory) createLinkAction(t *i18n.Translations, _ *config.
 			log.Error("failed to create issue service",
 				"error", err,
 				"duration_ms", time.Since(start).Milliseconds())
-			ui.HandleAppError(err)
-			return err
+			return ui.HandleAppError(err)
 		}
 
 		spinner := ui.NewSmartSpinner(t.GetMessage("issue.linking", 0, struct {
@@ -432,8 +424,7 @@ func (f *IssuesCommandFactory) createLinkAction(t *i18n.Translations, _ *config.
 				"pr_number", prNumber,
 				"issue_number", issueNumber,
 				"duration_ms", time.Since(start).Milliseconds())
-			ui.PrintError(os.Stdout, fmt.Sprintf("%s: %v", t.GetMessage("issue.error_linking", 0, nil), err))
-			return err
+			return ui.PrintError(os.Stdout, fmt.Sprintf("%s: %v", t.GetMessage("issue.error_linking", 0, nil), err))
 		}
 
 		log.Info("issue linked to PR successfully",

@@ -55,8 +55,7 @@ func initConfigAction(cfg *config.Config, t *i18n.Translations) cli.ActionFunc {
 	return func(ctx context.Context, command *cli.Command) error {
 		localCfg, useLocal, err := resolveTargetConfig(command, cfg, t)
 		if err != nil {
-			ui.PrintError(os.Stdout, err.Error())
-			return err
+			return ui.PrintError(os.Stdout, err.Error())
 		}
 
 		if useLocal {

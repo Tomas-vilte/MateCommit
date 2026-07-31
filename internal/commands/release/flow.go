@@ -27,8 +27,7 @@ func analyzeNextRelease(ctx context.Context, releaseSvc releaseService, trans *i
 		log.Error("failed to analyze next release",
 			"error", err,
 			"duration_ms", time.Since(start).Milliseconds())
-		ui.HandleAppError(err)
-		return nil, fmt.Errorf("%s", trans.GetMessage("release.error_analyzing", 0, struct{ Error string }{err.Error()}))
+		return nil, ui.HandleAppError(err)
 	}
 
 	log.Debug("release analyzed",
@@ -55,8 +54,7 @@ func generateReleaseNotes(ctx context.Context, releaseSvc releaseService, trans 
 		log.Error("failed to generate release notes",
 			"error", err,
 			"duration_ms", time.Since(start).Milliseconds())
-		ui.HandleAppError(err)
-		return nil, fmt.Errorf("%s", trans.GetMessage("release.error_generating_notes", 0, struct{ Error string }{err.Error()}))
+		return nil, ui.HandleAppError(err)
 	}
 
 	log.Debug("release notes generated",

@@ -104,7 +104,7 @@ func (c *SummarizeCommand) CreateCommand(t *i18n.Translations, _ *cfg.Config) *c
 					"duration_ms", time.Since(start).Milliseconds())
 				spinner.Error(t.GetMessage("ui.error_generating_pr_summary", 0, nil))
 				ui.HandleAppError(err)
-				return fmt.Errorf(t.GetMessage("error.pr_summary_error", 0, nil)+": %w", err)
+				return ui.Shown(fmt.Errorf(t.GetMessage("error.pr_summary_error", 0, nil)+": %w", err))
 			}
 
 			log.Info("PR summarized successfully",

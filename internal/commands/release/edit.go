@@ -60,8 +60,7 @@ func editReleaseAction(releaseSvc releaseService, gitSvc gitService, trans *i18n
 
 		existingRelease, err := releaseSvc.GetRelease(ctx, version)
 		if err != nil {
-			ui.HandleAppError(err)
-			return fmt.Errorf("%s", trans.GetMessage("release.error_fetching_release", 0, struct{ Error string }{err.Error()}))
+			return ui.HandleAppError(err)
 		}
 
 		content := existingRelease.Body

@@ -209,8 +209,7 @@ func (h *SuggestionHandler) handleCommitSelection(ctx context.Context, suggestio
 	if _, err := fmt.Scan(&input); err != nil {
 		logger.Error(ctx, "failed to read user selection", err)
 		msg := h.t.GetMessage("commit.error_reading_selection", 0, struct{ Error error }{err})
-		ui.PrintError(os.Stdout, msg)
-		return fmt.Errorf("%s", msg)
+		return ui.PrintError(os.Stdout, msg)
 	}
 
 	input = strings.TrimSpace(strings.ToLower(input))
@@ -234,8 +233,7 @@ func (h *SuggestionHandler) handleCommitSelection(ctx context.Context, suggestio
 	if _, err := fmt.Sscanf(input, "%d", &selection); err != nil || selection < 1 || selection > len(suggestions) {
 		log.Warn("invalid selection", "input", input, "max", len(suggestions))
 		msg := h.t.GetMessage("commit.invalid_selection", 0, struct{ Number int }{len(suggestions)})
-		ui.PrintError(os.Stdout, msg)
-		return fmt.Errorf("%s", msg)
+		return ui.PrintError(os.Stdout, msg)
 	}
 
 	log.Info("processing selected commit", "selection", selection)
@@ -279,8 +277,7 @@ func (h *SuggestionHandler) processCommit(ctx context.Context, suggestion models
 		editedMessage, err := ui.EditCommitMessage(commitTitle, editorError)
 		if err != nil {
 			logger.Error(ctx, "failed to edit commit message", err)
-			ui.PrintError(os.Stdout, h.t.GetMessage("ui_preview.error_editing_message", 0, struct{ Error error }{err}))
-			return err
+			return ui.PrintError(os.Stdout, h.t.GetMessage("ui_preview.error_editing_message", 0, struct{ Error error }{err}))
 		}
 		if editedMessage == "" {
 			ui.PrintWarning(h.t.GetMessage("ui_preview.commit_cancelled", 0, nil))
