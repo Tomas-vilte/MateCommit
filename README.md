@@ -67,7 +67,7 @@ go install github.com/thomas-vilte/matecommit/cmd/matecommit@latest
 ### 2. Configure
 Set up your Gemini API key (it takes 10 seconds):
 ```bash
-matecommit config quick
+matecommit config init --quick
 ```
 
 ### 3. Use it
@@ -97,7 +97,8 @@ While there are other tools out there, I built MateCommit to be a complete workf
 *   **PR Automation**: Use `matecommit spr <id>` to generate a full executive summary, test plan, and detect breaking changes automatically.
 *   **Issue Management**: Generate issues directly from your code changes or descriptions. It even supports Jira integration and can auto-checkout branches for you.
 *   **Releases**: An interactive wizard that analyzes your commits since the last tag, suggests the next version bump, and writes the changelog for you.
-*   **Developer Experience**: Includes shell autocompletion (bash, zsh, fish) and a `doctor` command to make sure your integrations are working correctly.
+*   **Cost Tracking**: Every AI call gets logged. Run `matecommit stats` if you're curious (or nervous) about how much you've spent this month.
+*   **Developer Experience**: Includes shell autocompletion (bash, zsh) and a `doctor` command to make sure your integrations are working correctly.
 
 ---
 
