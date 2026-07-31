@@ -100,7 +100,7 @@ func (s *SmartSpinner) Success(msg string) {
 
 func (s *SmartSpinner) Error(msg string) {
 	s.Stop()
-	PrintError(os.Stdout, msg)
+	_ = PrintError(os.Stdout, msg)
 }
 
 func (s *SmartSpinner) Warning(msg string) {
@@ -554,7 +554,7 @@ func PromptMultiSelect(t *i18n.Translations, message string, options []string) (
 		var idx int
 		_, err := fmt.Sscanf(p, "%d", &idx)
 		if err != nil || idx < 1 || idx > len(options) {
-			PrintError(os.Stdout, t.GetMessage("ui.multi_select_invalid", 0, struct{ Selection string }{p}))
+			_ = PrintError(os.Stdout, t.GetMessage("ui.multi_select_invalid", 0, struct{ Selection string }{p}))
 			continue
 		}
 		selected = append(selected, options[idx-1])

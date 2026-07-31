@@ -99,7 +99,7 @@ func (d *DoctorCommand) runHealthCheck(ctx context.Context, t *i18n.Translations
 	} else if len(errors) == 0 {
 		ui.PrintWarning(t.GetMessage("doctor.has_warnings", 0, nil))
 	} else {
-		ui.PrintError(os.Stdout, t.GetMessage("doctor.has_errors", 0, nil))
+		_ = ui.PrintError(os.Stdout, t.GetMessage("doctor.has_errors", 0, nil))
 	}
 
 	fmt.Println()

@@ -209,7 +209,7 @@ func (f *SuggestCommandFactory) createAction(cfg *config.Config, t *i18n.Transla
 				"error", err,
 				"duration_ms", duration.Milliseconds())
 			spinner.Error(t.GetMessage("ui.error_generating_suggestions", 0, nil))
-			ui.HandleAppError(err, t)
+			_ = ui.HandleAppError(err, t)
 			return ui.Shown(fmt.Errorf("%s", t.GetMessage("suggestion_generation_error", 0, struct{ Error error }{err})))
 		}
 
