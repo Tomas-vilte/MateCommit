@@ -123,7 +123,7 @@ func (c *StatsCommand) showDailyStats(manager *cost.Manager, t *i18n.Translation
 	fmt.Println()
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	_, _ = cyan.Printf("%s: ", t.GetMessage("stats.total_today", 0, nil))
-	_, _ = yellow.Println(t.GetMessage("stats.total_today_value", 0, struct{ Total float64 }{total}))
+	_, _ = yellow.Println(t.GetMessage("stats.total_today_value", 0, struct{ Total string }{fmt.Sprintf("%.4f", total)}))
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	fmt.Println()
 
@@ -203,7 +203,7 @@ func (c *StatsCommand) showMonthlyStats(manager *cost.Manager, t *i18n.Translati
 	fmt.Println()
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	_, _ = cyan.Printf("%s: ", t.GetMessage("stats.total_month", 0, nil))
-	_, _ = yellow.Println(t.GetMessage("stats.total_month_value", 0, struct{ Total float64 }{total}))
+	_, _ = yellow.Println(t.GetMessage("stats.total_month_value", 0, struct{ Total string }{fmt.Sprintf("%.4f", total)}))
 
 	daysWithActivity := len(dailyTotals)
 	if daysWithActivity > 0 {
@@ -221,8 +221,8 @@ func (c *StatsCommand) showMonthlyStats(manager *cost.Manager, t *i18n.Translati
 				Current int
 				Total   int
 			}{forecast.DaysElapsed, forecast.DaysInMonth}))
-			_, _ = dim.Printf("   %s\n", t.GetMessage("stats.forecast_daily_avg_label", 0, struct{ Avg float64 }{forecast.DailyAverage}))
-			_, _ = yellow.Printf("   %s\n", t.GetMessage("stats.forecast_projected_label", 0, struct{ Amount float64 }{forecast.ProjectedMonthEnd}))
+			_, _ = dim.Printf("   %s\n", t.GetMessage("stats.forecast_daily_avg_label", 0, struct{ Avg string }{fmt.Sprintf("%.4f", forecast.DailyAverage)}))
+			_, _ = yellow.Printf("   %s\n", t.GetMessage("stats.forecast_projected_label", 0, struct{ Amount string }{fmt.Sprintf("%.4f", forecast.ProjectedMonthEnd)}))
 			fmt.Println()
 		}
 	}
@@ -230,9 +230,9 @@ func (c *StatsCommand) showMonthlyStats(manager *cost.Manager, t *i18n.Translati
 	hitRate, saved, err := manager.GetCacheStats()
 	if err == nil && hitRate > 0 {
 		_, _ = green.Println(t.GetMessage("stats.cache_hit_rate_label", 0, struct {
-			Rate  float64
-			Saved float64
-		}{hitRate, saved}))
+			Rate  string
+			Saved string
+		}{fmt.Sprintf("%.1f", hitRate), fmt.Sprintf("%.4f", saved)}))
 		fmt.Println()
 	}
 
@@ -329,7 +329,7 @@ func (c *StatsCommand) showBreakdown(manager *cost.Manager, t *i18n.Translations
 
 	for _, stat := range breakdown.ByCommand {
 		if stat.Command == "suggest" && stat.CallCount > 0 {
-			_, _ = green.Println(t.GetMessage("stats.avg_cost_per_commit_label", 0, struct{ Cost float64 }{stat.AvgCost}))
+			_, _ = green.Println(t.GetMessage("stats.avg_cost_per_commit_label", 0, struct{ Cost string }{fmt.Sprintf("%.4f", stat.AvgCost)}))
 			fmt.Println()
 			break
 		}

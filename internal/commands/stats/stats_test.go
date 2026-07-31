@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thomas-vilte/matecommit/internal/cost"
@@ -120,6 +121,44 @@ func TestShowDailyStats_WithActivity(t *testing.T) {
 	total, err := manager.GetDailyTotal()
 	assert.NoError(t, err)
 	assert.Equal(t, 0.0100, total, "the calculated total should be 0.0100")
+}
+
+func TestShowDailyStats_TotalIsFormattedCleanly(t *testing.T) {
+	// 0.1 + 0.2 is the classic IEEE-754 case that doesn't sum to a clean
+	// decimal (0.30000000000000004) — passing the raw float straight into
+	// the i18n template (instead of pre-formatting it) leaks that noise
+	// into the "Total Today" line shown to the user.
+	tempDir := t.TempDir()
+	now := time.Now()
+
+	records := []cost.ActivityRecord{
+		{Timestamp: now, Command: "suggest", CostUSD: 0.1},
+		{Timestamp: now, Command: "summarize-pr", CostUSD: 0.2},
+	}
+
+	manager := setupTestManager(t, tempDir, records)
+	trans := setupTestTranslations(t)
+	cmd := NewStatsCommand()
+
+	var buf bytes.Buffer
+	oldStdout := os.Stdout
+	oldColorOutput := color.Output
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	color.Output = w // fatih/color caches os.Stdout at package init, so cyan/yellow.Print* calls need the redirect spelled out separately
+
+	err := cmd.showDailyStats(manager, trans)
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+	color.Output = oldColorOutput
+	_, _ = io.Copy(&buf, r)
+
+	outputStr := buf.String()
+
+	assert.NoError(t, err)
+	assert.Contains(t, outputStr, "$0.3000 USD", "the total should be rounded to 4 decimals, not the raw float")
+	assert.NotContains(t, outputStr, "0.30000000000000004", "raw float noise must not leak into the output")
 }
 
 func TestShowDailyStats_WithCacheHits(t *testing.T) {
@@ -266,6 +305,42 @@ func TestShowMonthlyStats_WithActivity(t *testing.T) {
 	total, err := manager.GetMonthlyTotal()
 	assert.NoError(t, err)
 	assert.Equal(t, 0.0050, total, "the monthly total should be 0.0050")
+}
+
+func TestShowMonthlyStats_TotalIsFormattedCleanly(t *testing.T) {
+	// Same IEEE-754 case as TestShowDailyStats_TotalIsFormattedCleanly,
+	// but for the "Total This Month" / "Average per day" lines.
+	tempDir := t.TempDir()
+	now := time.Now()
+
+	records := []cost.ActivityRecord{
+		{Timestamp: time.Date(now.Year(), now.Month(), 1, 10, 0, 0, 0, time.Local), Command: "suggest", CostUSD: 0.1},
+		{Timestamp: time.Date(now.Year(), now.Month(), 2, 10, 0, 0, 0, time.Local), Command: "suggest", CostUSD: 0.2},
+	}
+
+	manager := setupTestManager(t, tempDir, records)
+	trans := setupTestTranslations(t)
+	cmd := NewStatsCommand()
+
+	var buf bytes.Buffer
+	oldStdout := os.Stdout
+	oldColorOutput := color.Output
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+	color.Output = w // fatih/color caches os.Stdout at package init, so cyan/yellow.Print* calls need the redirect spelled out separately
+
+	err := cmd.showMonthlyStats(manager, trans, false)
+
+	_ = w.Close()
+	os.Stdout = oldStdout
+	color.Output = oldColorOutput
+	_, _ = io.Copy(&buf, r)
+
+	outputStr := buf.String()
+
+	assert.NoError(t, err)
+	assert.Contains(t, outputStr, "$0.3000 USD", "the monthly total should be rounded to 4 decimals, not the raw float")
+	assert.NotContains(t, outputStr, "0.30000000000000004", "raw float noise must not leak into the output")
 }
 
 func TestShowMonthlyStats_GroupsByDay(t *testing.T) {

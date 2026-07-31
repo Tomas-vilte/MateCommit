@@ -211,7 +211,8 @@ func (s *IssueTemplateService) InitializeTemplates(ctx context.Context, force bo
 
 	logger.Info(ctx, "template initialization complete", "created", created, "skipped", skipped)
 	if created == 0 && skipped > 0 {
-		return domainErrors.NewAppError(domainErrors.TypeConfiguration, "templates_already_exist", nil)
+		return domainErrors.NewAppError(domainErrors.TypeConfiguration, "issue templates already exist", nil).
+			WithSuggestion("Use --force to overwrite the existing templates")
 	}
 	return nil
 }

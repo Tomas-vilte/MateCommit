@@ -41,6 +41,7 @@ func (c *ConfigCommandFactory) newSetCommand(t *i18n.Translations, cfg *config.C
 
 			targetCfg, useLocal, err := resolveTargetConfig(command, cfg, t)
 			if err != nil {
+				ui.PrintError(os.Stdout, err.Error())
 				return err
 			}
 
@@ -49,18 +50,24 @@ func (c *ConfigCommandFactory) newSetCommand(t *i18n.Translations, cfg *config.C
 				if isValidLanguage(value) {
 					targetCfg.Language = value
 				} else {
-					return fmt.Errorf("invalid language: %s", value)
+					err := fmt.Errorf("invalid language: %s", value)
+					ui.PrintError(os.Stdout, err.Error())
+					return err
 				}
 			case "emoji", "use_emoji":
-				boolVal, err := strconv.ParseBool(value)
-				if err != nil {
-					return fmt.Errorf("invalid boolean value: %s", value)
+				boolVal, parseErr := strconv.ParseBool(value)
+				if parseErr != nil {
+					err := fmt.Errorf("invalid boolean value: %s", value)
+					ui.PrintError(os.Stdout, err.Error())
+					return err
 				}
 				targetCfg.UseEmoji = boolVal
 			case "count", "suggestions_count":
-				intVal, err := strconv.Atoi(value)
-				if err != nil || intVal < 1 || intVal > 10 {
-					return fmt.Errorf("invalid count (must be 1-10): %s", value)
+				intVal, parseErr := strconv.Atoi(value)
+				if parseErr != nil || intVal < 1 || intVal > 10 {
+					err := fmt.Errorf("invalid count (must be 1-10): %s", value)
+					ui.PrintError(os.Stdout, err.Error())
+					return err
 				}
 				targetCfg.SuggestionsCount = intVal
 			case "active-ai", "active_ai":
@@ -72,7 +79,9 @@ func (c *ConfigCommandFactory) newSetCommand(t *i18n.Translations, cfg *config.C
 					}
 					targetCfg.AIConfig.Models[targetCfg.AIConfig.ActiveAI] = config.Model(value)
 				} else {
-					return fmt.Errorf("no active AI provider configured")
+					err := fmt.Errorf("no active AI provider configured")
+					ui.PrintError(os.Stdout, err.Error())
+					return err
 				}
 			case "active-vcs", "active_vcs":
 				targetCfg.ActiveVCSProvider = value
@@ -81,7 +90,9 @@ func (c *ConfigCommandFactory) newSetCommand(t *i18n.Translations, cfg *config.C
 			case "git.email", "git-email":
 				targetCfg.GitFallback.UserEmail = value
 			default:
-				return fmt.Errorf("unknown configuration key: %s", key)
+				err := fmt.Errorf("unknown configuration key: %s", key)
+				ui.PrintError(os.Stdout, err.Error())
+				return err
 			}
 
 			if useLocal {
