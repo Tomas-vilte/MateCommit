@@ -95,6 +95,9 @@ var (
 	ErrNoChanges = NewAppError(TypeGit, "No staged changes detected", nil).
 			WithSuggestion("Stage your changes first with: git add <files>")
 
+	ErrNoCommitsSinceLastRelease = NewAppError(TypeGit, "No new commits since the last release", nil).
+					WithSuggestion("Nothing to release yet — commit some changes first")
+
 	ErrGetBranch = NewAppError(TypeGit, "Failed to get current branch", nil).
 			WithSuggestion("Make sure you are in a git repository: git status")
 

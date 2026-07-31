@@ -118,7 +118,7 @@ func (s *ReleaseService) AnalyzeNextRelease(ctx context.Context) (*models.Releas
 	}
 
 	if len(commits) == 0 {
-		return nil, domainErrors.ErrNoChanges
+		return nil, domainErrors.ErrNoCommitsSinceLastRelease
 	}
 
 	validCommits := s.filterValidCommits(commits)

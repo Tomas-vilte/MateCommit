@@ -105,7 +105,8 @@ func TestReleaseService_AnalyzeNextRelease(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, release)
-		assert.Contains(t, err.Error(), "GIT: No staged changes detected")
+		assert.Contains(t, err.Error(), "GIT: No new commits since the last release",
+			"the error must be release-specific, not the commit-staging message ('git add') which doesn't apply here")
 
 		mockGit.AssertExpectations(t)
 	})
