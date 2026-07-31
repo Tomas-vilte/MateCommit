@@ -450,10 +450,22 @@ func (v *VersionUpdater) extractZip(archivePath, destDir string) (string, error)
 		}
 	}()
 
+	cleanDestDir, err := filepath.Abs(filepath.Clean(destDir))
+	if err != nil {
+		return "", err
+	}
+
 	var binaryPath string
 	binaryName := "matecommit.exe"
 	for _, f := range r.File {
-		target := filepath.Join(destDir, f.Name)
+		if filepath.IsAbs(f.Name) {
+			return "", fmt.Errorf("invalid archive entry path: %s", f.Name)
+		}
+
+		target := filepath.Clean(filepath.Join(cleanDestDir, f.Name))
+		if target != cleanDestDir && !strings.HasPrefix(target, cleanDestDir+string(os.PathSeparator)) {
+			return "", fmt.Errorf("invalid archive entry path: %s", f.Name)
+		}
 
 		if f.FileInfo().IsDir() {
 			_ = os.MkdirAll(target, 0755)
