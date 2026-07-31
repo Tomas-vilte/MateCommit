@@ -225,7 +225,7 @@ func (gps *GeminiPRSummarizer) GeneratePRSummary(ctx context.Context, prContent 
 
 	return models.PRSummary{
 		Title:  jsonSummary.Title,
-		Body:   jsonSummary.Body,
+		Body:   unescapeLiteralNewlines(jsonSummary.Body),
 		Labels: CleanLabels(jsonSummary.Labels, availableLabels),
 		Usage:  usage,
 	}, nil

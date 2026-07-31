@@ -325,7 +325,7 @@ func (s *GeminiIssueContentGenerator) parseIssueResponse(content string) (*model
 
 	result := &models.IssueGenerationResult{
 		Title:       strings.TrimSpace(jsonResult.Title),
-		Description: strings.TrimSpace(jsonResult.Description),
+		Description: unescapeLiteralNewlines(strings.TrimSpace(jsonResult.Description)),
 		Labels:      jsonResult.Labels,
 	}
 
