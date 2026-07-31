@@ -617,20 +617,67 @@ func (s *GitService) CreateTag(ctx context.Context, version, message string) err
 }
 
 func (s *GitService) PushTag(ctx context.Context, version string) error {
+	log := logger.FromContext(ctx)
+
 	cmd := exec.CommandContext(ctx, "git", "push", "origin", version)
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+
 	if err := cmd.Run(); err != nil {
-		return errors.ErrPushTag.WithError(err).WithContext("version", version)
+		stderrStr := strings.TrimSpace(stderr.String())
+		log.Error("git push tag failed", "error", err, "version", version, "stderr", stderrStr)
+
+		if isRulesetRejection(stderrStr) {
+			return errors.ErrPushRejectedByRuleset.WithError(err).WithContext("version", version).WithContext("stderr", stderrStr)
+		}
+		return errors.ErrPushTag.WithError(err).WithContext("version", version).WithContext("stderr", stderrStr)
 	}
 	return nil
 }
 
 // Push pushes commits to the remote repository
 func (s *GitService) Push(ctx context.Context) error {
+	log := logger.FromContext(ctx)
+
 	cmd := exec.CommandContext(ctx, "git", "push")
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+
 	if err := cmd.Run(); err != nil {
-		return errors.ErrPush.WithError(err)
+		stderrStr := strings.TrimSpace(stderr.String())
+		log.Error("git push failed", "error", err, "stderr", stderrStr)
+
+		if isRulesetRejection(stderrStr) {
+			return errors.ErrPushRejectedByRuleset.WithError(err).WithContext("stderr", stderrStr)
+		}
+		return errors.ErrPush.WithError(err).WithContext("stderr", stderrStr)
 	}
 	return nil
+}
+
+// isRulesetRejection reports whether git's push failure output indicates the
+// push was rejected by a GitHub ruleset or legacy branch/tag protection rule
+// (as opposed to a network/auth/diverged-history failure). GH013 is GitHub's
+// error code for the newer Rulesets feature; GH006 is the legacy branch
+// protection equivalent — both include a human-readable reason afterward,
+// which we surface via the raw stderr already attached to the AppError.
+func isRulesetRejection(stderr string) bool {
+	markers := []string{
+		"GH013",
+		"GH006",
+		"protected branch",
+		"protected tag",
+		"protected ref",
+		"repository rule violations",
+		"push declined due to repository rule violations",
+	}
+	lower := strings.ToLower(stderr)
+	for _, m := range markers {
+		if strings.Contains(lower, strings.ToLower(m)) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *GitService) GetCommitCount(ctx context.Context) (int, error) {

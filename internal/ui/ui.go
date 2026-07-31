@@ -194,6 +194,12 @@ func HandleAppError(err error, translations ...*i18n.Translations) error {
 			_, _ = dimColor.Printf("   Details: %v\n", appErr.Err)
 		}
 
+		if stderr, ok := appErr.Context["stderr"].(string); ok && stderr != "" {
+			for _, line := range strings.Split(stderr, "\n") {
+				_, _ = dimColor.Printf("   %s\n", line)
+			}
+		}
+
 		if appErr.Suggestion != "" {
 			fmt.Println()
 			tryPrefix := "💡 Try: "

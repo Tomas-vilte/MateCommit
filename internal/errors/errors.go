@@ -132,6 +132,9 @@ var (
 	ErrPush = NewAppError(TypeGit, "Failed to push to remote", nil).
 		WithSuggestion("Verify remote is configured: git remote -v")
 
+	ErrPushRejectedByRuleset = NewAppError(TypeGit, "Push rejected by a GitHub branch/tag ruleset", nil).
+					WithSuggestion("This ref is protected — push your changes through a pull request instead, or ask a repo admin to adjust the ruleset in Settings > Rules")
+
 	ErrFetchTags = NewAppError(TypeGit, "Failed to fetch tags from remote", nil).
 			WithSuggestion("Check your network connection and remote access")
 
