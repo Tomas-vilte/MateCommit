@@ -1,8 +1,6 @@
 module github.com/thomas-vilte/matecommit
 
-go 1.24.0
-
-toolchain go1.24.5
+go 1.25.0
 
 require (
 	github.com/BurntSushi/toml v1.5.0
@@ -12,10 +10,10 @@ require (
 	github.com/nicksnyder/go-i18n/v2 v2.6.0
 	github.com/stretchr/testify v1.11.1
 	github.com/urfave/cli/v3 v3.6.1
-	golang.org/x/mod v0.30.0
-	golang.org/x/oauth2 v0.34.0
-	golang.org/x/sync v0.19.0
-	golang.org/x/text v0.32.0
+	golang.org/x/mod v0.35.0
+	golang.org/x/oauth2 v0.36.0
+	golang.org/x/sync v0.20.0
+	golang.org/x/text v0.37.0
 	google.golang.org/genai v1.38.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -41,14 +39,14 @@ require (
 	github.com/stretchr/objx v0.5.3 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.64.0 // indirect
-	go.opentelemetry.io/otel v1.41.0 // indirect
-	go.opentelemetry.io/otel/metric v1.41.0 // indirect
-	go.opentelemetry.io/otel/trace v1.41.0 // indirect
-	golang.org/x/crypto v0.46.0 // indirect
-	golang.org/x/net v0.48.0 // indirect
-	golang.org/x/sys v0.39.0 // indirect
-	golang.org/x/term v0.38.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
-	google.golang.org/grpc v1.79.3 // indirect
-	google.golang.org/protobuf v1.36.10 // indirect
+	go.opentelemetry.io/otel v1.43.0 // indirect
+	go.opentelemetry.io/otel/metric v1.43.0 // indirect
+	go.opentelemetry.io/otel/trace v1.43.0 // indirect
+	golang.org/x/crypto v0.52.0 // indirect
+	golang.org/x/net v0.54.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/term v0.43.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478 // indirect
+	google.golang.org/grpc v1.82.1 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
 )
