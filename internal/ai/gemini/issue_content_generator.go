@@ -230,7 +230,7 @@ func (s *GeminiIssueContentGenerator) buildIssuePrompt(request models.IssueGener
 	var sb strings.Builder
 
 	if request.Description != "" {
-		sb.WriteString(fmt.Sprintf("Global Description: %s\n\n", request.Description))
+		fmt.Fprintf(&sb, "Global Description: %s\n\n", request.Description)
 	}
 
 	if request.Diff != "" {
@@ -243,14 +243,14 @@ func (s *GeminiIssueContentGenerator) buildIssuePrompt(request models.IssueGener
 		if len(request.ChangedFiles) > 0 {
 			sb.WriteString("Changed files:\n")
 			for _, file := range request.ChangedFiles {
-				sb.WriteString(fmt.Sprintf("- %s\n", file))
+				fmt.Fprintf(&sb, "- %s\n", file)
 			}
 			sb.WriteString("\n")
 		}
 	}
 
 	if request.Hint != "" {
-		sb.WriteString(fmt.Sprintf("User Hint: %s\n\n", request.Hint))
+		fmt.Fprintf(&sb, "User Hint: %s\n\n", request.Hint)
 	}
 
 	if request.Template != nil {

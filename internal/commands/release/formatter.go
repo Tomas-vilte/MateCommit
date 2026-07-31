@@ -80,9 +80,9 @@ func FormatReleaseMarkdown(release *models.Release, notes *models.ReleaseNotes, 
 		md.WriteString("\n\n")
 		for _, pr := range release.MergedPRs {
 			if pr.URL != "" {
-				md.WriteString(fmt.Sprintf("- [#%d](%s) %s (by @%s)\n", pr.Number, pr.URL, pr.Title, pr.Author))
+				fmt.Fprintf(&md, "- [#%d](%s) %s (by @%s)\n", pr.Number, pr.URL, pr.Title, pr.Author)
 			} else {
-				md.WriteString(fmt.Sprintf("- #%d %s (by @%s)\n", pr.Number, pr.Title, pr.Author))
+				fmt.Fprintf(&md, "- #%d %s (by @%s)\n", pr.Number, pr.Title, pr.Author)
 			}
 		}
 		md.WriteString("\n")
@@ -97,7 +97,7 @@ func FormatReleaseMarkdown(release *models.Release, notes *models.ReleaseNotes, 
 			md.WriteString(trans.GetMessage("release.new_contributors", 0, struct{ Count int }{len(release.NewContributors)}))
 			md.WriteString(" ")
 			for i, contributor := range release.NewContributors {
-				md.WriteString(fmt.Sprintf("@%s", contributor))
+				fmt.Fprintf(&md, "@%s", contributor)
 				if i < len(release.NewContributors)-1 {
 					md.WriteString(", ")
 				}
@@ -108,7 +108,7 @@ func FormatReleaseMarkdown(release *models.Release, notes *models.ReleaseNotes, 
 		md.WriteString(trans.GetMessage("release.all_contributors", 0, nil))
 		md.WriteString("\n")
 		for _, contributor := range release.Contributors {
-			md.WriteString(fmt.Sprintf("- @%s\n", contributor))
+			fmt.Fprintf(&md, "- @%s\n", contributor)
 		}
 		md.WriteString("\n")
 	}
@@ -117,15 +117,15 @@ func FormatReleaseMarkdown(release *models.Release, notes *models.ReleaseNotes, 
 		md.WriteString("## ")
 		md.WriteString(trans.GetMessage("release.md_stats", 0, nil))
 		md.WriteString("\n\n")
-		md.WriteString(fmt.Sprintf("- %s: **%d**\n",
+		fmt.Fprintf(&md, "- %s: **%d**\n",
 			trans.GetMessage("release.files_changed", 0, nil),
-			release.FileStats.FilesChanged))
-		md.WriteString(fmt.Sprintf("- %s: **+%d**\n",
+			release.FileStats.FilesChanged)
+		fmt.Fprintf(&md, "- %s: **+%d**\n",
 			trans.GetMessage("release.insertions", 0, nil),
-			release.FileStats.Insertions))
-		md.WriteString(fmt.Sprintf("- %s: **-%d**\n",
+			release.FileStats.Insertions)
+		fmt.Fprintf(&md, "- %s: **-%d**\n",
 			trans.GetMessage("release.deletions", 0, nil),
-			release.FileStats.Deletions))
+			release.FileStats.Deletions)
 		md.WriteString("\n")
 	}
 	return content + md.String()

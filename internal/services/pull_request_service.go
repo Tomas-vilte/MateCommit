@@ -407,7 +407,7 @@ func (s *PRService) generateTestPlan(prData models.PRData) string {
 	if len(prData.RelatedIssues) > 0 {
 		testPlan.WriteString("### Associated Issues\n")
 		for _, issue := range prData.RelatedIssues {
-			testPlan.WriteString(fmt.Sprintf("- [ ] Verify #%d is fully resolved\n", issue.Number))
+			fmt.Fprintf(&testPlan, "- [ ] Verify #%d is fully resolved\n", issue.Number)
 		}
 		testPlan.WriteString("\n")
 	}
@@ -438,7 +438,7 @@ func (s *PRService) addBreakingChangesToSummary(summary models.PRSummary, breaki
 	breakingSection.WriteString("\n\n## Breaking Changes\n\n")
 
 	for _, change := range breakingChanges {
-		breakingSection.WriteString(fmt.Sprintf("- %s\n", change))
+		fmt.Fprintf(&breakingSection, "- %s\n", change)
 	}
 
 	summary.Body += breakingSection.String()

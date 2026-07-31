@@ -446,17 +446,17 @@ func FormatTemplateForPrompt(template *models.IssueTemplate, lang string, templa
 
 	if template.Name != "" {
 		if lang == "es" {
-			sb.WriteString(fmt.Sprintf("Nombre del Template: %s\n", template.Name))
+			fmt.Fprintf(&sb, "Nombre del Template: %s\n", template.Name)
 		} else {
-			sb.WriteString(fmt.Sprintf("Template Name: %s\n", template.Name))
+			fmt.Fprintf(&sb, "Template Name: %s\n", template.Name)
 		}
 	}
 
 	if template.GetAbout() != "" {
 		if lang == "es" {
-			sb.WriteString(fmt.Sprintf("Descripción del Template: %s\n", template.GetAbout()))
+			fmt.Fprintf(&sb, "Descripción del Template: %s\n", template.GetAbout())
 		} else {
-			sb.WriteString(fmt.Sprintf("Template Description: %s\n", template.GetAbout()))
+			fmt.Fprintf(&sb, "Template Description: %s\n", template.GetAbout())
 		}
 	}
 
@@ -497,12 +497,12 @@ func FormatTemplateForPrompt(template *models.IssueTemplate, lang string, templa
 			}
 
 			if item.Attributes.Label != "" {
-				sb.WriteString(fmt.Sprintf("### %s\n", item.Attributes.Label))
+				fmt.Fprintf(&sb, "### %s\n", item.Attributes.Label)
 				if item.Attributes.Description != "" {
-					sb.WriteString(fmt.Sprintf("Context: %s\n", item.Attributes.Description))
+					fmt.Fprintf(&sb, "Context: %s\n", item.Attributes.Description)
 				}
 				if item.Attributes.Placeholder != "" {
-					sb.WriteString(fmt.Sprintf("Example: %s\n", item.Attributes.Placeholder))
+					fmt.Fprintf(&sb, "Example: %s\n", item.Attributes.Placeholder)
 				}
 				sb.WriteString("\n")
 			}
@@ -581,22 +581,22 @@ func FormatIssuesForPrompt(issues []models.Issue, locale string) string {
 	var result strings.Builder
 	for _, issue := range issues {
 		if locale == "es" {
-			result.WriteString(fmt.Sprintf("- Issue #%d: %s\n", issue.Number, issue.Title))
+			fmt.Fprintf(&result, "- Issue #%d: %s\n", issue.Number, issue.Title)
 			if issue.Description != "" {
 				desc := issue.Description
 				if len(desc) > 200 {
 					desc = desc[:200] + "..."
 				}
-				result.WriteString(fmt.Sprintf("  Descripción: %s\n", desc))
+				fmt.Fprintf(&result, "  Descripción: %s\n", desc)
 			}
 		} else {
-			result.WriteString(fmt.Sprintf("- Issue #%d: %s\n", issue.Number, issue.Title))
+			fmt.Fprintf(&result, "- Issue #%d: %s\n", issue.Number, issue.Title)
 			if issue.Description != "" {
 				desc := issue.Description
 				if len(desc) > 200 {
 					desc = desc[:200] + "..."
 				}
-				result.WriteString(fmt.Sprintf("  Description: %s\n", desc))
+				fmt.Fprintf(&result, "  Description: %s\n", desc)
 			}
 		}
 	}

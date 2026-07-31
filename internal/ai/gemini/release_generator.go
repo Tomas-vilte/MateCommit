@@ -283,53 +283,53 @@ func (g *ReleaseNotesGenerator) formatChangesForPrompt(release *models.Release) 
 	headers := ai.GetReleaseNotesSectionHeaders(g.lang)
 
 	if len(release.Breaking) > 0 {
-		sb.WriteString(fmt.Sprintf("%s\n", headers["breaking"]))
+		fmt.Fprintf(&sb, "%s\n", headers["breaking"])
 		for _, item := range release.Breaking {
-			sb.WriteString(fmt.Sprintf("- %s: %s\n", item.Type, item.Description))
+			fmt.Fprintf(&sb, "- %s: %s\n", item.Type, item.Description)
 		}
 		sb.WriteString("\n")
 	}
 
 	if len(release.Features) > 0 {
-		sb.WriteString(fmt.Sprintf("%s\n", headers["features"]))
+		fmt.Fprintf(&sb, "%s\n", headers["features"])
 		for _, item := range release.Features {
-			sb.WriteString(fmt.Sprintf("- %s: %s\n", item.Type, item.Description))
+			fmt.Fprintf(&sb, "- %s: %s\n", item.Type, item.Description)
 		}
 		sb.WriteString("\n")
 	}
 
 	if len(release.BugFixes) > 0 {
-		sb.WriteString(fmt.Sprintf("%s\n", headers["fixes"]))
+		fmt.Fprintf(&sb, "%s\n", headers["fixes"])
 		for _, item := range release.BugFixes {
-			sb.WriteString(fmt.Sprintf("- %s: %s\n", item.Type, item.Description))
+			fmt.Fprintf(&sb, "- %s: %s\n", item.Type, item.Description)
 		}
 		sb.WriteString("\n")
 	}
 
 	if len(release.Improvements) > 0 {
-		sb.WriteString(fmt.Sprintf("%s\n", headers["improvements"]))
+		fmt.Fprintf(&sb, "%s\n", headers["improvements"])
 		for _, item := range release.Improvements {
-			sb.WriteString(fmt.Sprintf("- %s: %s\n", item.Type, item.Description))
+			fmt.Fprintf(&sb, "- %s: %s\n", item.Type, item.Description)
 		}
 		sb.WriteString("\n")
 	}
 
 	if len(release.ClosedIssues) > 0 {
-		sb.WriteString(fmt.Sprintf("%s\n", headers["closed_issues"]))
+		fmt.Fprintf(&sb, "%s\n", headers["closed_issues"])
 		for _, issue := range release.ClosedIssues {
-			sb.WriteString(fmt.Sprintf("- #%d: %s (by @%s)\n", issue.Number, issue.Title, issue.Author))
+			fmt.Fprintf(&sb, "- #%d: %s (by @%s)\n", issue.Number, issue.Title, issue.Author)
 		}
 		sb.WriteString("\n")
 	}
 
 	if len(release.MergedPRs) > 0 {
-		sb.WriteString(fmt.Sprintf("%s\n", headers["merged_prs"]))
+		fmt.Fprintf(&sb, "%s\n", headers["merged_prs"])
 		for _, pr := range release.MergedPRs {
-			sb.WriteString(fmt.Sprintf("- #%d: %s (by @%s)\n", pr.Number, pr.Title, pr.Author))
+			fmt.Fprintf(&sb, "- #%d: %s (by @%s)\n", pr.Number, pr.Title, pr.Author)
 			if pr.Description != "" {
 				lines := strings.Split(pr.Description, "\n")
 				if len(lines) > 0 && lines[0] != "" {
-					sb.WriteString(fmt.Sprintf("  Description: %s\n", lines[0]))
+					fmt.Fprintf(&sb, "  Description: %s\n", lines[0])
 				}
 			}
 		}
@@ -337,40 +337,40 @@ func (g *ReleaseNotesGenerator) formatChangesForPrompt(release *models.Release) 
 	}
 
 	if len(release.Contributors) > 0 {
-		sb.WriteString(fmt.Sprintf("%s (%d total):\n", headers["contributors"], len(release.Contributors)))
+		fmt.Fprintf(&sb, "%s (%d total):\n", headers["contributors"], len(release.Contributors))
 		for _, contributor := range release.Contributors {
-			sb.WriteString(fmt.Sprintf("- @%s\n", contributor))
+			fmt.Fprintf(&sb, "- @%s\n", contributor)
 		}
 		if len(release.NewContributors) > 0 {
-			sb.WriteString(fmt.Sprintf("New contributors: %s\n", strings.Join(release.NewContributors, ", ")))
+			fmt.Fprintf(&sb, "New contributors: %s\n", strings.Join(release.NewContributors, ", "))
 		}
 		sb.WriteString("\n")
 	}
 
 	if release.FileStats.FilesChanged > 0 {
-		sb.WriteString(fmt.Sprintf("%s\n", headers["file_stats"]))
-		sb.WriteString(fmt.Sprintf("- Files changed: %d\n", release.FileStats.FilesChanged))
-		sb.WriteString(fmt.Sprintf("- Insertions: +%d\n", release.FileStats.Insertions))
-		sb.WriteString(fmt.Sprintf("- Deletions: -%d\n", release.FileStats.Deletions))
+		fmt.Fprintf(&sb, "%s\n", headers["file_stats"])
+		fmt.Fprintf(&sb, "- Files changed: %d\n", release.FileStats.FilesChanged)
+		fmt.Fprintf(&sb, "- Insertions: +%d\n", release.FileStats.Insertions)
+		fmt.Fprintf(&sb, "- Deletions: -%d\n", release.FileStats.Deletions)
 		if len(release.FileStats.TopFiles) > 0 {
 			sb.WriteString("Top modified files:\n")
 			for _, file := range release.FileStats.TopFiles {
-				sb.WriteString(fmt.Sprintf("  - %s (+%d/-%d)\n", file.Path, file.Additions, file.Deletions))
+				fmt.Fprintf(&sb, "  - %s (+%d/-%d)\n", file.Path, file.Additions, file.Deletions)
 			}
 		}
 		sb.WriteString("\n")
 	}
 
 	if len(release.Dependencies) > 0 {
-		sb.WriteString(fmt.Sprintf("%s\n", headers["deps"]))
+		fmt.Fprintf(&sb, "%s\n", headers["deps"])
 		for _, dep := range release.Dependencies {
 			switch dep.Type {
 			case "updated":
-				sb.WriteString(fmt.Sprintf("- %s: %s → %s\n", dep.Name, dep.OldVersion, dep.NewVersion))
+				fmt.Fprintf(&sb, "- %s: %s → %s\n", dep.Name, dep.OldVersion, dep.NewVersion)
 			case "added":
-				sb.WriteString(fmt.Sprintf("- Added: %s %s\n", dep.Name, dep.NewVersion))
+				fmt.Fprintf(&sb, "- Added: %s %s\n", dep.Name, dep.NewVersion)
 			case "removed":
-				sb.WriteString(fmt.Sprintf("- Removed: %s %s\n", dep.Name, dep.OldVersion))
+				fmt.Fprintf(&sb, "- Removed: %s %s\n", dep.Name, dep.OldVersion)
 			}
 		}
 		sb.WriteString("\n")
