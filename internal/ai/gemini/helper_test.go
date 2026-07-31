@@ -33,6 +33,24 @@ func TestExtractUsage(t *testing.T) {
 	})
 }
 
+func TestUnescapeLiteralNewlines(t *testing.T) {
+	t.Run("replaces literal backslash-n with a real newline", func(t *testing.T) {
+		input := `## Summary\nThis is the body.\n\n## Changes\n- one\n- two`
+		result := unescapeLiteralNewlines(input)
+		assert.Equal(t, "## Summary\nThis is the body.\n\n## Changes\n- one\n- two", result)
+		assert.NotContains(t, result, `\n`)
+	})
+
+	t.Run("leaves real newlines untouched", func(t *testing.T) {
+		input := "## Summary\nAlready a real newline."
+		assert.Equal(t, input, unescapeLiteralNewlines(input))
+	})
+
+	t.Run("empty string stays empty", func(t *testing.T) {
+		assert.Equal(t, "", unescapeLiteralNewlines(""))
+	})
+}
+
 func TestGetGenerateConfig(t *testing.T) {
 	t.Run("default config", func(t *testing.T) {
 		cfg := GetGenerateConfig("gemini-1.5-flash", "", nil)

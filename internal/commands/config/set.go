@@ -32,8 +32,7 @@ func (c *ConfigCommandFactory) newSetCommand(t *i18n.Translations, cfg *config.C
 		},
 		Action: func(ctx context.Context, command *cli.Command) error {
 			if command.Args().Len() < 2 {
-				ui.PrintError(os.Stdout, t.GetMessage("config_set_error_args", 0, nil))
-				return fmt.Errorf("missing arguments")
+				return ui.PrintError(os.Stdout, t.GetMessage("config_set_error_args", 0, nil))
 			}
 
 			key := strings.ToLower(command.Args().Get(0))
@@ -41,8 +40,7 @@ func (c *ConfigCommandFactory) newSetCommand(t *i18n.Translations, cfg *config.C
 
 			targetCfg, useLocal, err := resolveTargetConfig(command, cfg, t)
 			if err != nil {
-				ui.PrintError(os.Stdout, err.Error())
-				return err
+				return ui.PrintError(os.Stdout, err.Error())
 			}
 
 			switch key {
@@ -50,24 +48,18 @@ func (c *ConfigCommandFactory) newSetCommand(t *i18n.Translations, cfg *config.C
 				if isValidLanguage(value) {
 					targetCfg.Language = value
 				} else {
-					err := fmt.Errorf("invalid language: %s", value)
-					ui.PrintError(os.Stdout, err.Error())
-					return err
+					return ui.PrintError(os.Stdout, fmt.Sprintf("invalid language: %s", value))
 				}
 			case "emoji", "use_emoji":
 				boolVal, parseErr := strconv.ParseBool(value)
 				if parseErr != nil {
-					err := fmt.Errorf("invalid boolean value: %s", value)
-					ui.PrintError(os.Stdout, err.Error())
-					return err
+					return ui.PrintError(os.Stdout, fmt.Sprintf("invalid boolean value: %s", value))
 				}
 				targetCfg.UseEmoji = boolVal
 			case "count", "suggestions_count":
 				intVal, parseErr := strconv.Atoi(value)
 				if parseErr != nil || intVal < 1 || intVal > 10 {
-					err := fmt.Errorf("invalid count (must be 1-10): %s", value)
-					ui.PrintError(os.Stdout, err.Error())
-					return err
+					return ui.PrintError(os.Stdout, fmt.Sprintf("invalid count (must be 1-10): %s", value))
 				}
 				targetCfg.SuggestionsCount = intVal
 			case "active-ai", "active_ai":
@@ -79,9 +71,7 @@ func (c *ConfigCommandFactory) newSetCommand(t *i18n.Translations, cfg *config.C
 					}
 					targetCfg.AIConfig.Models[targetCfg.AIConfig.ActiveAI] = config.Model(value)
 				} else {
-					err := fmt.Errorf("no active AI provider configured")
-					ui.PrintError(os.Stdout, err.Error())
-					return err
+					return ui.PrintError(os.Stdout, "no active AI provider configured")
 				}
 			case "active-vcs", "active_vcs":
 				targetCfg.ActiveVCSProvider = value
@@ -90,9 +80,7 @@ func (c *ConfigCommandFactory) newSetCommand(t *i18n.Translations, cfg *config.C
 			case "git.email", "git-email":
 				targetCfg.GitFallback.UserEmail = value
 			default:
-				err := fmt.Errorf("unknown configuration key: %s", key)
-				ui.PrintError(os.Stdout, err.Error())
-				return err
+				return ui.PrintError(os.Stdout, fmt.Sprintf("unknown configuration key: %s", key))
 			}
 
 			if useLocal {
@@ -102,8 +90,7 @@ func (c *ConfigCommandFactory) newSetCommand(t *i18n.Translations, cfg *config.C
 			}
 
 			if err != nil {
-				ui.PrintError(os.Stdout, t.GetMessage("ui_error.error_saving_config", 0, nil))
-				return err
+				return ui.PrintError(os.Stdout, t.GetMessage("ui_error.error_saving_config", 0, nil))
 			}
 
 			scope := "global"

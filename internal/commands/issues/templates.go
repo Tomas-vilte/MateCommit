@@ -37,8 +37,7 @@ func (f *IssuesCommandFactory) newTemplateCommand(t *i18n.Translations, _ *confi
 					ui.PrintInfo(t.GetMessage("issue.template_init_info", 0, nil))
 
 					if err := templateService.InitializeTemplates(ctx, force); err != nil {
-						ui.HandleAppError(err, t)
-						return err
+						return ui.HandleAppError(err, t)
 					}
 
 					templatesDir, _ := templateService.GetTemplatesDir(ctx)
@@ -54,8 +53,7 @@ func (f *IssuesCommandFactory) newTemplateCommand(t *i18n.Translations, _ *confi
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					templates, err := templateService.ListTemplates(ctx)
 					if err != nil {
-						ui.HandleAppError(err, t)
-						return err
+						return ui.HandleAppError(err, t)
 					}
 
 					if len(templates) == 0 {

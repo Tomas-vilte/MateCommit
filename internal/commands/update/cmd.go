@@ -30,8 +30,7 @@ func (f *UpdateCommandFactory) CreateCommand(trans *i18n.Translations, _ *config
 
 			fmt.Println(trans.GetMessage("update.updating", 0, nil))
 			if err := updater.UpdateCLI(ctx); err != nil {
-				ui.HandleAppError(err)
-				return err
+				return ui.HandleAppError(err)
 			}
 
 			fmt.Println(trans.GetMessage("update.success", 0, nil))

@@ -55,8 +55,7 @@ func initConfigAction(cfg *config.Config, t *i18n.Translations) cli.ActionFunc {
 	return func(ctx context.Context, command *cli.Command) error {
 		localCfg, useLocal, err := resolveTargetConfig(command, cfg, t)
 		if err != nil {
-			ui.PrintError(os.Stdout, err.Error())
-			return err
+			return ui.PrintError(os.Stdout, err.Error())
 		}
 
 		if useLocal {
@@ -454,7 +453,7 @@ func validateGeminiAPIKey(ctx context.Context, apiKey string, t *i18n.Translatio
 	summarizer, err := gemini.NewGeminiCommitSummarizer(testCtx, testCfg, nil)
 	if err != nil {
 		spinner.Error(t.GetMessage("config.api_key_invalid", 0, nil))
-		ui.PrintError(os.Stdout, t.GetMessage("config.check_api_key_error", 0, struct{ Error string }{err.Error()}))
+		_ = ui.PrintError(os.Stdout, t.GetMessage("config.check_api_key_error", 0, struct{ Error string }{err.Error()}))
 		return false
 	}
 
@@ -463,7 +462,7 @@ func validateGeminiAPIKey(ctx context.Context, apiKey string, t *i18n.Translatio
 	// is authorized — CountTokens is the cheapest real call available.
 	if _, err := summarizer.CountTokens(testCtx, "ping"); err != nil {
 		spinner.Error(t.GetMessage("config.api_key_invalid", 0, nil))
-		ui.PrintError(os.Stdout, t.GetMessage("config.check_api_key_error", 0, struct{ Error string }{err.Error()}))
+		_ = ui.PrintError(os.Stdout, t.GetMessage("config.check_api_key_error", 0, struct{ Error string }{err.Error()}))
 		return false
 	}
 
@@ -488,7 +487,7 @@ func validateGitHubToken(ctx context.Context, token string, t *i18n.Translations
 	user, resp, err := client.Users.Get(testCtx, "")
 	if err != nil {
 		spinner.Error(t.GetMessage("config.github_token_invalid", 0, nil))
-		ui.PrintError(os.Stdout, t.GetMessage("config.check_token_error", 0, struct{ Error string }{err.Error()}))
+		_ = ui.PrintError(os.Stdout, t.GetMessage("config.check_token_error", 0, struct{ Error string }{err.Error()}))
 		return false
 	}
 
@@ -573,7 +572,7 @@ func validateJiraConnection(ctx context.Context, baseURL, email, token string, t
 	req, err := http.NewRequestWithContext(testCtx, "GET", testURL, nil)
 	if err != nil {
 		spinner.Error(t.GetMessage("config.jira_connection_failed", 0, nil))
-		ui.PrintError(os.Stdout, t.GetMessage("config.jira_error_creating_request", 0, struct{ Error error }{err}))
+		_ = ui.PrintError(os.Stdout, t.GetMessage("config.jira_error_creating_request", 0, struct{ Error error }{err}))
 		return false
 	}
 
@@ -583,7 +582,7 @@ func validateJiraConnection(ctx context.Context, baseURL, email, token string, t
 	resp, err := client.Do(req)
 	if err != nil {
 		spinner.Error(t.GetMessage("config.jira_connection_failed", 0, nil))
-		ui.PrintError(os.Stdout, t.GetMessage("config.check_jira_error", 0, struct{ Error string }{err.Error()}))
+		_ = ui.PrintError(os.Stdout, t.GetMessage("config.check_jira_error", 0, struct{ Error string }{err.Error()}))
 		return false
 	}
 	defer func() {
@@ -603,7 +602,7 @@ func validateJiraConnection(ctx context.Context, baseURL, email, token string, t
 		default:
 			errorMsg = t.GetMessage("config.jira_http_error", 0, struct{ Code int }{resp.StatusCode})
 		}
-		ui.PrintError(os.Stdout, errorMsg)
+		_ = ui.PrintError(os.Stdout, errorMsg)
 		return false
 	}
 

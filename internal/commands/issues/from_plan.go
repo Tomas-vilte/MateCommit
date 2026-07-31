@@ -114,8 +114,7 @@ func (f *IssuesCommandFactory) createFromPlanAction(t *i18n.Translations, cfg *c
 					Number int
 					Error  string
 				}{1, err.Error()})
-			ui.PrintError(os.Stdout, errMsg)
-			return err
+			return ui.PrintError(os.Stdout, errMsg)
 		}
 
 		emoji := ""

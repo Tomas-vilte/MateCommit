@@ -114,6 +114,16 @@ func extractTextFromMap(respMap map[string]interface{}) string {
 	return result.String()
 }
 
+// unescapeLiteralNewlines converts a literal two-character "\n" escape
+// sequence into a real newline character. Despite explicit prompt
+// instructions asking the model not to, it sometimes still emits the
+// escape sequence as text instead of an actual line break inside
+// multi-line Markdown fields (PR bodies, issue descriptions) — this is a
+// deterministic safety net for when that instruction isn't followed.
+func unescapeLiteralNewlines(s string) string {
+	return strings.ReplaceAll(s, `\n`, "\n")
+}
+
 // CleanLabels cleans and validates labels, keeping only the allowed ones.
 // It accepts a list of labels to clean and a list of available labels from the repository.
 // If availableLabels is empty, it falls back to a default list of common labels.
