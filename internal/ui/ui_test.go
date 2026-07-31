@@ -3,11 +3,38 @@ package ui
 import (
 	"bytes"
 	"errors"
+	"io"
+	"os"
 	"testing"
 
+	"github.com/fatih/color"
 	"github.com/stretchr/testify/assert"
 	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 )
+
+// captureStdout redirects os.Stdout (and fatih/color's cached Output,
+// which is bound at package init and otherwise ignores test-time
+// redirection) for the duration of fn, returning everything written.
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+
+	oldStdout := os.Stdout
+	oldColorOutput := color.Output
+	r, w, err := os.Pipe()
+	assert.NoError(t, err)
+	os.Stdout = w
+	color.Output = w
+
+	fn()
+
+	assert.NoError(t, w.Close())
+	os.Stdout = oldStdout
+	color.Output = oldColorOutput
+
+	out, err := io.ReadAll(r)
+	assert.NoError(t, err)
+	return string(out)
+}
 
 func TestShownAndIsShown(t *testing.T) {
 	t.Run("nil error stays nil", func(t *testing.T) {
@@ -55,6 +82,19 @@ func TestHandleAppError_ReturnsShownError(t *testing.T) {
 		var appErr *domainErrors.AppError
 		assert.True(t, errors.As(result, &appErr), "the original AppError must still be reachable via errors.As")
 		assert.Equal(t, "something git-related broke", appErr.Message)
+	})
+
+	t.Run("stderr context is printed to the user, not just captured", func(t *testing.T) {
+		original := domainErrors.NewAppError(domainErrors.TypeGit, "Push rejected by a GitHub branch/tag ruleset", nil).
+			WithContext("stderr", "remote: - Changes must be made through a pull request.").
+			WithSuggestion("Push your changes through a pull request instead")
+
+		output := captureStdout(t, func() {
+			_ = HandleAppError(original)
+		})
+
+		assert.Contains(t, output, "Changes must be made through a pull request",
+			"the captured git/GitHub rejection reason must reach the user, not just live in Context")
 	})
 
 	t.Run("plain (non-AppError) error is marked shown too", func(t *testing.T) {

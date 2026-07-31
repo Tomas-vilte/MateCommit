@@ -126,6 +126,28 @@ func TestAppError_ChainedContext(t *testing.T) {
 	}
 }
 
+func TestAppError_Is(t *testing.T) {
+	t.Run("errors.Is matches through WithError/WithContext despite returning new instances", func(t *testing.T) {
+		wrapped := ErrPushRejectedByRuleset.WithError(errors.New("exit status 1")).WithContext("stderr", "GH013")
+
+		if !errors.Is(wrapped, ErrPushRejectedByRuleset) {
+			t.Error("expected errors.Is to match the sentinel by Type+Message despite pointer inequality")
+		}
+	})
+
+	t.Run("different sentinel AppErrors of the same Type do not match", func(t *testing.T) {
+		if errors.Is(ErrPush, ErrPushRejectedByRuleset) {
+			t.Error("ErrPush and ErrPushRejectedByRuleset share TypeGit but have different Messages — must not match")
+		}
+	})
+
+	t.Run("a plain non-AppError never matches", func(t *testing.T) {
+		if errors.Is(errors.New("boom"), ErrPushRejectedByRuleset) {
+			t.Error("a plain error must never match an AppError sentinel")
+		}
+	})
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
 		(len(s) > 0 && (s[:len(substr)] == substr || contains(s[1:], substr))))

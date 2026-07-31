@@ -56,4 +56,10 @@ type (
 		Labels []string
 		Usage  *TokenUsage
 	}
+
+	// CreatedPR identifies a Pull Request that was just opened.
+	CreatedPR struct {
+		Number int
+		URL    string
+	}
 )

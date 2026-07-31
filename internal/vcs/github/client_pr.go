@@ -53,6 +53,36 @@ func (ghc *GitHubClient) UpdatePR(ctx context.Context, prNumber int, summary mod
 	return nil
 }
 
+// CreatePR opens a new Pull Request from headBranch into baseBranch.
+func (ghc *GitHubClient) CreatePR(ctx context.Context, title, body, headBranch, baseBranch string) (*models.CreatedPR, error) {
+	pr, resp, err := ghc.prService.Create(ctx, ghc.owner, ghc.repo, &github.NewPullRequest{
+		Title: github.Ptr(title),
+		Body:  github.Ptr(body),
+		Head:  github.Ptr(headBranch),
+		Base:  github.Ptr(baseBranch),
+	})
+	if err != nil {
+		if resp != nil {
+			if resp.StatusCode == http.StatusTooManyRequests {
+				return nil, domainErrors.ErrGitHubRateLimit.
+					WithContext("retry_after", resp.Header.Get("Retry-After")).
+					WithContext("operation", "create PR")
+			}
+			if resp.StatusCode == http.StatusForbidden {
+				return nil, domainErrors.ErrGitHubInsufficientPerms.
+					WithContext("operation", "create PR").
+					WithContext("repo", fmt.Sprintf("%s/%s", ghc.owner, ghc.repo))
+			}
+		}
+		return nil, fmt.Errorf("failed to create PR from %s to %s: %w", headBranch, baseBranch, err)
+	}
+
+	return &models.CreatedPR{
+		Number: pr.GetNumber(),
+		URL:    pr.GetHTMLURL(),
+	}, nil
+}
+
 func (ghc *GitHubClient) GetPR(ctx context.Context, prNumber int) (models.PRData, error) {
 	log := logger.FromContext(ctx)
 

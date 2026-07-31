@@ -10,6 +10,8 @@ import (
 type VCSClient interface {
 	// UpdatePR updates a Pull Request (title, body, and labels) in the provider.
 	UpdatePR(ctx context.Context, prNumber int, summary models.PRSummary) error
+	// CreatePR opens a new Pull Request from headBranch into baseBranch.
+	CreatePR(ctx context.Context, title, body, headBranch, baseBranch string) (*models.CreatedPR, error)
 	// GetPR gets the PR data (for example, to extract commits, diff, etc.).
 	GetPR(ctx context.Context, prNumber int) (models.PRData, error)
 	// GetRepoLabels gets all available labels in the repository

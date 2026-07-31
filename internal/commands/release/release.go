@@ -30,7 +30,7 @@ type releaseService interface {
 	EnrichReleaseContext(ctx context.Context, release *models.Release) error
 	UpdateLocalChangelog(ctx context.Context, release *models.Release, notes *models.ReleaseNotes) error
 	CommitChangelog(ctx context.Context, version string) error
-	PushChanges(ctx context.Context) error
+	PushChanges(ctx context.Context, version string) error
 	UpdateAppVersion(ctx context.Context, version string) error
 	ValidateMainBranch(ctx context.Context) error
 	BuildChangelogPreview(ctx context.Context, release *models.Release, notes *models.ReleaseNotes) string
@@ -57,6 +57,9 @@ type gitService interface {
 	ValidateGitConfig(ctx context.Context) error
 	ValidateTagExists(ctx context.Context, tag string) error
 	GetRepoRoot(ctx context.Context) (string, error)
+	CreateAndSwitchBranch(ctx context.Context, branchName string) error
+	SwitchBranch(ctx context.Context, branchName string) error
+	PushBranch(ctx context.Context, branchName string) error
 }
 
 type ReleaseCommandFactory struct {

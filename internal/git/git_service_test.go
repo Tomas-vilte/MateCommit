@@ -1182,6 +1182,102 @@ func TestGitService_Push(t *testing.T) {
 		assert.Equal(t, domainErrors.TypeGit, appErr.Type)
 		assert.Contains(t, err.Error(), "Failed to push to remote")
 	})
+
+	t.Run("Push rejected by a GitHub ruleset returns a ruleset-specific error", func(t *testing.T) {
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		installFakeGitRejectingPush(t, rulesetsRejectionStderr)
+
+		service := NewGitService()
+		err := service.Push(context.Background())
+		assert.Error(t, err)
+
+		var appErr *domainErrors.AppError
+		assert.True(t, errors.As(err, &appErr))
+		assert.Equal(t, "Push rejected by a GitHub branch/tag ruleset", appErr.Message,
+			"a ruleset rejection must surface as a distinct, actionable error — not the generic push failure")
+		assert.Contains(t, appErr.Suggestion, "pull request")
+		assert.Contains(t, err.Error(), "GH013")
+	})
+
+	t.Run("Push rejected by legacy branch protection also returns the ruleset-specific error", func(t *testing.T) {
+		tempDir := setupTestRepo(t)
+		defer cleanupTestRepo(t, tempDir)
+
+		installFakeGitRejectingPush(t, legacyProtectedBranchStderr)
+
+		service := NewGitService()
+		err := service.Push(context.Background())
+		assert.Error(t, err)
+
+		var appErr *domainErrors.AppError
+		assert.True(t, errors.As(err, &appErr))
+		assert.Equal(t, "Push rejected by a GitHub branch/tag ruleset", appErr.Message)
+	})
+}
+
+func TestGitService_PushTag_RulesetRejection(t *testing.T) {
+	tempDir := setupTestRepo(t)
+	defer cleanupTestRepo(t, tempDir)
+
+	installFakeGitRejectingPush(t, rulesetsRejectionStderr)
+
+	service := NewGitService()
+	err := service.PushTag(context.Background(), "v1.2.3")
+	assert.Error(t, err)
+
+	var appErr *domainErrors.AppError
+	assert.True(t, errors.As(err, &appErr))
+	assert.Equal(t, "Push rejected by a GitHub branch/tag ruleset", appErr.Message)
+	assert.Equal(t, "v1.2.3", appErr.Context["version"])
+}
+
+const rulesetsRejectionStderr = `remote: error: GH013: Repository rule violations found for refs/heads/main.
+remote:
+remote: - Changes must be made through a pull request.
+remote:
+To github.com:owner/repo.git
+ ! [remote rejected] main -> main (push declined due to repository rule violations)
+error: failed to push some refs to 'github.com:owner/repo.git'
+`
+
+const legacyProtectedBranchStderr = `remote: error: GH006: Protected branch update failed for refs/heads/main.
+remote: error: At least 1 approving review is required by reviewers with write access.
+To github.com:owner/repo.git
+ ! [remote rejected] main -> main (protected branch hook declined)
+error: failed to push some refs to 'github.com:owner/repo.git'
+`
+
+// installFakeGitRejectingPush puts a fake "git" executable first on PATH
+// that transparently delegates every subcommand to the real git, except
+// "push", which fails immediately with the given stderr — simulating a
+// GitHub ruleset/branch-protection rejection without a real remote.
+func installFakeGitRejectingPush(t *testing.T, stderr string) {
+	t.Helper()
+
+	realGit, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatalf("could not locate real git binary: %v", err)
+	}
+
+	dir := t.TempDir()
+	script := fmt.Sprintf(`#!/bin/sh
+if [ "$1" = "push" ]; then
+  cat <<'EOF' >&2
+%s
+EOF
+  exit 1
+fi
+exec %q "$@"
+`, stderr, realGit)
+
+	fakeGit := filepath.Join(dir, "git")
+	if err := os.WriteFile(fakeGit, []byte(script), 0755); err != nil {
+		t.Fatalf("failed to write fake git script: %v", err)
+	}
+
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
 
 func TestGitService_GetCommitsBetweenTags(t *testing.T) {
@@ -1278,4 +1374,28 @@ func TestGitService_Fallback(t *testing.T) {
 			t.Errorf("author = %q, want %q", author, "Fallback Name <fallback@example.com>")
 		}
 	})
+}
+
+func TestIsRulesetRejection(t *testing.T) {
+	cases := []struct {
+		name   string
+		stderr string
+		want   bool
+	}{
+		{"GH013 ruleset rejection", rulesetsRejectionStderr, true},
+		{"GH006 legacy branch protection", legacyProtectedBranchStderr, true},
+		{"lowercase 'protected branch' phrase", "remote: this branch is a protected branch", true},
+		{"protected tag phrase", "remote: error: cannot push to a protected tag", true},
+		{"repository rule violations phrase without a code", "push declined due to repository rule violations", true},
+		{"empty stderr", "", false},
+		{"network failure", "ssh: connect to host github.com port 22: Connection refused", false},
+		{"auth failure", "remote: Support for password authentication was removed", false},
+		{"diverged history (non-fast-forward)", "! [rejected] main -> main (fetch first)\nerror: failed to push some refs", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, isRulesetRejection(tc.stderr))
+		})
+	}
 }

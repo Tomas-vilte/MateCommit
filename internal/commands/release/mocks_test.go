@@ -75,8 +75,8 @@ func (m *MockReleaseService) CommitChangelog(ctx context.Context, version string
 	return args.Error(0)
 }
 
-func (m *MockReleaseService) PushChanges(ctx context.Context) error {
-	args := m.Called(ctx)
+func (m *MockReleaseService) PushChanges(ctx context.Context, version string) error {
+	args := m.Called(ctx, version)
 	return args.Error(0)
 }
 

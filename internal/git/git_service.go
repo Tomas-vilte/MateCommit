@@ -617,20 +617,125 @@ func (s *GitService) CreateTag(ctx context.Context, version, message string) err
 }
 
 func (s *GitService) PushTag(ctx context.Context, version string) error {
+	log := logger.FromContext(ctx)
+
 	cmd := exec.CommandContext(ctx, "git", "push", "origin", version)
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+
 	if err := cmd.Run(); err != nil {
-		return errors.ErrPushTag.WithError(err).WithContext("version", version)
+		stderrStr := strings.TrimSpace(stderr.String())
+		log.Error("git push tag failed", "error", err, "version", version, "stderr", stderrStr)
+
+		if isRulesetRejection(stderrStr) {
+			return errors.ErrPushRejectedByRuleset.WithError(err).WithContext("version", version).WithContext("stderr", stderrStr)
+		}
+		return errors.ErrPushTag.WithError(err).WithContext("version", version).WithContext("stderr", stderrStr)
 	}
 	return nil
 }
 
 // Push pushes commits to the remote repository
 func (s *GitService) Push(ctx context.Context) error {
+	log := logger.FromContext(ctx)
+
 	cmd := exec.CommandContext(ctx, "git", "push")
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+
 	if err := cmd.Run(); err != nil {
-		return errors.ErrPush.WithError(err)
+		stderrStr := strings.TrimSpace(stderr.String())
+		log.Error("git push failed", "error", err, "stderr", stderrStr)
+
+		if isRulesetRejection(stderrStr) {
+			return errors.ErrPushRejectedByRuleset.WithError(err).WithContext("stderr", stderrStr)
+		}
+		return errors.ErrPush.WithError(err).WithContext("stderr", stderrStr)
 	}
 	return nil
+}
+
+// CreateAndSwitchBranch creates a new local branch at the current HEAD and
+// switches to it. Uses -B (not -b) so it's safe to call again with the same
+// name (e.g. a retried release) — it just resets the branch to the current
+// HEAD instead of failing because it already exists.
+func (s *GitService) CreateAndSwitchBranch(ctx context.Context, branchName string) error {
+	log := logger.FromContext(ctx)
+
+	cmd := exec.CommandContext(ctx, "git", "checkout", "-B", branchName)
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		stderrStr := strings.TrimSpace(stderr.String())
+		log.Error("git checkout -B failed", "error", err, "branch", branchName, "stderr", stderrStr)
+		return errors.ErrCreateBranch.WithError(err).WithContext("branch", branchName).WithContext("stderr", stderrStr)
+	}
+	return nil
+}
+
+// SwitchBranch checks out an existing local branch.
+func (s *GitService) SwitchBranch(ctx context.Context, branchName string) error {
+	log := logger.FromContext(ctx)
+
+	cmd := exec.CommandContext(ctx, "git", "checkout", branchName)
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		stderrStr := strings.TrimSpace(stderr.String())
+		log.Error("git checkout failed", "error", err, "branch", branchName, "stderr", stderrStr)
+		return errors.ErrSwitchBranch.WithError(err).WithContext("branch", branchName).WithContext("stderr", stderrStr)
+	}
+	return nil
+}
+
+// PushBranch pushes a branch to origin, setting up tracking. Like
+// Push/PushTag, it detects and flags a GitHub ruleset rejection so callers
+// can tell "the branch itself is also protected" apart from any other
+// push failure.
+func (s *GitService) PushBranch(ctx context.Context, branchName string) error {
+	log := logger.FromContext(ctx)
+
+	cmd := exec.CommandContext(ctx, "git", "push", "-u", "origin", branchName)
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		stderrStr := strings.TrimSpace(stderr.String())
+		log.Error("git push branch failed", "error", err, "branch", branchName, "stderr", stderrStr)
+
+		if isRulesetRejection(stderrStr) {
+			return errors.ErrPushRejectedByRuleset.WithError(err).WithContext("branch", branchName).WithContext("stderr", stderrStr)
+		}
+		return errors.ErrPushBranch.WithError(err).WithContext("branch", branchName).WithContext("stderr", stderrStr)
+	}
+	return nil
+}
+
+// isRulesetRejection reports whether git's push failure output indicates the
+// push was rejected by a GitHub ruleset or legacy branch/tag protection rule
+// (as opposed to a network/auth/diverged-history failure). GH013 is GitHub's
+// error code for the newer Rulesets feature; GH006 is the legacy branch
+// protection equivalent — both include a human-readable reason afterward,
+// which we surface via the raw stderr already attached to the AppError.
+func isRulesetRejection(stderr string) bool {
+	markers := []string{
+		"GH013",
+		"GH006",
+		"protected branch",
+		"protected tag",
+		"protected ref",
+		"repository rule violations",
+		"push declined due to repository rule violations",
+	}
+	lower := strings.ToLower(stderr)
+	for _, m := range markers {
+		if strings.Contains(lower, strings.ToLower(m)) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *GitService) GetCommitCount(ctx context.Context) (int, error) {

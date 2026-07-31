@@ -507,3 +507,8 @@ func (m *mockGitService) GetCurrentBranch(ctx context.Context) (string, error)  
 func (m *mockGitService) FetchTags(ctx context.Context) error                          { return nil }
 func (m *mockGitService) ValidateTagExists(ctx context.Context, tag string) error      { return nil }
 func (m *mockGitService) GetRepoRoot(ctx context.Context) (string, error)              { return ".", nil }
+func (m *mockGitService) CreateAndSwitchBranch(ctx context.Context, branchName string) error {
+	return nil
+}
+func (m *mockGitService) SwitchBranch(ctx context.Context, branchName string) error { return nil }
+func (m *mockGitService) PushBranch(ctx context.Context, branchName string) error   { return nil }

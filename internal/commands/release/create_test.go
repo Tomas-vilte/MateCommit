@@ -269,7 +269,7 @@ func TestCreateCommand_WithChangelog(t *testing.T) {
 	mockService.On("UpdateLocalChangelog", mock.Anything, release, notes).Return(nil)
 	mockService.On("UpdateAppVersion", mock.Anything, "v1.0.0").Return(nil)
 	mockService.On("CommitChangelog", mock.Anything, "v1.0.0").Return(nil)
-	mockService.On("PushChanges", mock.Anything).Return(nil)
+	mockService.On("PushChanges", mock.Anything, mock.Anything).Return(nil)
 
 	mockService.On("CreateTag", mock.Anything, "v1.0.0", mock.Anything).Return(nil)
 

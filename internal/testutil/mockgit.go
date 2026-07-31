@@ -124,6 +124,21 @@ func (m *MockGitService) Push(ctx context.Context) error {
 	return args.Error(0)
 }
 
+func (m *MockGitService) CreateAndSwitchBranch(ctx context.Context, branchName string) error {
+	args := m.Called(ctx, branchName)
+	return args.Error(0)
+}
+
+func (m *MockGitService) SwitchBranch(ctx context.Context, branchName string) error {
+	args := m.Called(ctx, branchName)
+	return args.Error(0)
+}
+
+func (m *MockGitService) PushBranch(ctx context.Context, branchName string) error {
+	args := m.Called(ctx, branchName)
+	return args.Error(0)
+}
+
 func (m *MockGitService) FetchTags(ctx context.Context) error {
 	args := m.Called(ctx)
 	return args.Error(0)

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/thomas-vilte/matecommit/internal/config"
+	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/models"
 	"github.com/thomas-vilte/matecommit/internal/testutil"
 )
@@ -1435,7 +1436,7 @@ func TestReleaseService_PushChanges_RealScenarios(t *testing.T) {
 
 		mockGit.On("Push", mock.Anything).Return(nil)
 
-		err := service.PushChanges(context.Background())
+		err := service.PushChanges(context.Background(), "v1.0.0")
 
 		assert.NoError(t, err)
 		mockGit.AssertExpectations(t)
@@ -1447,10 +1448,82 @@ func TestReleaseService_PushChanges_RealScenarios(t *testing.T) {
 
 		mockGit.On("Push", mock.Anything).Return(errors.New("failed to push: remote rejected"))
 
-		err := service.PushChanges(context.Background())
+		err := service.PushChanges(context.Background(), "v1.0.0")
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "remote rejected")
+		mockGit.AssertExpectations(t)
+	})
+
+	t.Run("Ruleset rejection falls back to opening a pull request", func(t *testing.T) {
+		mockGit := new(testutil.MockGitService)
+		mockVCS := new(testutil.MockVCSClient)
+		service := NewReleaseService(mockGit, WithReleaseVCSClient(mockVCS))
+
+		rulesetErr := domainErrors.ErrPushRejectedByRuleset.WithError(errors.New("exit status 1")).WithContext("stderr", "GH013")
+		mockGit.On("Push", mock.Anything).Return(rulesetErr)
+		mockGit.On("GetCurrentBranch", mock.Anything).Return("master", nil)
+		mockGit.On("CreateAndSwitchBranch", mock.Anything, "matecommit/release-v1.0.0").Return(nil)
+		mockGit.On("PushBranch", mock.Anything, "matecommit/release-v1.0.0").Return(nil)
+		mockGit.On("SwitchBranch", mock.Anything, "master").Return(nil)
+		mockVCS.On("CreatePR", mock.Anything, mock.Anything, mock.Anything, "matecommit/release-v1.0.0", "master").
+			Return(&models.CreatedPR{Number: 42, URL: "https://github.com/owner/repo/pull/42"}, nil)
+
+		err := service.PushChanges(context.Background(), "v1.0.0")
+
+		assert.Error(t, err, "still returns a non-nil error — the release isn't finished, it needs a merge + re-run")
+		assert.True(t, errors.Is(err, domainErrors.ErrReleasePROpened),
+			"callers must be able to distinguish this from a genuine failure via errors.Is")
+
+		var appErr *domainErrors.AppError
+		assert.True(t, errors.As(err, &appErr))
+		assert.Equal(t, "https://github.com/owner/repo/pull/42", appErr.Context["pr_url"])
+
+		mockGit.AssertExpectations(t)
+		mockVCS.AssertExpectations(t)
+	})
+
+	t.Run("Ruleset also blocking the fallback branch surfaces the original rejection, not a fake success", func(t *testing.T) {
+		mockGit := new(testutil.MockGitService)
+		mockVCS := new(testutil.MockVCSClient)
+		service := NewReleaseService(mockGit, WithReleaseVCSClient(mockVCS))
+
+		rulesetErr := domainErrors.ErrPushRejectedByRuleset.WithError(errors.New("exit status 1"))
+		branchRulesetErr := domainErrors.ErrPushRejectedByRuleset.WithError(errors.New("exit status 1")).WithContext("stderr", "GH013: broader ruleset")
+		mockGit.On("Push", mock.Anything).Return(rulesetErr)
+		mockGit.On("GetCurrentBranch", mock.Anything).Return("master", nil)
+		mockGit.On("CreateAndSwitchBranch", mock.Anything, "matecommit/release-v1.0.0").Return(nil)
+		mockGit.On("PushBranch", mock.Anything, "matecommit/release-v1.0.0").Return(branchRulesetErr)
+		mockGit.On("SwitchBranch", mock.Anything, "master").Return(nil)
+
+		err := service.PushChanges(context.Background(), "v1.0.0")
+
+		assert.Error(t, err)
+		assert.False(t, errors.Is(err, domainErrors.ErrReleasePROpened),
+			"must not claim a PR was opened when the fallback branch push also failed")
+		assert.True(t, errors.Is(err, domainErrors.ErrPushRejectedByRuleset))
+
+		mockGit.AssertExpectations(t)
+		mockVCS.AssertNotCalled(t, "CreatePR", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("No VCS provider configured: branch is pushed but PR creation is skipped with a manual-follow-up message", func(t *testing.T) {
+		mockGit := new(testutil.MockGitService)
+		service := NewReleaseService(mockGit)
+
+		rulesetErr := domainErrors.ErrPushRejectedByRuleset.WithError(errors.New("exit status 1"))
+		mockGit.On("Push", mock.Anything).Return(rulesetErr)
+		mockGit.On("GetCurrentBranch", mock.Anything).Return("master", nil)
+		mockGit.On("CreateAndSwitchBranch", mock.Anything, "matecommit/release-v1.0.0").Return(nil)
+		mockGit.On("PushBranch", mock.Anything, "matecommit/release-v1.0.0").Return(nil)
+		mockGit.On("SwitchBranch", mock.Anything, "master").Return(nil)
+
+		err := service.PushChanges(context.Background(), "v1.0.0")
+
+		assert.Error(t, err)
+		assert.False(t, errors.Is(err, domainErrors.ErrReleasePROpened))
+		assert.Contains(t, err.Error(), "no VCS provider is configured")
+
 		mockGit.AssertExpectations(t)
 	})
 }

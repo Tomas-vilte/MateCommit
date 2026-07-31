@@ -18,6 +18,14 @@ func (m *MockVCSClient) UpdatePR(ctx context.Context, prNumber int, summary mode
 	return args.Error(0)
 }
 
+func (m *MockVCSClient) CreatePR(ctx context.Context, title, body, headBranch, baseBranch string) (*models.CreatedPR, error) {
+	args := m.Called(ctx, title, body, headBranch, baseBranch)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.CreatedPR), args.Error(1)
+}
+
 func (m *MockVCSClient) GetPR(ctx context.Context, prNumber int) (models.PRData, error) {
 	args := m.Called(ctx, prNumber)
 	return args.Get(0).(models.PRData), args.Error(1)

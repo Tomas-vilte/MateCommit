@@ -3,6 +3,7 @@ package release
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/thomas-vilte/matecommit/internal/commands/completion_helper"
 	cfg "github.com/thomas-vilte/matecommit/internal/config"
+	domainErrors "github.com/thomas-vilte/matecommit/internal/errors"
 	"github.com/thomas-vilte/matecommit/internal/i18n"
 	"github.com/thomas-vilte/matecommit/internal/logger"
 	"github.com/thomas-vilte/matecommit/internal/models"
@@ -141,7 +143,17 @@ func createReleaseAction(releaseSvc releaseService, trans *i18n.Translations, re
 
 			sPush := ui.NewSmartSpinner(trans.GetMessage("release.pushing_changes", 0, nil))
 			sPush.Start()
-			if err := releaseSvc.PushChanges(ctx); err != nil {
+			if err := releaseSvc.PushChanges(ctx, release.Version); err != nil {
+				sPush.Stop()
+				if errors.Is(err, domainErrors.ErrReleasePROpened) {
+					// Not a failure: PushChanges couldn't push directly (the
+					// branch is ruleset-protected) but opened a PR instead.
+					// The release isn't finished — it needs a merge and a
+					// re-run — so this still surfaces as a non-zero exit,
+					// but ui.HandleAppError presents it as "action needed"
+					// (with the PR URL) rather than a generic push failure.
+					return ui.HandleAppError(err, trans)
+				}
 				sPush.Error(trans.GetMessage("release.error_pushing_changes", 0, struct{ Error string }{err.Error()}))
 				return fmt.Errorf("error pushing changes: %w", err)
 			}
