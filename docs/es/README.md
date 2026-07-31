@@ -9,9 +9,9 @@
 
   ¿Viste esa sensación de quedarte mirando la terminal sin saber qué escribir después de estar horas codeando? Bueno, MateCommit nació para que no pierdas más tiempo en eso. Es una CLI potenciada por IA que lee tus cambios y te sugiere mensajes de commit claros, profesionales y con sentido, para que vos te ocupes de seguir laburando y no de redactar.
 
-  [![Go Report Card](https://goreportcard.com/badge/github.com/Tomas-vilte/MateCommit)](https://goreportcard.com/report/github.com/Tomas-vilte/MateCommit)
-  [![License](https://img.shields.io/github/license/Tomas-vilte/MateCommit)](https://opensource.org/licenses/MIT)
-  [![Build Status](https://github.com/Tomas-vilte/MateCommit/actions/workflows/ci.yml/badge.svg)](https://github.com/Tomas-vilte/MateCommit/actions)
+  [![Go Report Card](https://goreportcard.com/badge/github.com/thomas-vilte/matecommit)](https://goreportcard.com/report/github.com/thomas-vilte/matecommit)
+  [![License](https://img.shields.io/github/license/thomas-vilte/matecommit)](https://opensource.org/licenses/MIT)
+  [![Build Status](https://github.com/thomas-vilte/matecommit/actions/workflows/ci.yml/badge.svg)](https://github.com/thomas-vilte/matecommit/actions)
 
 </div>
 
@@ -69,7 +69,8 @@ matecommit suggest
 #### Los atajos que más vas a usar
 - `-n` : Cuántas sugerencias querés ver (por si estás exigente).
 - `-l` : Para forzar el idioma (ej. si el repo es en inglés pero tu config está en español).
-- `-i` : Pasale el número de issue para que la sugerencia sea mucho más precisa.
+- `--issue` : Pasale el número de issue para que la sugerencia sea mucho más precisa.
+- `-i` / `--interactive` : Elegís a mano qué archivos entran en el resumen, por si stageaste más de un cambio junto.
 - `--no-emoji` : Para cuando el ambiente se pone serio y no querés dibujitos.
 
 ---
